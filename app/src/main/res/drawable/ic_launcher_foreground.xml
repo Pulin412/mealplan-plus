@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Fork icon representing meal planning -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24
+                         L54,48
+                         M46,24 L46,38 Q46,44 54,44 Q62,44 62,38 L62,24
+                         M54,48 L54,84
+                         M50,84 L58,84"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"/>
+</vector>

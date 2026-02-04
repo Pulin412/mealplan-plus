@@ -2,7 +2,7 @@ package com.mealplanplus.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -58,7 +58,7 @@ fun HomeScreen(
                 onClick = onNavigateToFoods,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.Restaurant, contentDescription = null)
+                Icon(Icons.Default.List, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Manage Foods")
             }
