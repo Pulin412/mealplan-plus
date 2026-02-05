@@ -9,11 +9,11 @@ import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.util.CsvExporter
+import com.mealplanplus.util.ThemePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -21,6 +21,12 @@ data class SettingsUiState(
     val exportSuccess: Boolean = false,
     val exportUri: Uri? = null,
     val error: String? = null
+)
+
+data class ThemeState(
+    val darkMode: Boolean = false,
+    val dynamicColor: Boolean = true,
+    val followSystem: Boolean = true
 )
 
 @HiltViewModel
@@ -33,14 +39,34 @@ class SettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
+    private val _themeState = MutableStateFlow(ThemeState())
+    val themeState: StateFlow<ThemeState> = _themeState.asStateFlow()
+
     private var allLogs: List<DailyLogWithFoods> = emptyList()
     private var allHealthMetrics: List<HealthMetric> = emptyList()
 
     init {
-        // Load data for export
+        loadThemePreferences()
+        loadDataForExport()
+    }
+
+    private fun loadThemePreferences() {
+        viewModelScope.launch {
+            combine(
+                ThemePreferences.isDarkMode(context),
+                ThemePreferences.isDynamicColor(context),
+                ThemePreferences.isFollowSystem(context)
+            ) { darkMode, dynamicColor, followSystem ->
+                ThemeState(darkMode, dynamicColor, followSystem)
+            }.collect { state ->
+                _themeState.value = state
+            }
+        }
+    }
+
+    private fun loadDataForExport() {
         viewModelScope.launch {
             dailyLogRepository.getAllLogs().collect { logs ->
-                // Convert to logs with foods
                 val logsWithFoods = logs.mapNotNull { log ->
                     dailyLogRepository.getLogWithFoods(dailyLogRepository.parseDate(log.date))
                         .firstOrNull()
@@ -52,6 +78,24 @@ class SettingsViewModel @Inject constructor(
             healthRepository.getRecentMetrics(1000).collect { metrics ->
                 allHealthMetrics = metrics
             }
+        }
+    }
+
+    fun setDarkMode(enabled: Boolean) {
+        viewModelScope.launch {
+            ThemePreferences.setDarkMode(context, enabled)
+        }
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch {
+            ThemePreferences.setDynamicColor(context, enabled)
+        }
+    }
+
+    fun setFollowSystem(enabled: Boolean) {
+        viewModelScope.launch {
+            ThemePreferences.setFollowSystem(context, enabled)
         }
     }
 
