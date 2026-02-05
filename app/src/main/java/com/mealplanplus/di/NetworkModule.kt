@@ -1,6 +1,7 @@
 package com.mealplanplus.di
 
 import com.mealplanplus.data.remote.OpenFoodFactsApi
+import com.mealplanplus.data.remote.UsdaFoodApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -10,13 +11,15 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "https://world.openfoodfacts.org/"
+    private const val OPEN_FOOD_FACTS_URL = "https://world.openfoodfacts.org/"
+    private const val USDA_API_URL = "https://api.nal.usda.gov/"
 
     @Provides
     @Singleton
@@ -39,9 +42,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(client: OkHttpClient): Retrofit {
+    @Named("OpenFoodFacts")
+    fun provideOpenFoodFactsRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(OPEN_FOOD_FACTS_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -49,7 +53,24 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOpenFoodFactsApi(retrofit: Retrofit): OpenFoodFactsApi {
+    @Named("USDA")
+    fun provideUsdaRetrofit(client: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(USDA_API_URL)
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOpenFoodFactsApi(@Named("OpenFoodFacts") retrofit: Retrofit): OpenFoodFactsApi {
         return retrofit.create(OpenFoodFactsApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUsdaFoodApi(@Named("USDA") retrofit: Retrofit): UsdaFoodApi {
+        return retrofit.create(UsdaFoodApi::class.java)
     }
 }

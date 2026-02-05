@@ -4,16 +4,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.FoodItem
+import com.mealplanplus.data.repository.UsdaFoodResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -195,11 +199,21 @@ fun AddMealScreen(
     }
 
     if (showFoodPicker) {
-        FoodPickerDialog(
-            foods = availableFoods,
+        TabbedFoodPickerModal(
+            localFoods = availableFoods,
             selectedIds = uiState.selectedFoods.map { it.food.id }.toSet(),
-            onSelect = { viewModel.addFood(it) },
-            onDismiss = { showFoodPicker = false }
+            onSelectLocalFood = { viewModel.addFood(it) },
+            usdaSearchQuery = uiState.usdaSearchQuery,
+            onUsdaSearchQueryChange = viewModel::updateUsdaSearchQuery,
+            onSearchUsda = viewModel::searchUsda,
+            usdaResults = uiState.usdaSearchResults,
+            isSearchingUsda = uiState.isSearchingUsda,
+            usdaSearchError = uiState.usdaSearchError,
+            onSelectUsdaFood = { viewModel.addUsdaFood(it) },
+            onDismiss = {
+                showFoodPicker = false
+                viewModel.clearUsdaSearch()
+            }
         )
     }
 }
@@ -253,74 +267,283 @@ fun SelectedFoodCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FoodPickerDialog(
-    foods: List<FoodItem>,
+fun TabbedFoodPickerModal(
+    localFoods: List<FoodItem>,
     selectedIds: Set<Long>,
-    onSelect: (FoodItem) -> Unit,
+    onSelectLocalFood: (FoodItem) -> Unit,
+    usdaSearchQuery: String,
+    onUsdaSearchQueryChange: (String) -> Unit,
+    onSearchUsda: () -> Unit,
+    usdaResults: List<UsdaFoodResult>,
+    isSearchingUsda: Boolean,
+    usdaSearchError: String?,
+    onSelectUsdaFood: (UsdaFoodResult) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    var selectedTab by remember { mutableStateOf(0) }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Select Food") },
-        text = {
-            if (foods.isEmpty()) {
-                Text("No foods available. Add some foods first!")
+        modifier = Modifier.fillMaxHeight(0.85f)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("My Foods") },
+                    icon = { Icon(Icons.Default.List, contentDescription = null) }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Search USDA") },
+                    icon = { Icon(Icons.Default.Search, contentDescription = null) }
+                )
+            }
+
+            when (selectedTab) {
+                0 -> LocalFoodsTab(
+                    foods = localFoods,
+                    selectedIds = selectedIds,
+                    onSelect = onSelectLocalFood
+                )
+                1 -> UsdaSearchTab(
+                    searchQuery = usdaSearchQuery,
+                    onSearchQueryChange = onUsdaSearchQueryChange,
+                    onSearch = onSearchUsda,
+                    results = usdaResults,
+                    isLoading = isSearchingUsda,
+                    error = usdaSearchError,
+                    onSelect = onSelectUsdaFood
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LocalFoodsTab(
+    foods: List<FoodItem>,
+    selectedIds: Set<Long>,
+    onSelect: (FoodItem) -> Unit
+) {
+    if (foods.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                Text("No foods in your list", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Search USDA tab to find foods",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(foods) { food ->
+                val isSelected = food.id in selectedIds
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { if (!isSelected) onSelect(food) },
+                    colors = if (isSelected) CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ) else CardDefaults.cardColors()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(food.name, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "${food.calories.toInt()} cal per ${food.servingSize.toInt()} ${food.servingUnit}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (isSelected) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Add",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UsdaSearchTab(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    results: List<UsdaFoodResult>,
+    isLoading: Boolean,
+    error: String?,
+    onSelect: (UsdaFoodResult) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Search rice, chicken, apple...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
+                }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSearch() })
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = onSearch,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = searchQuery.length >= 2 && !isLoading
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             } else {
-                LazyColumn {
-                    items(foods) { food ->
-                        val isSelected = food.id in selectedIds
-                        ListItem(
-                            headlineContent = { Text(food.name) },
-                            supportingContent = {
-                                Text("${food.calories.toInt()} cal per ${food.servingSize.toInt()} ${food.servingUnit}")
-                            },
-                            trailingContent = {
-                                if (isSelected) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            },
-                            modifier = Modifier.clickable(enabled = !isSelected) {
-                                onSelect(food)
-                            }
+                Text("Search USDA Database")
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            error != null -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(error, color = MaterialTheme.colorScheme.error)
+                }
+            }
+
+            results.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Search for generic foods",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "300k+ foods from USDA database",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
+
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(results) { food ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onSelect(food) }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = food.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        maxLines = 2
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "Per ${food.servingSize.toInt()}${food.servingUnit}: ${food.calories.toInt()} cal",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "P:${food.protein.toInt()}g C:${food.carbs.toInt()}g F:${food.fat.toInt()}g",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                FilledTonalIconButton(onClick = { onSelect(food) }) {
+                                    Icon(Icons.Default.Add, contentDescription = "Add")
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-    )
-}
-
-@Composable
-private fun ListItem(
-    headlineContent: @Composable () -> Unit,
-    supportingContent: @Composable () -> Unit,
-    trailingContent: @Composable () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            headlineContent()
-            supportingContent()
-        }
-        trailingContent()
     }
 }
-
-private fun Modifier.clickable(enabled: Boolean = true, onClick: () -> Unit): Modifier =
-    if (enabled) this.then(Modifier.clickable(onClick = onClick)) else this
