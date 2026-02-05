@@ -11,16 +11,26 @@ import retrofit2.http.Query
  */
 interface UsdaFoodApi {
 
+    companion object {
+        // DEMO_KEY has rate limits but works for testing
+        // For production, get free key at https://api.nal.usda.gov
+        const val API_KEY = "DEMO_KEY"
+    }
+
     @GET("fdc/v1/foods/search")
     suspend fun searchFoods(
+        @Query("api_key") apiKey: String = API_KEY,
         @Query("query") query: String,
         @Query("pageSize") pageSize: Int = 25,
         @Query("pageNumber") pageNumber: Int = 1,
-        @Query("dataType") dataType: String = "Foundation,SR Legacy"
+        @Query("dataType") dataType: String = "Foundation,SR Legacy,Branded"
     ): UsdaSearchResponse
 
     @GET("fdc/v1/food/{fdcId}")
-    suspend fun getFoodDetails(@Path("fdcId") fdcId: Int): UsdaFoodItem
+    suspend fun getFoodDetails(
+        @Path("fdcId") fdcId: Int,
+        @Query("api_key") apiKey: String = API_KEY
+    ): UsdaFoodItem
 }
 
 data class UsdaSearchResponse(

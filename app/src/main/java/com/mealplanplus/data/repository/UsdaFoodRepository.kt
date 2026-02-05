@@ -12,7 +12,7 @@ class UsdaFoodRepository @Inject constructor(
 ) {
     suspend fun searchFoods(query: String): Result<List<UsdaFoodResult>> {
         return try {
-            val response = api.searchFoods(query)
+            val response = api.searchFoods(query = query)
             val results = response.foods.map { item ->
                 UsdaFoodResult(
                     fdcId = item.fdcId,
