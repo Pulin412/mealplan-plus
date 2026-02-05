@@ -13,9 +13,12 @@ import com.mealplanplus.data.model.*
         Diet::class,
         DietMeal::class,
         DailyLog::class,
-        LoggedFood::class
+        LoggedFood::class,
+        Plan::class,
+        HealthMetric::class,
+        CustomMetricType::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,4 +26,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mealDao(): MealDao
     abstract fun dietDao(): DietDao
     abstract fun dailyLogDao(): DailyLogDao
+    abstract fun planDao(): PlanDao
+    abstract fun healthMetricDao(): HealthMetricDao
 }

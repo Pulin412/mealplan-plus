@@ -14,6 +14,9 @@ import com.mealplanplus.ui.screens.meals.AddMealScreen
 import com.mealplanplus.ui.screens.diets.DietsScreen
 import com.mealplanplus.ui.screens.diets.AddDietScreen
 import com.mealplanplus.ui.screens.log.DailyLogScreen
+import com.mealplanplus.ui.screens.calendar.CalendarScreen
+import com.mealplanplus.ui.screens.health.HealthScreen
+import com.mealplanplus.ui.screens.charts.ChartsScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -27,6 +30,9 @@ sealed class Screen(val route: String) {
     object DailyLogWithDate : Screen("daily_log/{date}") {
         fun createRoute(date: String) = "daily_log/$date"
     }
+    object Calendar : Screen("calendar")
+    object Health : Screen("health")
+    object Charts : Screen("charts")
 }
 
 @Composable
@@ -39,7 +45,9 @@ fun MealPlanNavHost() {
                 onNavigateToFoods = { navController.navigate(Screen.Foods.route) },
                 onNavigateToMeals = { navController.navigate(Screen.Meals.route) },
                 onNavigateToDiets = { navController.navigate(Screen.Diets.route) },
-                onNavigateToLog = { navController.navigate(Screen.DailyLog.route) }
+                onNavigateToLog = { navController.navigate(Screen.DailyLog.route) },
+                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
+                onNavigateToHealth = { navController.navigate(Screen.Health.route) }
             )
         }
         composable(Screen.Foods.route) {
@@ -93,6 +101,25 @@ fun MealPlanNavHost() {
                 date = date,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToFoods = { navController.navigate(Screen.Foods.route) }
+            )
+        }
+        composable(Screen.Calendar.route) {
+            CalendarScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToLog = { date ->
+                    navController.navigate(Screen.DailyLogWithDate.createRoute(date))
+                }
+            )
+        }
+        composable(Screen.Health.route) {
+            HealthScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCharts = { navController.navigate(Screen.Charts.route) }
+            )
+        }
+        composable(Screen.Charts.route) {
+            ChartsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

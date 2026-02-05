@@ -16,7 +16,9 @@ fun HomeScreen(
     onNavigateToFoods: () -> Unit,
     onNavigateToMeals: () -> Unit,
     onNavigateToDiets: () -> Unit,
-    onNavigateToLog: () -> Unit
+    onNavigateToLog: () -> Unit,
+    onNavigateToCalendar: () -> Unit,
+    onNavigateToHealth: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -100,6 +102,35 @@ fun HomeScreen(
                 Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Diet Templates")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Planning & Health",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onNavigateToCalendar,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Calendar")
+                }
+                OutlinedButton(
+                    onClick = onNavigateToHealth,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Health")
+                }
             }
         }
     }

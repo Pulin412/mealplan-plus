@@ -107,6 +107,50 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create plans table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS plans (
+                    date TEXT PRIMARY KEY NOT NULL,
+                    dietId INTEGER,
+                    notes TEXT,
+                    FOREIGN KEY(dietId) REFERENCES diets(id) ON DELETE SET NULL
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_plans_dietId ON plans(dietId)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_plans_date ON plans(date)")
+
+            // Create custom_metric_types table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS custom_metric_types (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    unit TEXT NOT NULL,
+                    minValue REAL,
+                    maxValue REAL,
+                    isActive INTEGER NOT NULL DEFAULT 1
+                )
+            """)
+
+            // Create health_metrics table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS health_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    date TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL,
+                    metricType TEXT,
+                    customTypeId INTEGER,
+                    value REAL NOT NULL,
+                    notes TEXT
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_health_metrics_date ON health_metrics(date)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_health_metrics_metricType ON health_metrics(metricType)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_health_metrics_customTypeId ON health_metrics(customTypeId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -115,7 +159,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -131,4 +175,10 @@ object DatabaseModule {
 
     @Provides
     fun provideDailyLogDao(database: AppDatabase): DailyLogDao = database.dailyLogDao()
+
+    @Provides
+    fun providePlanDao(database: AppDatabase): PlanDao = database.planDao()
+
+    @Provides
+    fun provideHealthMetricDao(database: AppDatabase): HealthMetricDao = database.healthMetricDao()
 }
