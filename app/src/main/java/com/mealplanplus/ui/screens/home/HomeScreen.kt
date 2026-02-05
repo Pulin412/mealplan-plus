@@ -2,7 +2,7 @@ package com.mealplanplus.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,7 +13,10 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToFoods: () -> Unit
+    onNavigateToFoods: () -> Unit,
+    onNavigateToMeals: () -> Unit,
+    onNavigateToDiets: () -> Unit,
+    onNavigateToLog: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -32,7 +35,7 @@ fun HomeScreen(
                 .padding(padding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = "Welcome to MealPlan+",
@@ -46,27 +49,58 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Quick Actions
+            // Primary action - Today's Log
+            Button(
+                onClick = onNavigateToLog,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(Icons.Default.Edit, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Log Today's Food")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = "Quick Actions",
+                text = "Manage",
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Button(
-                onClick = onNavigateToFoods,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.List, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Manage Foods")
+                OutlinedButton(
+                    onClick = onNavigateToFoods,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Foods")
+                }
+                OutlinedButton(
+                    onClick = onNavigateToMeals,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Meals")
+                }
             }
 
-            // TODO: Add more quick actions
-            // - Today's Log
-            // - Diet Templates
-            // - Health Metrics
+            OutlinedButton(
+                onClick = onNavigateToDiets,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Diet Templates")
+            }
         }
     }
 }

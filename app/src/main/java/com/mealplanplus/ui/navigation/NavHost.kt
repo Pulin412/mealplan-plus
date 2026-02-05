@@ -1,17 +1,32 @@
 package com.mealplanplus.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.foods.FoodsScreen
 import com.mealplanplus.ui.screens.foods.AddFoodScreen
+import com.mealplanplus.ui.screens.meals.MealsScreen
+import com.mealplanplus.ui.screens.meals.AddMealScreen
+import com.mealplanplus.ui.screens.diets.DietsScreen
+import com.mealplanplus.ui.screens.diets.AddDietScreen
+import com.mealplanplus.ui.screens.log.DailyLogScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Foods : Screen("foods")
     object AddFood : Screen("add_food")
+    object Meals : Screen("meals")
+    object AddMeal : Screen("add_meal")
+    object Diets : Screen("diets")
+    object AddDiet : Screen("add_diet")
+    object DailyLog : Screen("daily_log")
+    object DailyLogWithDate : Screen("daily_log/{date}") {
+        fun createRoute(date: String) = "daily_log/$date"
+    }
 }
 
 @Composable
@@ -21,7 +36,10 @@ fun MealPlanNavHost() {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) {
             HomeScreen(
-                onNavigateToFoods = { navController.navigate(Screen.Foods.route) }
+                onNavigateToFoods = { navController.navigate(Screen.Foods.route) },
+                onNavigateToMeals = { navController.navigate(Screen.Meals.route) },
+                onNavigateToDiets = { navController.navigate(Screen.Diets.route) },
+                onNavigateToLog = { navController.navigate(Screen.DailyLog.route) }
             )
         }
         composable(Screen.Foods.route) {
@@ -33,6 +51,48 @@ fun MealPlanNavHost() {
         composable(Screen.AddFood.route) {
             AddFoodScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Meals.route) {
+            MealsScreen(
+                onNavigateToAddMeal = { navController.navigate(Screen.AddMeal.route) },
+                onNavigateToMealDetail = { /* TODO */ },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.AddMeal.route) {
+            AddMealScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Diets.route) {
+            DietsScreen(
+                onNavigateToAddDiet = { navController.navigate(Screen.AddDiet.route) },
+                onNavigateToDietDetail = { /* TODO */ },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.AddDiet.route) {
+            AddDietScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.DailyLog.route) {
+            DailyLogScreen(
+                date = null,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToFoods = { navController.navigate(Screen.Foods.route) }
+            )
+        }
+        composable(
+            route = Screen.DailyLogWithDate.route,
+            arguments = listOf(navArgument("date") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date")
+            DailyLogScreen(
+                date = date,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToFoods = { navController.navigate(Screen.Foods.route) }
             )
         }
     }
