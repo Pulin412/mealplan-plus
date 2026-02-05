@@ -16,6 +16,16 @@ class FoodRepository @Inject constructor(
 
     suspend fun getFoodById(id: Long): FoodItem? = foodDao.getFoodById(id)
 
+    suspend fun getFoodByBarcode(barcode: String): FoodItem? = foodDao.getFoodByBarcode(barcode)
+
+    fun getFavorites(): Flow<List<FoodItem>> = foodDao.getFavorites()
+
+    fun getRecentFoods(limit: Int = 20): Flow<List<FoodItem>> = foodDao.getRecentFoods(limit)
+
+    suspend fun setFavorite(id: Long, isFavorite: Boolean) = foodDao.setFavorite(id, isFavorite)
+
+    suspend fun updateLastUsed(id: Long) = foodDao.updateLastUsed(id)
+
     suspend fun insertFood(food: FoodItem): Long = foodDao.insertFood(food)
 
     suspend fun updateFood(food: FoodItem) = foodDao.updateFood(food)

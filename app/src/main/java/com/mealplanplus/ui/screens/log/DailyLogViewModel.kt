@@ -136,6 +136,8 @@ class DailyLogViewModel @Inject constructor(
                 slotType = slot,
                 timestamp = System.currentTimeMillis()
             )
+            // Update lastUsed for recent foods tracking
+            foodRepository.updateLastUsed(food.id)
             hideFoodPicker()
         }
     }

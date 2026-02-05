@@ -9,6 +9,7 @@ data class FoodItem(
     val id: Long = 0,
     val name: String,
     val brand: String? = null,
+    val barcode: String? = null,
     val servingSize: Double,
     val servingUnit: String,  // g, ml, piece, cup, etc.
     val calories: Double,
@@ -16,5 +17,7 @@ data class FoodItem(
     val carbs: Double,
     val fat: Double,
     val glycemicIndex: Int? = null,  // Optional GI value (0-100)
+    val isFavorite: Boolean = false,
+    val lastUsed: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

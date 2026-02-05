@@ -15,6 +15,21 @@ interface FoodDao {
     @Query("SELECT * FROM food_items WHERE name LIKE '%' || :query || '%'")
     fun searchFoods(query: String): Flow<List<FoodItem>>
 
+    @Query("SELECT * FROM food_items WHERE barcode = :barcode LIMIT 1")
+    suspend fun getFoodByBarcode(barcode: String): FoodItem?
+
+    @Query("SELECT * FROM food_items WHERE isFavorite = 1 ORDER BY name ASC")
+    fun getFavorites(): Flow<List<FoodItem>>
+
+    @Query("SELECT * FROM food_items WHERE lastUsed IS NOT NULL ORDER BY lastUsed DESC LIMIT :limit")
+    fun getRecentFoods(limit: Int = 20): Flow<List<FoodItem>>
+
+    @Query("UPDATE food_items SET isFavorite = :isFavorite WHERE id = :id")
+    suspend fun setFavorite(id: Long, isFavorite: Boolean)
+
+    @Query("UPDATE food_items SET lastUsed = :timestamp WHERE id = :id")
+    suspend fun updateLastUsed(id: Long, timestamp: Long = System.currentTimeMillis())
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFood(food: FoodItem): Long
 

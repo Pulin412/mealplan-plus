@@ -18,6 +18,8 @@ import com.mealplanplus.ui.screens.calendar.CalendarScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.charts.ChartsScreen
 import com.mealplanplus.ui.screens.settings.SettingsScreen
+import com.mealplanplus.ui.screens.scanner.BarcodeScannerScreen
+import com.mealplanplus.ui.screens.scanner.OnlineSearchScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -35,6 +37,8 @@ sealed class Screen(val route: String) {
     object Health : Screen("health")
     object Charts : Screen("charts")
     object Settings : Screen("settings")
+    object BarcodeScanner : Screen("barcode_scanner")
+    object OnlineSearch : Screen("online_search")
 }
 
 @Composable
@@ -56,6 +60,8 @@ fun MealPlanNavHost() {
         composable(Screen.Foods.route) {
             FoodsScreen(
                 onNavigateToAddFood = { navController.navigate(Screen.AddFood.route) },
+                onNavigateToScanner = { navController.navigate(Screen.BarcodeScanner.route) },
+                onNavigateToOnlineSearch = { navController.navigate(Screen.OnlineSearch.route) },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -127,6 +133,17 @@ fun MealPlanNavHost() {
         }
         composable(Screen.Settings.route) {
             SettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.BarcodeScanner.route) {
+            BarcodeScannerScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onFoodSaved = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.OnlineSearch.route) {
+            OnlineSearchScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

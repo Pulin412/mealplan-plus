@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,11 +18,14 @@ import com.mealplanplus.data.model.FoodItem
 @Composable
 fun FoodsScreen(
     onNavigateToAddFood: () -> Unit,
+    onNavigateToScanner: () -> Unit,
+    onNavigateToOnlineSearch: () -> Unit,
     onNavigateBack: () -> Unit,
     viewModel: FoodsViewModel = hiltViewModel()
 ) {
     val foods by viewModel.foods.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedTab by viewModel.selectedTab.collectAsState()
 
     Scaffold(
         topBar = {
@@ -32,16 +36,38 @@ fun FoodsScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = onNavigateToOnlineSearch) {
+                        Icon(Icons.Default.Search, contentDescription = "Search Online")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToAddFood) {
-                Icon(Icons.Default.Add, contentDescription = "Add Food")
+            Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                SmallFloatingActionButton(
+                    onClick = onNavigateToOnlineSearch,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = "Search Online")
+                }
+                Spacer(Modifier.height(8.dp))
+                SmallFloatingActionButton(
+                    onClick = onNavigateToScanner,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = "Scan Barcode")
+                }
+                Spacer(Modifier.height(8.dp))
+                FloatingActionButton(onClick = onNavigateToAddFood) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Food")
+                }
             }
         }
     ) { padding ->
@@ -50,6 +76,31 @@ fun FoodsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Tab Row
+            TabRow(
+                selectedTabIndex = selectedTab.ordinal,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Tab(
+                    selected = selectedTab == FoodTab.ALL,
+                    onClick = { viewModel.selectTab(FoodTab.ALL) },
+                    text = { Text("All") },
+                    icon = { Icon(Icons.Default.List, contentDescription = null) }
+                )
+                Tab(
+                    selected = selectedTab == FoodTab.FAVORITES,
+                    onClick = { viewModel.selectTab(FoodTab.FAVORITES) },
+                    text = { Text("Favorites") },
+                    icon = { Icon(Icons.Default.Favorite, contentDescription = null) }
+                )
+                Tab(
+                    selected = selectedTab == FoodTab.RECENT,
+                    onClick = { viewModel.selectTab(FoodTab.RECENT) },
+                    text = { Text("Recent") },
+                    icon = { Icon(Icons.Default.Refresh, contentDescription = null) }
+                )
+            }
+
             // Search bar
             OutlinedTextField(
                 value = searchQuery,
@@ -67,8 +118,14 @@ fun FoodsScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
+                    val emptyText = when {
+                        searchQuery.isNotBlank() -> "No foods found"
+                        selectedTab == FoodTab.FAVORITES -> "No favorites yet.\nTap the heart to add favorites!"
+                        selectedTab == FoodTab.RECENT -> "No recent foods.\nFoods you log will appear here."
+                        else -> "No foods yet.\nTap + to add or scan a barcode!"
+                    }
                     Text(
-                        text = if (searchQuery.isBlank()) "No foods yet.\nTap + to add one!" else "No foods found",
+                        text = emptyText,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -82,6 +139,7 @@ fun FoodsScreen(
                     items(foods, key = { it.id }) { food ->
                         FoodItemCard(
                             food = food,
+                            onToggleFavorite = { viewModel.toggleFavorite(food) },
                             onDelete = { viewModel.deleteFood(food) }
                         )
                     }
@@ -94,6 +152,7 @@ fun FoodsScreen(
 @Composable
 fun FoodItemCard(
     food: FoodItem,
+    onToggleFavorite: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -109,10 +168,21 @@ fun FoodItemCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = food.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = food.name,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (food.barcode != null) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = "Has barcode",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 food.brand?.let {
                     Text(
                         text = it,
@@ -142,8 +212,17 @@ fun FoodItemCard(
                     )
                 }
             }
-            IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete")
+            Column {
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        if (food.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = if (food.isFavorite) "Remove from favorites" else "Add to favorites",
+                        tint = if (food.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                }
             }
         }
     }
