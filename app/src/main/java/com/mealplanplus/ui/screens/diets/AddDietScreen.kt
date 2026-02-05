@@ -75,7 +75,7 @@ fun AddDietScreen(
             }
 
             item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
                 Text("Meal Slots", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "Assign meals to each time slot",
@@ -178,7 +178,7 @@ fun MealSlotCard(
                 }
             } else {
                 Icon(
-                    Icons.Default.ChevronRight,
+                    Icons.Default.KeyboardArrowRight,
                     contentDescription = "Select",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )

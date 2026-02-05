@@ -87,7 +87,7 @@ fun HomeScreen(
                     onClick = onNavigateToMeals,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text("Meals")
                 }
@@ -97,7 +97,7 @@ fun HomeScreen(
                 onClick = onNavigateToDiets,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Diet Templates")
             }

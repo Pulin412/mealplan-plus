@@ -143,7 +143,7 @@ fun DateNavigator(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onPrevious) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous day")
+            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous day")
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -159,7 +159,7 @@ fun DateNavigator(
             }
         }
         IconButton(onClick = onNext) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Next day")
+            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next day")
         }
     }
 }
@@ -290,7 +290,7 @@ fun LoggedFoodItem(
                 onClick = { onQuantityChange(food.loggedFood.quantity - 0.5) },
                 modifier = Modifier.size(28.dp)
             ) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Clear, contentDescription = "Decrease", modifier = Modifier.size(16.dp))
             }
             Text(
                 text = "%.1f".format(food.loggedFood.quantity),
@@ -364,7 +364,7 @@ fun LogFoodPickerDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         IconButton(onClick = { if (quantity > 0.5) quantity -= 0.5 }) {
-                            Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                            Icon(Icons.Default.Clear, contentDescription = "Decrease")
                         }
                         Text(
                             text = "%.1f servings".format(quantity),

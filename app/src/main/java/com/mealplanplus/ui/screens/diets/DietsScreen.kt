@@ -129,7 +129,7 @@ fun DietCard(
                             onDuplicate()
                             showMenu = false
                         },
-                        leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
+                        leadingIcon = { Icon(Icons.Default.Add, null) }
                     )
                     DropdownMenuItem(
                         text = { Text("Delete") },

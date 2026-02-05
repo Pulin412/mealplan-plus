@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.meals
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -106,7 +107,7 @@ fun AddMealScreen(
             }
 
             item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -231,7 +232,7 @@ fun SelectedFoodCard(
                     onClick = { if (quantity > 0.5) onQuantityChange(quantity - 0.5) },
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                    Icon(Icons.Default.Clear, contentDescription = "Decrease")
                 }
                 Text(
                     text = if (quantity == quantity.toLong().toDouble()) "${quantity.toInt()}" else "%.1f".format(quantity),
@@ -321,5 +322,5 @@ private fun ListItem(
     }
 }
 
-private fun Modifier.clickable(enabled: Boolean, onClick: () -> Unit): Modifier =
+private fun Modifier.clickable(enabled: Boolean = true, onClick: () -> Unit): Modifier =
     if (enabled) this.then(Modifier.clickable(onClick = onClick)) else this
