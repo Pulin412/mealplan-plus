@@ -17,6 +17,7 @@ import com.mealplanplus.ui.screens.log.DailyLogScreen
 import com.mealplanplus.ui.screens.calendar.CalendarScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.charts.ChartsScreen
+import com.mealplanplus.ui.screens.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -33,6 +34,7 @@ sealed class Screen(val route: String) {
     object Calendar : Screen("calendar")
     object Health : Screen("health")
     object Charts : Screen("charts")
+    object Settings : Screen("settings")
 }
 
 @Composable
@@ -47,7 +49,8 @@ fun MealPlanNavHost() {
                 onNavigateToDiets = { navController.navigate(Screen.Diets.route) },
                 onNavigateToLog = { navController.navigate(Screen.DailyLog.route) },
                 onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
-                onNavigateToHealth = { navController.navigate(Screen.Health.route) }
+                onNavigateToHealth = { navController.navigate(Screen.Health.route) },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
             )
         }
         composable(Screen.Foods.route) {
@@ -119,6 +122,11 @@ fun MealPlanNavHost() {
         }
         composable(Screen.Charts.route) {
             ChartsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Settings.route) {
+            SettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

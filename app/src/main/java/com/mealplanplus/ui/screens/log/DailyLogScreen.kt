@@ -71,15 +71,11 @@ fun DailyLogScreen(
                 onNext = { viewModel.goToNextDay() }
             )
 
-            // Macro summary
-            uiState.log?.let { log ->
-                MacroSummaryCard(
-                    calories = log.totalCalories,
-                    protein = log.totalProtein,
-                    carbs = log.totalCarbs,
-                    fat = log.totalFat
-                )
-            }
+            // Macro summary with comparison
+            MacroComparisonCard(
+                comparison = uiState.comparison,
+                plannedDietName = uiState.plannedDiet?.diet?.name
+            )
 
             if (uiState.isLoading) {
                 Box(
@@ -203,6 +199,81 @@ fun MacroItem(label: String, value: String, unit: String) {
         )
         Text(
             text = "$label ($unit)",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
+    }
+}
+
+@Composable
+fun MacroComparisonCard(
+    comparison: MacroComparison,
+    plannedDietName: String?
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header
+            if (comparison.hasPlan && plannedDietName != null) {
+                Text(
+                    text = "Plan: $plannedDietName",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Actual macros
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ComparisonMacroItem("Cal", comparison.actualCalories, comparison.plannedCalories)
+                ComparisonMacroItem("P", comparison.actualProtein, comparison.plannedProtein, "g")
+                ComparisonMacroItem("C", comparison.actualCarbs, comparison.plannedCarbs, "g")
+                ComparisonMacroItem("F", comparison.actualFat, comparison.plannedFat, "g")
+            }
+        }
+    }
+}
+
+@Composable
+fun ComparisonMacroItem(label: String, actual: Int, planned: Int, unit: String = "") {
+    val diff = actual - planned
+    val diffColor = when {
+        !planned.let { it > 0 } -> MaterialTheme.colorScheme.onPrimaryContainer
+        diff > 0 -> MaterialTheme.colorScheme.error
+        diff < 0 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = "$actual$unit",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        if (planned > 0) {
+            Text(
+                text = "/ $planned$unit",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+            )
+            val diffText = if (diff >= 0) "+$diff" else "$diff"
+            Text(
+                text = diffText,
+                style = MaterialTheme.typography.labelSmall,
+                color = diffColor
+            )
+        }
+        Text(
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
         )

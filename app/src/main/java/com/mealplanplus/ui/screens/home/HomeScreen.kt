@@ -5,10 +5,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,12 +21,25 @@ fun HomeScreen(
     onNavigateToDiets: () -> Unit,
     onNavigateToLog: () -> Unit,
     onNavigateToCalendar: () -> Unit,
-    onNavigateToHealth: () -> Unit
+    onNavigateToHealth: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("MealPlan+") },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -39,34 +55,15 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Welcome to MealPlan+",
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
+            // Today's Summary Card
+            TodaySummaryCard(
+                summary = uiState.todaySummary,
+                latestWeight = uiState.latestWeight?.value,
+                latestSugar = uiState.latestSugar?.value,
+                onLogClick = onNavigateToLog
             )
 
-            Text(
-                text = "Your diabetes-friendly diet tracker",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Primary action - Today's Log
-            Button(
-                onClick = onNavigateToLog,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(Icons.Default.Edit, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Log Today's Food")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "Manage",
@@ -104,7 +101,7 @@ fun HomeScreen(
                 Text("Diet Templates")
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "Planning & Health",
@@ -133,5 +130,103 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun TodaySummaryCard(
+    summary: TodaySummary,
+    latestWeight: Double?,
+    latestSugar: Double?,
+    onLogClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Today's Intake",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                TextButton(onClick = onLogClick) {
+                    Text("Log Food")
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Macro grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                MacroColumn("Cal", "${summary.calories}")
+                MacroColumn("P", "${summary.protein}g")
+                MacroColumn("C", "${summary.carbs}g")
+                MacroColumn("F", "${summary.fat}g")
+            }
+
+            if (latestWeight != null || latestSugar != null) {
+                Divider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    latestWeight?.let {
+                        MetricChip("Weight", "${it.toInt()} kg")
+                    }
+                    latestSugar?.let {
+                        MetricChip("Sugar", "${it.toInt()} mg/dL")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MacroColumn(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
+    }
+}
+
+@Composable
+fun MetricChip(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     }
 }
