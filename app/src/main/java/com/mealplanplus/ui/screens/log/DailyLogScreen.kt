@@ -13,9 +13,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
-import com.mealplanplus.data.model.FoodItem
-import com.mealplanplus.data.model.LoggedFoodWithDetails
+import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.LoggedMealWithDetails
+import com.mealplanplus.data.model.Meal
+import com.mealplanplus.ui.components.GradientBackground
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -25,14 +28,35 @@ import java.time.format.FormatStyle
 fun DailyLogScreen(
     date: String?,
     onNavigateBack: () -> Unit,
-    onNavigateToFoods: () -> Unit,
+    onNavigateToMealPicker: (String, String) -> Unit = { _, _ -> },
+    onNavigateToDietPicker: (String) -> Unit = { _ -> },
+    savedStateHandle: SavedStateHandle? = null,
     viewModel: DailyLogViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val availableFoods by viewModel.availableFoods.collectAsState()
+    val availableMeals by viewModel.availableMeals.collectAsState()
 
     LaunchedEffect(date) {
         viewModel.setDateFromString(date)
+    }
+
+    // Handle meal selection results from LogMealPickerScreen
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.let { handle ->
+            handle.get<Long>("selected_meal_id")?.let { mealId ->
+                val quantity = handle.get<Double>("selected_meal_quantity") ?: 1.0
+                val slotType = handle.get<String>("selected_slot_type") ?: ""
+                viewModel.logMeal(mealId, slotType, quantity)
+                handle.remove<Long>("selected_meal_id")
+                handle.remove<Double>("selected_meal_quantity")
+                handle.remove<String>("selected_slot_type")
+            }
+            // Handle diet selection from DietPickerScreen
+            handle.get<Long>("selected_diet_id")?.let { dietId ->
+                viewModel.applyDietById(dietId)
+                handle.remove<Long>("selected_diet_id")
+            }
+        }
     }
 
     Scaffold(
@@ -45,6 +69,17 @@ fun DailyLogScreen(
                     }
                 },
                 actions = {
+                    // Apply Diet button - navigate to full diet picker
+                    TextButton(onClick = { onNavigateToDietPicker(uiState.date.toString()) }) {
+                        Icon(
+                            Icons.Default.DateRange,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Diet", color = MaterialTheme.colorScheme.onPrimary)
+                    }
                     if (uiState.date != LocalDate.now()) {
                         TextButton(onClick = { viewModel.goToToday() }) {
                             Text("Today", color = MaterialTheme.colorScheme.onPrimary)
@@ -59,13 +94,14 @@ fun DailyLogScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Date navigation
-            DateNavigator(
+        GradientBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                // Date navigation
+                DateNavigator(
                 date = uiState.date,
                 onPrevious = { viewModel.goToPreviousDay() },
                 onNext = { viewModel.goToNextDay() }
@@ -92,34 +128,27 @@ fun DailyLogScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(DefaultMealSlot.entries.toList()) { slot ->
-                        val slotFoods = uiState.log?.foodsForSlot(slot.name) ?: emptyList()
+                        val slotMeals = uiState.logWithMeals?.mealsForSlot(slot.name) ?: emptyList()
                         MealSlotSection(
                             slot = slot,
-                            foods = slotFoods,
-                            onAddFood = { viewModel.showFoodPicker(slot.name) },
-                            onRemoveFood = { viewModel.deleteLoggedFood(it.loggedFood.id) },
-                            onUpdateQuantity = { food, qty ->
-                                viewModel.updateQuantity(food.loggedFood, qty)
+                            meals = slotMeals,
+                            onAddMeal = {
+                                // Navigate to meal picker screen
+                                val dateStr = uiState.date.toString()
+                                onNavigateToMealPicker(dateStr, slot.name)
+                            },
+                            onRemoveMeal = { viewModel.deleteLoggedMeal(it.loggedMeal.id) },
+                            onUpdateQuantity = { meal, qty ->
+                                viewModel.updateMealQuantity(meal.loggedMeal, qty)
                             }
                         )
                     }
                 }
             }
         }
+        }
     }
 
-    // Food picker dialog
-    if (uiState.showFoodPicker) {
-        LogFoodPickerDialog(
-            foods = availableFoods,
-            onSelect = { food, qty -> viewModel.logFood(food, qty) },
-            onDismiss = { viewModel.hideFoodPicker() },
-            onNavigateToFoods = {
-                viewModel.hideFoodPicker()
-                onNavigateToFoods()
-            }
-        )
-    }
 }
 
 @Composable
@@ -157,51 +186,6 @@ fun DateNavigator(
         IconButton(onClick = onNext) {
             Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next day")
         }
-    }
-}
-
-@Composable
-fun MacroSummaryCard(
-    calories: Double,
-    protein: Double,
-    carbs: Double,
-    fat: Double
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            MacroItem("Calories", "${calories.toInt()}", "kcal")
-            MacroItem("Protein", "${protein.toInt()}", "g")
-            MacroItem("Carbs", "${carbs.toInt()}", "g")
-            MacroItem("Fat", "${fat.toInt()}", "g")
-        }
-    }
-}
-
-@Composable
-fun MacroItem(label: String, value: String, unit: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-        Text(
-            text = "$label ($unit)",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-        )
     }
 }
 
@@ -283,10 +267,10 @@ fun ComparisonMacroItem(label: String, actual: Int, planned: Int, unit: String =
 @Composable
 fun MealSlotSection(
     slot: DefaultMealSlot,
-    foods: List<LoggedFoodWithDetails>,
-    onAddFood: () -> Unit,
-    onRemoveFood: (LoggedFoodWithDetails) -> Unit,
-    onUpdateQuantity: (LoggedFoodWithDetails, Double) -> Unit
+    meals: List<LoggedMealWithDetails>,
+    onAddMeal: () -> Unit,
+    onRemoveMeal: (LoggedMealWithDetails) -> Unit,
+    onUpdateQuantity: (LoggedMealWithDetails, Double) -> Unit
 ) {
     Card {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -299,31 +283,31 @@ fun MealSlotSection(
                     text = slot.displayName,
                     style = MaterialTheme.typography.titleSmall
                 )
-                TextButton(onClick = onAddFood) {
+                TextButton(onClick = onAddMeal) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Add")
+                    Text("Add Meal")
                 }
             }
 
-            if (foods.isEmpty()) {
+            if (meals.isEmpty()) {
                 Text(
-                    text = "No foods logged",
+                    text = "No meals logged",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             } else {
-                foods.forEach { food ->
-                    LoggedFoodItem(
-                        food = food,
-                        onRemove = { onRemoveFood(food) },
-                        onQuantityChange = { onUpdateQuantity(food, it) }
+                meals.forEach { mealWithDetails ->
+                    LoggedMealItem(
+                        meal = mealWithDetails,
+                        onRemove = { onRemoveMeal(mealWithDetails) },
+                        onQuantityChange = { onUpdateQuantity(mealWithDetails, it) }
                     )
                 }
 
                 // Slot subtotal
-                val slotCal = foods.sumOf { it.calculatedCalories }
+                val slotCal = meals.sumOf { it.totalCalories }
                 Text(
                     text = "Subtotal: ${slotCal.toInt()} cal",
                     style = MaterialTheme.typography.labelMedium,
@@ -336,8 +320,8 @@ fun MealSlotSection(
 }
 
 @Composable
-fun LoggedFoodItem(
-    food: LoggedFoodWithDetails,
+fun LoggedMealItem(
+    meal: LoggedMealWithDetails,
     onRemove: () -> Unit,
     onQuantityChange: (Double) -> Unit
 ) {
@@ -349,27 +333,27 @@ fun LoggedFoodItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(food.food.name, style = MaterialTheme.typography.bodyMedium)
+            Text(meal.meal.name, style = MaterialTheme.typography.bodyMedium)
             Text(
-                "${food.calculatedCalories.toInt()} cal",
+                "${meal.totalCalories.toInt()} cal | P:${meal.totalProtein.toInt()}g C:${meal.totalCarbs.toInt()}g F:${meal.totalFat.toInt()}g",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
-                onClick = { onQuantityChange(food.loggedFood.quantity - 0.5) },
+                onClick = { onQuantityChange(meal.loggedMeal.quantity - 0.5) },
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(Icons.Default.Clear, contentDescription = "Decrease", modifier = Modifier.size(16.dp))
             }
             Text(
-                text = "%.1f".format(food.loggedFood.quantity),
+                text = "%.1f".format(meal.loggedMeal.quantity),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
             IconButton(
-                onClick = { onQuantityChange(food.loggedFood.quantity + 0.5) },
+                onClick = { onQuantityChange(meal.loggedMeal.quantity + 0.5) },
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(16.dp))
@@ -382,43 +366,44 @@ fun LoggedFoodItem(
 }
 
 @Composable
-fun LogFoodPickerDialog(
-    foods: List<FoodItem>,
-    onSelect: (FoodItem, Double) -> Unit,
-    onDismiss: () -> Unit,
-    onNavigateToFoods: () -> Unit
+fun MealPickerDialog(
+    meals: List<Meal>,
+    onSelect: (Meal, Double) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    var selectedFood by remember { mutableStateOf<FoodItem?>(null) }
+    var selectedMeal by remember { mutableStateOf<Meal?>(null) }
     var quantity by remember { mutableStateOf(1.0) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (selectedFood == null) "Select Food" else "Set Quantity") },
+        title = { Text(if (selectedMeal == null) "Select Meal" else "Set Quantity") },
         text = {
-            if (selectedFood == null) {
-                if (foods.isEmpty()) {
+            if (selectedMeal == null) {
+                if (meals.isEmpty()) {
                     Column {
-                        Text("No foods available.")
-                        TextButton(onClick = onNavigateToFoods) {
-                            Text("Add Foods")
-                        }
+                        Text("No meals available.")
+                        Text(
+                            "Create meals first in the Meals section.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 } else {
                     LazyColumn {
-                        items(foods) { food ->
+                        items(meals.distinctBy { it.id }, key = { it.id }) { meal ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { selectedFood = food }
+                                    .clickable { selectedMeal = meal }
                                     .padding(vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column {
-                                    Text(food.name, style = MaterialTheme.typography.bodyLarge)
+                                    Text(meal.name, style = MaterialTheme.typography.bodyLarge)
                                     Text(
-                                        "${food.calories.toInt()} cal per ${food.servingSize.toInt()} ${food.servingUnit}",
+                                        meal.defaultSlot?.displayName ?: "Custom",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -427,7 +412,7 @@ fun LogFoodPickerDialog(
                 }
             } else {
                 Column {
-                    Text("${selectedFood!!.name}", style = MaterialTheme.typography.titleMedium)
+                    Text(selectedMeal!!.name, style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(16.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -446,34 +431,28 @@ fun LogFoodPickerDialog(
                             Icon(Icons.Default.Add, contentDescription = "Increase")
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "${(selectedFood!!.calories * quantity).toInt()} calories",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
         },
         confirmButton = {
-            if (selectedFood != null) {
-                TextButton(onClick = { onSelect(selectedFood!!, quantity) }) {
+            if (selectedMeal != null) {
+                TextButton(onClick = { onSelect(selectedMeal!!, quantity) }) {
                     Text("Add")
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = {
-                if (selectedFood != null) {
-                    selectedFood = null
+                if (selectedMeal != null) {
+                    selectedMeal = null
                     quantity = 1.0
                 } else {
                     onDismiss()
                 }
             }) {
-                Text(if (selectedFood != null) "Back" else "Cancel")
+                Text(if (selectedMeal != null) "Back" else "Cancel")
             }
         }
     )
 }
+

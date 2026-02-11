@@ -1,6 +1,8 @@
 package com.mealplanplus.ui.screens.home
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.ui.components.GradientBackground
+import com.mealplanplus.ui.components.MiniCalendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,6 +27,7 @@ fun HomeScreen(
     onNavigateToCalendar: () -> Unit,
     onNavigateToHealth: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToLogWithDate: (String) -> Unit = { _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -47,86 +52,99 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Today's Summary Card
-            TodaySummaryCard(
-                summary = uiState.todaySummary,
-                latestWeight = uiState.latestWeight?.value,
-                latestSugar = uiState.latestSugar?.value,
-                onLogClick = onNavigateToLog
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Manage",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        GradientBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = onNavigateToFoods,
-                    modifier = Modifier.weight(1f)
+                // Today's Summary Card
+                TodaySummaryCard(
+                    summary = uiState.todaySummary,
+                    latestWeight = uiState.latestWeight?.value,
+                    latestSugar = uiState.latestSugar?.value,
+                    onLogClick = onNavigateToLog
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Manage",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Foods")
+                    OutlinedButton(
+                        onClick = onNavigateToFoods,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Foods")
+                    }
+                    OutlinedButton(
+                        onClick = onNavigateToMeals,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Meals")
+                    }
                 }
+
                 OutlinedButton(
-                    onClick = onNavigateToMeals,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Meals")
-                }
-            }
-
-            OutlinedButton(
-                onClick = onNavigateToDiets,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Diet Templates")
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Planning & Health",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onNavigateToCalendar,
-                    modifier = Modifier.weight(1f)
+                    onClick = onNavigateToDiets,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Calendar")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Diets")
                 }
-                OutlinedButton(
-                    onClick = onNavigateToHealth,
-                    modifier = Modifier.weight(1f)
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Planning & Health",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                // Inline Mini Calendar
+                MiniCalendar(
+                    currentMonth = uiState.currentMonth,
+                    plansForMonth = uiState.plansForMonth,
+                    onPreviousMonth = { viewModel.goToPreviousMonth() },
+                    onNextMonth = { viewModel.goToNextMonth() },
+                    onDateSelected = { date -> onNavigateToLogWithDate(date.toString()) }
+                )
+
+                // Health and full Calendar buttons row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Health")
+                    OutlinedButton(
+                        onClick = onNavigateToCalendar,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Full Calendar")
+                    }
+                    OutlinedButton(
+                        onClick = onNavigateToHealth,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Health")
+                    }
                 }
             }
         }
@@ -159,9 +177,15 @@ fun TodaySummaryCard(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                TextButton(onClick = onLogClick) {
-                    Text("Log Food")
+                Button(
+                    onClick = onLogClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Log")
                 }
             }
 

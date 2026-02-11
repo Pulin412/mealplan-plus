@@ -5,9 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
-import com.mealplanplus.data.repository.FoodRepository
+import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.PlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -32,18 +33,20 @@ data class MacroComparison(
 
 data class DailyLogUiState(
     val date: LocalDate = LocalDate.now(),
-    val log: DailyLogWithFoods? = null,
+    val logWithMeals: DailyLogWithMeals? = null,
     val plannedDiet: DietWithMeals? = null,
     val comparison: MacroComparison = MacroComparison(),
     val isLoading: Boolean = true,
-    val showFoodPicker: Boolean = false,
+    val showMealPicker: Boolean = false,
+    val showDietPicker: Boolean = false,
     val selectedSlot: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DailyLogViewModel @Inject constructor(
     private val logRepository: DailyLogRepository,
-    private val foodRepository: FoodRepository,
+    private val mealRepository: MealRepository,
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository
 ) : ViewModel() {
@@ -53,33 +56,36 @@ class DailyLogViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DailyLogUiState())
     val uiState: StateFlow<DailyLogUiState> = _uiState.asStateFlow()
 
-    val availableFoods: StateFlow<List<FoodItem>> = foodRepository.getAllFoods()
+    val availableMeals: StateFlow<List<Meal>> = mealRepository.getAllMeals()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    val availableDiets: StateFlow<List<Diet>> = dietRepository.getAllDiets()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
+        // Use flatMapLatest to properly handle date changes and Flow updates
         viewModelScope.launch {
-            _date.collectLatest { date ->
+            _date.flatMapLatest { date ->
                 _uiState.value = _uiState.value.copy(date = date, isLoading = true)
-
+                logRepository.getLogWithMeals(date)
+            }.collect { logWithMeals ->
+                val date = _date.value
                 // Load planned diet for comparison
                 val plannedDiet = planRepository.getDietForDate(date.toString())?.let {
                     dietRepository.getDietWithMeals(it.id)
                 }
-
-                logRepository.getLogWithFoods(date).collect { logWithFoods ->
-                    val comparison = buildComparison(plannedDiet, logWithFoods)
-                    _uiState.value = _uiState.value.copy(
-                        log = logWithFoods,
-                        plannedDiet = plannedDiet,
-                        comparison = comparison,
-                        isLoading = false
-                    )
-                }
+                val comparison = buildComparison(plannedDiet, logWithMeals)
+                _uiState.value = _uiState.value.copy(
+                    logWithMeals = logWithMeals,
+                    plannedDiet = plannedDiet,
+                    comparison = comparison,
+                    isLoading = false
+                )
             }
         }
     }
 
-    private fun buildComparison(planned: DietWithMeals?, actual: DailyLogWithFoods?): MacroComparison {
+    private fun buildComparison(planned: DietWithMeals?, actual: DailyLogWithMeals?): MacroComparison {
         return MacroComparison(
             plannedCalories = planned?.totalCalories?.toInt() ?: 0,
             plannedProtein = planned?.totalProtein?.toInt() ?: 0,
@@ -118,42 +124,80 @@ class DailyLogViewModel @Inject constructor(
         _date.value = LocalDate.now()
     }
 
-    fun showFoodPicker(slotType: String) {
-        _uiState.value = _uiState.value.copy(showFoodPicker = true, selectedSlot = slotType)
+    fun showMealPicker(slotType: String) {
+        _uiState.value = _uiState.value.copy(showMealPicker = true, selectedSlot = slotType)
     }
 
-    fun hideFoodPicker() {
-        _uiState.value = _uiState.value.copy(showFoodPicker = false, selectedSlot = null)
+    fun hideMealPicker() {
+        _uiState.value = _uiState.value.copy(showMealPicker = false, selectedSlot = null)
     }
 
-    fun logFood(food: FoodItem, quantity: Double = 1.0) {
+    fun logMeal(meal: Meal, quantity: Double = 1.0) {
         val slot = _uiState.value.selectedSlot ?: return
         viewModelScope.launch {
-            logRepository.logFood(
+            logRepository.logMeal(
                 date = _date.value,
-                foodId = food.id,
-                quantity = quantity,
+                mealId = meal.id,
                 slotType = slot,
+                quantity = quantity,
                 timestamp = System.currentTimeMillis()
             )
-            // Update lastUsed for recent foods tracking
-            foodRepository.updateLastUsed(food.id)
-            hideFoodPicker()
+            hideMealPicker()
         }
     }
 
-    fun deleteLoggedFood(id: Long) {
+    // Overload for navigation-based meal picker
+    fun logMeal(mealId: Long, slotType: String, quantity: Double = 1.0) {
         viewModelScope.launch {
-            logRepository.deleteLoggedFood(id)
+            logRepository.logMeal(
+                date = _date.value,
+                mealId = mealId,
+                slotType = slotType,
+                quantity = quantity,
+                timestamp = System.currentTimeMillis()
+            )
         }
     }
 
-    fun updateQuantity(loggedFood: LoggedFood, newQuantity: Double) {
+    fun deleteLoggedMeal(id: Long) {
+        viewModelScope.launch {
+            logRepository.deleteLoggedMeal(id)
+        }
+    }
+
+    fun updateMealQuantity(loggedMeal: LoggedMeal, newQuantity: Double) {
         if (newQuantity <= 0) {
-            deleteLoggedFood(loggedFood.id)
+            deleteLoggedMeal(loggedMeal.id)
         } else {
             viewModelScope.launch {
-                logRepository.updateLoggedFood(loggedFood.copy(quantity = newQuantity))
+                logRepository.updateLoggedMeal(loggedMeal.copy(quantity = newQuantity))
+            }
+        }
+    }
+
+    fun showDietPicker() {
+        _uiState.value = _uiState.value.copy(showDietPicker = true)
+    }
+
+    fun hideDietPicker() {
+        _uiState.value = _uiState.value.copy(showDietPicker = false)
+    }
+
+    fun applyDiet(diet: Diet) {
+        viewModelScope.launch {
+            val dietWithMeals = dietRepository.getDietWithMeals(diet.id)
+            if (dietWithMeals != null) {
+                logRepository.applyDiet(_date.value, dietWithMeals)
+            }
+            hideDietPicker()
+        }
+    }
+
+    fun applyDietById(dietId: Long) {
+        viewModelScope.launch {
+            val dietWithMeals = dietRepository.getDietWithMeals(dietId)
+            if (dietWithMeals != null) {
+                logRepository.applyDiet(_date.value, dietWithMeals)
             }
         }
     }
