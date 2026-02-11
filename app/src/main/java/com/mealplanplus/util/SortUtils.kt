@@ -25,3 +25,16 @@ fun <T> List<T>.sortedByNaturalOrder(selector: (T) -> String): List<T> {
         { naturalSortKey(selector(it)).second }
     ))
 }
+
+/**
+ * Extract short name for calendar display
+ * "Diet-M1" → "M1", "Diet-5" → "5", "Custom Diet" → "Cust"
+ */
+fun extractShortDietName(name: String): String {
+    return when {
+        name.startsWith("Diet-M") -> name.removePrefix("Diet-")
+        name.startsWith("Diet-") -> name.removePrefix("Diet-")
+        name.length > 4 -> name.take(4)
+        else -> name
+    }
+}

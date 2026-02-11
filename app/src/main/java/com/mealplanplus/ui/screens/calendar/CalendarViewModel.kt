@@ -1,11 +1,13 @@
 package com.mealplanplus.ui.screens.calendar
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.Plan
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.PlanRepository
+import com.mealplanplus.util.extractShortDietName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -13,10 +15,13 @@ import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
 
+private const val TAG = "CalendarVM"
+
 data class CalendarUiState(
     val currentMonth: YearMonth = YearMonth.now(),
     val selectedDate: LocalDate = LocalDate.now(),
     val plans: Map<String, Plan> = emptyMap(),
+    val dietNames: Map<String, String> = emptyMap(),
     val selectedDiet: Diet? = null,
     val showDietPicker: Boolean = false,
     val isLoading: Boolean = false
@@ -36,26 +41,56 @@ class CalendarViewModel @Inject constructor(
 
     init {
         loadPlansForMonth()
+        // Load selected diet for today on init
+        selectDate(LocalDate.now())
     }
 
     private fun loadPlansForMonth() {
         val month = _uiState.value.currentMonth
         val startDate = month.atDay(1).toString()
         val endDate = month.atEndOfMonth().toString()
+        Log.d(TAG, "loadPlansForMonth: $startDate to $endDate")
 
         viewModelScope.launch {
             planRepository.getPlansInRange(startDate, endDate).collect { plans ->
-                _uiState.update { it.copy(plans = plans.associateBy { p -> p.date }) }
+                Log.d(TAG, "Got ${plans.size} plans from DB")
+                plans.forEach { p -> Log.d(TAG, "  Plan: ${p.date}, dietId=${p.dietId}, completed=${p.isCompleted}") }
+                // Only include plans with valid dietId
+                val validPlans = plans.filter { it.dietId != null }
+                Log.d(TAG, "Valid plans (with dietId): ${validPlans.size}")
+                val plansMap = validPlans.associateBy { p -> p.date }
+                // Load diet names for each valid plan
+                val dietNames = mutableMapOf<String, String>()
+                validPlans.forEach { plan ->
+                    plan.dietId?.let { dietId ->
+                        val diet = dietRepository.getDietById(dietId)
+                        Log.d(TAG, "  Diet for ${plan.date}: ${diet?.name ?: "NOT FOUND"}")
+                        diet?.let { dietNames[plan.date] = extractShortDietName(it.name) }
+                    }
+                }
+                _uiState.update { it.copy(plans = plansMap, dietNames = dietNames) }
+                Log.d(TAG, "State updated with ${plansMap.size} plans")
+                // Refresh selected diet after plans are loaded
+                refreshSelectedDiet()
             }
         }
     }
 
+    private suspend fun refreshSelectedDiet() {
+        val dateStr = _uiState.value.selectedDate.toString()
+        // Always query DB for the diet - this is the source of truth
+        val diet = planRepository.getDietForDate(dateStr)
+        _uiState.update { it.copy(selectedDiet = diet) }
+    }
+
     fun selectDate(date: LocalDate) {
         viewModelScope.launch {
-            val diet = planRepository.getDietForDate(date.toString())
-            _uiState.update {
-                it.copy(selectedDate = date, selectedDiet = diet)
-            }
+            val dateStr = date.toString()
+            // First update the selected date
+            _uiState.update { it.copy(selectedDate = date) }
+            // Always query DB for the diet - this is the source of truth
+            val diet = planRepository.getDietForDate(dateStr)
+            _uiState.update { it.copy(selectedDiet = diet) }
         }
     }
 
@@ -90,11 +125,41 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun assignDiet(diet: Diet?) {
+        Log.d(TAG, "assignDiet called with diet: ${diet?.name}, id: ${diet?.id}")
         viewModelScope.launch {
             val date = _uiState.value.selectedDate.toString()
+            Log.d(TAG, "Saving plan for date: $date with dietId: ${diet?.id}")
             planRepository.setPlanForDate(date, diet?.id)
-            _uiState.update { it.copy(selectedDiet = diet, showDietPicker = false) }
-            loadPlansForMonth()
+
+            // Optimistic update - add to local state immediately
+            if (diet != null) {
+                val newPlan = Plan(date = date, dietId = diet.id, isCompleted = false)
+                val updatedPlans = _uiState.value.plans + (date to newPlan)
+                val updatedDietNames = _uiState.value.dietNames + (date to extractShortDietName(diet.name))
+                Log.d(TAG, "Updated plans map: ${updatedPlans.keys}")
+                Log.d(TAG, "Updated dietNames map: $updatedDietNames")
+                _uiState.update {
+                    it.copy(
+                        plans = updatedPlans,
+                        dietNames = updatedDietNames,
+                        selectedDiet = diet,
+                        showDietPicker = false
+                    )
+                }
+                Log.d(TAG, "State updated. selectedDiet: ${_uiState.value.selectedDiet?.name}")
+            } else {
+                // Clearing the plan
+                val updatedPlans = _uiState.value.plans - date
+                val updatedDietNames = _uiState.value.dietNames - date
+                _uiState.update {
+                    it.copy(
+                        plans = updatedPlans,
+                        dietNames = updatedDietNames,
+                        selectedDiet = null,
+                        showDietPicker = false
+                    )
+                }
+            }
         }
     }
 
@@ -102,8 +167,17 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             val date = _uiState.value.selectedDate.toString()
             planRepository.removePlan(date)
-            _uiState.update { it.copy(selectedDiet = null) }
-            loadPlansForMonth()
+
+            // Optimistic update - remove from local state immediately
+            val updatedPlans = _uiState.value.plans - date
+            val updatedDietNames = _uiState.value.dietNames - date
+            _uiState.update {
+                it.copy(
+                    plans = updatedPlans,
+                    dietNames = updatedDietNames,
+                    selectedDiet = null
+                )
+            }
         }
     }
 

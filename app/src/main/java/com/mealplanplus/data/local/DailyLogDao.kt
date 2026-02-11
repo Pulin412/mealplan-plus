@@ -2,7 +2,9 @@ package com.mealplanplus.data.local
 
 import androidx.room.*
 import com.mealplanplus.data.model.DailyLog
+import com.mealplanplus.data.model.DailyLogSlotOverride
 import com.mealplanplus.data.model.LoggedFood
+import com.mealplanplus.data.model.LoggedMeal
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -55,4 +57,51 @@ interface DailyLogDao {
 
     @Query("DELETE FROM logged_foods WHERE logDate = :date AND slotType = :slotType")
     suspend fun clearLoggedFoodsForSlot(date: String, slotType: String)
+
+    // Logged meals
+    @Query("SELECT * FROM logged_meals WHERE logDate = :date ORDER BY slotType, timestamp")
+    fun getLoggedMeals(date: String): Flow<List<LoggedMeal>>
+
+    @Query("SELECT * FROM logged_meals WHERE logDate = :date AND slotType = :slotType")
+    suspend fun getLoggedMealsForSlot(date: String, slotType: String): List<LoggedMeal>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLoggedMeal(meal: LoggedMeal): Long
+
+    @Update
+    suspend fun updateLoggedMeal(meal: LoggedMeal)
+
+    @Delete
+    suspend fun deleteLoggedMeal(meal: LoggedMeal)
+
+    @Query("DELETE FROM logged_meals WHERE id = :id")
+    suspend fun deleteLoggedMealById(id: Long)
+
+    @Query("DELETE FROM logged_meals WHERE logDate = :date")
+    suspend fun clearLoggedMeals(date: String)
+
+    @Query("DELETE FROM logged_meals WHERE logDate = :date AND slotType = :slotType")
+    suspend fun clearLoggedMealsForSlot(date: String, slotType: String)
+
+    // Slot overrides
+    @Query("SELECT * FROM daily_log_slot_overrides WHERE logDate = :date")
+    fun getSlotOverrides(date: String): Flow<List<DailyLogSlotOverride>>
+
+    @Query("SELECT * FROM daily_log_slot_overrides WHERE logDate = :date")
+    suspend fun getSlotOverridesList(date: String): List<DailyLogSlotOverride>
+
+    @Query("SELECT * FROM daily_log_slot_overrides WHERE logDate = :date AND slotType = :slotType")
+    suspend fun getSlotOverride(date: String, slotType: String): DailyLogSlotOverride?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSlotOverride(override: DailyLogSlotOverride)
+
+    @Delete
+    suspend fun deleteSlotOverride(override: DailyLogSlotOverride)
+
+    @Query("DELETE FROM daily_log_slot_overrides WHERE logDate = :date AND slotType = :slotType")
+    suspend fun deleteSlotOverrideBySlot(date: String, slotType: String)
+
+    @Query("DELETE FROM daily_log_slot_overrides WHERE logDate = :date")
+    suspend fun clearSlotOverrides(date: String)
 }

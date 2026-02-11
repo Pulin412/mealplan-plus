@@ -35,6 +35,7 @@ data class DailyLogUiState(
     val date: LocalDate = LocalDate.now(),
     val logWithMeals: DailyLogWithMeals? = null,
     val plannedDiet: DietWithMeals? = null,
+    val planForDate: Plan? = null,  // To check isCompleted status
     val comparison: MacroComparison = MacroComparison(),
     val isLoading: Boolean = true,
     val showMealPicker: Boolean = false,
@@ -70,13 +71,15 @@ class DailyLogViewModel @Inject constructor(
                 logRepository.getLogWithMeals(date)
             }.collect { logWithMeals ->
                 val date = _date.value
-                // Load planned diet for comparison
-                val plannedDiet = planRepository.getDietForDate(date.toString())?.let {
-                    dietRepository.getDietWithMeals(it.id)
+                // Load plan and planned diet for comparison
+                val plan = planRepository.getPlanForDate(date.toString())
+                val plannedDiet = plan?.dietId?.let {
+                    dietRepository.getDietWithMeals(it)
                 }
                 val comparison = buildComparison(plannedDiet, logWithMeals)
                 _uiState.value = _uiState.value.copy(
                     logWithMeals = logWithMeals,
+                    planForDate = plan,
                     plannedDiet = plannedDiet,
                     comparison = comparison,
                     isLoading = false
@@ -193,12 +196,37 @@ class DailyLogViewModel @Inject constructor(
         }
     }
 
-    fun applyDietById(dietId: Long) {
+    fun applyDietById(dietId: Long, dateStr: String? = null) {
         viewModelScope.launch {
+            val date = dateStr?.let {
+                try { LocalDate.parse(it) } catch (e: Exception) { null }
+            } ?: _date.value
             val dietWithMeals = dietRepository.getDietWithMeals(dietId)
             if (dietWithMeals != null) {
-                logRepository.applyDiet(_date.value, dietWithMeals)
+                // Create/update plan for the date (shows color on calendar)
+                planRepository.setPlanForDate(date.toString(), dietId)
+                // Log the meals
+                logRepository.applyDiet(date, dietWithMeals)
+                // Reload plan for current date
+                loadPlanForDate(date)
             }
+        }
+    }
+
+    private suspend fun loadPlanForDate(date: LocalDate) {
+        val plan = planRepository.getPlanForDate(date.toString())
+        _uiState.update { it.copy(planForDate = plan) }
+    }
+
+    /**
+     * Mark the planned diet for current date as completed
+     */
+    fun finishPlan() {
+        viewModelScope.launch {
+            planRepository.completePlan(_date.value.toString())
+            // Reload to update UI - trigger by updating date flow
+            val currentDate = _date.value
+            _date.value = currentDate
         }
     }
 }

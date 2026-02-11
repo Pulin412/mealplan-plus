@@ -2,6 +2,8 @@ package com.mealplanplus.data.repository
 
 import com.mealplanplus.data.local.DailyLogDao
 import com.mealplanplus.data.local.FoodDao
+import com.mealplanplus.data.local.MealDao
+import com.mealplanplus.data.local.PlanDao
 import com.mealplanplus.data.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -15,7 +17,9 @@ import javax.inject.Singleton
 class DailyLogRepository @Inject constructor(
     private val dailyLogDao: DailyLogDao,
     private val foodDao: FoodDao,
-    private val dietRepository: DietRepository
+    private val mealDao: MealDao,
+    private val dietRepository: DietRepository,
+    private val planDao: PlanDao
 ) {
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
@@ -93,4 +97,94 @@ class DailyLogRepository @Inject constructor(
     fun formatDate(date: LocalDate): String = date.format(dateFormatter)
 
     fun parseDate(dateStr: String): LocalDate = LocalDate.parse(dateStr, dateFormatter)
+
+    // Meal logging
+    fun getLogWithMeals(date: LocalDate): Flow<DailyLogWithMeals?> {
+        val dateStr = date.format(dateFormatter)
+        return combine(
+            dailyLogDao.getLogByDateFlow(dateStr),
+            dailyLogDao.getLoggedMeals(dateStr)
+        ) { log, loggedMeals ->
+            // Return empty state if nothing logged yet
+            if (log == null && loggedMeals.isEmpty()) {
+                return@combine DailyLogWithMeals(DailyLog(date = dateStr), emptyList())
+            }
+
+            val actualLog = log ?: DailyLog(date = dateStr)
+            val mealsWithDetails = loggedMeals.mapNotNull { lm ->
+                mealDao.getMealById(lm.mealId)?.let { meal ->
+                    val mealFoodItems = mealDao.getMealFoodItems(meal.id)
+                    val foodsWithDetails = mealFoodItems.mapNotNull { mfi ->
+                        foodDao.getFoodById(mfi.foodId)?.let { food ->
+                            MealFoodItemWithDetails(mfi, food)
+                        }
+                    }
+                    LoggedMealWithDetails(lm, meal, foodsWithDetails)
+                }
+            }
+            DailyLogWithMeals(actualLog, mealsWithDetails)
+        }
+    }
+
+    suspend fun logMeal(
+        date: LocalDate,
+        mealId: Long,
+        slotType: String,
+        quantity: Double = 1.0,
+        timestamp: Long? = null,
+        notes: String? = null
+    ): Long {
+        val dateStr = date.format(dateFormatter)
+        // Ensure log exists
+        if (dailyLogDao.getLogByDate(dateStr) == null) {
+            dailyLogDao.insertLog(DailyLog(dateStr))
+        }
+        return dailyLogDao.insertLoggedMeal(
+            LoggedMeal(
+                logDate = dateStr,
+                mealId = mealId,
+                slotType = slotType,
+                quantity = quantity,
+                timestamp = timestamp,
+                notes = notes
+            )
+        )
+    }
+
+    suspend fun updateLoggedMeal(loggedMeal: LoggedMeal) = dailyLogDao.updateLoggedMeal(loggedMeal)
+
+    suspend fun deleteLoggedMeal(id: Long) = dailyLogDao.deleteLoggedMealById(id)
+
+    suspend fun clearMealsForSlot(date: LocalDate, slotType: String) {
+        dailyLogDao.clearLoggedMealsForSlot(date.format(dateFormatter), slotType)
+    }
+
+    /**
+     * Apply a full diet to a day - logs all meals from the diet to their respective slots
+     * Used for manual logging when no plan exists
+     */
+    suspend fun applyDiet(date: LocalDate, dietWithMeals: DietWithMeals) {
+        val dateStr = date.format(dateFormatter)
+        val timestamp = System.currentTimeMillis()
+
+        // Ensure log exists
+        if (dailyLogDao.getLogByDate(dateStr) == null) {
+            dailyLogDao.insertLog(DailyLog(dateStr, plannedDietId = dietWithMeals.diet.id))
+        }
+
+        // Log each meal to its slot
+        dietWithMeals.meals.forEach { (slotType, mealWithFoods) ->
+            mealWithFoods?.let { mwf ->
+                dailyLogDao.insertLoggedMeal(
+                    LoggedMeal(
+                        logDate = dateStr,
+                        mealId = mwf.meal.id,
+                        slotType = slotType,
+                        quantity = 1.0,
+                        timestamp = timestamp
+                    )
+                )
+            }
+        }
+    }
 }

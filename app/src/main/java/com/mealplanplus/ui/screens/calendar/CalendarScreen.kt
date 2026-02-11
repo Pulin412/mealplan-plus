@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Diet
 import java.time.DayOfWeek
@@ -77,6 +78,7 @@ fun CalendarScreen(
                 month = uiState.currentMonth,
                 selectedDate = uiState.selectedDate,
                 plans = uiState.plans,
+                dietNames = uiState.dietNames,
                 onDateSelected = { viewModel.selectDate(it) }
             )
 
@@ -135,6 +137,7 @@ fun CalendarGrid(
     month: YearMonth,
     selectedDate: LocalDate,
     plans: Map<String, com.mealplanplus.data.model.Plan>,
+    dietNames: Map<String, String> = emptyMap(),
     onDateSelected: (LocalDate) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 8.dp)) {
@@ -168,15 +171,22 @@ fun CalendarGrid(
 
                     if (dayNumber in 1..daysInMonth) {
                         val date = month.atDay(dayNumber)
+                        val dateStr = date.toString()
                         val isSelected = date == selectedDate
                         val isToday = date == LocalDate.now()
-                        val hasPlan = plans.containsKey(date.toString())
+                        val plan = plans[dateStr]
+                        // Only consider it a valid plan if it has a dietId
+                        val hasPlan = plan != null && plan.dietId != null
+                        val isCompleted = plan?.isCompleted ?: false
+                        val dietName = dietNames[dateStr]
 
                         CalendarDayCell(
                             day = dayNumber,
                             isSelected = isSelected,
                             isToday = isToday,
                             hasPlan = hasPlan,
+                            isCompleted = isCompleted,
+                            dietName = dietName,
                             onClick = { onDateSelected(date) },
                             modifier = Modifier.weight(1f)
                         )
@@ -195,17 +205,27 @@ fun CalendarDayCell(
     isSelected: Boolean,
     isToday: Boolean,
     hasPlan: Boolean,
+    isCompleted: Boolean = false,
+    dietName: String? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Color scheme: Green = completed, Yellow = planned but not completed
+    val planCompletedColor = Color(0xFF4CAF50)  // Green
+    val planPendingColor = Color(0xFFFFC107)    // Yellow/Amber
+
     val bgColor = when {
         isSelected -> MaterialTheme.colorScheme.primary
         isToday -> MaterialTheme.colorScheme.primaryContainer
+        hasPlan && isCompleted -> planCompletedColor
+        hasPlan && !isCompleted -> planPendingColor
         else -> Color.Transparent
     }
     val textColor = when {
         isSelected -> MaterialTheme.colorScheme.onPrimary
         isToday -> MaterialTheme.colorScheme.onPrimaryContainer
+        hasPlan && isCompleted -> Color.White
+        hasPlan && !isCompleted -> Color.Black
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -224,15 +244,19 @@ fun CalendarDayCell(
                 style = MaterialTheme.typography.bodyMedium,
                 color = textColor
             )
-            if (hasPlan) {
+            if (hasPlan && dietName != null) {
+                Text(
+                    text = dietName,
+                    fontSize = 8.sp,
+                    color = textColor.copy(alpha = 0.8f),
+                    maxLines = 1
+                )
+            } else if (hasPlan) {
                 Box(
                     modifier = Modifier
                         .size(4.dp)
                         .clip(CircleShape)
-                        .background(
-                            if (isSelected) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.primary
-                        )
+                        .background(textColor.copy(alpha = 0.6f))
                 )
             }
         }
@@ -247,6 +271,10 @@ fun SelectedDateCard(
     onClearPlan: () -> Unit,
     onViewLog: () -> Unit
 ) {
+    val today = LocalDate.now()
+    val isPastDate = date.isBefore(today)
+    val canPlan = !isPastDate  // Can only plan for today or future
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -275,7 +303,7 @@ fun SelectedDateCard(
                 }
             } else {
                 Text(
-                    text = "No diet planned",
+                    text = if (isPastDate) "No diet was planned" else "No diet planned",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -284,16 +312,19 @@ fun SelectedDateCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onAssignDiet,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(if (diet != null) "Change" else "Assign Diet")
-                }
+                // Only show Assign/Change button for today or future dates
+                if (canPlan) {
+                    OutlinedButton(
+                        onClick = onAssignDiet,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (diet != null) "Change" else "Assign Diet")
+                    }
 
-                if (diet != null) {
-                    OutlinedButton(onClick = onClearPlan) {
-                        Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
+                    if (diet != null) {
+                        OutlinedButton(onClick = onClearPlan) {
+                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
 
@@ -320,7 +351,7 @@ fun DietPickerDialog(
                 Text("No diets available. Create some diet templates first!")
             } else {
                 LazyColumn {
-                    items(diets) { diet ->
+                    items(diets.distinctBy { it.id }, key = { it.id }) { diet ->
                         val isSelected = diet.id == selectedDietId
                         Row(
                             modifier = Modifier

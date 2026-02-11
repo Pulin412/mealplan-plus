@@ -162,7 +162,7 @@ fun OnlineSearchScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(uiState.results) { food ->
+                        items(uiState.results.distinctBy { it.id }, key = { it.id }) { food ->
                             OnlineSearchResultCard(
                                 food = food,
                                 onAdd = { viewModel.saveFood(food) }

@@ -4,16 +4,25 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Predefined meal slots
+ * Predefined meal slots - matches seed_data.json slots
  */
 enum class DefaultMealSlot(val displayName: String, val order: Int) {
     EARLY_MORNING("Early Morning", 0),
     BREAKFAST("Breakfast", 1),
-    MID_MORNING("Mid Morning", 2),
-    LUNCH("Lunch", 3),
-    EVENING_SNACK("Evening Snack", 4),
-    DINNER("Dinner", 5),
-    POST_DINNER("Post Dinner", 6)
+    NOON("Noon", 2),
+    MID_MORNING("Mid Morning", 3),
+    LUNCH("Lunch", 4),
+    PRE_WORKOUT("Pre-Workout", 5),
+    EVENING("Evening", 6),
+    EVENING_SNACK("Evening Snack", 7),
+    POST_WORKOUT("Post-Workout", 8),
+    DINNER("Dinner", 9),
+    POST_DINNER("Post Dinner", 10);
+
+    companion object {
+        fun fromString(value: String): DefaultMealSlot? =
+            entries.find { it.name == value }
+    }
 }
 
 /**

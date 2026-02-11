@@ -6,6 +6,16 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
+ * Diet type tags
+ */
+enum class DietTag(val displayName: String) {
+    REMISSION("Remission"),
+    MAINTENANCE("Maintenance"),
+    SOS("SOS"),
+    CUSTOM("Custom")
+}
+
+/**
  * A diet template - combines meals for a full day
  */
 @Entity(tableName = "diets")
@@ -14,8 +24,18 @@ data class Diet(
     val id: Long = 0,
     val name: String,
     val description: String? = null,
+    val tags: String = "",  // Comma-separated tags: "REMISSION,SOS"
     val createdAt: Long = System.currentTimeMillis()
-)
+) {
+    fun getTagList(): List<DietTag> {
+        if (tags.isBlank()) return emptyList()
+        return tags.split(",").mapNotNull { tag ->
+            try { DietTag.valueOf(tag.trim()) } catch (e: Exception) { null }
+        }
+    }
+
+    fun hasTag(tag: DietTag): Boolean = getTagList().contains(tag)
+}
 
 /**
  * Junction table: Diet contains meals for each slot

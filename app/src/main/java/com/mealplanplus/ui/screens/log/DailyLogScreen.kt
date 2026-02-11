@@ -53,8 +53,10 @@ fun DailyLogScreen(
             }
             // Handle diet selection from DietPickerScreen
             handle.get<Long>("selected_diet_id")?.let { dietId ->
-                viewModel.applyDietById(dietId)
+                val selectedDate = handle.get<String>("selected_date")
+                viewModel.applyDietById(dietId, selectedDate)
                 handle.remove<Long>("selected_diet_id")
+                handle.remove<String>("selected_date")
             }
         }
     }
@@ -79,6 +81,20 @@ fun DailyLogScreen(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text("Diet", color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    // Finish button - shown when there's a plan that's not completed
+                    val plan = uiState.planForDate
+                    if (plan != null && !plan.isCompleted) {
+                        TextButton(onClick = { viewModel.finishPlan() }) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Finish", color = MaterialTheme.colorScheme.onPrimary)
+                        }
                     }
                     if (uiState.date != LocalDate.now()) {
                         TextButton(onClick = { viewModel.goToToday() }) {

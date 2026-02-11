@@ -13,6 +13,7 @@ import javax.inject.Inject
 data class AddDietUiState(
     val name: String = "",
     val description: String = "",
+    val tags: List<DietTag> = emptyList(),
     val slotMeals: Map<DefaultMealSlot, Meal?> = DefaultMealSlot.entries.associateWith { null },
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
@@ -45,6 +46,25 @@ class AddDietViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(slotMeals = current)
     }
 
+    fun setMealForSlotById(slot: DefaultMealSlot, mealId: Long) {
+        viewModelScope.launch {
+            val meal = mealRepository.getMealById(mealId)
+            if (meal != null) {
+                setMealForSlot(slot, meal)
+            }
+        }
+    }
+
+    fun toggleTag(tag: DietTag) {
+        val currentTags = _uiState.value.tags.toMutableList()
+        if (currentTags.contains(tag)) {
+            currentTags.remove(tag)
+        } else {
+            currentTags.add(tag)
+        }
+        _uiState.value = _uiState.value.copy(tags = currentTags)
+    }
+
     fun saveDiet() {
         val state = _uiState.value
 
@@ -57,9 +77,11 @@ class AddDietViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                val tagsString = state.tags.joinToString(",") { it.name }
                 val diet = Diet(
                     name = state.name.trim(),
-                    description = state.description.takeIf { it.isNotBlank() }?.trim()
+                    description = state.description.takeIf { it.isNotBlank() }?.trim(),
+                    tags = tagsString
                 )
                 val dietId = dietRepository.insertDiet(diet)
 

@@ -43,4 +43,10 @@ interface MealDao {
 
     @Query("DELETE FROM meal_food_items WHERE mealId = :mealId AND foodId = :foodId")
     suspend fun removeFoodFromMeal(mealId: Long, foodId: Long)
+
+    @Query("DELETE FROM meal_food_items")
+    suspend fun deleteAllMealFoodItems()
+
+    @Query("DELETE FROM meals")
+    suspend fun deleteAllMeals()
 }

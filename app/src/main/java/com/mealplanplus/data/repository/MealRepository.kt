@@ -36,8 +36,8 @@ class MealRepository @Inject constructor(
 
     suspend fun deleteMeal(meal: Meal) = mealDao.deleteMeal(meal)
 
-    suspend fun addFoodToMeal(mealId: Long, foodId: Long, quantity: Double) {
-        mealDao.insertMealFoodItem(MealFoodItem(mealId, foodId, quantity))
+    suspend fun addFoodToMeal(mealId: Long, foodId: Long, quantity: Double, unit: FoodUnit = FoodUnit.GRAM) {
+        mealDao.insertMealFoodItem(MealFoodItem(mealId, foodId, quantity, unit))
     }
 
     suspend fun removeFoodFromMeal(mealId: Long, foodId: Long) {
@@ -47,5 +47,13 @@ class MealRepository @Inject constructor(
     suspend fun updateMealFoods(mealId: Long, items: List<MealFoodItem>) {
         mealDao.clearMealFoodItems(mealId)
         mealDao.insertMealFoodItems(items)
+    }
+
+    suspend fun getMealFoodItems(mealId: Long): List<MealFoodItem> {
+        return mealDao.getMealFoodItems(mealId)
+    }
+
+    suspend fun updateMealFoodItem(item: MealFoodItem) {
+        mealDao.insertMealFoodItem(item) // Uses REPLACE strategy
     }
 }

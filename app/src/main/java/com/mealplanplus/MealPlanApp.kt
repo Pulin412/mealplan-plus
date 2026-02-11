@@ -1,7 +1,27 @@
 package com.mealplanplus
 
 import android.app.Application
+import com.mealplanplus.data.local.DatabaseSeeder
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltAndroidApp
-class MealPlanApp : Application()
+class MealPlanApp : Application() {
+
+    @Inject
+    lateinit var databaseSeeder: DatabaseSeeder
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onCreate() {
+        super.onCreate()
+        // Clear and seed from seed_data.json + ingredients.json
+        applicationScope.launch {
+            databaseSeeder.clearAndSeedFromFiles(this@MealPlanApp)
+        }
+    }
+}

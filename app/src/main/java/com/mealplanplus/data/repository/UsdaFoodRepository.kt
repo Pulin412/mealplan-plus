@@ -13,7 +13,8 @@ class UsdaFoodRepository @Inject constructor(
     suspend fun searchFoods(query: String): Result<List<UsdaFoodResult>> {
         return try {
             val response = api.searchFoods(query = query)
-            val results = response.foods.map { item ->
+            val foods = response.foods ?: emptyList()
+            val results = foods.map { item ->
                 UsdaFoodResult(
                     fdcId = item.fdcId,
                     name = item.description,
@@ -28,6 +29,7 @@ class UsdaFoodRepository @Inject constructor(
             }
             Result.success(results)
         } catch (e: Exception) {
+            e.printStackTrace()
             Result.failure(e)
         }
     }
@@ -69,18 +71,19 @@ data class UsdaFoodResult(
     val servingUnit: String
 ) {
     /**
-     * Convert to local FoodItem for saving
+     * Convert to local FoodItem for saving (USDA returns per 100g by default)
      */
     fun toFoodItem(): FoodItem {
+        // USDA returns macros per servingSize, normalize to per 100g
+        val factor = if (servingSize > 0) 100.0 / servingSize else 1.0
         return FoodItem(
             name = name,
             brand = brand,
-            servingSize = servingSize,
-            servingUnit = servingUnit,
-            calories = calories,
-            protein = protein,
-            carbs = carbs,
-            fat = fat
+            caloriesPer100 = calories * factor,
+            proteinPer100 = protein * factor,
+            carbsPer100 = carbs * factor,
+            fatPer100 = fat * factor,
+            gramsPerPiece = if (servingUnit != "g" && servingUnit != "ml") servingSize else null
         )
     }
 }

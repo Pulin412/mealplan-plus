@@ -332,7 +332,7 @@ fun UsdaSearchModal(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(results) { food ->
+                        items(results.distinctBy { it.fdcId }, key = { it.fdcId }) { food ->
                             UsdaFoodResultCard(
                                 food = food,
                                 onSelect = { onSelectFood(food) }

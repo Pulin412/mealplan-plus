@@ -6,8 +6,10 @@ import com.mealplanplus.data.model.DailyLogWithMeals
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.data.repository.DailyLogRepository
+import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
+import com.mealplanplus.util.extractShortDietName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -28,13 +30,15 @@ data class HomeUiState(
     val latestWeight: HealthMetric? = null,
     val latestSugar: HealthMetric? = null,
     val currentMonth: YearMonth = YearMonth.now(),
-    val plansForMonth: Set<LocalDate> = emptySet(),
+    val plansForMonth: Map<String, Boolean> = emptyMap(),  // date string → isCompleted
+    val dietNamesForMonth: Map<String, String> = emptyMap(),
     val isLoading: Boolean = true
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val dailyLogRepository: DailyLogRepository,
+    private val dietRepository: DietRepository,
     private val healthRepository: HealthRepository,
     private val planRepository: PlanRepository
 ) : ViewModel() {
@@ -85,10 +89,20 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             planRepository.getPlansInRange(startDate, endDate).collect { plans ->
-                val datesWithPlans = plans.mapNotNull { plan ->
-                    try { LocalDate.parse(plan.date) } catch (e: Exception) { null }
-                }.toSet()
-                _uiState.update { it.copy(plansForMonth = datesWithPlans) }
+                // Only include plans with valid dietId for color coding
+                val validPlans = plans.filter { it.dietId != null }
+                val plansMap = validPlans.associate { plan ->
+                    plan.date to plan.isCompleted
+                }
+                // Load diet names for each valid plan
+                val dietNames = mutableMapOf<String, String>()
+                validPlans.forEach { plan ->
+                    plan.dietId?.let { dietId ->
+                        val diet = dietRepository.getDietById(dietId)
+                        diet?.let { dietNames[plan.date] = extractShortDietName(it.name) }
+                    }
+                }
+                _uiState.update { it.copy(plansForMonth = plansMap, dietNamesForMonth = dietNames) }
             }
         }
     }

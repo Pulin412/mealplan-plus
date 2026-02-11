@@ -304,13 +304,19 @@ fun MealPlanNavHost() {
             route = Screen.DietPicker.route,
             arguments = listOf(navArgument("date") { type = NavType.StringType })
         ) { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date") ?: ""
             DietPickerScreen(
+                date = date,
                 onNavigateBack = { navController.popBackStack() },
-                onDietSelected = { dietId ->
+                onDietSelected = { dietId, selectedDate ->
                     navController.previousBackStackEntry?.savedStateHandle?.apply {
                         set("selected_diet_id", dietId)
+                        set("selected_date", selectedDate)
                     }
                     navController.popBackStack()
+                },
+                onNavigateHome = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
                 }
             )
         }
@@ -332,6 +338,9 @@ fun MealPlanNavHost() {
                         set("selected_slot_type", slotType)
                     }
                     navController.popBackStack()
+                },
+                onNavigateHome = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
                 }
             )
         }

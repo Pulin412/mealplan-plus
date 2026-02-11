@@ -1,34 +1,77 @@
 package com.mealplanplus.ui.screens.meals
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.FoodItem
+import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.repository.UsdaFoodResult
+import com.mealplanplus.ui.components.FoodDetailSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMealScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToFoodPicker: () -> Unit,
+    savedStateHandle: SavedStateHandle? = null,
     viewModel: AddMealViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val availableFoods by viewModel.availableFoods.collectAsState()
-    var showFoodPicker by remember { mutableStateOf(false) }
     var slotExpanded by remember { mutableStateOf(false) }
+
+    // Editing food state
+    var editingFood by remember { mutableStateOf<SelectedFood?>(null) }
+
+    // Handle food selection results from FoodPickerScreen
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.let { handle ->
+            // Local food selected
+            handle.get<Long>("selected_food_id")?.let { foodId ->
+                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
+                viewModel.addFoodById(foodId, quantity)
+                handle.remove<Long>("selected_food_id")
+                handle.remove<Double>("selected_quantity")
+            }
+
+            // USDA food selected
+            handle.get<String>("usda_food_name")?.let { name ->
+                val usdaFood = UsdaFoodResult(
+                    fdcId = 0,
+                    name = name,
+                    brand = handle.get<String>("usda_food_brand"),
+                    calories = handle.get<Double>("usda_food_calories") ?: 0.0,
+                    protein = handle.get<Double>("usda_food_protein") ?: 0.0,
+                    carbs = handle.get<Double>("usda_food_carbs") ?: 0.0,
+                    fat = handle.get<Double>("usda_food_fat") ?: 0.0,
+                    servingSize = handle.get<Double>("usda_food_serving_size") ?: 100.0,
+                    servingUnit = handle.get<String>("usda_food_serving_unit") ?: "g"
+                )
+                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
+                viewModel.addUsdaFoodWithQuantity(usdaFood, quantity)
+
+                // Clear all USDA keys
+                handle.remove<String>("usda_food_name")
+                handle.remove<String>("usda_food_brand")
+                handle.remove<Double>("usda_food_calories")
+                handle.remove<Double>("usda_food_protein")
+                handle.remove<Double>("usda_food_carbs")
+                handle.remove<Double>("usda_food_fat")
+                handle.remove<Double>("usda_food_serving_size")
+                handle.remove<String>("usda_food_serving_unit")
+                handle.remove<Double>("selected_quantity")
+            }
+        }
+    }
 
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) onNavigateBack()
@@ -118,7 +161,7 @@ fun AddMealScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Food Items", style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = { showFoodPicker = true }) {
+                    TextButton(onClick = onNavigateToFoodPicker) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
                         Text("Add Food")
@@ -140,17 +183,19 @@ fun AddMealScreen(
                 SelectedFoodCard(
                     food = sf.food,
                     quantity = sf.quantity,
+                    unit = sf.unit,
                     onQuantityChange = { viewModel.updateFoodQuantity(sf.food.id, it) },
-                    onRemove = { viewModel.removeFood(sf.food.id) }
+                    onRemove = { viewModel.removeFood(sf.food.id) },
+                    onEdit = { editingFood = sf }
                 )
             }
 
             if (uiState.selectedFoods.isNotEmpty()) {
                 item {
-                    val totalCal = uiState.selectedFoods.sumOf { it.food.calories * it.quantity }
-                    val totalP = uiState.selectedFoods.sumOf { it.food.protein * it.quantity }
-                    val totalC = uiState.selectedFoods.sumOf { it.food.carbs * it.quantity }
-                    val totalF = uiState.selectedFoods.sumOf { it.food.fat * it.quantity }
+                    val totalCal = uiState.selectedFoods.sumOf { it.food.calculateCalories(it.quantity, it.unit) }
+                    val totalP = uiState.selectedFoods.sumOf { it.food.calculateProtein(it.quantity, it.unit) }
+                    val totalC = uiState.selectedFoods.sumOf { it.food.calculateCarbs(it.quantity, it.unit) }
+                    val totalF = uiState.selectedFoods.sumOf { it.food.calculateFat(it.quantity, it.unit) }
 
                     Card(
                         colors = CardDefaults.cardColors(
@@ -198,34 +243,39 @@ fun AddMealScreen(
         }
     }
 
-    if (showFoodPicker) {
-        TabbedFoodPickerModal(
-            localFoods = availableFoods,
-            selectedIds = uiState.selectedFoods.map { it.food.id }.toSet(),
-            onSelectLocalFood = { viewModel.addFood(it) },
-            usdaSearchQuery = uiState.usdaSearchQuery,
-            onUsdaSearchQueryChange = viewModel::updateUsdaSearchQuery,
-            onSearchUsda = viewModel::searchUsda,
-            usdaResults = uiState.usdaSearchResults,
-            isSearchingUsda = uiState.isSearchingUsda,
-            usdaSearchError = uiState.usdaSearchError,
-            onSelectUsdaFood = { viewModel.addUsdaFood(it) },
-            onDismiss = {
-                showFoodPicker = false
-                viewModel.clearUsdaSearch()
-            }
+    // Food detail sheet for editing existing food
+    editingFood?.let { sf ->
+        FoodDetailSheet(
+            food = sf.food,
+            usdaFood = null,
+            initialQuantity = sf.quantity,
+            onConfirm = { quantity ->
+                viewModel.updateFoodQuantity(sf.food.id, quantity)
+                editingFood = null
+            },
+            onDismiss = { editingFood = null }
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectedFoodCard(
     food: FoodItem,
     quantity: Double,
+    unit: FoodUnit = FoodUnit.GRAM,
     onQuantityChange: (Double) -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onEdit: () -> Unit
 ) {
-    Card {
+    val calories = food.calculateCalories(quantity, unit)
+    val protein = food.calculateProtein(quantity, unit)
+    val carbs = food.calculateCarbs(quantity, unit)
+    val fat = food.calculateFat(quantity, unit)
+
+    Card(
+        onClick = onEdit
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -236,17 +286,22 @@ fun SelectedFoodCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(food.name, style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    "${food.servingSize.toInt()} ${food.servingUnit} • ${(food.calories * quantity).toInt()} cal",
+                    "${quantity.toInt()}${unit.shortLabel} • ${calories.toInt()} cal",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "P:${protein.toInt()}g C:${carbs.toInt()}g F:${fat.toInt()}g",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
-                    onClick = { if (quantity > 0.5) onQuantityChange(quantity - 0.5) },
+                    onClick = { if (quantity > 10) onQuantityChange(quantity - 10) },
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(Icons.Default.Clear, contentDescription = "Decrease")
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Decrease")
                 }
                 Text(
                     text = if (quantity == quantity.toLong().toDouble()) "${quantity.toInt()}" else "%.1f".format(quantity),
@@ -254,10 +309,10 @@ fun SelectedFoodCard(
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
                 IconButton(
-                    onClick = { onQuantityChange(quantity + 0.5) },
+                    onClick = { onQuantityChange(quantity + 10) },
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Increase")
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Increase")
                 }
                 IconButton(onClick = onRemove) {
                     Icon(Icons.Default.Close, contentDescription = "Remove")
@@ -267,283 +322,3 @@ fun SelectedFoodCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TabbedFoodPickerModal(
-    localFoods: List<FoodItem>,
-    selectedIds: Set<Long>,
-    onSelectLocalFood: (FoodItem) -> Unit,
-    usdaSearchQuery: String,
-    onUsdaSearchQueryChange: (String) -> Unit,
-    onSearchUsda: () -> Unit,
-    usdaResults: List<UsdaFoodResult>,
-    isSearchingUsda: Boolean,
-    usdaSearchError: String?,
-    onSelectUsdaFood: (UsdaFoodResult) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var selectedTab by remember { mutableStateOf(0) }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxHeight(0.85f)
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("My Foods") },
-                    icon = { Icon(Icons.Default.List, contentDescription = null) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Search USDA") },
-                    icon = { Icon(Icons.Default.Search, contentDescription = null) }
-                )
-            }
-
-            when (selectedTab) {
-                0 -> LocalFoodsTab(
-                    foods = localFoods,
-                    selectedIds = selectedIds,
-                    onSelect = onSelectLocalFood
-                )
-                1 -> UsdaSearchTab(
-                    searchQuery = usdaSearchQuery,
-                    onSearchQueryChange = onUsdaSearchQueryChange,
-                    onSearch = onSearchUsda,
-                    results = usdaResults,
-                    isLoading = isSearchingUsda,
-                    error = usdaSearchError,
-                    onSelect = onSelectUsdaFood
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun LocalFoodsTab(
-    foods: List<FoodItem>,
-    selectedIds: Set<Long>,
-    onSelect: (FoodItem) -> Unit
-) {
-    if (foods.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.Info,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                Text("No foods in your list", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Search USDA tab to find foods",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(foods) { food ->
-                val isSelected = food.id in selectedIds
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { if (!isSelected) onSelect(food) },
-                    colors = if (isSelected) CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ) else CardDefaults.cardColors()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(food.name, style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                "${food.calories.toInt()} cal per ${food.servingSize.toInt()} ${food.servingUnit}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        if (isSelected) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = "Add",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun UsdaSearchTab(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    results: List<UsdaFoodResult>,
-    isLoading: Boolean,
-    error: String?,
-    onSelect: (UsdaFoodResult) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search rice, chicken, apple...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear")
-                    }
-                }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { onSearch() })
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Button(
-            onClick = onSearch,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = searchQuery.length >= 2 && !isLoading
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Search USDA Database")
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        when {
-            isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            error != null -> {
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(error, color = MaterialTheme.colorScheme.error)
-                }
-            }
-
-            results.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Search for generic foods",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            "300k+ foods from USDA database",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(results) { food ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { onSelect(food) }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = food.name,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        maxLines = 2
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = "Per ${food.servingSize.toInt()}${food.servingUnit}: ${food.calories.toInt()} cal",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "P:${food.protein.toInt()}g C:${food.carbs.toInt()}g F:${food.fat.toInt()}g",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                FilledTonalIconButton(onClick = { onSelect(food) }) {
-                                    Icon(Icons.Default.Add, contentDescription = "Add")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}

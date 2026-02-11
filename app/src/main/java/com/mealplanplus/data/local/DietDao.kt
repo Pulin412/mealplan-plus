@@ -40,4 +40,13 @@ interface DietDao {
 
     @Query("UPDATE diet_meals SET mealId = :mealId WHERE dietId = :dietId AND slotType = :slotType")
     suspend fun updateDietMeal(dietId: Long, slotType: String, mealId: Long?)
+
+    @Query("DELETE FROM diet_meals")
+    suspend fun deleteAllDietMeals()
+
+    @Query("DELETE FROM diets")
+    suspend fun deleteAllDiets()
+
+    @Query("SELECT COUNT(*) FROM diets")
+    suspend fun getDietCount(): Int
 }

@@ -119,6 +119,7 @@ fun HomeScreen(
                 MiniCalendar(
                     currentMonth = uiState.currentMonth,
                     plansForMonth = uiState.plansForMonth,
+                    dietNames = uiState.dietNamesForMonth,
                     onPreviousMonth = { viewModel.goToPreviousMonth() },
                     onNextMonth = { viewModel.goToNextMonth() },
                     onDateSelected = { date -> onNavigateToLogWithDate(date.toString()) }

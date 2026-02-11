@@ -22,7 +22,7 @@ data class Meal(
         get() = slotType != "CUSTOM"
 
     val defaultSlot: DefaultMealSlot?
-        get() = if (isDefaultSlot) DefaultMealSlot.valueOf(slotType) else null
+        get() = if (isDefaultSlot) DefaultMealSlot.fromString(slotType) else null
 }
 
 /**
@@ -50,7 +50,8 @@ data class Meal(
 data class MealFoodItem(
     val mealId: Long,
     val foodId: Long,
-    val quantity: Double,  // Number of servings
+    val quantity: Double,  // Quantity in the specified unit
+    val unit: FoodUnit = FoodUnit.GRAM,  // Unit of measurement
     val notes: String? = null
 )
 
@@ -78,12 +79,18 @@ data class MealFoodItemWithDetails(
     val mealFoodItem: MealFoodItem,
     val food: FoodItem
 ) {
+    val quantityInGrams: Double
+        get() = food.toGrams(mealFoodItem.quantity, mealFoodItem.unit)
+
     val calculatedCalories: Double
-        get() = food.calories * mealFoodItem.quantity
+        get() = food.calculateCalories(mealFoodItem.quantity, mealFoodItem.unit)
+
     val calculatedProtein: Double
-        get() = food.protein * mealFoodItem.quantity
+        get() = food.calculateProtein(mealFoodItem.quantity, mealFoodItem.unit)
+
     val calculatedCarbs: Double
-        get() = food.carbs * mealFoodItem.quantity
+        get() = food.calculateCarbs(mealFoodItem.quantity, mealFoodItem.unit)
+
     val calculatedFat: Double
-        get() = food.fat * mealFoodItem.quantity
+        get() = food.calculateFat(mealFoodItem.quantity, mealFoodItem.unit)
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -23,12 +24,14 @@ import java.util.*
 
 /**
  * Compact inline calendar for HomeScreen.
- * Shows a mini month view with dots indicating logged diets.
+ * Shows a mini month view with color-coded plan status.
+ * Yellow = planned but not completed, Green = completed
  */
 @Composable
 fun MiniCalendar(
     currentMonth: YearMonth,
-    plansForMonth: Set<LocalDate>,
+    plansForMonth: Map<String, Boolean>,  // date string → isCompleted
+    dietNames: Map<String, String> = emptyMap(),
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onDateSelected: (LocalDate) -> Unit,
@@ -109,13 +112,18 @@ fun MiniCalendar(
 
                         if (dayNumber in 1..daysInMonth) {
                             val date = currentMonth.atDay(dayNumber)
+                            val dateStr = date.toString()
                             val isToday = date == today
-                            val hasPlan = plansForMonth.contains(date)
+                            val hasPlan = plansForMonth.containsKey(dateStr)
+                            val isCompleted = plansForMonth[dateStr] ?: false
+                            val dietName = dietNames[dateStr]
 
                             MiniCalendarDay(
                                 day = dayNumber,
                                 isToday = isToday,
                                 hasPlan = hasPlan,
+                                isCompleted = isCompleted,
+                                dietName = dietName,
                                 onClick = { onDateSelected(date) },
                                 modifier = Modifier.weight(1f)
                             )
@@ -134,15 +142,25 @@ private fun MiniCalendarDay(
     day: Int,
     isToday: Boolean,
     hasPlan: Boolean,
+    isCompleted: Boolean = false,
+    dietName: String? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Color scheme: Green = completed, Yellow = planned but not completed
+    val planCompletedColor = Color(0xFF4CAF50)  // Green
+    val planPendingColor = Color(0xFFFFC107)    // Yellow/Amber
+
     val bgColor = when {
         isToday -> MaterialTheme.colorScheme.primary
+        hasPlan && isCompleted -> planCompletedColor
+        hasPlan && !isCompleted -> planPendingColor
         else -> Color.Transparent
     }
     val textColor = when {
         isToday -> MaterialTheme.colorScheme.onPrimary
+        hasPlan && isCompleted -> Color.White
+        hasPlan && !isCompleted -> Color.Black
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -164,15 +182,19 @@ private fun MiniCalendarDay(
                 style = MaterialTheme.typography.labelSmall,
                 color = textColor
             )
-            if (hasPlan) {
+            if (hasPlan && dietName != null) {
+                Text(
+                    text = dietName,
+                    fontSize = 6.sp,
+                    color = textColor.copy(alpha = 0.8f),
+                    maxLines = 1
+                )
+            } else if (hasPlan) {
                 Box(
                     modifier = Modifier
                         .size(3.dp)
                         .clip(CircleShape)
-                        .background(
-                            if (isToday) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.primary
-                        )
+                        .background(textColor.copy(alpha = 0.6f))
                 )
             }
         }

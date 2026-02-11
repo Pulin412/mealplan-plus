@@ -34,22 +34,22 @@ interface UsdaFoodApi {
 }
 
 data class UsdaSearchResponse(
-    val totalHits: Int,
-    val currentPage: Int,
-    val totalPages: Int,
-    val foods: List<UsdaFoodItem>
+    val totalHits: Int? = 0,
+    val currentPage: Int? = 1,
+    val totalPages: Int? = 0,
+    val foods: List<UsdaFoodItem>? = emptyList()
 )
 
 data class UsdaFoodItem(
     val fdcId: Int,
     val description: String,
-    val dataType: String?,
-    val brandOwner: String?,
-    val brandName: String?,
-    val ingredients: String?,
-    val servingSize: Double?,
-    val servingSizeUnit: String?,
-    val foodNutrients: List<UsdaNutrient>
+    val dataType: String? = null,
+    val brandOwner: String? = null,
+    val brandName: String? = null,
+    val ingredients: String? = null,
+    val servingSize: Double? = null,
+    val servingSizeUnit: String? = null,
+    val foodNutrients: List<UsdaNutrient>? = null
 ) {
     // Extract common nutrients
     val calories: Double get() = getNutrientValue(1008) // Energy (kcal)
@@ -60,14 +60,14 @@ data class UsdaFoodItem(
     val sugar: Double get() = getNutrientValue(2000) // Sugars
 
     private fun getNutrientValue(nutrientId: Int): Double {
-        return foodNutrients.find { it.nutrientId == nutrientId }?.value ?: 0.0
+        return foodNutrients?.find { it.nutrientId == nutrientId }?.value ?: 0.0
     }
 }
 
 data class UsdaNutrient(
-    val nutrientId: Int,
-    val nutrientName: String,
-    val nutrientNumber: String?,
-    val unitName: String,
-    val value: Double
+    val nutrientId: Int? = null,
+    val nutrientName: String? = null,
+    val nutrientNumber: String? = null,
+    val unitName: String? = null,
+    val value: Double? = null
 )

@@ -12,18 +12,37 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
+import com.mealplanplus.data.model.DietTag
 import com.mealplanplus.data.model.Meal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddDietScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToMealPicker: (String) -> Unit = {},
+    savedStateHandle: SavedStateHandle? = null,
     viewModel: AddDietViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val availableMeals by viewModel.availableMeals.collectAsState()
-    var selectedSlotForPicker by remember { mutableStateOf<DefaultMealSlot?>(null) }
+
+    // Handle meal selection result from picker
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.let { handle ->
+            handle.getStateFlow<Long?>("selected_meal_id", null).collect { mealId ->
+                val slotType = handle.get<String>("selected_slot_type")
+                if (mealId != null && slotType != null) {
+                    val slot = DefaultMealSlot.entries.find { it.name == slotType }
+                    if (slot != null) {
+                        viewModel.setMealForSlotById(slot, mealId)
+                    }
+                    handle.remove<Long>("selected_meal_id")
+                    handle.remove<String>("selected_slot_type")
+                }
+            }
+        }
+    }
 
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) onNavigateBack()
@@ -74,6 +93,28 @@ fun AddDietScreen(
                 )
             }
 
+            // Tags selector
+            item {
+                Column {
+                    Text(
+                        text = "Tags",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        DietTag.entries.filter { it != DietTag.CUSTOM }.forEach { tag ->
+                            FilterChip(
+                                selected = uiState.tags.contains(tag),
+                                onClick = { viewModel.toggleTag(tag) },
+                                label = { Text(tag.displayName) }
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 Text("Meal Slots", style = MaterialTheme.typography.titleMedium)
@@ -88,7 +129,7 @@ fun AddDietScreen(
                 MealSlotCard(
                     slot = slot,
                     selectedMeal = uiState.slotMeals[slot],
-                    onSelectClick = { selectedSlotForPicker = slot },
+                    onSelectClick = { onNavigateToMealPicker(slot.name) },
                     onClear = { viewModel.setMealForSlot(slot, null) }
                 )
             }
@@ -121,19 +162,6 @@ fun AddDietScreen(
                 }
             }
         }
-    }
-
-    selectedSlotForPicker?.let { slot ->
-        MealPickerDialog(
-            meals = availableMeals.filter { it.slotType == slot.name || it.slotType == "CUSTOM" },
-            allMeals = availableMeals,
-            selectedMealId = uiState.slotMeals[slot]?.id,
-            onSelect = { meal ->
-                viewModel.setMealForSlot(slot, meal)
-                selectedSlotForPicker = null
-            },
-            onDismiss = { selectedSlotForPicker = null }
-        )
     }
 }
 
@@ -185,62 +213,4 @@ fun MealSlotCard(
             }
         }
     }
-}
-
-@Composable
-fun MealPickerDialog(
-    meals: List<Meal>,
-    allMeals: List<Meal>,
-    selectedMealId: Long?,
-    onSelect: (Meal?) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val mealsToShow = if (meals.isEmpty()) allMeals else meals
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select Meal") },
-        text = {
-            if (mealsToShow.isEmpty()) {
-                Text("No meals available. Create some meals first!")
-            } else {
-                LazyColumn {
-                    items(mealsToShow) { meal ->
-                        val isSelected = meal.id == selectedMealId
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelect(meal) }
-                                .padding(vertical = 12.dp, horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(meal.name, style = MaterialTheme.typography.bodyLarge)
-                                meal.description?.let {
-                                    Text(
-                                        it,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            if (isSelected) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }

@@ -131,15 +131,17 @@ class AddFoodViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                // User enters per-serving values, convert to per-100g
+                val serving = state.servingSize.toDoubleOrNull() ?: 100.0
+                val factor = if (serving > 0) 100.0 / serving else 1.0
                 val food = FoodItem(
                     name = state.name.trim(),
                     brand = state.brand.takeIf { it.isNotBlank() }?.trim(),
-                    servingSize = state.servingSize.toDouble(),
-                    servingUnit = state.servingUnit,
-                    calories = state.calories.toDoubleOrNull() ?: 0.0,
-                    protein = state.protein.toDoubleOrNull() ?: 0.0,
-                    carbs = state.carbs.toDoubleOrNull() ?: 0.0,
-                    fat = state.fat.toDoubleOrNull() ?: 0.0,
+                    caloriesPer100 = (state.calories.toDoubleOrNull() ?: 0.0) * factor,
+                    proteinPer100 = (state.protein.toDoubleOrNull() ?: 0.0) * factor,
+                    carbsPer100 = (state.carbs.toDoubleOrNull() ?: 0.0) * factor,
+                    fatPer100 = (state.fat.toDoubleOrNull() ?: 0.0) * factor,
+                    gramsPerPiece = if (state.servingUnit != "g" && state.servingUnit != "ml") serving else null,
                     glycemicIndex = state.glycemicIndex.toIntOrNull()
                 )
                 repository.insertFood(food)

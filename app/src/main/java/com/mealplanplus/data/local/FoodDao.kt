@@ -41,4 +41,13 @@ interface FoodDao {
 
     @Query("DELETE FROM food_items WHERE id = :id")
     suspend fun deleteFoodById(id: Long)
+
+    @Query("SELECT COUNT(*) FROM food_items WHERE isSystemFood = 1")
+    suspend fun getSystemFoodCount(): Int
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(foods: List<FoodItem>)
+
+    @Query("DELETE FROM food_items")
+    suspend fun deleteAllFoods()
 }

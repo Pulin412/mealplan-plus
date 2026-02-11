@@ -19,13 +19,35 @@ import com.mealplanplus.data.model.DietTag
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DietPickerScreen(
+    date: String,
     onNavigateBack: () -> Unit,
-    onDietSelected: (Long) -> Unit,
+    onDietSelected: (Long, String) -> Unit,
+    onNavigateHome: () -> Unit = {},
     viewModel: DietPickerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var selectedDiet by remember { mutableStateOf<DietPickerItem?>(null) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showSuccessSnackbar by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show success snackbar
+    LaunchedEffect(showSuccessSnackbar) {
+        if (showSuccessSnackbar) {
+            val result = snackbarHostState.showSnackbar(
+                message = "Diet logged successfully!",
+                actionLabel = "Go Home",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onNavigateHome()
+            }
+            showSuccessSnackbar = false
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Select Diet") },
@@ -141,12 +163,60 @@ fun DietPickerScreen(
                     ) { item ->
                         DietPickerCard(
                             item = item,
-                            onClick = { onDietSelected(item.diet.id) }
+                            onClick = {
+                                selectedDiet = item
+                                showConfirmDialog = true
+                            }
                         )
                     }
                 }
             }
         }
+    }
+
+    // Confirmation dialog
+    if (showConfirmDialog && selectedDiet != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showConfirmDialog = false
+                selectedDiet = null
+            },
+            title = { Text("Log Diet") },
+            text = {
+                Column {
+                    Text("Log \"${selectedDiet!!.diet.name}\" for $date?")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${selectedDiet!!.totalCalories} cal • ${selectedDiet!!.mealCount} meals",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedDiet?.let {
+                            onDietSelected(it.diet.id, date)
+                            showConfirmDialog = false
+                            showSuccessSnackbar = true
+                        }
+                    }
+                ) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmDialog = false
+                        selectedDiet = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

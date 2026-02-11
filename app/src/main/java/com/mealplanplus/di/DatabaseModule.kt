@@ -160,6 +160,121 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add isSystemFood column for bundled foods
+            db.execSQL("ALTER TABLE food_items ADD COLUMN isSystemFood INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create logged_meals table for logging meals instead of individual foods
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS logged_meals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    logDate TEXT NOT NULL,
+                    mealId INTEGER NOT NULL,
+                    slotType TEXT NOT NULL,
+                    quantity REAL NOT NULL DEFAULT 1.0,
+                    timestamp INTEGER,
+                    notes TEXT,
+                    FOREIGN KEY(logDate) REFERENCES daily_logs(date) ON DELETE CASCADE,
+                    FOREIGN KEY(mealId) REFERENCES meals(id) ON DELETE CASCADE
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_logged_meals_logDate ON logged_meals(logDate)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_logged_meals_mealId ON logged_meals(mealId)")
+        }
+    }
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add tags column to diets
+            db.execSQL("ALTER TABLE diets ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add isCompleted column to plans for tracking finished plans
+            db.execSQL("ALTER TABLE plans ADD COLUMN isCompleted INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // 1. Create new food_items table with per-100g macros
+            db.execSQL("""
+                CREATE TABLE food_items_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    brand TEXT,
+                    barcode TEXT,
+                    caloriesPer100 REAL NOT NULL,
+                    proteinPer100 REAL NOT NULL,
+                    carbsPer100 REAL NOT NULL,
+                    fatPer100 REAL NOT NULL,
+                    gramsPerPiece REAL,
+                    gramsPerCup REAL,
+                    gramsPerTbsp REAL,
+                    gramsPerTsp REAL,
+                    glycemicIndex INTEGER,
+                    isFavorite INTEGER NOT NULL DEFAULT 0,
+                    lastUsed INTEGER,
+                    createdAt INTEGER NOT NULL,
+                    isSystemFood INTEGER NOT NULL DEFAULT 0
+                )
+            """)
+
+            // 2. Migrate data - convert serving-based to per-100g
+            // If servingSize was in grams, normalize to per-100g
+            db.execSQL("""
+                INSERT INTO food_items_new (
+                    id, name, brand, barcode,
+                    caloriesPer100, proteinPer100, carbsPer100, fatPer100,
+                    gramsPerPiece,
+                    glycemicIndex, isFavorite, lastUsed, createdAt, isSystemFood
+                )
+                SELECT
+                    id, name, brand, barcode,
+                    CASE WHEN servingSize > 0 THEN (calories / servingSize) * 100 ELSE calories END,
+                    CASE WHEN servingSize > 0 THEN (protein / servingSize) * 100 ELSE protein END,
+                    CASE WHEN servingSize > 0 THEN (carbs / servingSize) * 100 ELSE carbs END,
+                    CASE WHEN servingSize > 0 THEN (fat / servingSize) * 100 ELSE fat END,
+                    CASE WHEN servingUnit = 'piece' OR servingUnit = 'pc' THEN servingSize ELSE NULL END,
+                    glycemicIndex, isFavorite, lastUsed, createdAt, isSystemFood
+                FROM food_items
+            """)
+
+            // 3. Drop old table and rename new one
+            db.execSQL("DROP TABLE food_items")
+            db.execSQL("ALTER TABLE food_items_new RENAME TO food_items")
+
+            // 4. Add unit column to meal_food_items
+            db.execSQL("ALTER TABLE meal_food_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'GRAM'")
+
+            // 5. Add unit column to logged_foods
+            db.execSQL("ALTER TABLE logged_foods ADD COLUMN unit TEXT NOT NULL DEFAULT 'GRAM'")
+
+            // 6. Create daily_log_slot_overrides table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS daily_log_slot_overrides (
+                    logDate TEXT NOT NULL,
+                    slotType TEXT NOT NULL,
+                    overrideMealId INTEGER,
+                    notes TEXT,
+                    createdAt INTEGER NOT NULL,
+                    PRIMARY KEY(logDate, slotType),
+                    FOREIGN KEY(logDate) REFERENCES daily_logs(date) ON DELETE CASCADE,
+                    FOREIGN KEY(overrideMealId) REFERENCES meals(id) ON DELETE SET NULL
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_log_slot_overrides_logDate ON daily_log_slot_overrides(logDate)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_log_slot_overrides_overrideMealId ON daily_log_slot_overrides(overrideMealId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -168,7 +283,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .fallbackToDestructiveMigration()
             .build()
     }

@@ -45,12 +45,10 @@ class OpenFoodFactsRepository @Inject constructor(
             name = name,
             brand = product.brands,
             barcode = barcode,
-            servingSize = 100.0,  // Default to 100g
-            servingUnit = "g",
-            calories = nutriments.energy_kcal_100g ?: 0.0,
-            protein = nutriments.proteins_100g ?: 0.0,
-            carbs = nutriments.carbohydrates_100g ?: 0.0,
-            fat = nutriments.fat_100g ?: 0.0
+            caloriesPer100 = nutriments.energy_kcal_100g ?: 0.0,
+            proteinPer100 = nutriments.proteins_100g ?: 0.0,
+            carbsPer100 = nutriments.carbohydrates_100g ?: 0.0,
+            fatPer100 = nutriments.fat_100g ?: 0.0
         )
     }
 }

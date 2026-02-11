@@ -20,16 +20,22 @@ data class AddMealUiState(
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
     val error: String? = null,
-    // USDA search state
+    // Unified search state (hybrid: local + USDA)
+    val searchQuery: String = "",
+    val localResults: List<FoodItem> = emptyList(),
+    val usdaResults: List<UsdaFoodResult> = emptyList(),
+    val isSearchingUsda: Boolean = false,
+    val searchError: String? = null,
+    // Legacy USDA search state (for modal tab)
     val usdaSearchQuery: String = "",
     val usdaSearchResults: List<UsdaFoodResult> = emptyList(),
-    val isSearchingUsda: Boolean = false,
     val usdaSearchError: String? = null
 )
 
 data class SelectedFood(
     val food: FoodItem,
-    val quantity: Double = 1.0
+    val quantity: Double = 100.0,  // Default 100g
+    val unit: FoodUnit = FoodUnit.GRAM
 )
 
 @HiltViewModel
@@ -64,19 +70,81 @@ class AddMealViewModel @Inject constructor(
         }
     }
 
+    fun addFoodWithQuantity(food: FoodItem, quantity: Double, unit: FoodUnit = FoodUnit.GRAM) {
+        val current = _uiState.value.selectedFoods
+        val existing = current.find { it.food.id == food.id }
+        if (existing != null) {
+            // Update quantity if already added
+            updateFoodQuantity(food.id, quantity, unit)
+        } else {
+            _uiState.update { it.copy(selectedFoods = current + SelectedFood(food, quantity, unit)) }
+        }
+    }
+
+    fun addFoodById(foodId: Long, quantity: Double) {
+        viewModelScope.launch {
+            foodRepository.getFoodById(foodId)?.let { food ->
+                addFoodWithQuantity(food, quantity)
+            }
+        }
+    }
+
     fun removeFood(foodId: Long) {
         _uiState.update { it.copy(selectedFoods = it.selectedFoods.filter { sf -> sf.food.id != foodId }) }
     }
 
-    fun updateFoodQuantity(foodId: Long, quantity: Double) {
+    fun updateFoodQuantity(foodId: Long, quantity: Double, unit: FoodUnit? = null) {
         _uiState.update { state ->
             state.copy(selectedFoods = state.selectedFoods.map {
-                if (it.food.id == foodId) it.copy(quantity = quantity) else it
+                if (it.food.id == foodId) {
+                    if (unit != null) it.copy(quantity = quantity, unit = unit)
+                    else it.copy(quantity = quantity)
+                } else it
             })
         }
     }
 
-    // USDA Search functions
+    // Hybrid Search: local first, USDA in background
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        hybridSearch(query)
+    }
+
+    private fun hybridSearch(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) {
+            _uiState.update { it.copy(localResults = emptyList(), usdaResults = emptyList(), isSearchingUsda = false) }
+            return
+        }
+
+        // Instant local search
+        val allFoods = availableFoods.value
+        val localMatches = allFoods.filter { it.name.contains(trimmed, ignoreCase = true) }
+        _uiState.update { it.copy(localResults = localMatches) }
+
+        // Background USDA search
+        _uiState.update { it.copy(isSearchingUsda = true, searchError = null) }
+        viewModelScope.launch {
+            val result = usdaRepository.searchFoods(trimmed)
+            result.fold(
+                onSuccess = { foods ->
+                    // Filter out foods already in local results
+                    val localNames = localMatches.map { it.name.lowercase() }.toSet()
+                    val uniqueUsda = foods.filter { it.name.lowercase() !in localNames }
+                    _uiState.update { it.copy(isSearchingUsda = false, usdaResults = uniqueUsda) }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isSearchingUsda = false, searchError = e.message) }
+                }
+            )
+        }
+    }
+
+    fun clearSearch() {
+        _uiState.update { it.copy(searchQuery = "", localResults = emptyList(), usdaResults = emptyList(), isSearchingUsda = false, searchError = null) }
+    }
+
+    // USDA Search functions (for modal tab)
     fun updateUsdaSearchQuery(query: String) {
         _uiState.update { it.copy(usdaSearchQuery = query) }
     }
@@ -109,6 +177,10 @@ class AddMealViewModel @Inject constructor(
     }
 
     fun addUsdaFood(usdaFood: UsdaFoodResult) {
+        addUsdaFoodWithQuantity(usdaFood, 1.0)
+    }
+
+    fun addUsdaFoodWithQuantity(usdaFood: UsdaFoodResult, quantity: Double) {
         viewModelScope.launch {
             // Save USDA food to local DB and add to meal
             val foodItem = usdaFood.toFoodItem()
@@ -116,8 +188,11 @@ class AddMealViewModel @Inject constructor(
             val savedFood = foodItem.copy(id = id)
 
             val current = _uiState.value.selectedFoods
-            if (current.none { it.food.id == id }) {
-                _uiState.update { it.copy(selectedFoods = current + SelectedFood(savedFood)) }
+            val existing = current.find { it.food.id == id }
+            if (existing != null) {
+                updateFoodQuantity(id, quantity)
+            } else {
+                _uiState.update { it.copy(selectedFoods = current + SelectedFood(savedFood, quantity)) }
             }
         }
     }
@@ -145,9 +220,9 @@ class AddMealViewModel @Inject constructor(
                 )
                 val mealId = mealRepository.insertMeal(meal)
 
-                // Add food items
+                // Add food items with unit
                 state.selectedFoods.forEach { sf ->
-                    mealRepository.addFoodToMeal(mealId, sf.food.id, sf.quantity)
+                    mealRepository.addFoodToMeal(mealId, sf.food.id, sf.quantity, sf.unit)
                 }
 
                 _uiState.update { it.copy(isLoading = false, isSaved = true) }
