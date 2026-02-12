@@ -204,11 +204,12 @@ object DatabaseModule {
 
     private val MIGRATION_9_10 = object : Migration(9, 10) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Create users table for authentication
+            // Create users table for local authentication
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id TEXT PRIMARY KEY NOT NULL,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     email TEXT NOT NULL,
+                    passwordHash TEXT NOT NULL DEFAULT '',
                     displayName TEXT,
                     photoUrl TEXT,
                     age INTEGER,
@@ -217,6 +218,7 @@ object DatabaseModule {
                     updatedAt INTEGER NOT NULL
                 )
             """)
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_users_email ON users(email)")
         }
     }
 

@@ -11,12 +11,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -28,13 +26,10 @@ fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var showForgotPasswordDialog by remember { mutableStateOf(false) }
-    var forgotPasswordEmail by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -48,14 +43,6 @@ fun LoginScreen(
         uiState.error?.let { error ->
             snackbarHostState.showSnackbar(error)
             viewModel.clearError()
-        }
-    }
-
-    LaunchedEffect(uiState.passwordResetSent) {
-        if (uiState.passwordResetSent) {
-            snackbarHostState.showSnackbar("Password reset email sent!")
-            viewModel.clearPasswordResetSent()
-            showForgotPasswordDialog = false
         }
     }
 
@@ -124,19 +111,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TextButton(
-                onClick = {
-                    forgotPasswordEmail = email
-                    showForgotPasswordDialog = true
-                },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Forgot Password?")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = { viewModel.signIn(email, password) },
@@ -155,33 +130,6 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Divider(modifier = Modifier.weight(1f))
-                Text(
-                    text = "  or  ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Divider(modifier = Modifier.weight(1f))
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            OutlinedButton(
-                onClick = { viewModel.signInWithGoogle(context) },
-                enabled = !uiState.isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Text("Sign in with Google")
-            }
-
             Spacer(modifier = Modifier.height(32.dp))
 
             Row(
@@ -197,47 +145,5 @@ fun LoginScreen(
                 }
             }
         }
-    }
-
-    // Forgot Password Dialog
-    if (showForgotPasswordDialog) {
-        AlertDialog(
-            onDismissRequest = { showForgotPasswordDialog = false },
-            title = { Text("Reset Password") },
-            text = {
-                Column {
-                    Text(
-                        "Enter your email address and we'll send you a link to reset your password.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = forgotPasswordEmail,
-                        onValueChange = { forgotPasswordEmail = it },
-                        label = { Text("Email") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { viewModel.sendPasswordReset(forgotPasswordEmail) },
-                    enabled = !uiState.isLoading && forgotPasswordEmail.isNotBlank()
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                    } else {
-                        Text("Send Reset Link")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showForgotPasswordDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }

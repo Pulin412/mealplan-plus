@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -28,7 +27,6 @@ fun SignUpScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -185,33 +183,6 @@ fun SignUpScreen(
                 } else {
                     Text("Create Account")
                 }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Divider(modifier = Modifier.weight(1f))
-                Text(
-                    text = "  or  ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Divider(modifier = Modifier.weight(1f))
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            OutlinedButton(
-                onClick = { viewModel.signInWithGoogle(context) },
-                enabled = !uiState.isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Text("Sign up with Google")
             }
 
             Spacer(modifier = Modifier.height(32.dp))
