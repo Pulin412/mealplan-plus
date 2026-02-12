@@ -1,6 +1,12 @@
 package com.mealplanplus.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -27,8 +33,17 @@ import com.mealplanplus.ui.screens.meals.FoodPickerScreen
 import com.mealplanplus.ui.screens.diets.DietMealSlotScreen
 import com.mealplanplus.ui.screens.diets.DietMealPickerScreen
 import com.mealplanplus.ui.screens.log.DietPickerScreen
+import com.mealplanplus.ui.screens.auth.LoginScreen
+import com.mealplanplus.ui.screens.auth.SignUpScreen
+import com.mealplanplus.ui.screens.profile.ProfileScreen
+import com.mealplanplus.util.AuthPreferences
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 sealed class Screen(val route: String) {
+    object Login : Screen("login")
+    object SignUp : Screen("signup")
+    object Profile : Screen("profile")
     object Home : Screen("home")
     object Foods : Screen("foods")
     object AddFood : Screen("add_food")
@@ -72,8 +87,53 @@ sealed class Screen(val route: String) {
 @Composable
 fun MealPlanNavHost() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val isLoggedIn by AuthPreferences.isLoggedIn(context).collectAsState(initial = null)
 
-    NavHost(navController = navController, startDestination = Screen.Home.route) {
+    // Wait for auth state to load before showing UI
+    if (isLoggedIn == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val startDestination = if (isLoggedIn == true) Screen.Home.route else Screen.Login.route
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable(Screen.Login.route) {
+            LoginScreen(
+                onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
+                onLoginSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Screen.SignUp.route) {
+            SignUpScreen(
+                onNavigateToLogin = { navController.popBackStack() },
+                onSignUpSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToFoods = { navController.navigate(Screen.Foods.route) },
@@ -83,6 +143,7 @@ fun MealPlanNavHost() {
                 onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                 onNavigateToHealth = { navController.navigate(Screen.Health.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onNavigateToLogWithDate = { date -> navController.navigate(Screen.DailyLogWithDate.createRoute(date)) }
             )
         }

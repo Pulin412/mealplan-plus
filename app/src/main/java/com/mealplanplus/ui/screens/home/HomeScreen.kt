@@ -34,6 +34,7 @@ fun HomeScreen(
     onNavigateToCalendar: () -> Unit,
     onNavigateToHealth: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToProfile: () -> Unit = {},
     onNavigateToLogWithDate: (String) -> Unit = { _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -56,6 +57,12 @@ fun HomeScreen(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Profile") },
+                            onClick = { showMenu = false; onNavigateToProfile() },
+                            leadingIcon = { Icon(Icons.Default.Person, null) }
+                        )
+                        Divider()
                         DropdownMenuItem(
                             text = { Text("Plan") },
                             onClick = { showMenu = false; onNavigateToCalendar() },

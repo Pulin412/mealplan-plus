@@ -202,6 +202,24 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create users table for authentication
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    email TEXT NOT NULL,
+                    displayName TEXT,
+                    photoUrl TEXT,
+                    age INTEGER,
+                    contact TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """)
+        }
+    }
+
     private val MIGRATION_6_7 = object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // 1. Create new food_items table with per-100g macros
@@ -283,7 +301,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             // Removed fallbackToDestructiveMigration() - this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()
@@ -306,4 +324,7 @@ object DatabaseModule {
 
     @Provides
     fun provideHealthMetricDao(database: AppDatabase): HealthMetricDao = database.healthMetricDao()
+
+    @Provides
+    fun provideUserDao(database: AppDatabase): UserDao = database.userDao()
 }

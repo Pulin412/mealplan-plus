@@ -19,9 +19,10 @@ import com.mealplanplus.data.model.*
         LoggedMeal::class,
         Plan::class,
         HealthMetric::class,
-        CustomMetricType::class
+        CustomMetricType::class,
+        User::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -32,4 +33,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dailyLogDao(): DailyLogDao
     abstract fun planDao(): PlanDao
     abstract fun healthMetricDao(): HealthMetricDao
+    abstract fun userDao(): UserDao
 }
