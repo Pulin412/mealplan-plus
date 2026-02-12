@@ -40,7 +40,8 @@ data class DailyLogUiState(
     val isLoading: Boolean = true,
     val showMealPicker: Boolean = false,
     val showDietPicker: Boolean = false,
-    val selectedSlot: String? = null
+    val selectedSlot: String? = null,
+    val finishCompleted: Boolean = false  // Trigger navigation after finish
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -226,7 +227,33 @@ class DailyLogViewModel @Inject constructor(
     fun finishPlan() {
         viewModelScope.launch {
             planRepository.completePlan(_date.value.toString())
-            // Reload plan to update UI
+            // Reload plan and trigger navigation
+            loadPlanForDate(_date.value)
+            _uiState.update { it.copy(finishCompleted = true) }
+        }
+    }
+
+    fun clearFinishCompleted() {
+        _uiState.update { it.copy(finishCompleted = false) }
+    }
+
+    /**
+     * Clear the plan and logged meals for current date
+     */
+    fun clearPlan() {
+        viewModelScope.launch {
+            logRepository.clearLoggedMeals(_date.value)
+            planRepository.removePlan(_date.value.toString())
+            loadPlanForDate(_date.value)
+        }
+    }
+
+    /**
+     * Reopen a completed day (mark as not completed)
+     */
+    fun reopenPlan() {
+        viewModelScope.launch {
+            planRepository.uncompletePlan(_date.value.toString())
             loadPlanForDate(_date.value)
         }
     }

@@ -3,6 +3,7 @@ package com.mealplanplus.data.local
 import androidx.room.*
 import com.mealplanplus.data.model.DailyLog
 import com.mealplanplus.data.model.DailyLogSlotOverride
+import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.LoggedFood
 import com.mealplanplus.data.model.LoggedMeal
 import kotlinx.coroutines.flow.Flow
@@ -104,4 +105,89 @@ interface DailyLogDao {
 
     @Query("DELETE FROM daily_log_slot_overrides WHERE logDate = :date")
     suspend fun clearSlotOverrides(date: String)
+
+    // Chart data - daily macro totals
+    @Query("""
+        SELECT
+            lm.logDate as date,
+            COALESCE(SUM(
+                (f.caloriesPer100 / 100.0) *
+                CASE mfi.unit
+                    WHEN 'GRAM' THEN mfi.quantity
+                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE mfi.quantity
+                END * lm.quantity
+            ), 0) as calories,
+            COALESCE(SUM(
+                (f.proteinPer100 / 100.0) *
+                CASE mfi.unit
+                    WHEN 'GRAM' THEN mfi.quantity
+                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE mfi.quantity
+                END * lm.quantity
+            ), 0) as protein,
+            COALESCE(SUM(
+                (f.carbsPer100 / 100.0) *
+                CASE mfi.unit
+                    WHEN 'GRAM' THEN mfi.quantity
+                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE mfi.quantity
+                END * lm.quantity
+            ), 0) as carbs,
+            COALESCE(SUM(
+                (f.fatPer100 / 100.0) *
+                CASE mfi.unit
+                    WHEN 'GRAM' THEN mfi.quantity
+                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE mfi.quantity
+                END * lm.quantity
+            ), 0) as fat
+        FROM logged_meals lm
+        LEFT JOIN meal_food_items mfi ON lm.mealId = mfi.mealId
+        LEFT JOIN food_items f ON mfi.foodId = f.id
+        WHERE lm.logDate BETWEEN :startDate AND :endDate
+        GROUP BY lm.logDate
+        ORDER BY lm.logDate
+    """)
+    fun getDailyMacroTotals(startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
+
+    // Chart data for completed plans only (weekly calories for home screen)
+    @Query("""
+        SELECT
+            p.date as date,
+            COALESCE(SUM(
+                (f.caloriesPer100 / 100.0) *
+                CASE mfi.unit
+                    WHEN 'GRAM' THEN mfi.quantity
+                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE mfi.quantity
+                END * lm.quantity
+            ), 0) as calories,
+            0.0 as protein,
+            0.0 as carbs,
+            0.0 as fat
+        FROM plans p
+        LEFT JOIN logged_meals lm ON lm.logDate = p.date
+        LEFT JOIN meal_food_items mfi ON lm.mealId = mfi.mealId
+        LEFT JOIN food_items f ON mfi.foodId = f.id
+        WHERE p.date BETWEEN :startDate AND :endDate AND p.isCompleted = 1
+        GROUP BY p.date
+        ORDER BY p.date
+    """)
+    fun getCompletedDaysCalories(startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
 }

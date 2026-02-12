@@ -13,6 +13,10 @@ class DietRepository @Inject constructor(
 ) {
     fun getAllDiets(): Flow<List<Diet>> = dietDao.getAllDiets()
 
+    fun getAllDietsWithSummary(): Flow<List<DietSummary>> = dietDao.getAllDietsWithSummary()
+
+    fun getAllDietsWithFullSummary(): Flow<List<DietFullSummary>> = dietDao.getAllDietsWithFullSummary()
+
     suspend fun getDietById(id: Long): Diet? = dietDao.getDietById(id)
 
     suspend fun getDietWithMeals(dietId: Long): DietWithMeals? {

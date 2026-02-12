@@ -7,6 +7,7 @@ import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.MealWithFoods
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.MealRepository
+import com.mealplanplus.util.naturalSortKey
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -114,14 +115,20 @@ class MealsViewModel @Inject constructor(
     // Filter diets based on search query
     fun getFilteredDiets(): List<DietWithMeals> {
         val query = _uiState.value.searchQuery
-        if (query.isBlank()) return _uiState.value.diets
-
-        return _uiState.value.diets.filter { dietWithMeals ->
-            dietWithMeals.diet.name.contains(query, ignoreCase = true) ||
-                    dietWithMeals.meals.values.any { mealWithFoods ->
-                        mealWithFoods?.meal?.name?.contains(query, ignoreCase = true) == true
-                    }
+        val diets = if (query.isBlank()) {
+            _uiState.value.diets
+        } else {
+            _uiState.value.diets.filter { dietWithMeals ->
+                dietWithMeals.diet.name.contains(query, ignoreCase = true) ||
+                        dietWithMeals.meals.values.any { mealWithFoods ->
+                            mealWithFoods?.meal?.name?.contains(query, ignoreCase = true) == true
+                        }
+            }
         }
+        return diets.sortedWith(compareBy(
+            { naturalSortKey(it.diet.name).first },
+            { naturalSortKey(it.diet.name).second }
+        ))
     }
 
     fun loadMealDetails(mealId: Long) {

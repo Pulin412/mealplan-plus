@@ -2,10 +2,14 @@ package com.mealplanplus.ui.screens.charts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
+import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.HealthRepository
+import com.mealplanplus.data.repository.PlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -19,57 +23,135 @@ enum class DateRange(val label: String, val days: Int) {
 }
 
 data class ChartsUiState(
+    // Health tab
     val selectedMetricType: MetricType = MetricType.WEIGHT,
-    val selectedRange: DateRange = DateRange.MONTH,
-    val metrics: List<HealthMetric> = emptyList(),
+    val healthRange: DateRange = DateRange.MONTH,
+    val healthMetrics: List<HealthMetric> = emptyList(),
+
+    // Nutrition tab
+    val nutritionRange: DateRange = DateRange.WEEK,
+    val macroTotals: List<DailyMacroSummary> = emptyList(),
+
+    // Insights tab
+    val insightsRange: DateRange = DateRange.MONTH,
+    val totalPlans: Int = 0,
+    val completedPlans: Int = 0,
+
     val isLoading: Boolean = false
 )
 
 @HiltViewModel
 class ChartsViewModel @Inject constructor(
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val dailyLogRepository: DailyLogRepository,
+    private val planRepository: PlanRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChartsUiState())
     val uiState: StateFlow<ChartsUiState> = _uiState.asStateFlow()
 
+    private var healthJob: Job? = null
+    private var nutritionJob: Job? = null
+    private var insightsJob: Job? = null
+
     init {
-        loadMetrics()
+        loadHealthMetrics()
+        loadNutritionData()
+        loadInsightsData()
     }
 
-    private fun loadMetrics() {
+    // Health tab
+    private fun loadHealthMetrics() {
+        healthJob?.cancel()
         val type = _uiState.value.selectedMetricType
-        val range = _uiState.value.selectedRange
+        val range = _uiState.value.healthRange
 
-        viewModelScope.launch {
+        healthJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            val flow = if (range.days == -1) {
-                healthRepository.getMetricsByType(type)
-            } else {
-                val endDate = LocalDate.now().toString()
-                val startDate = LocalDate.now().minusDays(range.days.toLong()).toString()
-                healthRepository.getMetricsByTypeInRange(type, startDate, endDate)
-            }
-
-            flow.collect { metrics ->
-                _uiState.update {
-                    it.copy(
-                        metrics = metrics.sortedBy { m -> m.date },
-                        isLoading = false
-                    )
+            try {
+                val flow = if (range.days == -1) {
+                    healthRepository.getMetricsByType(type)
+                } else {
+                    val endDate = LocalDate.now().toString()
+                    val startDate = LocalDate.now().minusDays(range.days.toLong()).toString()
+                    healthRepository.getMetricsByTypeInRange(type, startDate, endDate)
                 }
+
+                flow.collect { metrics ->
+                    _uiState.update {
+                        it.copy(
+                            healthMetrics = metrics.sortedBy { m -> m.date },
+                            isLoading = false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(healthMetrics = emptyList(), isLoading = false) }
             }
         }
     }
 
     fun selectMetricType(type: MetricType) {
         _uiState.update { it.copy(selectedMetricType = type) }
-        loadMetrics()
+        loadHealthMetrics()
     }
 
-    fun selectRange(range: DateRange) {
-        _uiState.update { it.copy(selectedRange = range) }
-        loadMetrics()
+    fun selectHealthRange(range: DateRange) {
+        _uiState.update { it.copy(healthRange = range) }
+        loadHealthMetrics()
+    }
+
+    // Nutrition tab
+    private fun loadNutritionData() {
+        nutritionJob?.cancel()
+        val range = _uiState.value.nutritionRange
+        val endDate = LocalDate.now()
+        val startDate = endDate.minusDays(range.days.toLong())
+
+        nutritionJob = viewModelScope.launch {
+            try {
+                dailyLogRepository.getDailyMacroTotals(startDate, endDate).collect { macros ->
+                    _uiState.update { it.copy(macroTotals = macros) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(macroTotals = emptyList()) }
+            }
+        }
+    }
+
+    fun selectNutritionRange(range: DateRange) {
+        _uiState.update { it.copy(nutritionRange = range) }
+        loadNutritionData()
+    }
+
+    // Insights tab
+    private fun loadInsightsData() {
+        insightsJob?.cancel()
+        val range = _uiState.value.insightsRange
+        val endDate = LocalDate.now()
+        val startDate = endDate.minusDays(range.days.toLong())
+
+        insightsJob = viewModelScope.launch {
+            try {
+                planRepository.getPlansInRange(startDate.toString(), endDate.toString()).collect { plans ->
+                    val total = plans.size
+                    val completed = plans.count { it.isCompleted }
+                    _uiState.update {
+                        it.copy(
+                            totalPlans = total,
+                            completedPlans = completed
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(totalPlans = 0, completedPlans = 0) }
+            }
+        }
+    }
+
+    fun selectInsightsRange(range: DateRange) {
+        _uiState.update { it.copy(insightsRange = range) }
+        loadInsightsData()
     }
 }

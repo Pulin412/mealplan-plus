@@ -40,8 +40,8 @@ fun HealthScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToCharts) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Charts")
+                    TextButton(onClick = onNavigateToCharts) {
+                        Text("Charts", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -271,6 +271,12 @@ fun LogMetricDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = date.atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Log ${type.displayName}") },
@@ -299,9 +305,13 @@ fun LogMetricDialog(
                     onValueChange = {},
                     label = { Text("Date") },
                     readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true },
                     trailingIcon = {
-                        Icon(Icons.Default.DateRange, contentDescription = null)
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select date")
+                        }
                     }
                 )
 
@@ -335,4 +345,30 @@ fun LogMetricDialog(
             }
         }
     )
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val selectedDate = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate()
+                        onDateChange(selectedDate)
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }

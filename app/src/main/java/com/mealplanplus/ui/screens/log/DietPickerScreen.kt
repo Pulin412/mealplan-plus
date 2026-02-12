@@ -15,6 +15,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DietTag
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,11 +32,17 @@ fun DietPickerScreen(
     var showSuccessSnackbar by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Check if date is future (planning) vs today/past (logging)
+    val parsedDate = try { LocalDate.parse(date) } catch (e: Exception) { LocalDate.now() }
+    val isFutureDate = parsedDate.isAfter(LocalDate.now())
+    val actionText = if (isFutureDate) "Plan" else "Log"
+
     // Show success snackbar
     LaunchedEffect(showSuccessSnackbar) {
         if (showSuccessSnackbar) {
+            val message = if (isFutureDate) "Diet planned successfully!" else "Diet logged successfully!"
             val result = snackbarHostState.showSnackbar(
-                message = "Diet logged successfully!",
+                message = message,
                 actionLabel = "Go Home",
                 duration = SnackbarDuration.Short
             )
@@ -181,10 +188,10 @@ fun DietPickerScreen(
                 showConfirmDialog = false
                 selectedDiet = null
             },
-            title = { Text("Log Diet") },
+            title = { Text("$actionText Diet") },
             text = {
                 Column {
-                    Text("Log \"${selectedDiet!!.diet.name}\" for $date?")
+                    Text("$actionText \"${selectedDiet!!.diet.name}\" for $date?")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "${selectedDiet!!.totalCalories} cal • ${selectedDiet!!.mealCount} meals",

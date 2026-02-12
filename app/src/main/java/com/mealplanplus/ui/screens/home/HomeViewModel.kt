@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.DailyLogWithMeals
+import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.data.repository.DailyLogRepository
@@ -28,6 +29,7 @@ data class HomeUiState(
     val todaySummary: TodaySummary = TodaySummary(),
     val latestWeight: HealthMetric? = null,
     val latestSugar: HealthMetric? = null,
+    val weeklyCalories: List<DailyMacroSummary> = emptyList(),
     val currentMonth: YearMonth = YearMonth.now(),
     val plansForMonth: Map<String, Boolean> = emptyMap(),  // date string → isCompleted
     val dietNamesForMonth: Map<String, String> = emptyMap(),
@@ -47,6 +49,7 @@ class HomeViewModel @Inject constructor(
     init {
         loadTodayData()
         loadPlansForMonth()
+        loadWeeklyCalories()
     }
 
     private fun loadTodayData() {
@@ -66,16 +69,30 @@ class HomeViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Load latest health metrics
-        healthRepository.getMetricsByType(MetricType.WEIGHT)
+        // Load today's health metrics only (not historical values)
+        val today = LocalDate.now().toString()
+        healthRepository.getMetricsForDate(today)
             .onEach { metrics ->
-                _uiState.update { it.copy(latestWeight = metrics.firstOrNull(), isLoading = false) }
+                val todayWeight = metrics.firstOrNull { it.metricType == MetricType.WEIGHT.name }
+                val todaySugar = metrics.firstOrNull { it.metricType == MetricType.FASTING_SUGAR.name }
+                _uiState.update {
+                    it.copy(
+                        latestWeight = todayWeight,
+                        latestSugar = todaySugar,
+                        isLoading = false
+                    )
+                }
             }
             .launchIn(viewModelScope)
+    }
 
-        healthRepository.getMetricsByType(MetricType.FASTING_SUGAR)
-            .onEach { metrics ->
-                _uiState.update { it.copy(latestSugar = metrics.firstOrNull()) }
+    private fun loadWeeklyCalories() {
+        val endDate = LocalDate.now()
+        val startDate = endDate.minusDays(6) // Last 7 days
+
+        dailyLogRepository.getCompletedDaysCalories(startDate, endDate)
+            .onEach { calories ->
+                _uiState.update { it.copy(weeklyCalories = calories) }
             }
             .launchIn(viewModelScope)
     }

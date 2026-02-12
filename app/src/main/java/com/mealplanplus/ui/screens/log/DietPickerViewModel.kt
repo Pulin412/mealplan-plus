@@ -3,8 +3,8 @@ package com.mealplanplus.ui.screens.log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.DietSummary
 import com.mealplanplus.data.model.DietTag
-import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.util.naturalSortKey
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -79,15 +79,15 @@ class DietPickerViewModel @Inject constructor(
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getAllDiets().collect { diets ->
+            // Single JOIN query - no N+1 problem
+            dietRepository.getAllDietsWithSummary().collect { summaries ->
                 _isLoading.value = true
-                val items = diets.map { diet ->
-                    val withMeals = dietRepository.getDietWithMeals(diet.id)
+                val items = summaries.map { summary ->
                     DietPickerItem(
-                        diet = diet,
-                        totalCalories = withMeals?.totalCalories?.toInt() ?: 0,
-                        mealCount = withMeals?.meals?.count { it.value != null } ?: 0,
-                        tags = diet.getTagList().ifEmpty { listOf(extractDietType(diet.name)) }
+                        diet = summary.toDiet(),
+                        totalCalories = summary.totalCalories,
+                        mealCount = summary.mealCount,
+                        tags = summary.getTagList().ifEmpty { listOf(extractDietType(summary.name)) }
                     )
                 }
                 _allDiets.value = items

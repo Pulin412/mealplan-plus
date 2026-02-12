@@ -19,9 +19,9 @@ class MealPlanApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Clear and seed from seed_data.json + ingredients.json
+        // Seed only if database is empty (first run)
         applicationScope.launch {
-            databaseSeeder.clearAndSeedFromFiles(this@MealPlanApp)
+            databaseSeeder.seedFromFilesIfNeeded(this@MealPlanApp)
         }
     }
 }

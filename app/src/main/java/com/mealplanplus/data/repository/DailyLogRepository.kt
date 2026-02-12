@@ -7,7 +7,6 @@ import com.mealplanplus.data.local.PlanDao
 import com.mealplanplus.data.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -158,6 +157,17 @@ class DailyLogRepository @Inject constructor(
     suspend fun clearMealsForSlot(date: LocalDate, slotType: String) {
         dailyLogDao.clearLoggedMealsForSlot(date.format(dateFormatter), slotType)
     }
+
+    suspend fun clearLoggedMeals(date: LocalDate) {
+        dailyLogDao.clearLoggedMeals(date.format(dateFormatter))
+    }
+
+    // Chart data
+    fun getDailyMacroTotals(startDate: LocalDate, endDate: LocalDate): Flow<List<DailyMacroSummary>> =
+        dailyLogDao.getDailyMacroTotals(startDate.format(dateFormatter), endDate.format(dateFormatter))
+
+    fun getCompletedDaysCalories(startDate: LocalDate, endDate: LocalDate): Flow<List<DailyMacroSummary>> =
+        dailyLogDao.getCompletedDaysCalories(startDate.format(dateFormatter), endDate.format(dateFormatter))
 
     /**
      * Apply a full diet to a day - logs all meals from the diet to their respective slots

@@ -279,6 +279,9 @@ fun MealPlanNavHost() {
                 onNavigateToDietPicker = { date ->
                     navController.navigate(Screen.DietPicker.createRoute(date))
                 },
+                onNavigateHome = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
+                },
                 savedStateHandle = savedStateHandle
             )
         }
@@ -296,6 +299,9 @@ fun MealPlanNavHost() {
                 },
                 onNavigateToDietPicker = { dateStr ->
                     navController.navigate(Screen.DietPicker.createRoute(dateStr))
+                },
+                onNavigateHome = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
                 },
                 savedStateHandle = savedStateHandle
             )

@@ -30,14 +30,31 @@ fun DailyLogScreen(
     onNavigateBack: () -> Unit,
     onNavigateToMealPicker: (String, String) -> Unit = { _, _ -> },
     onNavigateToDietPicker: (String) -> Unit = { _ -> },
+    onNavigateHome: () -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: DailyLogViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val availableMeals by viewModel.availableMeals.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(date) {
         viewModel.setDateFromString(date)
+    }
+
+    // Handle finish completion - show snackbar and navigate home
+    LaunchedEffect(uiState.finishCompleted) {
+        if (uiState.finishCompleted) {
+            val result = snackbarHostState.showSnackbar(
+                message = "Day completed!",
+                actionLabel = "Go Home",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onNavigateHome()
+            }
+            viewModel.clearFinishCompleted()
+        }
     }
 
     // Handle meal selection results from LogMealPickerScreen
@@ -62,6 +79,7 @@ fun DailyLogScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Daily Log") },
@@ -71,6 +89,12 @@ fun DailyLogScreen(
                     }
                 },
                 actions = {
+                    val plan = uiState.planForDate
+                    val today = LocalDate.now()
+                    val isCompleted = plan?.isCompleted == true
+                    val canFinish = plan != null && !isCompleted &&
+                            (uiState.date == today || uiState.date.isBefore(today))
+
                     // Apply Diet button - navigate to full diet picker
                     TextButton(onClick = { onNavigateToDietPicker(uiState.date.toString()) }) {
                         Icon(
@@ -82,9 +106,23 @@ fun DailyLogScreen(
                         Spacer(Modifier.width(4.dp))
                         Text("Diet", color = MaterialTheme.colorScheme.onPrimary)
                     }
-                    // Finish button - shown when there's a plan that's not completed
-                    val plan = uiState.planForDate
-                    if (plan != null && !plan.isCompleted) {
+
+                    // Clear button - shown when there's a plan that's not completed
+                    if (plan != null && !isCompleted) {
+                        TextButton(onClick = { viewModel.clearPlan() }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Clear", color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    }
+
+                    // Finish button - only for today or past dates with uncompleted plan
+                    if (canFinish) {
                         TextButton(onClick = { viewModel.finishPlan() }) {
                             Icon(
                                 Icons.Default.Check,
@@ -96,6 +134,21 @@ fun DailyLogScreen(
                             Text("Finish", color = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
+
+                    // Reopen button - shown when day is completed
+                    if (isCompleted) {
+                        TextButton(onClick = { viewModel.reopenPlan() }) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Reopen", color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    }
+
                     if (uiState.date != LocalDate.now()) {
                         TextButton(onClick = { viewModel.goToToday() }) {
                             Text("Today", color = MaterialTheme.colorScheme.onPrimary)

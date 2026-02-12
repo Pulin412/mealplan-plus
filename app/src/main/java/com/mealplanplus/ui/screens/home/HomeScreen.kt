@@ -6,16 +6,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.ui.components.GradientBackground
 import com.mealplanplus.ui.components.MiniCalendar
+import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
+import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
+import com.patrykandpatrick.vico.compose.chart.Chart
+import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.core.axis.AxisPosition
+import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
+import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
+import com.patrykandpatrick.vico.core.entry.entryOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,17 +38,55 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("MealPlan+") },
                 actions = {
-                    IconButton(onClick = onNavigateToSettings) {
+                    IconButton(onClick = { showMenu = true }) {
                         Icon(
-                            Icons.Default.Settings,
-                            contentDescription = "Settings",
+                            Icons.Default.MoreVert,
+                            contentDescription = "Menu",
                             tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Plan") },
+                            onClick = { showMenu = false; onNavigateToCalendar() },
+                            leadingIcon = { Icon(Icons.Default.DateRange, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Health") },
+                            onClick = { showMenu = false; onNavigateToHealth() },
+                            leadingIcon = { Icon(Icons.Default.Favorite, null) }
+                        )
+                        Divider()
+                        DropdownMenuItem(
+                            text = { Text("Diets") },
+                            onClick = { showMenu = false; onNavigateToDiets() },
+                            leadingIcon = { Icon(Icons.Default.DateRange, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Meals") },
+                            onClick = { showMenu = false; onNavigateToMeals() },
+                            leadingIcon = { Icon(Icons.Default.Menu, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Foods") },
+                            onClick = { showMenu = false; onNavigateToFoods() },
+                            leadingIcon = { Icon(Icons.Default.List, null) }
+                        )
+                        Divider()
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            onClick = { showMenu = false; onNavigateToSettings() },
+                            leadingIcon = { Icon(Icons.Default.Settings, null) }
                         )
                     }
                 },
@@ -70,52 +115,12 @@ fun HomeScreen(
                     onLogClick = onNavigateToLog
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Manage",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onNavigateToFoods,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Foods")
-                    }
-                    OutlinedButton(
-                        onClick = onNavigateToMeals,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Meals")
-                    }
+                // Weekly Calories Chart (completed days only)
+                if (uiState.weeklyCalories.size >= 2) {
+                    WeeklyCaloriesChart(calories = uiState.weeklyCalories)
                 }
 
-                OutlinedButton(
-                    onClick = onNavigateToDiets,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Diets")
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Planning & Health",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                // Inline Mini Calendar
+                // Mini Calendar
                 MiniCalendar(
                     currentMonth = uiState.currentMonth,
                     plansForMonth = uiState.plansForMonth,
@@ -124,29 +129,6 @@ fun HomeScreen(
                     onNextMonth = { viewModel.goToNextMonth() },
                     onDateSelected = { date -> onNavigateToLogWithDate(date.toString()) }
                 )
-
-                // Health and full Calendar buttons row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onNavigateToCalendar,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Full Calendar")
-                    }
-                    OutlinedButton(
-                        onClick = onNavigateToHealth,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Health")
-                    }
-                }
             }
         }
     }
@@ -253,5 +235,46 @@ fun MetricChip(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer
         )
+    }
+}
+
+@Composable
+fun WeeklyCaloriesChart(calories: List<DailyMacroSummary>) {
+    val entries = remember(calories) {
+        calories.mapIndexed { index, macro ->
+            entryOf(index.toFloat(), macro.calories.toFloat())
+        }
+    }
+
+    val chartEntryModelProducer = remember(entries) {
+        ChartEntryModelProducer(entries)
+    }
+
+    val dateLabels = remember(calories) {
+        calories.map { it.date.takeLast(5) } // "MM-DD" format
+    }
+
+    val bottomAxisFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
+        dateLabels.getOrElse(value.toInt()) { "" }
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Weekly Calories (Completed Days)",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Chart(
+                chart = lineChart(),
+                chartModelProducer = chartEntryModelProducer,
+                startAxis = rememberStartAxis(),
+                bottomAxis = rememberBottomAxis(valueFormatter = bottomAxisFormatter),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+            )
+        }
     }
 }

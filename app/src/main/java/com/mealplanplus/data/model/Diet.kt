@@ -81,3 +81,50 @@ data class DietWithMeals(
     val totalFat: Double
         get() = meals.values.filterNotNull().sumOf { it.totalFat }
 }
+
+/**
+ * Diet summary for list display (single JOIN query result)
+ */
+data class DietSummary(
+    val id: Long,
+    val name: String,
+    val description: String?,
+    val tags: String,
+    val createdAt: Long,
+    val mealCount: Int,
+    val totalCalories: Int
+) {
+    fun getTagList(): List<DietTag> {
+        if (tags.isBlank()) return emptyList()
+        return tags.split(",").mapNotNull { tag ->
+            try { DietTag.valueOf(tag.trim()) } catch (e: Exception) { null }
+        }
+    }
+
+    fun toDiet() = Diet(id, name, description, tags, createdAt)
+}
+
+/**
+ * Diet full summary with all macros (single JOIN query result)
+ */
+data class DietFullSummary(
+    val id: Long,
+    val name: String,
+    val description: String?,
+    val tags: String,
+    val createdAt: Long,
+    val mealCount: Int,
+    val totalCalories: Int,
+    val totalProtein: Int,
+    val totalCarbs: Int,
+    val totalFat: Int
+) {
+    fun getTagList(): List<DietTag> {
+        if (tags.isBlank()) return emptyList()
+        return tags.split(",").mapNotNull { tag ->
+            try { DietTag.valueOf(tag.trim()) } catch (e: Exception) { null }
+        }
+    }
+
+    fun toDiet() = Diet(id, name, description, tags, createdAt)
+}

@@ -2,10 +2,10 @@ package com.mealplanplus.util
 
 /**
  * Natural sort comparator for diet names (Diet-1, Diet-2, ... Diet-10, Diet-11)
- * Handles both "Diet-X" (Remission) and "Diet-MX" (Maintenance) formats
+ * Handles "Diet-X" (plain), "Diet-MX" (Maintenance), and "Diet-RX" (Remission) formats
  */
 fun naturalSortKey(name: String): Pair<String, Int> {
-    val regex = Regex("^(Diet-M?)(\\d+).*$")
+    val regex = Regex("^(Diet-[MR]?)(\\d+).*$")
     val match = regex.find(name)
     return if (match != null) {
         val prefix = match.groupValues[1]
@@ -28,12 +28,14 @@ fun <T> List<T>.sortedByNaturalOrder(selector: (T) -> String): List<T> {
 
 /**
  * Extract short name for calendar display
- * "Diet-M1" → "M1", "Diet-5" → "5", "Custom Diet" → "Cust"
+ * "Diet-M1" → "M1", "Diet-R12" → "R12", "Diet-5" → "R5", "Custom Diet" → "Cust"
  */
 fun extractShortDietName(name: String): String {
     return when {
-        name.startsWith("Diet-M") -> name.removePrefix("Diet-")
-        name.startsWith("Diet-") -> name.removePrefix("Diet-")
+        name.startsWith("Diet-M") -> name.removePrefix("Diet-")  // M1, M2...
+        name.startsWith("Diet-R") -> name.removePrefix("Diet-")  // R1, R12...
+        // Plain "Diet-X" numbers → prefix with R (Remission)
+        name.startsWith("Diet-") -> "R" + name.removePrefix("Diet-")
         name.length > 4 -> name.take(4)
         else -> name
     }

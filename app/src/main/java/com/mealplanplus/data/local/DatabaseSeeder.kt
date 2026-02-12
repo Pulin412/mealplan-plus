@@ -114,10 +114,32 @@ class DatabaseSeeder @Inject constructor(
     }
 
     /**
+     * Seed from ingredients.json + seed_data.json ONLY if database is empty
+     */
+    suspend fun seedFromFilesIfNeeded(context: Context) = withContext(Dispatchers.IO) {
+        val systemFoodCount = foodDao.getSystemFoodCount()
+        if (systemFoodCount > 0) {
+            Log.d(TAG, "Database already seeded, skipping")
+            return@withContext
+        }
+
+        Log.d(TAG, "First run - seeding database from files")
+
+        // 1. Seed foods from ingredients.json
+        val foodMap = seedFoodsFromIngredients(context)
+        Log.d(TAG, "Seeded ${foodMap.size} foods")
+
+        // 2. Seed diets from seed_data.json
+        val dietCount = seedDietsFromSeedData(context, foodMap)
+        Log.d(TAG, "Seeded $dietCount diets")
+    }
+
+    /**
      * Clear all data and seed from ingredients.json + seed_data.json
+     * WARNING: This deletes all user data! Use only for dev/testing.
      */
     suspend fun clearAndSeedFromFiles(context: Context) = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting clearAndSeedFromFiles")
+        Log.d(TAG, "Starting clearAndSeedFromFiles - WARNING: deleting all data!")
 
         // 1. Clear all existing data (in order due to foreign keys)
         clearAllData()

@@ -104,18 +104,18 @@ class DietsViewModel @Inject constructor(
 
     private fun loadDietsWithMeals() {
         viewModelScope.launch {
-            repository.getAllDiets().collect { diets ->
+            // Single JOIN query - no N+1 problem
+            repository.getAllDietsWithFullSummary().collect { summaries ->
                 _isLoading.value = true
-                val displayItems = diets.map { diet ->
-                    val withMeals = repository.getDietWithMeals(diet.id)
+                val displayItems = summaries.map { summary ->
                     DietDisplayItem(
-                        diet = diet,
-                        totalCalories = withMeals?.totalCalories?.toInt() ?: 0,
-                        totalProtein = withMeals?.totalProtein?.toInt() ?: 0,
-                        totalCarbs = withMeals?.totalCarbs?.toInt() ?: 0,
-                        totalFat = withMeals?.totalFat?.toInt() ?: 0,
-                        mealCount = withMeals?.meals?.count { it.value != null } ?: 0,
-                        tags = diet.getTagList().ifEmpty { listOf(extractDietType(diet.name)) }
+                        diet = summary.toDiet(),
+                        totalCalories = summary.totalCalories,
+                        totalProtein = summary.totalProtein,
+                        totalCarbs = summary.totalCarbs,
+                        totalFat = summary.totalFat,
+                        mealCount = summary.mealCount,
+                        tags = summary.getTagList().ifEmpty { listOf(extractDietType(summary.name)) }
                     )
                 }
                 _dietsWithMeals.value = displayItems

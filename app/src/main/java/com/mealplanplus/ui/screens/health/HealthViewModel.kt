@@ -7,6 +7,7 @@ import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.data.repository.HealthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -34,12 +35,15 @@ class HealthViewModel @Inject constructor(
     val customTypes: StateFlow<List<CustomMetricType>> = healthRepository.getActiveCustomTypes()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    private var metricsJob: Job? = null
+
     init {
         loadMetrics()
     }
 
     private fun loadMetrics() {
-        viewModelScope.launch {
+        metricsJob?.cancel()
+        metricsJob = viewModelScope.launch {
             healthRepository.getMetricsByType(_uiState.value.selectedMetricType).collect { metrics ->
                 _uiState.update { it.copy(metrics = metrics, isLoading = false) }
             }

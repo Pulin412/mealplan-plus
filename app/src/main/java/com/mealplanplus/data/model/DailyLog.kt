@@ -209,3 +209,14 @@ data class DailyLogWithMeals(
     fun getOverrideForSlot(slotType: String): DailyLogSlotOverride? =
         slotOverrides.find { it.slotType == slotType }
 }
+
+/**
+ * Daily macro summary for charts
+ */
+data class DailyMacroSummary(
+    val date: String,
+    val calories: Double,
+    val protein: Double,
+    val carbs: Double,
+    val fat: Double
+)
