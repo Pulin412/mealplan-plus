@@ -1,9 +1,6 @@
 package com.mealplanplus.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -11,11 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -118,12 +112,13 @@ fun MiniCalendar(
                             val isCompleted = plansForMonth[dateStr] ?: false
                             val dietName = dietNames[dateStr]
 
-                            MiniCalendarDay(
+                            CalendarDayCell(
                                 day = dayNumber,
                                 isToday = isToday,
                                 hasPlan = hasPlan,
                                 isCompleted = isCompleted,
                                 dietName = dietName,
+                                compact = true,
                                 onClick = { onDateSelected(date) },
                                 modifier = Modifier.weight(1f)
                             )
@@ -132,70 +127,6 @@ fun MiniCalendar(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiniCalendarDay(
-    day: Int,
-    isToday: Boolean,
-    hasPlan: Boolean,
-    isCompleted: Boolean = false,
-    dietName: String? = null,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Color scheme: Green = completed, Yellow = planned but not completed
-    val planCompletedColor = Color(0xFF4CAF50)  // Green
-    val planPendingColor = Color(0xFFFFC107)    // Yellow/Amber
-
-    val bgColor = when {
-        isToday -> MaterialTheme.colorScheme.primary
-        hasPlan && isCompleted -> planCompletedColor
-        hasPlan && !isCompleted -> planPendingColor
-        else -> Color.Transparent
-    }
-    val textColor = when {
-        isToday -> MaterialTheme.colorScheme.onPrimary
-        hasPlan && isCompleted -> Color.White
-        hasPlan && !isCompleted -> Color.Black
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .padding(1.dp)
-            .clip(CircleShape)
-            .background(bgColor)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = day.toString(),
-                style = MaterialTheme.typography.labelSmall,
-                color = textColor
-            )
-            if (hasPlan && dietName != null) {
-                Text(
-                    text = dietName,
-                    fontSize = 6.sp,
-                    color = textColor.copy(alpha = 0.8f),
-                    maxLines = 1
-                )
-            } else if (hasPlan) {
-                Box(
-                    modifier = Modifier
-                        .size(3.dp)
-                        .clip(CircleShape)
-                        .background(textColor.copy(alpha = 0.6f))
-                )
             }
         }
     }

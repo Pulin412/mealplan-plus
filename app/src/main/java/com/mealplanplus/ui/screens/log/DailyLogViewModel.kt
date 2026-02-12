@@ -67,7 +67,7 @@ class DailyLogViewModel @Inject constructor(
         // Use flatMapLatest to properly handle date changes and Flow updates
         viewModelScope.launch {
             _date.flatMapLatest { date ->
-                _uiState.value = _uiState.value.copy(date = date, isLoading = true)
+                _uiState.update { it.copy(date = date, isLoading = true) }
                 logRepository.getLogWithMeals(date)
             }.collect { logWithMeals ->
                 val date = _date.value
@@ -77,13 +77,15 @@ class DailyLogViewModel @Inject constructor(
                     dietRepository.getDietWithMeals(it)
                 }
                 val comparison = buildComparison(plannedDiet, logWithMeals)
-                _uiState.value = _uiState.value.copy(
-                    logWithMeals = logWithMeals,
-                    planForDate = plan,
-                    plannedDiet = plannedDiet,
-                    comparison = comparison,
-                    isLoading = false
-                )
+                _uiState.update {
+                    it.copy(
+                        logWithMeals = logWithMeals,
+                        planForDate = plan,
+                        plannedDiet = plannedDiet,
+                        comparison = comparison,
+                        isLoading = false
+                    )
+                }
             }
         }
     }
@@ -224,9 +226,8 @@ class DailyLogViewModel @Inject constructor(
     fun finishPlan() {
         viewModelScope.launch {
             planRepository.completePlan(_date.value.toString())
-            // Reload to update UI - trigger by updating date flow
-            val currentDate = _date.value
-            _date.value = currentDate
+            // Reload plan to update UI
+            loadPlanForDate(_date.value)
         }
     }
 }

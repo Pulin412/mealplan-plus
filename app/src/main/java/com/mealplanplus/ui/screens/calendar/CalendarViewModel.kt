@@ -1,6 +1,5 @@
 package com.mealplanplus.ui.screens.calendar
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
@@ -14,8 +13,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
-
-private const val TAG = "CalendarVM"
 
 data class CalendarUiState(
     val currentMonth: YearMonth = YearMonth.now(),
@@ -49,27 +46,21 @@ class CalendarViewModel @Inject constructor(
         val month = _uiState.value.currentMonth
         val startDate = month.atDay(1).toString()
         val endDate = month.atEndOfMonth().toString()
-        Log.d(TAG, "loadPlansForMonth: $startDate to $endDate")
 
         viewModelScope.launch {
-            planRepository.getPlansInRange(startDate, endDate).collect { plans ->
-                Log.d(TAG, "Got ${plans.size} plans from DB")
-                plans.forEach { p -> Log.d(TAG, "  Plan: ${p.date}, dietId=${p.dietId}, completed=${p.isCompleted}") }
+            // Single JOIN query - no N+1 problem
+            planRepository.getPlansWithDietNames(startDate, endDate).collect { plansWithNames ->
                 // Only include plans with valid dietId
-                val validPlans = plans.filter { it.dietId != null }
-                Log.d(TAG, "Valid plans (with dietId): ${validPlans.size}")
-                val plansMap = validPlans.associateBy { p -> p.date }
-                // Load diet names for each valid plan
-                val dietNames = mutableMapOf<String, String>()
-                validPlans.forEach { plan ->
-                    plan.dietId?.let { dietId ->
-                        val diet = dietRepository.getDietById(dietId)
-                        Log.d(TAG, "  Diet for ${plan.date}: ${diet?.name ?: "NOT FOUND"}")
-                        diet?.let { dietNames[plan.date] = extractShortDietName(it.name) }
-                    }
+                val validPlans = plansWithNames.filter { it.dietId != null }
+                // Convert to Plan objects for UI state
+                val plansMap = validPlans.associate { p ->
+                    p.date to Plan(p.date, p.dietId, p.notes, p.isCompleted)
                 }
+                // Extract diet names directly from query result
+                val dietNames = validPlans.mapNotNull { p ->
+                    p.dietName?.let { p.date to extractShortDietName(it) }
+                }.toMap()
                 _uiState.update { it.copy(plans = plansMap, dietNames = dietNames) }
-                Log.d(TAG, "State updated with ${plansMap.size} plans")
                 // Refresh selected diet after plans are loaded
                 refreshSelectedDiet()
             }
@@ -125,10 +116,8 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun assignDiet(diet: Diet?) {
-        Log.d(TAG, "assignDiet called with diet: ${diet?.name}, id: ${diet?.id}")
         viewModelScope.launch {
             val date = _uiState.value.selectedDate.toString()
-            Log.d(TAG, "Saving plan for date: $date with dietId: ${diet?.id}")
             planRepository.setPlanForDate(date, diet?.id)
 
             // Optimistic update - add to local state immediately
@@ -136,8 +125,6 @@ class CalendarViewModel @Inject constructor(
                 val newPlan = Plan(date = date, dietId = diet.id, isCompleted = false)
                 val updatedPlans = _uiState.value.plans + (date to newPlan)
                 val updatedDietNames = _uiState.value.dietNames + (date to extractShortDietName(diet.name))
-                Log.d(TAG, "Updated plans map: ${updatedPlans.keys}")
-                Log.d(TAG, "Updated dietNames map: $updatedDietNames")
                 _uiState.update {
                     it.copy(
                         plans = updatedPlans,
@@ -146,7 +133,6 @@ class CalendarViewModel @Inject constructor(
                         showDietPicker = false
                     )
                 }
-                Log.d(TAG, "State updated. selectedDiet: ${_uiState.value.selectedDiet?.name}")
             } else {
                 // Clearing the plan
                 val updatedPlans = _uiState.value.plans - date

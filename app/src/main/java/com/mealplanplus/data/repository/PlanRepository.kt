@@ -3,6 +3,7 @@ package com.mealplanplus.data.repository
 import com.mealplanplus.data.local.PlanDao
 import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.Plan
+import com.mealplanplus.data.model.PlanWithDietName
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,6 +14,9 @@ class PlanRepository @Inject constructor(
 ) {
     fun getPlansInRange(startDate: String, endDate: String): Flow<List<Plan>> =
         planDao.getPlansInRange(startDate, endDate)
+
+    fun getPlansWithDietNames(startDate: String, endDate: String): Flow<List<PlanWithDietName>> =
+        planDao.getPlansWithDietNames(startDate, endDate)
 
     fun getAllPlans(): Flow<List<Plan>> = planDao.getAllPlans()
 

@@ -6,7 +6,6 @@ import com.mealplanplus.data.model.DailyLogWithMeals
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.data.repository.DailyLogRepository
-import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.extractShortDietName
@@ -38,7 +37,6 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val dailyLogRepository: DailyLogRepository,
-    private val dietRepository: DietRepository,
     private val healthRepository: HealthRepository,
     private val planRepository: PlanRepository
 ) : ViewModel() {
@@ -88,20 +86,17 @@ class HomeViewModel @Inject constructor(
         val endDate = month.atEndOfMonth().toString()
 
         viewModelScope.launch {
-            planRepository.getPlansInRange(startDate, endDate).collect { plans ->
+            // Single JOIN query - no N+1 problem
+            planRepository.getPlansWithDietNames(startDate, endDate).collect { plansWithNames ->
                 // Only include plans with valid dietId for color coding
-                val validPlans = plans.filter { it.dietId != null }
+                val validPlans = plansWithNames.filter { it.dietId != null }
                 val plansMap = validPlans.associate { plan ->
                     plan.date to plan.isCompleted
                 }
-                // Load diet names for each valid plan
-                val dietNames = mutableMapOf<String, String>()
-                validPlans.forEach { plan ->
-                    plan.dietId?.let { dietId ->
-                        val diet = dietRepository.getDietById(dietId)
-                        diet?.let { dietNames[plan.date] = extractShortDietName(it.name) }
-                    }
-                }
+                // Extract diet names directly from query result
+                val dietNames = validPlans.mapNotNull { p ->
+                    p.dietName?.let { p.date to extractShortDietName(it) }
+                }.toMap()
                 _uiState.update { it.copy(plansForMonth = plansMap, dietNamesForMonth = dietNames) }
             }
         }

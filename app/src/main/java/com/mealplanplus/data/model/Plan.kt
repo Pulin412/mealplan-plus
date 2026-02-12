@@ -35,3 +35,14 @@ data class PlanWithDiet(
     val plan: Plan,
     val diet: Diet?
 )
+
+/**
+ * Plan with diet name for calendar display (single JOIN query result)
+ */
+data class PlanWithDietName(
+    val date: String,
+    val dietId: Long?,
+    val isCompleted: Boolean,
+    val notes: String?,
+    val dietName: String?
+)

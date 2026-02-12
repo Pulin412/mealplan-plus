@@ -1,28 +1,20 @@
 package com.mealplanplus.ui.screens.calendar
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Diet
+import com.mealplanplus.ui.components.CalendarDayCell
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -194,70 +186,6 @@ fun CalendarGrid(
                         Spacer(modifier = Modifier.weight(1f))
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun CalendarDayCell(
-    day: Int,
-    isSelected: Boolean,
-    isToday: Boolean,
-    hasPlan: Boolean,
-    isCompleted: Boolean = false,
-    dietName: String? = null,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Color scheme: Green = completed, Yellow = planned but not completed
-    val planCompletedColor = Color(0xFF4CAF50)  // Green
-    val planPendingColor = Color(0xFFFFC107)    // Yellow/Amber
-
-    val bgColor = when {
-        isSelected -> MaterialTheme.colorScheme.primary
-        isToday -> MaterialTheme.colorScheme.primaryContainer
-        hasPlan && isCompleted -> planCompletedColor
-        hasPlan && !isCompleted -> planPendingColor
-        else -> Color.Transparent
-    }
-    val textColor = when {
-        isSelected -> MaterialTheme.colorScheme.onPrimary
-        isToday -> MaterialTheme.colorScheme.onPrimaryContainer
-        hasPlan && isCompleted -> Color.White
-        hasPlan && !isCompleted -> Color.Black
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .padding(2.dp)
-            .clip(CircleShape)
-            .background(bgColor)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = day.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = textColor
-            )
-            if (hasPlan && dietName != null) {
-                Text(
-                    text = dietName,
-                    fontSize = 8.sp,
-                    color = textColor.copy(alpha = 0.8f),
-                    maxLines = 1
-                )
-            } else if (hasPlan) {
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(textColor.copy(alpha = 0.6f))
-                )
             }
         }
     }
