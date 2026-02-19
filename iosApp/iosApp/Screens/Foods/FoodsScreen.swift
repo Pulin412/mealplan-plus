@@ -5,6 +5,8 @@ struct FoodsScreen: View {
     @State private var searchText = ""
     @State private var foods: [FoodItemUI] = []
     @State private var showAddFood = false
+    @State private var showScanner = false
+    @State private var showOnlineSearch = false
 
     var filteredFoods: [FoodItemUI] {
         if searchText.isEmpty {
@@ -58,7 +60,17 @@ struct FoodsScreen: View {
         .navigationTitle("My Foods")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showAddFood = true }) {
+                Menu {
+                    Button(action: { showAddFood = true }) {
+                        Label("Add Manually", systemImage: "plus")
+                    }
+                    Button(action: { showScanner = true }) {
+                        Label("Scan Barcode", systemImage: "barcode.viewfinder")
+                    }
+                    Button(action: { showOnlineSearch = true }) {
+                        Label("Search Online", systemImage: "magnifyingglass")
+                    }
+                } label: {
                     Image(systemName: "plus")
                 }
             }
@@ -66,6 +78,26 @@ struct FoodsScreen: View {
         .sheet(isPresented: $showAddFood) {
             AddFoodScreen { newFood in
                 foods.append(newFood)
+            }
+        }
+        .fullScreenCover(isPresented: $showScanner) {
+            BarcodeScannerScreen { barcode in
+                // Handle scanned barcode - would call OpenFoodFacts API
+                print("Scanned: \(barcode)")
+            }
+        }
+        .sheet(isPresented: $showOnlineSearch) {
+            OnlineSearchScreen { result in
+                let food = FoodItemUI(
+                    id: Int64(Date().timeIntervalSince1970),
+                    name: result.name,
+                    calories: result.calories,
+                    protein: result.protein,
+                    carbs: result.carbs,
+                    fat: result.fat,
+                    unit: result.servingSize
+                )
+                foods.append(food)
             }
         }
         .onAppear {
