@@ -47,7 +47,7 @@ struct DietDetailScreen: View {
                         .font(.headline)
 
                     HStack(spacing: 16) {
-                        NutritionBox(value: diet.calories, label: "Calories", unit: "kcal", color: .green)
+                        NutritionBox(value: Double(diet.calories), label: "Calories", unit: "kcal", color: .green)
                         NutritionBox(value: diet.protein, label: "Protein", unit: "g", color: .red)
                         NutritionBox(value: diet.carbs, label: "Carbs", unit: "g", color: .blue)
                         NutritionBox(value: diet.fat, label: "Fat", unit: "g", color: .yellow)

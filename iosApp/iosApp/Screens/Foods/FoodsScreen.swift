@@ -91,7 +91,7 @@ struct FoodsScreen: View {
                 let food = FoodItemUI(
                     id: Int64(Date().timeIntervalSince1970),
                     name: result.name,
-                    calories: result.calories,
+                    calories: Int(result.calories),
                     protein: result.protein,
                     carbs: result.carbs,
                     fat: result.fat,

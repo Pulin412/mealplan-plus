@@ -290,7 +290,7 @@ struct LogMealPickerScreen: View {
             id: Int64(Date().timeIntervalSince1970),
             name: meal.name,
             slot: slot,
-            calories: meal.calories,
+            calories: Double(meal.calories),
             protein: meal.protein,
             carbs: meal.carbs,
             fat: meal.fat,

@@ -79,7 +79,7 @@ struct AddFoodScreen: View {
         let food = FoodItemUI(
             id: Int64(Date().timeIntervalSince1970),
             name: name,
-            calories: Double(calories) ?? 0,
+            calories: Int(Double(calories) ?? 0),
             protein: Double(protein) ?? 0,
             carbs: Double(carbs) ?? 0,
             fat: Double(fat) ?? 0,
@@ -114,7 +114,7 @@ struct FoodDetailScreen: View {
     let food: FoodItemUI
     @State private var quantity: Double = 1.0
 
-    var scaledCalories: Double { food.calories * quantity }
+    var scaledCalories: Double { Double(food.calories) * quantity }
     var scaledProtein: Double { food.protein * quantity }
     var scaledCarbs: Double { food.carbs * quantity }
     var scaledFat: Double { food.fat * quantity }

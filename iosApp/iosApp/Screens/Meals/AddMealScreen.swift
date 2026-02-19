@@ -12,7 +12,7 @@ struct AddMealScreen: View {
 
     let slots = ["Breakfast", "Lunch", "Dinner", "Snack"]
 
-    var totalCalories: Double {
+    var totalCalories: Int {
         selectedFoods.reduce(0) { $0 + $1.calories }
     }
 
@@ -262,7 +262,7 @@ struct MealDetailScreen: View {
                         .font(.headline)
 
                     HStack(spacing: 20) {
-                        NutritionCircle(value: meal.calories, label: "kcal", color: .green)
+                        NutritionCircle(value: Double(meal.calories), label: "kcal", color: .green)
                         NutritionCircle(value: meal.protein, label: "Protein", color: .red)
                         NutritionCircle(value: meal.carbs, label: "Carbs", color: .blue)
                         NutritionCircle(value: meal.fat, label: "Fat", color: .yellow)
