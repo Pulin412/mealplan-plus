@@ -2,6 +2,7 @@ plugins {
     kotlin("multiplatform")
     id("com.android.library")
     id("app.cash.sqldelight")
+    kotlin("plugin.serialization") version "1.9.24"
 }
 
 kotlin {
@@ -34,6 +35,12 @@ kotlin {
                 // SQLDelight runtime
                 implementation("app.cash.sqldelight:runtime:2.0.1")
                 implementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
+                // Ktor client
+                implementation("io.ktor:ktor-client-core:2.3.7")
+                implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
+                // Kotlinx Serialization
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
             }
         }
         val commonTest by getting {
@@ -48,6 +55,8 @@ kotlin {
                 implementation("app.cash.sqldelight:android-driver:2.0.1")
                 // DataStore for preferences
                 implementation("androidx.datastore:datastore-preferences:1.0.0")
+                // Ktor Android engine
+                implementation("io.ktor:ktor-client-okhttp:2.3.7")
             }
         }
 
@@ -62,6 +71,8 @@ kotlin {
             dependencies {
                 // SQLDelight iOS driver
                 implementation("app.cash.sqldelight:native-driver:2.0.1")
+                // Ktor iOS engine
+                implementation("io.ktor:ktor-client-darwin:2.3.7")
             }
         }
     }
