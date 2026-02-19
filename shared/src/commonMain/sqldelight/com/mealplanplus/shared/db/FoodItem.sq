@@ -1,0 +1,66 @@
+CREATE TABLE food_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    brand TEXT,
+    barcode TEXT,
+    caloriesPer100 REAL NOT NULL,
+    proteinPer100 REAL NOT NULL,
+    carbsPer100 REAL NOT NULL,
+    fatPer100 REAL NOT NULL,
+    gramsPerPiece REAL,
+    gramsPerCup REAL,
+    gramsPerTbsp REAL,
+    gramsPerTsp REAL,
+    glycemicIndex INTEGER,
+    isFavorite INTEGER NOT NULL DEFAULT 0,
+    lastUsed INTEGER,
+    createdAt INTEGER NOT NULL,
+    isSystemFood INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX food_items_name ON food_items(name);
+CREATE INDEX food_items_barcode ON food_items(barcode);
+
+-- Queries
+selectAll:
+SELECT * FROM food_items ORDER BY name;
+
+selectById:
+SELECT * FROM food_items WHERE id = ?;
+
+selectByBarcode:
+SELECT * FROM food_items WHERE barcode = ?;
+
+searchByName:
+SELECT * FROM food_items WHERE name LIKE '%' || ? || '%' ORDER BY name LIMIT ?;
+
+selectFavorites:
+SELECT * FROM food_items WHERE isFavorite = 1 ORDER BY name;
+
+selectRecent:
+SELECT * FROM food_items WHERE lastUsed IS NOT NULL ORDER BY lastUsed DESC LIMIT ?;
+
+insert:
+INSERT INTO food_items(name, brand, barcode, caloriesPer100, proteinPer100, carbsPer100, fatPer100,
+    gramsPerPiece, gramsPerCup, gramsPerTbsp, gramsPerTsp, glycemicIndex, isFavorite, lastUsed, createdAt, isSystemFood)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE food_items SET name = ?, brand = ?, barcode = ?, caloriesPer100 = ?, proteinPer100 = ?, carbsPer100 = ?, fatPer100 = ?,
+    gramsPerPiece = ?, gramsPerCup = ?, gramsPerTbsp = ?, gramsPerTsp = ?, glycemicIndex = ?, isFavorite = ?, lastUsed = ?
+WHERE id = ?;
+
+updateFavorite:
+UPDATE food_items SET isFavorite = ? WHERE id = ?;
+
+updateLastUsed:
+UPDATE food_items SET lastUsed = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM food_items WHERE id = ?;
+
+deleteNonSystemFoods:
+DELETE FROM food_items WHERE isSystemFood = 0;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

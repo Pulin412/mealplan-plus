@@ -1,0 +1,96 @@
+CREATE TABLE custom_metric_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    minValue REAL,
+    maxValue REAL,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX custom_metric_types_userId ON custom_metric_types(userId);
+
+CREATE TABLE health_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    metricType TEXT,
+    customTypeId INTEGER,
+    value REAL NOT NULL,
+    notes TEXT,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX health_metrics_userId ON health_metrics(userId);
+CREATE INDEX health_metrics_date ON health_metrics(date);
+CREATE INDEX health_metrics_metricType ON health_metrics(metricType);
+CREATE INDEX health_metrics_customTypeId ON health_metrics(customTypeId);
+
+-- Custom metric type queries
+selectCustomMetricTypes:
+SELECT * FROM custom_metric_types WHERE userId = ? AND isActive = 1 ORDER BY name;
+
+selectAllCustomMetricTypes:
+SELECT * FROM custom_metric_types WHERE userId = ? ORDER BY name;
+
+selectCustomMetricTypeById:
+SELECT * FROM custom_metric_types WHERE id = ?;
+
+insertCustomMetricType:
+INSERT INTO custom_metric_types(userId, name, unit, minValue, maxValue, isActive)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateCustomMetricType:
+UPDATE custom_metric_types SET name = ?, unit = ?, minValue = ?, maxValue = ?, isActive = ?
+WHERE id = ?;
+
+deleteCustomMetricType:
+DELETE FROM custom_metric_types WHERE id = ?;
+
+-- Health metric queries
+selectHealthMetrics:
+SELECT * FROM health_metrics WHERE userId = ? ORDER BY date DESC, timestamp DESC;
+
+selectHealthMetricsByType:
+SELECT * FROM health_metrics WHERE userId = ? AND metricType = ?
+ORDER BY date DESC, timestamp DESC;
+
+selectHealthMetricsByCustomType:
+SELECT * FROM health_metrics WHERE userId = ? AND customTypeId = ?
+ORDER BY date DESC, timestamp DESC;
+
+selectHealthMetricsForDateRange:
+SELECT * FROM health_metrics WHERE userId = ? AND date >= ? AND date <= ?
+ORDER BY date DESC, timestamp DESC;
+
+selectHealthMetricById:
+SELECT * FROM health_metrics WHERE id = ?;
+
+selectHealthMetricWithType:
+SELECT hm.*, cmt.name AS customTypeName, cmt.unit AS customTypeUnit
+FROM health_metrics hm
+LEFT JOIN custom_metric_types cmt ON hm.customTypeId = cmt.id
+WHERE hm.id = ?;
+
+insertHealthMetric:
+INSERT INTO health_metrics(userId, date, timestamp, metricType, customTypeId, value, notes)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+updateHealthMetric:
+UPDATE health_metrics SET date = ?, timestamp = ?, metricType = ?, customTypeId = ?, value = ?, notes = ?
+WHERE id = ?;
+
+deleteHealthMetric:
+DELETE FROM health_metrics WHERE id = ?;
+
+-- Latest value for each metric type
+selectLatestMetricByType:
+SELECT * FROM health_metrics
+WHERE userId = ? AND metricType = ?
+ORDER BY date DESC, timestamp DESC
+LIMIT 1;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

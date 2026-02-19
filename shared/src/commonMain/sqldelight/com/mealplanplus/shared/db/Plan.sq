@@ -1,0 +1,46 @@
+CREATE TABLE plans (
+    userId INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    dietId INTEGER,
+    notes TEXT,
+    isCompleted INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (userId, date),
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (dietId) REFERENCES diets(id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX plans_userId_date ON plans(userId, date);
+CREATE INDEX plans_dietId ON plans(dietId);
+
+-- Queries
+selectPlanByDate:
+SELECT * FROM plans WHERE userId = ? AND date = ?;
+
+selectPlansForDateRange:
+SELECT * FROM plans WHERE userId = ? AND date >= ? AND date <= ? ORDER BY date;
+
+selectPlansWithDietName:
+SELECT p.userId, p.date, p.dietId, p.isCompleted, p.notes, d.name AS dietName
+FROM plans p
+LEFT JOIN diets d ON p.dietId = d.id
+WHERE p.userId = ? AND p.date >= ? AND p.date <= ?
+ORDER BY p.date;
+
+insertPlan:
+INSERT OR REPLACE INTO plans(userId, date, dietId, notes, isCompleted)
+VALUES (?, ?, ?, ?, ?);
+
+updatePlanDiet:
+UPDATE plans SET dietId = ? WHERE userId = ? AND date = ?;
+
+updatePlanCompleted:
+UPDATE plans SET isCompleted = ? WHERE userId = ? AND date = ?;
+
+updatePlanNotes:
+UPDATE plans SET notes = ? WHERE userId = ? AND date = ?;
+
+deletePlan:
+DELETE FROM plans WHERE userId = ? AND date = ?;
+
+deletePlansForDateRange:
+DELETE FROM plans WHERE userId = ? AND date >= ? AND date <= ?;

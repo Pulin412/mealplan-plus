@@ -1,0 +1,41 @@
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    passwordHash TEXT NOT NULL DEFAULT '',
+    displayName TEXT,
+    photoUrl TEXT,
+    age INTEGER,
+    contact TEXT,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE INDEX users_email ON users(email);
+
+-- Queries
+selectAll:
+SELECT * FROM users;
+
+selectById:
+SELECT * FROM users WHERE id = ?;
+
+selectByEmail:
+SELECT * FROM users WHERE email = ?;
+
+insert:
+INSERT INTO users(email, passwordHash, displayName, photoUrl, age, contact, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+insertWithId:
+INSERT INTO users(id, email, passwordHash, displayName, photoUrl, age, contact, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE users SET email = ?, passwordHash = ?, displayName = ?, photoUrl = ?, age = ?, contact = ?, updatedAt = ?
+WHERE id = ?;
+
+deleteById:
+DELETE FROM users WHERE id = ?;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

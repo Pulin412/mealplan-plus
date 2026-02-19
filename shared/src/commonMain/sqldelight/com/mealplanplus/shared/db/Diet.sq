@@ -1,0 +1,135 @@
+CREATE TABLE diets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    createdAt INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX diets_userId ON diets(userId);
+
+CREATE TABLE diet_meals (
+    dietId INTEGER NOT NULL,
+    slotType TEXT NOT NULL,
+    mealId INTEGER,
+    PRIMARY KEY (dietId, slotType),
+    FOREIGN KEY (dietId) REFERENCES diets(id) ON DELETE CASCADE,
+    FOREIGN KEY (mealId) REFERENCES meals(id) ON DELETE SET NULL
+);
+
+CREATE INDEX diet_meals_dietId ON diet_meals(dietId);
+CREATE INDEX diet_meals_mealId ON diet_meals(mealId);
+
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT,
+    createdAt INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX tags_userId_name ON tags(userId, name);
+
+CREATE TABLE diet_tags (
+    dietId INTEGER NOT NULL,
+    tagId INTEGER NOT NULL,
+    PRIMARY KEY (dietId, tagId),
+    FOREIGN KEY (dietId) REFERENCES diets(id) ON DELETE CASCADE,
+    FOREIGN KEY (tagId) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE INDEX diet_tags_dietId ON diet_tags(dietId);
+CREATE INDEX diet_tags_tagId ON diet_tags(tagId);
+
+-- Diet queries
+selectAllDiets:
+SELECT * FROM diets WHERE userId = ? ORDER BY name;
+
+selectDietById:
+SELECT * FROM diets WHERE id = ?;
+
+insertDiet:
+INSERT INTO diets(userId, name, description, createdAt)
+VALUES (?, ?, ?, ?);
+
+updateDiet:
+UPDATE diets SET name = ?, description = ? WHERE id = ?;
+
+deleteDietById:
+DELETE FROM diets WHERE id = ?;
+
+-- Diet meals queries
+selectDietMeals:
+SELECT dm.*, m.* FROM diet_meals dm
+LEFT JOIN meals m ON dm.mealId = m.id
+WHERE dm.dietId = ?;
+
+insertDietMeal:
+INSERT OR REPLACE INTO diet_meals(dietId, slotType, mealId)
+VALUES (?, ?, ?);
+
+deleteDietMeal:
+DELETE FROM diet_meals WHERE dietId = ? AND slotType = ?;
+
+deleteDietMealsByDietId:
+DELETE FROM diet_meals WHERE dietId = ?;
+
+-- Tag queries
+selectAllTags:
+SELECT * FROM tags WHERE userId = ? ORDER BY name;
+
+selectTagById:
+SELECT * FROM tags WHERE id = ?;
+
+selectTagByName:
+SELECT * FROM tags WHERE userId = ? AND name = ?;
+
+insertTag:
+INSERT INTO tags(userId, name, color, createdAt) VALUES (?, ?, ?, ?);
+
+updateTag:
+UPDATE tags SET name = ?, color = ? WHERE id = ?;
+
+deleteTagById:
+DELETE FROM tags WHERE id = ?;
+
+-- Diet-Tag queries
+selectTagsForDiet:
+SELECT t.* FROM tags t
+JOIN diet_tags dt ON t.id = dt.tagId
+WHERE dt.dietId = ?;
+
+selectDietsForTag:
+SELECT d.* FROM diets d
+JOIN diet_tags dt ON d.id = dt.dietId
+WHERE dt.tagId = ?;
+
+insertDietTag:
+INSERT OR IGNORE INTO diet_tags(dietId, tagId) VALUES (?, ?);
+
+deleteDietTag:
+DELETE FROM diet_tags WHERE dietId = ? AND tagId = ?;
+
+deleteDietTagsByDietId:
+DELETE FROM diet_tags WHERE dietId = ?;
+
+-- Diet summary query
+selectDietSummaries:
+SELECT d.id, d.userId, d.name, d.description, d.createdAt,
+    COUNT(DISTINCT dm.slotType) AS mealCount,
+    COALESCE(SUM(
+        (SELECT SUM(fi.caloriesPer100 * mfi.quantity / 100.0)
+         FROM meal_food_items mfi
+         JOIN food_items fi ON mfi.foodId = fi.id
+         WHERE mfi.mealId = dm.mealId)
+    ), 0) AS totalCalories
+FROM diets d
+LEFT JOIN diet_meals dm ON d.id = dm.dietId
+WHERE d.userId = ?
+GROUP BY d.id
+ORDER BY d.name;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

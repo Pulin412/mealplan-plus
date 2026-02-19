@@ -1,0 +1,89 @@
+CREATE TABLE grocery_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    startDate TEXT,
+    endDate TEXT,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX grocery_lists_userId ON grocery_lists(userId);
+
+CREATE TABLE grocery_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    listId INTEGER NOT NULL,
+    foodId INTEGER,
+    customName TEXT,
+    quantity REAL NOT NULL,
+    unit TEXT NOT NULL,
+    isChecked INTEGER NOT NULL DEFAULT 0,
+    sortOrder INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (listId) REFERENCES grocery_lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (foodId) REFERENCES food_items(id) ON DELETE SET NULL
+);
+
+CREATE INDEX grocery_items_listId ON grocery_items(listId);
+CREATE INDEX grocery_items_foodId ON grocery_items(foodId);
+
+-- Grocery list queries
+selectAllGroceryLists:
+SELECT * FROM grocery_lists WHERE userId = ? ORDER BY updatedAt DESC;
+
+selectGroceryListById:
+SELECT * FROM grocery_lists WHERE id = ?;
+
+insertGroceryList:
+INSERT INTO grocery_lists(userId, name, startDate, endDate, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateGroceryList:
+UPDATE grocery_lists SET name = ?, startDate = ?, endDate = ?, updatedAt = ?
+WHERE id = ?;
+
+deleteGroceryList:
+DELETE FROM grocery_lists WHERE id = ?;
+
+-- Grocery items queries
+selectGroceryItems:
+SELECT gi.*, fi.* FROM grocery_items gi
+LEFT JOIN food_items fi ON gi.foodId = fi.id
+WHERE gi.listId = ?
+ORDER BY gi.isChecked, gi.sortOrder, gi.id;
+
+selectGroceryItemById:
+SELECT gi.*, fi.* FROM grocery_items gi
+LEFT JOIN food_items fi ON gi.foodId = fi.id
+WHERE gi.id = ?;
+
+insertGroceryItem:
+INSERT INTO grocery_items(listId, foodId, customName, quantity, unit, isChecked, sortOrder)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+updateGroceryItem:
+UPDATE grocery_items SET foodId = ?, customName = ?, quantity = ?, unit = ?, isChecked = ?, sortOrder = ?
+WHERE id = ?;
+
+updateGroceryItemChecked:
+UPDATE grocery_items SET isChecked = ? WHERE id = ?;
+
+deleteGroceryItem:
+DELETE FROM grocery_items WHERE id = ?;
+
+deleteGroceryItemsByListId:
+DELETE FROM grocery_items WHERE listId = ?;
+
+-- Grocery list with items count
+selectGroceryListsWithCounts:
+SELECT gl.*,
+    COUNT(gi.id) AS totalCount,
+    SUM(CASE WHEN gi.isChecked = 1 THEN 1 ELSE 0 END) AS checkedCount
+FROM grocery_lists gl
+LEFT JOIN grocery_items gi ON gl.id = gi.listId
+WHERE gl.userId = ?
+GROUP BY gl.id
+ORDER BY gl.updatedAt DESC;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

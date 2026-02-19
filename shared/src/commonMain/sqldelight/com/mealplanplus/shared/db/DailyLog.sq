@@ -1,0 +1,145 @@
+CREATE TABLE daily_logs (
+    userId INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    plannedDietId INTEGER,
+    notes TEXT,
+    createdAt INTEGER NOT NULL,
+    PRIMARY KEY (userId, date),
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX daily_logs_userId ON daily_logs(userId);
+
+CREATE TABLE daily_log_slot_overrides (
+    userId INTEGER NOT NULL,
+    logDate TEXT NOT NULL,
+    slotType TEXT NOT NULL,
+    overrideMealId INTEGER,
+    notes TEXT,
+    createdAt INTEGER NOT NULL,
+    PRIMARY KEY (userId, logDate, slotType),
+    FOREIGN KEY (userId, logDate) REFERENCES daily_logs(userId, date) ON DELETE CASCADE,
+    FOREIGN KEY (overrideMealId) REFERENCES meals(id) ON DELETE SET NULL
+);
+
+CREATE INDEX daily_log_slot_overrides_userId_logDate ON daily_log_slot_overrides(userId, logDate);
+CREATE INDEX daily_log_slot_overrides_overrideMealId ON daily_log_slot_overrides(overrideMealId);
+
+CREATE TABLE logged_foods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    logDate TEXT NOT NULL,
+    foodId INTEGER NOT NULL,
+    quantity REAL NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'GRAM',
+    slotType TEXT NOT NULL,
+    timestamp INTEGER,
+    notes TEXT,
+    FOREIGN KEY (userId, logDate) REFERENCES daily_logs(userId, date) ON DELETE CASCADE,
+    FOREIGN KEY (foodId) REFERENCES food_items(id) ON DELETE CASCADE
+);
+
+CREATE INDEX logged_foods_userId_logDate ON logged_foods(userId, logDate);
+CREATE INDEX logged_foods_foodId ON logged_foods(foodId);
+
+CREATE TABLE logged_meals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    logDate TEXT NOT NULL,
+    mealId INTEGER NOT NULL,
+    slotType TEXT NOT NULL,
+    quantity REAL NOT NULL DEFAULT 1.0,
+    timestamp INTEGER,
+    notes TEXT,
+    FOREIGN KEY (userId, logDate) REFERENCES daily_logs(userId, date) ON DELETE CASCADE,
+    FOREIGN KEY (mealId) REFERENCES meals(id) ON DELETE CASCADE
+);
+
+CREATE INDEX logged_meals_userId_logDate ON logged_meals(userId, logDate);
+CREATE INDEX logged_meals_mealId ON logged_meals(mealId);
+
+-- Daily log queries
+selectDailyLog:
+SELECT * FROM daily_logs WHERE userId = ? AND date = ?;
+
+selectDailyLogsForRange:
+SELECT * FROM daily_logs WHERE userId = ? AND date >= ? AND date <= ? ORDER BY date;
+
+insertDailyLog:
+INSERT OR REPLACE INTO daily_logs(userId, date, plannedDietId, notes, createdAt)
+VALUES (?, ?, ?, ?, ?);
+
+updateDailyLogDiet:
+UPDATE daily_logs SET plannedDietId = ? WHERE userId = ? AND date = ?;
+
+deleteDailyLog:
+DELETE FROM daily_logs WHERE userId = ? AND date = ?;
+
+-- Slot override queries
+selectSlotOverrides:
+SELECT * FROM daily_log_slot_overrides WHERE userId = ? AND logDate = ?;
+
+insertSlotOverride:
+INSERT OR REPLACE INTO daily_log_slot_overrides(userId, logDate, slotType, overrideMealId, notes, createdAt)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteSlotOverride:
+DELETE FROM daily_log_slot_overrides WHERE userId = ? AND logDate = ? AND slotType = ?;
+
+-- Logged foods queries
+selectLoggedFoods:
+SELECT lf.*, fi.* FROM logged_foods lf
+JOIN food_items fi ON lf.foodId = fi.id
+WHERE lf.userId = ? AND lf.logDate = ?
+ORDER BY lf.timestamp;
+
+selectLoggedFoodsBySlot:
+SELECT lf.*, fi.* FROM logged_foods lf
+JOIN food_items fi ON lf.foodId = fi.id
+WHERE lf.userId = ? AND lf.logDate = ? AND lf.slotType = ?
+ORDER BY lf.timestamp;
+
+insertLoggedFood:
+INSERT INTO logged_foods(userId, logDate, foodId, quantity, unit, slotType, timestamp, notes)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateLoggedFood:
+UPDATE logged_foods SET quantity = ?, unit = ?, slotType = ?, timestamp = ?, notes = ?
+WHERE id = ?;
+
+deleteLoggedFood:
+DELETE FROM logged_foods WHERE id = ?;
+
+-- Logged meals queries
+selectLoggedMeals:
+SELECT lm.*, m.* FROM logged_meals lm
+JOIN meals m ON lm.mealId = m.id
+WHERE lm.userId = ? AND lm.logDate = ?
+ORDER BY lm.timestamp;
+
+insertLoggedMeal:
+INSERT INTO logged_meals(userId, logDate, mealId, slotType, quantity, timestamp, notes)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+updateLoggedMeal:
+UPDATE logged_meals SET quantity = ?, slotType = ?, timestamp = ?, notes = ?
+WHERE id = ?;
+
+deleteLoggedMeal:
+DELETE FROM logged_meals WHERE id = ?;
+
+-- Daily macro summary
+selectDailyMacroSummary:
+SELECT lf.logDate AS date,
+    SUM(fi.caloriesPer100 * lf.quantity / 100.0) AS calories,
+    SUM(fi.proteinPer100 * lf.quantity / 100.0) AS protein,
+    SUM(fi.carbsPer100 * lf.quantity / 100.0) AS carbs,
+    SUM(fi.fatPer100 * lf.quantity / 100.0) AS fat
+FROM logged_foods lf
+JOIN food_items fi ON lf.foodId = fi.id
+WHERE lf.userId = ? AND lf.logDate >= ? AND lf.logDate <= ?
+GROUP BY lf.logDate
+ORDER BY lf.logDate;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

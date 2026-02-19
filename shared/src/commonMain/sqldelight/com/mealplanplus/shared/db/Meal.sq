@@ -1,0 +1,86 @@
+CREATE TABLE meals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    slotType TEXT NOT NULL,
+    customSlotId INTEGER,
+    createdAt INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX meals_userId ON meals(userId);
+
+CREATE TABLE meal_food_items (
+    mealId INTEGER NOT NULL,
+    foodId INTEGER NOT NULL,
+    quantity REAL NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'GRAM',
+    notes TEXT,
+    PRIMARY KEY (mealId, foodId),
+    FOREIGN KEY (mealId) REFERENCES meals(id) ON DELETE CASCADE,
+    FOREIGN KEY (foodId) REFERENCES food_items(id) ON DELETE CASCADE
+);
+
+CREATE INDEX meal_food_items_mealId ON meal_food_items(mealId);
+CREATE INDEX meal_food_items_foodId ON meal_food_items(foodId);
+
+CREATE TABLE custom_meal_slots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    orderNum INTEGER NOT NULL DEFAULT 99,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX custom_meal_slots_userId ON custom_meal_slots(userId);
+
+-- Meal queries
+selectAllMeals:
+SELECT * FROM meals WHERE userId = ? ORDER BY name;
+
+selectMealById:
+SELECT * FROM meals WHERE id = ?;
+
+selectMealsBySlot:
+SELECT * FROM meals WHERE userId = ? AND slotType = ? ORDER BY name;
+
+insertMeal:
+INSERT INTO meals(userId, name, description, slotType, customSlotId, createdAt)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateMeal:
+UPDATE meals SET name = ?, description = ?, slotType = ?, customSlotId = ?
+WHERE id = ?;
+
+deleteMealById:
+DELETE FROM meals WHERE id = ?;
+
+-- Meal food items queries
+selectMealFoodItems:
+SELECT mfi.*, fi.* FROM meal_food_items mfi
+JOIN food_items fi ON mfi.foodId = fi.id
+WHERE mfi.mealId = ?;
+
+insertMealFoodItem:
+INSERT OR REPLACE INTO meal_food_items(mealId, foodId, quantity, unit, notes)
+VALUES (?, ?, ?, ?, ?);
+
+deleteMealFoodItem:
+DELETE FROM meal_food_items WHERE mealId = ? AND foodId = ?;
+
+deleteMealFoodItemsByMealId:
+DELETE FROM meal_food_items WHERE mealId = ?;
+
+-- Custom meal slots queries
+selectCustomSlots:
+SELECT * FROM custom_meal_slots WHERE userId = ? ORDER BY orderNum;
+
+insertCustomSlot:
+INSERT INTO custom_meal_slots(userId, name, orderNum) VALUES (?, ?, ?);
+
+deleteCustomSlot:
+DELETE FROM custom_meal_slots WHERE id = ?;
+
+lastInsertRowId:
+SELECT last_insert_rowid();
