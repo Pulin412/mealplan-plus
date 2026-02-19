@@ -12,11 +12,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DefaultMealSlot
-import com.mealplanplus.data.model.DietTag
 import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.MealWithFoods
+import com.mealplanplus.ui.components.TagChip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,7 +125,7 @@ fun DietDetailScreen(
                                 minLines = 2
                             )
                         }
-                        // Tags editor
+                        // Tags editor - dynamic tags
                         item {
                             Column {
                                 Text(
@@ -132,16 +133,24 @@ fun DietDetailScreen(
                                     style = MaterialTheme.typography.labelMedium,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
-                                Row(
+                                LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    DietTag.entries.filter { it != DietTag.CUSTOM }.forEach { tag ->
+                                    items(uiState.allTags.size) { index ->
+                                        val tag = uiState.allTags[index]
                                         FilterChip(
-                                            selected = uiState.editTags.contains(tag),
-                                            onClick = { viewModel.toggleTag(tag) },
-                                            label = { Text(tag.displayName) }
+                                            selected = uiState.selectedTagIds.contains(tag.id),
+                                            onClick = { viewModel.toggleTag(tag.id) },
+                                            label = { Text(tag.name) }
                                         )
                                     }
+                                }
+                                if (uiState.allTags.isEmpty()) {
+                                    Text(
+                                        text = "No tags available. Create tags in Diets screen.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
@@ -156,32 +165,12 @@ fun DietDetailScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                // Show tags in view mode
-                                val tags = uiState.diet?.getTagList() ?: emptyList()
-                                if (tags.isNotEmpty() && tags.any { it != DietTag.CUSTOM }) {
+                                // Show tags in view mode (from dietTagIds)
+                                val displayTags = uiState.allTags.filter { uiState.dietTagIds.contains(it.id) }
+                                if (displayTags.isNotEmpty()) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        tags.filter { it != DietTag.CUSTOM }.forEach { tag ->
-                                            Surface(
-                                                color = when (tag) {
-                                                    DietTag.REMISSION -> MaterialTheme.colorScheme.primaryContainer
-                                                    DietTag.MAINTENANCE -> MaterialTheme.colorScheme.secondaryContainer
-                                                    DietTag.SOS -> MaterialTheme.colorScheme.errorContainer
-                                                    else -> MaterialTheme.colorScheme.surfaceVariant
-                                                },
-                                                shape = MaterialTheme.shapes.small
-                                            ) {
-                                                Text(
-                                                    text = tag.displayName,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                    color = when (tag) {
-                                                        DietTag.REMISSION -> MaterialTheme.colorScheme.onPrimaryContainer
-                                                        DietTag.MAINTENANCE -> MaterialTheme.colorScheme.onSecondaryContainer
-                                                        DietTag.SOS -> MaterialTheme.colorScheme.onErrorContainer
-                                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                    }
-                                                )
-                                            }
+                                        displayTags.forEach { tag ->
+                                            TagChip(tag = tag)
                                         }
                                     }
                                 }

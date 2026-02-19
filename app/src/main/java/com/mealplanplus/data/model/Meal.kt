@@ -8,10 +8,22 @@ import androidx.room.PrimaryKey
 /**
  * A meal template - collection of food items for a specific slot
  */
-@Entity(tableName = "meals")
+@Entity(
+    tableName = "meals",
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("userId")]
+)
 data class Meal(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: Long,
     val name: String,
     val description: String? = null,
     val slotType: String,  // DefaultMealSlot name or "CUSTOM"

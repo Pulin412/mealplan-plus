@@ -2,7 +2,9 @@ package com.mealplanplus.data.repository
 
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
+import android.util.Log
 import com.mealplanplus.data.local.UserDao
+import com.mealplanplus.data.local.UserDataSeeder
 import com.mealplanplus.data.model.User
 import com.mealplanplus.util.AuthPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -13,8 +15,10 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val userDao: UserDao,
+    private val userDataSeeder: UserDataSeeder,
     @ApplicationContext private val context: Context
 ) {
+    private val TAG = "AuthRepository"
     fun isLoggedIn(): Flow<Boolean> = AuthPreferences.isLoggedIn(context)
 
     fun getCurrentUserId(): Flow<Long?> = AuthPreferences.getUserId(context)
@@ -55,6 +59,15 @@ class AuthRepository @Inject constructor(
 
             val userId = userDao.insertUser(user)
             val savedUser = user.copy(id = userId)
+
+            // Seed default tags, diets, and meals for new user
+            try {
+                userDataSeeder.seedUserData(context, userId)
+                Log.d(TAG, "Seeded user data for userId=$userId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to seed user data: ${e.message}")
+                // Don't fail sign-up if seeding fails
+            }
 
             AuthPreferences.setLoggedIn(context, userId)
             Result.success(savedUser)

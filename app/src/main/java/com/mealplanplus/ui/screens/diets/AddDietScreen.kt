@@ -1,7 +1,9 @@
 package com.mealplanplus.ui.screens.diets
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -14,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
-import com.mealplanplus.data.model.DietTag
 import com.mealplanplus.data.model.Meal
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,15 +102,42 @@ fun AddDietScreen(
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
+
+                    // Existing tags
+                    if (uiState.allTags.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            uiState.allTags.forEach { tag ->
+                                FilterChip(
+                                    selected = tag.id in uiState.selectedTagIds,
+                                    onClick = { viewModel.toggleTag(tag.id) },
+                                    label = { Text(tag.name) }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Add new tag inline
                     Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        DietTag.entries.filter { it != DietTag.CUSTOM }.forEach { tag ->
-                            FilterChip(
-                                selected = uiState.tags.contains(tag),
-                                onClick = { viewModel.toggleTag(tag) },
-                                label = { Text(tag.displayName) }
-                            )
+                        OutlinedTextField(
+                            value = uiState.newTagName,
+                            onValueChange = viewModel::updateNewTagName,
+                            label = { Text("New Tag") },
+                            placeholder = { Text("e.g., Keto") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        IconButton(
+                            onClick = viewModel::createAndSelectTag,
+                            enabled = uiState.newTagName.isNotBlank()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add tag")
                         }
                     }
                 }

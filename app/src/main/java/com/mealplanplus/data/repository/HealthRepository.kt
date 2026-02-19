@@ -1,18 +1,28 @@
 package com.mealplanplus.data.repository
 
+import android.content.Context
 import com.mealplanplus.data.local.HealthMetricDao
 import com.mealplanplus.data.model.CustomMetricType
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
+import com.mealplanplus.util.AuthPreferences
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class HealthRepository @Inject constructor(
-    private val healthMetricDao: HealthMetricDao
+    private val healthMetricDao: HealthMetricDao,
+    @ApplicationContext private val context: Context
 ) {
+    private fun getCurrentUserId(): Long = runBlocking {
+        AuthPreferences.getUserId(context).first() ?: throw IllegalStateException("Not logged in")
+    }
+
     // Health Metrics
     suspend fun logMetric(
         type: MetricType,
@@ -22,6 +32,7 @@ class HealthRepository @Inject constructor(
     ): Long {
         return healthMetricDao.insertMetric(
             HealthMetric(
+                userId = getCurrentUserId(),
                 date = date,
                 metricType = type.name,
                 value = value,
@@ -38,6 +49,7 @@ class HealthRepository @Inject constructor(
     ): Long {
         return healthMetricDao.insertMetric(
             HealthMetric(
+                userId = getCurrentUserId(),
                 date = date,
                 customTypeId = customTypeId,
                 metricType = null,
@@ -52,21 +64,21 @@ class HealthRepository @Inject constructor(
     suspend fun deleteMetric(metric: HealthMetric) = healthMetricDao.deleteMetric(metric)
 
     fun getMetricsForDate(date: String): Flow<List<HealthMetric>> =
-        healthMetricDao.getMetricsForDate(date)
+        healthMetricDao.getMetricsForDate(getCurrentUserId(), date)
 
     fun getMetricsByType(type: MetricType): Flow<List<HealthMetric>> =
-        healthMetricDao.getMetricsByType(type.name)
+        healthMetricDao.getMetricsByType(getCurrentUserId(), type.name)
 
     fun getMetricsByTypeInRange(type: MetricType, startDate: String, endDate: String): Flow<List<HealthMetric>> =
-        healthMetricDao.getMetricsByTypeInRange(type.name, startDate, endDate)
+        healthMetricDao.getMetricsByTypeInRange(getCurrentUserId(), type.name, startDate, endDate)
 
     fun getRecentMetrics(limit: Int = 50): Flow<List<HealthMetric>> =
-        healthMetricDao.getRecentMetrics(limit)
+        healthMetricDao.getRecentMetrics(getCurrentUserId(), limit)
 
     // Custom Metric Types
     suspend fun addCustomType(name: String, unit: String, minValue: Double? = null, maxValue: Double? = null): Long {
         return healthMetricDao.insertCustomType(
-            CustomMetricType(name = name, unit = unit, minValue = minValue, maxValue = maxValue)
+            CustomMetricType(userId = getCurrentUserId(), name = name, unit = unit, minValue = minValue, maxValue = maxValue)
         )
     }
 
@@ -74,7 +86,7 @@ class HealthRepository @Inject constructor(
 
     suspend fun deleteCustomType(type: CustomMetricType) = healthMetricDao.deleteCustomType(type)
 
-    fun getActiveCustomTypes(): Flow<List<CustomMetricType>> = healthMetricDao.getActiveCustomTypes()
+    fun getActiveCustomTypes(): Flow<List<CustomMetricType>> = healthMetricDao.getActiveCustomTypes(getCurrentUserId())
 
-    fun getAllCustomTypes(): Flow<List<CustomMetricType>> = healthMetricDao.getAllCustomTypes()
+    fun getAllCustomTypes(): Flow<List<CustomMetricType>> = healthMetricDao.getAllCustomTypes(getCurrentUserId())
 }

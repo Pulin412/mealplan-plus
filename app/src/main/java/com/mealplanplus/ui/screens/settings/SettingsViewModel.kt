@@ -4,10 +4,15 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.local.CsvDataImporter
+import com.mealplanplus.data.local.ImportResult
+import com.mealplanplus.data.local.ImportStrategy
+import com.mealplanplus.data.local.JsonDataImporter
 import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.HealthRepository
+import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CsvExporter
 import com.mealplanplus.util.ThemePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +25,10 @@ data class SettingsUiState(
     val isExporting: Boolean = false,
     val exportSuccess: Boolean = false,
     val exportUri: Uri? = null,
-    val error: String? = null
+    val error: String? = null,
+    // Import state
+    val isImporting: Boolean = false,
+    val importResult: ImportResult? = null
 )
 
 data class ThemeState(
@@ -33,7 +41,9 @@ data class ThemeState(
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dailyLogRepository: DailyLogRepository,
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val jsonDataImporter: JsonDataImporter,
+    private val csvDataImporter: CsvDataImporter
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -66,7 +76,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun loadDataForExport() {
         viewModelScope.launch {
-            dailyLogRepository.getAllLogs().collect { logs ->
+            dailyLogRepository.getLogsByUser().collect { logs ->
                 val logsWithFoods = logs.mapNotNull { log ->
                     dailyLogRepository.getLogWithFoods(dailyLogRepository.parseDate(log.date))
                         .firstOrNull()
@@ -139,5 +149,75 @@ class SettingsViewModel @Inject constructor(
 
     fun clearExportState() {
         _uiState.update { it.copy(exportSuccess = false, exportUri = null, error = null) }
+    }
+
+    // Import functions
+    fun importDietsFromJson(uri: Uri, strategy: ImportStrategy = ImportStrategy.SKIP_DUPLICATES) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImporting = true, error = null, importResult = null) }
+            try {
+                val userId = AuthPreferences.getUserId(context).first()
+                    ?: throw IllegalStateException("Not logged in")
+
+                val result = jsonDataImporter.importFromUri(context, uri, userId, strategy)
+                _uiState.update { it.copy(isImporting = false, importResult = result) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isImporting = false,
+                        importResult = ImportResult(false, errorMessage = e.message ?: "Import failed")
+                    )
+                }
+            }
+        }
+    }
+
+    fun importDietsFromCsv(uri: Uri, strategy: ImportStrategy = ImportStrategy.SKIP_DUPLICATES) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImporting = true, error = null, importResult = null) }
+            try {
+                val userId = AuthPreferences.getUserId(context).first()
+                    ?: throw IllegalStateException("Not logged in")
+
+                val result = csvDataImporter.importFromUri(context, uri, userId, strategy)
+                _uiState.update { it.copy(isImporting = false, importResult = result) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isImporting = false,
+                        importResult = ImportResult(false, errorMessage = e.message ?: "Import failed")
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Auto-detect file type and import accordingly
+     */
+    fun importDietsFromUri(uri: Uri, strategy: ImportStrategy = ImportStrategy.SKIP_DUPLICATES) {
+        val fileName = uri.lastPathSegment?.lowercase() ?: ""
+        when {
+            fileName.endsWith(".csv") -> importDietsFromCsv(uri, strategy)
+            fileName.endsWith(".json") -> importDietsFromJson(uri, strategy)
+            else -> {
+                // Try to detect from content type or default to CSV
+                viewModelScope.launch {
+                    val mimeType = context.contentResolver.getType(uri)
+                    when {
+                        mimeType?.contains("json") == true -> importDietsFromJson(uri, strategy)
+                        mimeType?.contains("csv") == true -> importDietsFromCsv(uri, strategy)
+                        else -> {
+                            // Default: try JSON first, fallback to CSV
+                            importDietsFromJson(uri, strategy)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun clearImportState() {
+        _uiState.update { it.copy(importResult = null, error = null) }
     }
 }

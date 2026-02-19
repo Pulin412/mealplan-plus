@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.mealplanplus.data.model.DietTag
+import com.mealplanplus.ui.components.TagChip
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,24 +95,34 @@ fun DietPickerScreen(
                 singleLine = true
             )
 
-            // Filter chips
+            // Filter chips - dynamic tags
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                DietPickerFilter.entries.forEach { filter ->
-                    item {
-                        FilterChip(
-                            selected = uiState.filter == filter,
-                            onClick = { viewModel.updateFilter(filter) },
-                            label = { Text(filter.label) },
-                            leadingIcon = if (uiState.filter == filter) {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null
-                        )
-                    }
+                // "All" chip
+                item {
+                    FilterChip(
+                        selected = uiState.selectedTagId == null,
+                        onClick = { viewModel.selectTag(null) },
+                        label = { Text("All") },
+                        leadingIcon = if (uiState.selectedTagId == null) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null
+                    )
+                }
+                // Dynamic tag chips
+                items(uiState.allTags) { tag ->
+                    FilterChip(
+                        selected = uiState.selectedTagId == tag.id,
+                        onClick = { viewModel.selectTag(tag.id) },
+                        label = { Text(tag.name) },
+                        leadingIcon = if (uiState.selectedTagId == tag.id) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null
+                    )
                 }
             }
 
@@ -289,24 +299,3 @@ fun DietPickerCard(
     }
 }
 
-@Composable
-fun TagChip(tag: DietTag) {
-    val color = when (tag) {
-        DietTag.REMISSION -> MaterialTheme.colorScheme.tertiary
-        DietTag.MAINTENANCE -> MaterialTheme.colorScheme.secondary
-        DietTag.SOS -> MaterialTheme.colorScheme.error
-        DietTag.CUSTOM -> MaterialTheme.colorScheme.outline
-    }
-
-    Surface(
-        color = color.copy(alpha = 0.15f),
-        shape = MaterialTheme.shapes.small
-    ) {
-        Text(
-            text = tag.displayName,
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
-    }
-}

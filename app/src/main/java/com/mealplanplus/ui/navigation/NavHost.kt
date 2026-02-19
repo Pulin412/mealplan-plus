@@ -36,6 +36,9 @@ import com.mealplanplus.ui.screens.log.DietPickerScreen
 import com.mealplanplus.ui.screens.auth.LoginScreen
 import com.mealplanplus.ui.screens.auth.SignUpScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
+import com.mealplanplus.ui.screens.grocery.GroceryListsScreen
+import com.mealplanplus.ui.screens.grocery.CreateGroceryListScreen
+import com.mealplanplus.ui.screens.grocery.GroceryDetailScreen
 import com.mealplanplus.util.AuthPreferences
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -82,6 +85,11 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object BarcodeScanner : Screen("barcode_scanner")
     object OnlineSearch : Screen("online_search")
+    object GroceryLists : Screen("grocery_lists")
+    object CreateGroceryList : Screen("create_grocery_list")
+    object GroceryDetail : Screen("grocery_detail/{listId}") {
+        fun createRoute(listId: Long) = "grocery_detail/$listId"
+    }
 }
 
 @Composable
@@ -144,7 +152,8 @@ fun MealPlanNavHost() {
                 onNavigateToHealth = { navController.navigate(Screen.Health.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToLogWithDate = { date -> navController.navigate(Screen.DailyLogWithDate.createRoute(date)) }
+                onNavigateToLogWithDate = { date -> navController.navigate(Screen.DailyLogWithDate.createRoute(date)) },
+                onNavigateToGroceryLists = { navController.navigate(Screen.GroceryLists.route) }
             )
         }
         composable(Screen.Foods.route) {
@@ -443,6 +452,33 @@ fun MealPlanNavHost() {
         }
         composable(Screen.OnlineSearch.route) {
             OnlineSearchScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.GroceryLists.route) {
+            GroceryListsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCreate = { navController.navigate(Screen.CreateGroceryList.route) },
+                onNavigateToDetail = { listId ->
+                    navController.navigate(Screen.GroceryDetail.createRoute(listId))
+                }
+            )
+        }
+        composable(Screen.CreateGroceryList.route) {
+            CreateGroceryListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onListCreated = { listId ->
+                    navController.navigate(Screen.GroceryDetail.createRoute(listId)) {
+                        popUpTo(Screen.CreateGroceryList.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(
+            route = Screen.GroceryDetail.route,
+            arguments = listOf(navArgument("listId") { type = NavType.LongType })
+        ) {
+            GroceryDetailScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

@@ -58,10 +58,10 @@ class DailyLogViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DailyLogUiState())
     val uiState: StateFlow<DailyLogUiState> = _uiState.asStateFlow()
 
-    val availableMeals: StateFlow<List<Meal>> = mealRepository.getAllMeals()
+    val availableMeals: StateFlow<List<Meal>> = mealRepository.getMealsByUser()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    val availableDiets: StateFlow<List<Diet>> = dietRepository.getAllDiets()
+    val availableDiets: StateFlow<List<Diet>> = dietRepository.getDietsByUser()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {

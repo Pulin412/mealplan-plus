@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.MealRepository
+import com.mealplanplus.data.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -15,11 +16,13 @@ data class DietDetailUiState(
     val diet: Diet? = null,
     val dietWithMeals: DietWithMeals? = null,
     val availableMeals: List<Meal> = emptyList(),
+    val allTags: List<Tag> = emptyList(),
+    val dietTagIds: Set<Long> = emptySet(),
+    val selectedTagIds: Set<Long> = emptySet(),
     val isLoading: Boolean = true,
     val isEditing: Boolean = false,
     val editName: String = "",
     val editDescription: String = "",
-    val editTags: List<DietTag> = emptyList(),
     val isSaved: Boolean = false,
     val error: String? = null
 )
@@ -28,7 +31,8 @@ data class DietDetailUiState(
 class DietDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val dietRepository: DietRepository,
-    private val mealRepository: MealRepository
+    private val mealRepository: MealRepository,
+    private val tagRepository: TagRepository
 ) : ViewModel() {
 
     private val dietId: Long = savedStateHandle.get<Long>("dietId") ?: 0L
@@ -39,6 +43,7 @@ class DietDetailViewModel @Inject constructor(
     init {
         loadDiet()
         loadAvailableMeals()
+        loadTags()
     }
 
     private fun loadDiet() {
@@ -46,13 +51,16 @@ class DietDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             try {
                 val dietWithMeals = dietRepository.getDietWithMeals(dietId)
+                val dietTags = dietRepository.getTagsForDiet(dietId)
+                val tagIds = dietTags.map { it.id }.toSet()
                 _uiState.update {
                     it.copy(
                         diet = dietWithMeals?.diet,
                         dietWithMeals = dietWithMeals,
                         editName = dietWithMeals?.diet?.name ?: "",
                         editDescription = dietWithMeals?.diet?.description ?: "",
-                        editTags = dietWithMeals?.diet?.getTagList() ?: emptyList(),
+                        dietTagIds = tagIds,
+                        selectedTagIds = tagIds,
                         isLoading = false
                     )
                 }
@@ -64,8 +72,16 @@ class DietDetailViewModel @Inject constructor(
 
     private fun loadAvailableMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
+            mealRepository.getMealsByUser().collect { meals ->
                 _uiState.update { it.copy(availableMeals = meals) }
+            }
+        }
+    }
+
+    private fun loadTags() {
+        viewModelScope.launch {
+            tagRepository.getTagsByUser().collect { tags ->
+                _uiState.update { it.copy(allTags = tags) }
             }
         }
     }
@@ -76,7 +92,7 @@ class DietDetailViewModel @Inject constructor(
                 isEditing = true,
                 editName = it.diet?.name ?: "",
                 editDescription = it.diet?.description ?: "",
-                editTags = it.diet?.getTagList() ?: emptyList()
+                selectedTagIds = it.dietTagIds
             )
         }
     }
@@ -87,7 +103,7 @@ class DietDetailViewModel @Inject constructor(
                 isEditing = false,
                 editName = it.diet?.name ?: "",
                 editDescription = it.diet?.description ?: "",
-                editTags = it.diet?.getTagList() ?: emptyList()
+                selectedTagIds = it.dietTagIds
             )
         }
     }
@@ -100,15 +116,15 @@ class DietDetailViewModel @Inject constructor(
         _uiState.update { it.copy(editDescription = description) }
     }
 
-    fun toggleTag(tag: DietTag) {
+    fun toggleTag(tagId: Long) {
         _uiState.update { state ->
-            val currentTags = state.editTags.toMutableList()
-            if (currentTags.contains(tag)) {
-                currentTags.remove(tag)
+            val currentTags = state.selectedTagIds.toMutableSet()
+            if (currentTags.contains(tagId)) {
+                currentTags.remove(tagId)
             } else {
-                currentTags.add(tag)
+                currentTags.add(tagId)
             }
-            state.copy(editTags = currentTags)
+            state.copy(selectedTagIds = currentTags)
         }
     }
 
@@ -123,16 +139,17 @@ class DietDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val tagsString = _uiState.value.editTags.joinToString(",") { it.name }
                 val updatedDiet = currentDiet.copy(
                     name = name,
-                    description = _uiState.value.editDescription.trim().takeIf { it.isNotBlank() },
-                    tags = tagsString
+                    description = _uiState.value.editDescription.trim().takeIf { it.isNotBlank() }
                 )
                 dietRepository.updateDiet(updatedDiet)
+                // Update tags via junction table
+                dietRepository.setDietTags(dietId, _uiState.value.selectedTagIds.toList())
                 _uiState.update {
                     it.copy(
                         diet = updatedDiet,
+                        dietTagIds = it.selectedTagIds,
                         isEditing = false,
                         isSaved = true
                     )

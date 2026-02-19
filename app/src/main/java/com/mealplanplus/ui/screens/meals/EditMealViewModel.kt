@@ -119,6 +119,7 @@ class EditMealViewModel @Inject constructor(
                 // Update meal
                 val meal = Meal(
                     id = mealId,
+                    userId = 0L,  // Will be overwritten by repository
                     name = state.name.trim(),
                     description = state.description.takeIf { it.isNotBlank() }?.trim(),
                     slotType = state.selectedSlot.name

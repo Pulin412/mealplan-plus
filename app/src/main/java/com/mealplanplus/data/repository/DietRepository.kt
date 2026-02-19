@@ -1,23 +1,37 @@
 package com.mealplanplus.data.repository
 
+import android.content.Context
 import com.mealplanplus.data.local.DietDao
+import com.mealplanplus.data.local.TagDao
 import com.mealplanplus.data.model.*
+import com.mealplanplus.util.AuthPreferences
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DietRepository @Inject constructor(
     private val dietDao: DietDao,
-    private val mealRepository: MealRepository
+    private val tagDao: TagDao,
+    private val mealRepository: MealRepository,
+    @ApplicationContext private val context: Context
 ) {
-    fun getAllDiets(): Flow<List<Diet>> = dietDao.getAllDiets()
+    private fun getCurrentUserId(): Long = runBlocking {
+        AuthPreferences.getUserId(context).first() ?: throw IllegalStateException("Not logged in")
+    }
 
-    fun getAllDietsWithSummary(): Flow<List<DietSummary>> = dietDao.getAllDietsWithSummary()
+    fun getDietsByUser(): Flow<List<Diet>> = dietDao.getDietsByUser(getCurrentUserId())
 
-    fun getAllDietsWithFullSummary(): Flow<List<DietFullSummary>> = dietDao.getAllDietsWithFullSummary()
+    fun getDietsWithSummary(): Flow<List<DietSummary>> = dietDao.getDietsWithSummaryByUser(getCurrentUserId())
+
+    fun getDietsWithFullSummary(): Flow<List<DietFullSummary>> = dietDao.getDietsWithFullSummaryByUser(getCurrentUserId())
 
     suspend fun getDietById(id: Long): Diet? = dietDao.getDietById(id)
+
+    suspend fun getTagsForDiet(dietId: Long): List<Tag> = tagDao.getTagsForDiet(dietId)
 
     suspend fun getDietWithMeals(dietId: Long): DietWithMeals? {
         val diet = dietDao.getDietById(dietId) ?: return null
@@ -31,7 +45,10 @@ class DietRepository @Inject constructor(
         return DietWithMeals(diet, mealsMap)
     }
 
-    suspend fun insertDiet(diet: Diet): Long = dietDao.insertDiet(diet)
+    suspend fun insertDiet(diet: Diet): Long {
+        val dietWithUserId = diet.copy(userId = getCurrentUserId())
+        return dietDao.insertDiet(dietWithUserId)
+    }
 
     suspend fun updateDiet(diet: Diet) = dietDao.updateDiet(diet)
 
@@ -54,6 +71,19 @@ class DietRepository @Inject constructor(
         val newDietMeals = dietMeals.map { it.copy(dietId = newDietId) }
         dietDao.insertDietMeals(newDietMeals)
 
+        // Copy tags too
+        val tags = tagDao.getTagsForDiet(dietId)
+        val newTagRefs = tags.map { DietTagCrossRef(newDietId, it.id) }
+        tagDao.insertDietTags(newTagRefs)
+
         return newDietId
     }
+
+    suspend fun setDietTags(dietId: Long, tagIds: List<Long>) {
+        tagDao.clearDietTags(dietId)
+        val crossRefs = tagIds.map { DietTagCrossRef(dietId, it) }
+        tagDao.insertDietTags(crossRefs)
+    }
+
+    suspend fun getDietCount(): Int = dietDao.getDietCountByUser(getCurrentUserId())
 }

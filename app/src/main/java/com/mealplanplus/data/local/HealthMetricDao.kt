@@ -21,24 +21,24 @@ interface HealthMetricDao {
     @Query("SELECT * FROM health_metrics WHERE id = :id")
     suspend fun getMetricById(id: Long): HealthMetric?
 
-    @Query("SELECT * FROM health_metrics WHERE date = :date ORDER BY timestamp DESC")
-    fun getMetricsForDate(date: String): Flow<List<HealthMetric>>
+    @Query("SELECT * FROM health_metrics WHERE userId = :userId AND date = :date ORDER BY timestamp DESC")
+    fun getMetricsForDate(userId: Long, date: String): Flow<List<HealthMetric>>
 
-    @Query("SELECT * FROM health_metrics WHERE metricType = :type ORDER BY date DESC, timestamp DESC")
-    fun getMetricsByType(type: String): Flow<List<HealthMetric>>
+    @Query("SELECT * FROM health_metrics WHERE userId = :userId AND metricType = :type ORDER BY date DESC, timestamp DESC")
+    fun getMetricsByType(userId: Long, type: String): Flow<List<HealthMetric>>
 
-    @Query("SELECT * FROM health_metrics WHERE customTypeId = :customTypeId ORDER BY date DESC, timestamp DESC")
-    fun getMetricsByCustomType(customTypeId: Long): Flow<List<HealthMetric>>
+    @Query("SELECT * FROM health_metrics WHERE userId = :userId AND customTypeId = :customTypeId ORDER BY date DESC, timestamp DESC")
+    fun getMetricsByCustomType(userId: Long, customTypeId: Long): Flow<List<HealthMetric>>
 
     @Query("""
         SELECT * FROM health_metrics
-        WHERE metricType = :type AND date BETWEEN :startDate AND :endDate
+        WHERE userId = :userId AND metricType = :type AND date BETWEEN :startDate AND :endDate
         ORDER BY date ASC, timestamp ASC
     """)
-    fun getMetricsByTypeInRange(type: String, startDate: String, endDate: String): Flow<List<HealthMetric>>
+    fun getMetricsByTypeInRange(userId: Long, type: String, startDate: String, endDate: String): Flow<List<HealthMetric>>
 
-    @Query("SELECT * FROM health_metrics ORDER BY date DESC, timestamp DESC LIMIT :limit")
-    fun getRecentMetrics(limit: Int = 50): Flow<List<HealthMetric>>
+    @Query("SELECT * FROM health_metrics WHERE userId = :userId ORDER BY date DESC, timestamp DESC LIMIT :limit")
+    fun getRecentMetrics(userId: Long, limit: Int = 50): Flow<List<HealthMetric>>
 
     // Custom Metric Types
     @Insert
@@ -50,11 +50,11 @@ interface HealthMetricDao {
     @Delete
     suspend fun deleteCustomType(type: CustomMetricType)
 
-    @Query("SELECT * FROM custom_metric_types WHERE isActive = 1 ORDER BY name")
-    fun getActiveCustomTypes(): Flow<List<CustomMetricType>>
+    @Query("SELECT * FROM custom_metric_types WHERE userId = :userId AND isActive = 1 ORDER BY name")
+    fun getActiveCustomTypes(userId: Long): Flow<List<CustomMetricType>>
 
-    @Query("SELECT * FROM custom_metric_types ORDER BY name")
-    fun getAllCustomTypes(): Flow<List<CustomMetricType>>
+    @Query("SELECT * FROM custom_metric_types WHERE userId = :userId ORDER BY name")
+    fun getAllCustomTypes(userId: Long): Flow<List<CustomMetricType>>
 
     @Query("SELECT * FROM custom_metric_types WHERE id = :id")
     suspend fun getCustomTypeById(id: Long): CustomMetricType?

@@ -32,7 +32,7 @@ class LogMealPickerViewModel @Inject constructor(
 
     private fun loadMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
+            mealRepository.getMealsByUser().collect { meals ->
                 val mealsWithFoods = meals.map { meal ->
                     mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
                 }

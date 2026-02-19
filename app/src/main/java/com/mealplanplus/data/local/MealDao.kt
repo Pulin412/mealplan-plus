@@ -7,14 +7,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MealDao {
-    @Query("SELECT * FROM meals ORDER BY name ASC")
-    fun getAllMeals(): Flow<List<Meal>>
+    @Query("SELECT * FROM meals WHERE userId = :userId ORDER BY name ASC")
+    fun getMealsByUser(userId: Long): Flow<List<Meal>>
 
     @Query("SELECT * FROM meals WHERE id = :id")
     suspend fun getMealById(id: Long): Meal?
 
-    @Query("SELECT * FROM meals WHERE slotType = :slotType ORDER BY name ASC")
-    fun getMealsBySlot(slotType: String): Flow<List<Meal>>
+    @Query("SELECT * FROM meals WHERE userId = :userId AND slotType = :slotType ORDER BY name ASC")
+    fun getMealsByUserAndSlot(userId: Long, slotType: String): Flow<List<Meal>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMeal(meal: Meal): Long

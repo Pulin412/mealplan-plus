@@ -43,7 +43,7 @@ class DietMealPickerViewModel @Inject constructor(
 
     private fun loadMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
+            mealRepository.getMealsByUser().collect { meals ->
                 val mealsWithFoods = meals.map { meal ->
                     mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
                 }
@@ -60,7 +60,7 @@ class DietMealPickerViewModel @Inject constructor(
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getAllDiets().collect { diets ->
+            dietRepository.getDietsByUser().collect { diets ->
                 val dietsWithMeals = diets.mapNotNull { diet ->
                     dietRepository.getDietWithMeals(diet.id)
                 }

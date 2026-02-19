@@ -34,7 +34,7 @@ class MealsViewModel @Inject constructor(
     val uiState: StateFlow<MealsUiState> = _uiState.asStateFlow()
 
     // Keep the old meals flow for backward compatibility
-    val meals: StateFlow<List<Meal>> = mealRepository.getAllMeals()
+    val meals: StateFlow<List<Meal>> = mealRepository.getMealsByUser()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _selectedMeal = MutableStateFlow<MealWithFoods?>(null)
@@ -47,7 +47,7 @@ class MealsViewModel @Inject constructor(
 
     private fun loadMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
+            mealRepository.getMealsByUser().collect { meals ->
                 val mealsWithFoods = meals.map { meal ->
                     mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
                 }
@@ -64,7 +64,7 @@ class MealsViewModel @Inject constructor(
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getAllDiets().collect { diets ->
+            dietRepository.getDietsByUser().collect { diets ->
                 val dietsWithMeals = diets.mapNotNull { diet ->
                     dietRepository.getDietWithMeals(diet.id)
                 }

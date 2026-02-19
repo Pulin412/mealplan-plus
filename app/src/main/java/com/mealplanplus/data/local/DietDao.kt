@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DietDao {
-    @Query("SELECT * FROM diets ORDER BY name ASC")
-    fun getAllDiets(): Flow<List<Diet>>
+    @Query("SELECT * FROM diets WHERE userId = :userId ORDER BY name ASC")
+    fun getDietsByUser(userId: Long): Flow<List<Diet>>
 
     @Query("SELECT * FROM diets WHERE id = :id")
     suspend fun getDietById(id: Long): Diet?
@@ -49,15 +49,15 @@ interface DietDao {
     @Query("DELETE FROM diets")
     suspend fun deleteAllDiets()
 
-    @Query("SELECT COUNT(*) FROM diets")
-    suspend fun getDietCount(): Int
+    @Query("SELECT COUNT(*) FROM diets WHERE userId = :userId")
+    suspend fun getDietCountByUser(userId: Long): Int
 
     /**
-     * Get all diets with meal count and total calories in single query
+     * Get all diets with meal count and total calories in single query (for a specific user)
      */
     @Query("""
         SELECT
-            d.id, d.name, d.description, d.tags, d.createdAt,
+            d.id, d.userId, d.name, d.description, d.createdAt,
             COUNT(DISTINCT dm.slotType) as mealCount,
             COALESCE(SUM(
                 CASE WHEN mfi.unit = 'GRAM' THEN f.caloriesPer100 * mfi.quantity / 100
@@ -73,17 +73,18 @@ interface DietDao {
         LEFT JOIN meals m ON dm.mealId = m.id
         LEFT JOIN meal_food_items mfi ON m.id = mfi.mealId
         LEFT JOIN food_items f ON mfi.foodId = f.id
+        WHERE d.userId = :userId
         GROUP BY d.id
         ORDER BY d.name
     """)
-    fun getAllDietsWithSummary(): Flow<List<DietSummary>>
+    fun getDietsWithSummaryByUser(userId: Long): Flow<List<DietSummary>>
 
     /**
-     * Get all diets with full macro summary in single query
+     * Get all diets with full macro summary in single query (for a specific user)
      */
     @Query("""
         SELECT
-            d.id, d.name, d.description, d.tags, d.createdAt,
+            d.id, d.userId, d.name, d.description, d.createdAt,
             COUNT(DISTINCT dm.slotType) as mealCount,
             COALESCE(SUM(
                 CASE WHEN mfi.unit = 'GRAM' THEN f.caloriesPer100 * mfi.quantity / 100
@@ -126,8 +127,9 @@ interface DietDao {
         LEFT JOIN meals m ON dm.mealId = m.id
         LEFT JOIN meal_food_items mfi ON m.id = mfi.mealId
         LEFT JOIN food_items f ON mfi.foodId = f.id
+        WHERE d.userId = :userId
         GROUP BY d.id
         ORDER BY d.name
     """)
-    fun getAllDietsWithFullSummary(): Flow<List<DietFullSummary>>
+    fun getDietsWithFullSummaryByUser(userId: Long): Flow<List<DietFullSummary>>
 }

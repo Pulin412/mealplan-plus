@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mealplanplus.data.model.DefaultMealSlot
-import com.mealplanplus.data.model.DietTag
 import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.MealWithFoods
 
@@ -94,39 +93,10 @@ fun DietBrowserCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = dietWithMeals.diet.name,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        // Tags
-                        dietWithMeals.diet.getTagList().filter { it != DietTag.CUSTOM }.take(2).forEach { tag ->
-                            Surface(
-                                color = when (tag) {
-                                    DietTag.REMISSION -> MaterialTheme.colorScheme.primaryContainer
-                                    DietTag.MAINTENANCE -> MaterialTheme.colorScheme.secondaryContainer
-                                    DietTag.SOS -> MaterialTheme.colorScheme.errorContainer
-                                    else -> MaterialTheme.colorScheme.surfaceVariant
-                                },
-                                shape = MaterialTheme.shapes.small
-                            ) {
-                                Text(
-                                    text = tag.displayName,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    color = when (tag) {
-                                        DietTag.REMISSION -> MaterialTheme.colorScheme.onPrimaryContainer
-                                        DietTag.MAINTENANCE -> MaterialTheme.colorScheme.onSecondaryContainer
-                                        DietTag.SOS -> MaterialTheme.colorScheme.onErrorContainer
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = dietWithMeals.diet.name,
+                        style = MaterialTheme.typography.titleMedium
+                    )
                     if (!isExpanded) {
                         Text(
                             text = "${dietWithMeals.totalCalories.toInt()} cal • ${dietWithMeals.meals.count { it.value != null }} meals",

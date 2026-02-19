@@ -8,9 +8,21 @@ import androidx.room.PrimaryKey
 /**
  * Daily food log - what user actually ate
  */
-@Entity(tableName = "daily_logs")
+@Entity(
+    tableName = "daily_logs",
+    primaryKeys = ["userId", "date"],
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("userId")]
+)
 data class DailyLog(
-    @PrimaryKey
+    val userId: Long,
     val date: String,  // Format: yyyy-MM-dd
     val plannedDietId: Long? = null,  // Default diet for the day
     val notes: String? = null,
@@ -23,12 +35,12 @@ data class DailyLog(
  */
 @Entity(
     tableName = "daily_log_slot_overrides",
-    primaryKeys = ["logDate", "slotType"],
+    primaryKeys = ["userId", "logDate", "slotType"],
     foreignKeys = [
         ForeignKey(
             entity = DailyLog::class,
-            parentColumns = ["date"],
-            childColumns = ["logDate"],
+            parentColumns = ["userId", "date"],
+            childColumns = ["userId", "logDate"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
@@ -38,9 +50,10 @@ data class DailyLog(
             onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index("logDate"), Index("overrideMealId")]
+    indices = [Index("userId", "logDate"), Index("overrideMealId")]
 )
 data class DailyLogSlotOverride(
+    val userId: Long,
     val logDate: String,
     val slotType: String,
     val overrideMealId: Long?,  // null = skip this slot
@@ -56,8 +69,8 @@ data class DailyLogSlotOverride(
     foreignKeys = [
         ForeignKey(
             entity = DailyLog::class,
-            parentColumns = ["date"],
-            childColumns = ["logDate"],
+            parentColumns = ["userId", "date"],
+            childColumns = ["userId", "logDate"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
@@ -67,11 +80,12 @@ data class DailyLogSlotOverride(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("logDate"), Index("foodId")]
+    indices = [Index("userId", "logDate"), Index("foodId")]
 )
 data class LoggedFood(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: Long,
     val logDate: String,  // References DailyLog.date
     val foodId: Long,
     val quantity: Double,
@@ -140,8 +154,8 @@ data class DailyLogWithFoods(
     foreignKeys = [
         ForeignKey(
             entity = DailyLog::class,
-            parentColumns = ["date"],
-            childColumns = ["logDate"],
+            parentColumns = ["userId", "date"],
+            childColumns = ["userId", "logDate"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
@@ -151,11 +165,12 @@ data class DailyLogWithFoods(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("logDate"), Index("mealId")]
+    indices = [Index("userId", "logDate"), Index("mealId")]
 )
 data class LoggedMeal(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: Long,
     val logDate: String,
     val mealId: Long,
     val slotType: String,

@@ -3,8 +3,9 @@ package com.mealplanplus.ui.screens.diets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
-import com.mealplanplus.data.model.DietTag
+import com.mealplanplus.data.model.Tag
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -19,11 +20,9 @@ enum class DietSortOption(val label: String) {
     OLDEST("Oldest")
 }
 
-enum class DietFilterOption(val label: String) {
-    ALL("All"),
-    REMISSION("Remission"),
-    MAINTENANCE("Maintenance"),
-    SOS("SOS")
+enum class TagFilterMode(val label: String) {
+    ANY("Any"),
+    ALL("All")
 }
 
 data class DietDisplayItem(
@@ -33,45 +32,62 @@ data class DietDisplayItem(
     val totalCarbs: Int = 0,
     val totalFat: Int = 0,
     val mealCount: Int = 0,
-    val tags: List<DietTag> = emptyList()
+    val tags: List<Tag> = emptyList()
 )
 
 data class DietsUiState(
     val diets: List<DietDisplayItem> = emptyList(),
+    val allTags: List<Tag> = emptyList(),
+    val selectedTagIds: Set<Long> = emptySet(),
+    val tagFilterMode: TagFilterMode = TagFilterMode.ANY,
     val searchQuery: String = "",
     val sortOption: DietSortOption = DietSortOption.NAME_ASC,
-    val filterOption: DietFilterOption = DietFilterOption.ALL,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val showTagsDialog: Boolean = false
 )
 
 @HiltViewModel
 class DietsViewModel @Inject constructor(
-    private val repository: DietRepository
+    private val dietRepository: DietRepository,
+    private val tagRepository: TagRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     private val _sortOption = MutableStateFlow(DietSortOption.NAME_ASC)
-    private val _filterOption = MutableStateFlow(DietFilterOption.ALL)
+    private val _selectedTagIds = MutableStateFlow<Set<Long>>(emptySet())
+    private val _tagFilterMode = MutableStateFlow(TagFilterMode.ANY)
     private val _isLoading = MutableStateFlow(true)
     private val _dietsWithMeals = MutableStateFlow<List<DietDisplayItem>>(emptyList())
+    private val _allTags = MutableStateFlow<List<Tag>>(emptyList())
+    private val _showTagsDialog = MutableStateFlow(false)
 
     val uiState: StateFlow<DietsUiState> = combine(
         _dietsWithMeals,
-        _searchQuery,
-        _sortOption,
-        _filterOption,
-        _isLoading
-    ) { diets, query, sort, filter, loading ->
+        _allTags,
+        _selectedTagIds,
+        _tagFilterMode,
+        combine(_searchQuery, _sortOption, _isLoading, _showTagsDialog) { q, s, l, d ->
+            Triple(q, s, l to d)
+        }
+    ) { diets, tags, selectedTags, filterMode, (query, sort, loadingAndDialog) ->
+        val (loading, showDialog) = loadingAndDialog
         val filtered = diets
             .filter { item ->
-                (query.isBlank() || item.diet.name.contains(query, ignoreCase = true) ||
-                        item.diet.description?.contains(query, ignoreCase = true) == true) &&
-                when (filter) {
-                    DietFilterOption.ALL -> true
-                    DietFilterOption.REMISSION -> item.tags.contains(DietTag.REMISSION)
-                    DietFilterOption.MAINTENANCE -> item.tags.contains(DietTag.MAINTENANCE)
-                    DietFilterOption.SOS -> item.tags.contains(DietTag.SOS)
+                val matchesSearch = query.isBlank() ||
+                    item.diet.name.contains(query, ignoreCase = true) ||
+                    item.diet.description?.contains(query, ignoreCase = true) == true
+
+                val matchesTags = if (selectedTags.isEmpty()) {
+                    true
+                } else {
+                    val itemTagIds = item.tags.map { it.id }.toSet()
+                    when (filterMode) {
+                        TagFilterMode.ANY -> itemTagIds.any { it in selectedTags }
+                        TagFilterMode.ALL -> selectedTags.all { it in itemTagIds }
+                    }
                 }
+
+                matchesSearch && matchesTags
             }
             .let { list ->
                 when (sort) {
@@ -91,23 +107,35 @@ class DietsViewModel @Inject constructor(
 
         DietsUiState(
             diets = filtered,
+            allTags = tags,
+            selectedTagIds = selectedTags,
+            tagFilterMode = filterMode,
             searchQuery = query,
             sortOption = sort,
-            filterOption = filter,
-            isLoading = loading
+            isLoading = loading,
+            showTagsDialog = showDialog
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DietsUiState())
 
     init {
+        loadTags()
         loadDietsWithMeals()
+    }
+
+    private fun loadTags() {
+        viewModelScope.launch {
+            tagRepository.getTagsByUser().collect { tags ->
+                _allTags.value = tags
+            }
+        }
     }
 
     private fun loadDietsWithMeals() {
         viewModelScope.launch {
-            // Single JOIN query - no N+1 problem
-            repository.getAllDietsWithFullSummary().collect { summaries ->
+            dietRepository.getDietsWithFullSummary().collect { summaries ->
                 _isLoading.value = true
                 val displayItems = summaries.map { summary ->
+                    val tags = dietRepository.getTagsForDiet(summary.id)
                     DietDisplayItem(
                         diet = summary.toDiet(),
                         totalCalories = summary.totalCalories,
@@ -115,7 +143,7 @@ class DietsViewModel @Inject constructor(
                         totalCarbs = summary.totalCarbs,
                         totalFat = summary.totalFat,
                         mealCount = summary.mealCount,
-                        tags = summary.getTagList().ifEmpty { listOf(extractDietType(summary.name)) }
+                        tags = tags
                     )
                 }
                 _dietsWithMeals.value = displayItems
@@ -124,18 +152,8 @@ class DietsViewModel @Inject constructor(
         }
     }
 
-    private fun extractDietType(name: String): DietTag {
-        return when {
-            name.contains("SOS", ignoreCase = true) -> DietTag.SOS
-            name.startsWith("Diet-M") || name.contains("Maintenance", ignoreCase = true) -> DietTag.MAINTENANCE
-            name.startsWith("Diet-") -> DietTag.REMISSION
-            else -> DietTag.CUSTOM
-        }
-    }
-
     // Natural sort comparator for diet names (Diet-1, Diet-2, ... Diet-10, Diet-11)
     private fun naturalSortKey(name: String): Pair<String, Int> {
-        // Extract prefix (Diet- or Diet-M) and number
         val regex = Regex("^(Diet-M?)(\\d+).*$")
         val match = regex.find(name)
         return if (match != null) {
@@ -155,19 +173,61 @@ class DietsViewModel @Inject constructor(
         _sortOption.value = option
     }
 
-    fun updateFilterOption(option: DietFilterOption) {
-        _filterOption.value = option
+    fun toggleTagFilter(tagId: Long) {
+        _selectedTagIds.value = if (tagId in _selectedTagIds.value) {
+            _selectedTagIds.value - tagId
+        } else {
+            _selectedTagIds.value + tagId
+        }
+    }
+
+    fun clearTagFilters() {
+        _selectedTagIds.value = emptySet()
+    }
+
+    fun toggleTagFilterMode() {
+        _tagFilterMode.value = when (_tagFilterMode.value) {
+            TagFilterMode.ANY -> TagFilterMode.ALL
+            TagFilterMode.ALL -> TagFilterMode.ANY
+        }
+    }
+
+    fun showTagsManagement() {
+        _showTagsDialog.value = true
+    }
+
+    fun hideTagsManagement() {
+        _showTagsDialog.value = false
+    }
+
+    fun createTag(name: String) {
+        viewModelScope.launch {
+            tagRepository.createTag(name)
+        }
+    }
+
+    fun createTagWithColor(name: String, color: String) {
+        viewModelScope.launch {
+            tagRepository.createTagWithColor(name, color)
+        }
+    }
+
+    fun deleteTag(tag: Tag) {
+        viewModelScope.launch {
+            tagRepository.deleteTag(tag)
+            _selectedTagIds.value = _selectedTagIds.value - tag.id
+        }
     }
 
     fun deleteDiet(diet: Diet) {
         viewModelScope.launch {
-            repository.deleteDiet(diet)
+            dietRepository.deleteDiet(diet)
         }
     }
 
     fun duplicateDiet(diet: Diet) {
         viewModelScope.launch {
-            repository.duplicateDiet(diet.id, "${diet.name} (copy)")
+            dietRepository.duplicateDiet(diet.id, "${diet.name} (copy)")
         }
     }
 }

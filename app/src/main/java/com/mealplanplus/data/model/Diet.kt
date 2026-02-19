@@ -6,36 +6,28 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Diet type tags
- */
-enum class DietTag(val displayName: String) {
-    REMISSION("Remission"),
-    MAINTENANCE("Maintenance"),
-    SOS("SOS"),
-    CUSTOM("Custom")
-}
-
-/**
  * A diet template - combines meals for a full day
  */
-@Entity(tableName = "diets")
+@Entity(
+    tableName = "diets",
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("userId")]
+)
 data class Diet(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: Long,
     val name: String,
     val description: String? = null,
-    val tags: String = "",  // Comma-separated tags: "REMISSION,SOS"
     val createdAt: Long = System.currentTimeMillis()
-) {
-    fun getTagList(): List<DietTag> {
-        if (tags.isBlank()) return emptyList()
-        return tags.split(",").mapNotNull { tag ->
-            try { DietTag.valueOf(tag.trim()) } catch (e: Exception) { null }
-        }
-    }
-
-    fun hasTag(tag: DietTag): Boolean = getTagList().contains(tag)
-}
+)
 
 /**
  * Junction table: Diet contains meals for each slot
@@ -87,21 +79,14 @@ data class DietWithMeals(
  */
 data class DietSummary(
     val id: Long,
+    val userId: Long,
     val name: String,
     val description: String?,
-    val tags: String,
     val createdAt: Long,
     val mealCount: Int,
     val totalCalories: Int
 ) {
-    fun getTagList(): List<DietTag> {
-        if (tags.isBlank()) return emptyList()
-        return tags.split(",").mapNotNull { tag ->
-            try { DietTag.valueOf(tag.trim()) } catch (e: Exception) { null }
-        }
-    }
-
-    fun toDiet() = Diet(id, name, description, tags, createdAt)
+    fun toDiet() = Diet(id, userId, name, description, createdAt)
 }
 
 /**
@@ -109,9 +94,9 @@ data class DietSummary(
  */
 data class DietFullSummary(
     val id: Long,
+    val userId: Long,
     val name: String,
     val description: String?,
-    val tags: String,
     val createdAt: Long,
     val mealCount: Int,
     val totalCalories: Int,
@@ -119,12 +104,5 @@ data class DietFullSummary(
     val totalCarbs: Int,
     val totalFat: Int
 ) {
-    fun getTagList(): List<DietTag> {
-        if (tags.isBlank()) return emptyList()
-        return tags.split(",").mapNotNull { tag ->
-            try { DietTag.valueOf(tag.trim()) } catch (e: Exception) { null }
-        }
-    }
-
-    fun toDiet() = Diet(id, name, description, tags, createdAt)
+    fun toDiet() = Diet(id, userId, name, description, createdAt)
 }

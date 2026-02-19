@@ -1,21 +1,31 @@
 package com.mealplanplus.data.repository
 
+import android.content.Context
 import com.mealplanplus.data.local.FoodDao
 import com.mealplanplus.data.local.MealDao
 import com.mealplanplus.data.model.*
+import com.mealplanplus.util.AuthPreferences
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class MealRepository @Inject constructor(
     private val mealDao: MealDao,
-    private val foodDao: FoodDao
+    private val foodDao: FoodDao,
+    @ApplicationContext private val context: Context
 ) {
-    fun getAllMeals(): Flow<List<Meal>> = mealDao.getAllMeals()
+    private fun getCurrentUserId(): Long = runBlocking {
+        AuthPreferences.getUserId(context).first() ?: throw IllegalStateException("Not logged in")
+    }
 
-    fun getMealsBySlot(slotType: String): Flow<List<Meal>> = mealDao.getMealsBySlot(slotType)
+    fun getMealsByUser(): Flow<List<Meal>> = mealDao.getMealsByUser(getCurrentUserId())
+
+    fun getMealsByUserAndSlot(slotType: String): Flow<List<Meal>> =
+        mealDao.getMealsByUserAndSlot(getCurrentUserId(), slotType)
 
     suspend fun getMealById(id: Long): Meal? = mealDao.getMealById(id)
 
@@ -30,7 +40,10 @@ class MealRepository @Inject constructor(
         return MealWithFoods(meal, items)
     }
 
-    suspend fun insertMeal(meal: Meal): Long = mealDao.insertMeal(meal)
+    suspend fun insertMeal(meal: Meal): Long {
+        val mealWithUserId = meal.copy(userId = getCurrentUserId())
+        return mealDao.insertMeal(mealWithUserId)
+    }
 
     suspend fun updateMeal(meal: Meal) = mealDao.updateMeal(meal)
 

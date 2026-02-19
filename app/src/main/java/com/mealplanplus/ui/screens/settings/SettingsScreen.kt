@@ -1,6 +1,9 @@
 package com.mealplanplus.ui.screens.settings
 
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.data.local.ImportStrategy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,6 +25,20 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val themeState by viewModel.themeState.collectAsState()
+
+    // File picker for JSON import
+    val jsonPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.importDietsFromJson(it, ImportStrategy.SKIP_DUPLICATES) }
+    }
+
+    // File picker for CSV import
+    val csvPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.importDietsFromCsv(it, ImportStrategy.SKIP_DUPLICATES) }
+    }
 
     Scaffold(
         topBar = {
@@ -130,6 +148,54 @@ fun SettingsScreen(
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Data Import Section
+            SettingsSection(title = "Data Import") {
+                Text(
+                    text = "Import diets and meals from JSON or CSV files",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                SettingsButtonItem(
+                    title = "Import from JSON",
+                    icon = Icons.Default.Add,
+                    enabled = !uiState.isImporting,
+                    onClick = { jsonPickerLauncher.launch(arrayOf("application/json", "*/*")) }
+                )
+
+                SettingsButtonItem(
+                    title = "Import from CSV",
+                    icon = Icons.Default.Add,
+                    enabled = !uiState.isImporting,
+                    onClick = { csvPickerLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*")) }
+                )
+
+                // Help text for CSV format
+                Text(
+                    text = "CSV format: diet_name, diet_description, tag, slot, meal_name, food, quantity, unit",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+
+                if (uiState.isImporting) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Importing...")
+                    }
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
             // About Section
             SettingsSection(title = "About") {
                 Card(
@@ -180,6 +246,46 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { viewModel.clearExportState() }) {
                     Text("Close")
+                }
+            }
+        )
+    }
+
+    // Import result dialog
+    uiState.importResult?.let { result ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearImportState() },
+            title = {
+                Text(if (result.success) "Import Complete" else "Import Failed")
+            },
+            text = {
+                Column {
+                    if (result.success) {
+                        Text("Successfully imported:")
+                        Spacer(Modifier.height(8.dp))
+                        Text("• ${result.dietsImported} diets")
+                        Text("• ${result.mealsImported} meals")
+                        if (result.tagsCreated > 0) {
+                            Text("• ${result.tagsCreated} tags created")
+                        }
+                        if (result.skippedDiets.isNotEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Skipped ${result.skippedDiets.size} duplicate(s)",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        Text(
+                            result.errorMessage ?: "Unknown error",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.clearImportState() }) {
+                    Text("OK")
                 }
             }
         )

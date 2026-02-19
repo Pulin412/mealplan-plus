@@ -7,6 +7,7 @@ import com.mealplanplus.data.model.Plan
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.extractShortDietName
+import com.mealplanplus.util.naturalSortKey
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -33,7 +34,7 @@ class CalendarViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
-    val diets: StateFlow<List<Diet>> = dietRepository.getAllDiets()
+    val diets: StateFlow<List<Diet>> = dietRepository.getDietsByUser()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
@@ -54,7 +55,7 @@ class CalendarViewModel @Inject constructor(
                 val validPlans = plansWithNames.filter { it.dietId != null }
                 // Convert to Plan objects for UI state
                 val plansMap = validPlans.associate { p ->
-                    p.date to Plan(p.date, p.dietId, p.notes, p.isCompleted)
+                    p.date to Plan(p.userId, p.date, p.dietId, p.notes, p.isCompleted)
                 }
                 // Extract diet names directly from query result
                 val dietNames = validPlans.mapNotNull { p ->
@@ -122,7 +123,8 @@ class CalendarViewModel @Inject constructor(
 
             // Optimistic update - add to local state immediately
             if (diet != null) {
-                val newPlan = Plan(date = date, dietId = diet.id, isCompleted = false)
+                // For optimistic update, we use diet.userId since it belongs to the current user
+                val newPlan = Plan(userId = diet.userId, date = date, dietId = diet.id, isCompleted = false)
                 val updatedPlans = _uiState.value.plans + (date to newPlan)
                 val updatedDietNames = _uiState.value.dietNames + (date to extractShortDietName(diet.name))
                 _uiState.update {

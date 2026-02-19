@@ -4,13 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.mealplanplus.data.model.Diet
-import com.mealplanplus.data.model.DietMeal
-import com.mealplanplus.data.model.DietTag
 import com.mealplanplus.data.model.FoodItem
-import com.mealplanplus.data.model.FoodUnit
-import com.mealplanplus.data.model.Meal
-import com.mealplanplus.data.model.MealFoodItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -44,34 +38,10 @@ data class SeedFoodWrapper(
     val foods: List<SeedFood>
 )
 
-// For seed_data.json
-data class SeedDiet(
-    val name: String,
-    val meal_type: String,
-    val description: String?,
-    val meals: Map<String, SeedMeal>
-)
-
-data class SeedMeal(
-    val name: String,
-    val items: List<SeedFoodItem>
-)
-
-data class SeedFoodItem(
-    val food: String,
-    val quantity: Double,
-    val unit: String
-)
-
-data class SeedDataWrapper(
-    val diets: List<SeedDiet>
-)
 
 @Singleton
 class DatabaseSeeder @Inject constructor(
-    private val foodDao: FoodDao,
-    private val mealDao: MealDao,
-    private val dietDao: DietDao
+    private val foodDao: FoodDao
 ) {
     private val gson = Gson()
     private val TAG = "DatabaseSeeder"
@@ -125,42 +95,25 @@ class DatabaseSeeder @Inject constructor(
 
         Log.d(TAG, "First run - seeding database from files")
 
-        // 1. Seed foods from ingredients.json
+        // Seed foods from ingredients.json (shared across all users)
         val foodMap = seedFoodsFromIngredients(context)
         Log.d(TAG, "Seeded ${foodMap.size} foods")
 
-        // 2. Seed diets from seed_data.json
-        val dietCount = seedDietsFromSeedData(context, foodMap)
-        Log.d(TAG, "Seeded $dietCount diets")
+        // NOTE: Diets and meals are now user-specific, so we don't seed them here.
+        // Users create their own diets with custom tags after registration.
     }
 
     /**
-     * Clear all data and seed from ingredients.json + seed_data.json
-     * WARNING: This deletes all user data! Use only for dev/testing.
+     * Clear all foods and reseed from ingredients.json
+     * WARNING: This deletes all food data! Use only for dev/testing.
      */
-    suspend fun clearAndSeedFromFiles(context: Context) = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting clearAndSeedFromFiles - WARNING: deleting all data!")
+    suspend fun clearAndSeedFoods(context: Context) = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Starting clearAndSeedFoods - WARNING: deleting food data!")
 
-        // 1. Clear all existing data (in order due to foreign keys)
-        clearAllData()
+        foodDao.deleteAllFoods()
 
-        // 2. Seed foods from ingredients.json
         val foodMap = seedFoodsFromIngredients(context)
         Log.d(TAG, "Seeded ${foodMap.size} foods")
-
-        // 3. Seed diets from seed_data.json
-        val dietCount = seedDietsFromSeedData(context, foodMap)
-        Log.d(TAG, "Seeded $dietCount diets")
-    }
-
-    private suspend fun clearAllData() {
-        Log.d(TAG, "Clearing all data")
-        // Delete in order due to foreign keys
-        dietDao.deleteAllDietMeals()
-        dietDao.deleteAllDiets()
-        mealDao.deleteAllMealFoodItems()
-        mealDao.deleteAllMeals()
-        foodDao.deleteAllFoods()
     }
 
     private suspend fun seedFoodsFromIngredients(context: Context): Map<String, Long> {
@@ -187,95 +140,4 @@ class DatabaseSeeder @Inject constructor(
         return foodMap
     }
 
-    private suspend fun seedDietsFromSeedData(context: Context, foodMap: Map<String, Long>): Int {
-        val json = context.assets.open("data/seed_data.json")
-            .bufferedReader()
-            .use { it.readText() }
-
-        val wrapper = gson.fromJson(json, SeedDataWrapper::class.java)
-        var missingFoods = mutableSetOf<String>()
-
-        wrapper.diets.forEach { sd ->
-            // Determine tags based on meal_type and special cases
-            val tags = buildDietTags(sd.name, sd.meal_type)
-
-            // Create diet
-            val dietId = dietDao.insertDiet(Diet(
-                name = sd.name,
-                description = sd.description,
-                tags = tags
-            ))
-
-            // Create meals for each slot
-            sd.meals.forEach { (slotType, seedMeal) ->
-                // Create meal
-                val mealId = mealDao.insertMeal(Meal(
-                    name = seedMeal.name,
-                    slotType = slotType
-                ))
-
-                // Add food items to meal
-                val mealFoodItems = seedMeal.items.mapNotNull { item ->
-                    val foodId = foodMap[item.food]
-                    if (foodId == null) {
-                        missingFoods.add(item.food)
-                        return@mapNotNull null
-                    }
-                    MealFoodItem(
-                        mealId = mealId,
-                        foodId = foodId,
-                        quantity = item.quantity,
-                        unit = parseUnit(item.unit)
-                    )
-                }
-                mealDao.insertMealFoodItems(mealFoodItems)
-
-                // Link meal to diet
-                dietDao.insertDietMeal(DietMeal(
-                    dietId = dietId,
-                    slotType = slotType,
-                    mealId = mealId
-                ))
-            }
-        }
-
-        if (missingFoods.isNotEmpty()) {
-            Log.w(TAG, "Missing foods in ingredients.json: $missingFoods")
-        }
-
-        return wrapper.diets.size
-    }
-
-    private fun parseUnit(unit: String): FoodUnit {
-        return when(unit.lowercase()) {
-            "g" -> FoodUnit.GRAM
-            "ml" -> FoodUnit.ML
-            "piece" -> FoodUnit.PIECE
-            "cup" -> FoodUnit.CUP
-            "tbsp" -> FoodUnit.TBSP
-            "tsp" -> FoodUnit.TSP
-            "slice" -> FoodUnit.SLICE
-            "scoop" -> FoodUnit.SCOOP
-            else -> FoodUnit.GRAM
-        }
-    }
-
-    private fun buildDietTags(name: String, mealType: String): String {
-        val tags = mutableListOf<DietTag>()
-
-        // Diet-M20 and Diet-M21 are both SOS and MAINTENANCE
-        if (name == "Diet-M20" || name == "Diet-M21") {
-            tags.add(DietTag.MAINTENANCE)
-            tags.add(DietTag.SOS)
-        } else {
-            // Use meal_type from seed data
-            when (mealType.uppercase()) {
-                "REMISSION" -> tags.add(DietTag.REMISSION)
-                "MAINTENANCE" -> tags.add(DietTag.MAINTENANCE)
-                "SOS" -> tags.add(DietTag.SOS)
-            }
-        }
-
-        return tags.joinToString(",") { it.name }
-    }
 }

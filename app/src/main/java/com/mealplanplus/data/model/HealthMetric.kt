@@ -17,10 +17,22 @@ enum class MetricType(val displayName: String, val unit: String) {
 /**
  * User-defined custom metric type
  */
-@Entity(tableName = "custom_metric_types")
+@Entity(
+    tableName = "custom_metric_types",
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("userId")]
+)
 data class CustomMetricType(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: Long,
     val name: String,
     val unit: String,
     val minValue: Double? = null,
@@ -33,11 +45,20 @@ data class CustomMetricType(
  */
 @Entity(
     tableName = "health_metrics",
-    indices = [Index("date"), Index("metricType"), Index("customTypeId")]
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("userId"), Index("date"), Index("metricType"), Index("customTypeId")]
 )
 data class HealthMetric(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: Long,
     val date: String,  // ISO format: yyyy-MM-dd
     val timestamp: Long = System.currentTimeMillis(),
     val metricType: String?,  // MetricType.name or null for custom

@@ -9,6 +9,9 @@ interface FoodDao {
     @Query("SELECT * FROM food_items ORDER BY name ASC")
     fun getAllFoods(): Flow<List<FoodItem>>
 
+    @Query("SELECT * FROM food_items ORDER BY name ASC")
+    suspend fun getAllFoodsOnce(): List<FoodItem>
+
     @Query("SELECT * FROM food_items WHERE id = :id")
     suspend fun getFoodById(id: Long): FoodItem?
 

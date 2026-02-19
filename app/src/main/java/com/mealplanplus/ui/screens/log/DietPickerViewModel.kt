@@ -3,62 +3,56 @@ package com.mealplanplus.ui.screens.log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
-import com.mealplanplus.data.model.DietSummary
-import com.mealplanplus.data.model.DietTag
+import com.mealplanplus.data.model.Tag
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.TagRepository
 import com.mealplanplus.util.naturalSortKey
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class DietPickerFilter(val label: String) {
-    ALL("All"),
-    REMISSION("Remission"),
-    MAINTENANCE("Maintenance"),
-    SOS("SOS")
-}
-
 data class DietPickerItem(
     val diet: Diet,
     val totalCalories: Int = 0,
     val mealCount: Int = 0,
-    val tags: List<DietTag> = emptyList()
+    val tags: List<Tag> = emptyList()
 )
 
 data class DietPickerUiState(
     val diets: List<DietPickerItem> = emptyList(),
+    val allTags: List<Tag> = emptyList(),
     val searchQuery: String = "",
-    val filter: DietPickerFilter = DietPickerFilter.ALL,
+    val selectedTagId: Long? = null,  // null = ALL
     val isLoading: Boolean = true
 )
 
 @HiltViewModel
 class DietPickerViewModel @Inject constructor(
-    private val dietRepository: DietRepository
+    private val dietRepository: DietRepository,
+    private val tagRepository: TagRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
-    private val _filter = MutableStateFlow(DietPickerFilter.ALL)
+    private val _selectedTagId = MutableStateFlow<Long?>(null)
     private val _isLoading = MutableStateFlow(true)
     private val _allDiets = MutableStateFlow<List<DietPickerItem>>(emptyList())
+    private val _allTags = MutableStateFlow<List<Tag>>(emptyList())
 
     val uiState: StateFlow<DietPickerUiState> = combine(
         _allDiets,
+        _allTags,
         _searchQuery,
-        _filter,
+        _selectedTagId,
         _isLoading
-    ) { diets, query, filter, loading ->
+    ) { diets, tags, query, tagId, loading ->
         val filtered = diets
             .filter { item ->
-                (query.isBlank() || item.diet.name.contains(query, ignoreCase = true) ||
-                        item.diet.description?.contains(query, ignoreCase = true) == true) &&
-                        when (filter) {
-                            DietPickerFilter.ALL -> true
-                            DietPickerFilter.REMISSION -> item.tags.contains(DietTag.REMISSION)
-                            DietPickerFilter.MAINTENANCE -> item.tags.contains(DietTag.MAINTENANCE)
-                            DietPickerFilter.SOS -> item.tags.contains(DietTag.SOS)
-                        }
+                val matchesSearch = query.isBlank() ||
+                    item.diet.name.contains(query, ignoreCase = true) ||
+                    item.diet.description?.contains(query, ignoreCase = true) == true
+                val matchesTag = tagId == null || item.tags.any { it.id == tagId }
+                matchesSearch && matchesTag
             }
             .sortedWith(compareBy(
                 { naturalSortKey(it.diet.name).first },
@@ -67,27 +61,29 @@ class DietPickerViewModel @Inject constructor(
 
         DietPickerUiState(
             diets = filtered,
+            allTags = tags,
             searchQuery = query,
-            filter = filter,
+            selectedTagId = tagId,
             isLoading = loading
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DietPickerUiState())
 
     init {
         loadDiets()
+        loadTags()
     }
 
     private fun loadDiets() {
         viewModelScope.launch {
-            // Single JOIN query - no N+1 problem
-            dietRepository.getAllDietsWithSummary().collect { summaries ->
+            dietRepository.getDietsWithSummary().collect { summaries ->
                 _isLoading.value = true
                 val items = summaries.map { summary ->
+                    val dietTags = dietRepository.getTagsForDiet(summary.id)
                     DietPickerItem(
                         diet = summary.toDiet(),
                         totalCalories = summary.totalCalories,
                         mealCount = summary.mealCount,
-                        tags = summary.getTagList().ifEmpty { listOf(extractDietType(summary.name)) }
+                        tags = dietTags
                     )
                 }
                 _allDiets.value = items
@@ -96,12 +92,11 @@ class DietPickerViewModel @Inject constructor(
         }
     }
 
-    private fun extractDietType(name: String): DietTag {
-        return when {
-            name.contains("SOS", ignoreCase = true) -> DietTag.SOS
-            name.startsWith("Diet-M") || name.contains("Maintenance", ignoreCase = true) -> DietTag.MAINTENANCE
-            name.startsWith("Diet-") -> DietTag.REMISSION
-            else -> DietTag.CUSTOM
+    private fun loadTags() {
+        viewModelScope.launch {
+            tagRepository.getTagsByUser().collect { tags ->
+                _allTags.value = tags
+            }
         }
     }
 
@@ -109,7 +104,7 @@ class DietPickerViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun updateFilter(filter: DietPickerFilter) {
-        _filter.value = filter
+    fun selectTag(tagId: Long?) {
+        _selectedTagId.value = tagId
     }
 }
