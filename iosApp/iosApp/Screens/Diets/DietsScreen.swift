@@ -76,41 +76,7 @@ struct DietsScreen: View {
     }
 
     private func loadSampleDiets() {
-        diets = [
-            DietUI(
-                id: 1,
-                name: "High Protein",
-                description: "Focus on protein-rich meals for muscle building",
-                calories: 2200,
-                protein: 180,
-                carbs: 200,
-                fat: 70,
-                mealCount: 4,
-                tags: ["Muscle", "High Protein"]
-            ),
-            DietUI(
-                id: 2,
-                name: "Low Carb",
-                description: "Reduce carbohydrate intake for weight management",
-                calories: 1800,
-                protein: 120,
-                carbs: 80,
-                fat: 110,
-                mealCount: 3,
-                tags: ["Weight Loss", "Keto-friendly"]
-            ),
-            DietUI(
-                id: 3,
-                name: "Balanced",
-                description: "Well-rounded nutrition for everyday health",
-                calories: 2000,
-                protein: 100,
-                carbs: 250,
-                fat: 65,
-                mealCount: 4,
-                tags: ["Balanced", "Healthy"]
-            ),
-        ]
+        diets = SeedDataLoader.shared.loadDiets()
     }
 }
 
@@ -153,7 +119,7 @@ struct DietCardView: View {
 
             // Stats
             HStack {
-                StatItem(value: "\(Int(diet.calories))", label: "kcal")
+                StatItem(value: "\(diet.calories)", label: "kcal")
                 Spacer()
                 StatItem(value: "\(Int(diet.protein))g", label: "Protein")
                 Spacer()
@@ -210,7 +176,7 @@ struct DietUI: Identifiable {
     let id: Int64
     let name: String
     let description: String
-    let calories: Double
+    let calories: Int
     let protein: Double
     let carbs: Double
     let fat: Double

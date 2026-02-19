@@ -26,6 +26,9 @@
 		2A1234560021 /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570021 /* MoreScreen.swift */; };
 		2A1234560022 /* BarcodeScannerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570022 /* BarcodeScannerScreen.swift */; };
 		2A1234560023 /* OnlineSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570023 /* OnlineSearchScreen.swift */; };
+		2A1234560030 /* SeedDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570030 /* SeedDataLoader.swift */; };
+		2A1234560031 /* ingredients.json in Resources */ = {isa = PBXBuildFile; fileRef = 2A1234570031 /* ingredients.json */; };
+		2A1234560032 /* seed_data.json in Resources */ = {isa = PBXBuildFile; fileRef = 2A1234570032 /* seed_data.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -63,6 +66,9 @@
 		2A1234570021 /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
 		2A1234570022 /* BarcodeScannerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerScreen.swift; sourceTree = "<group>"; };
 		2A1234570023 /* OnlineSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineSearchScreen.swift; sourceTree = "<group>"; };
+		2A1234570030 /* SeedDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedDataLoader.swift; sourceTree = "<group>"; };
+		2A1234570031 /* ingredients.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ingredients.json; sourceTree = "<group>"; };
+		2A1234570032 /* seed_data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = seed_data.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -95,6 +101,8 @@
 				2A1234570004 /* Info.plist */,
 				2A12345A0010 /* Navigation */,
 				2A12345A0011 /* Screens */,
+				2A12345A0020 /* Data */,
+				2A12345A0021 /* Resources */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -208,6 +216,23 @@
 			path = Scanner;
 			sourceTree = "<group>";
 		};
+		2A12345A0020 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570030 /* SeedDataLoader.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		2A12345A0021 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570031 /* ingredients.json */,
+				2A1234570032 /* seed_data.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -217,6 +242,7 @@
 			buildPhases = (
 				2A12345D0001 /* Build Kotlin Framework */,
 				2A12345E0001 /* Sources */,
+				2A12345E0002 /* Resources */,
 				2A1234590001 /* Frameworks */,
 				2A1234580001 /* Embed Frameworks */,
 			);
@@ -304,10 +330,23 @@
 				2A1234560021 /* MoreScreen.swift in Sources */,
 				2A1234560022 /* BarcodeScannerScreen.swift in Sources */,
 				2A1234560023 /* OnlineSearchScreen.swift in Sources */,
+				2A1234560030 /* SeedDataLoader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2A12345E0002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A1234560031 /* ingredients.json in Resources */,
+				2A1234560032 /* seed_data.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		2A1234610001 /* Debug */ = {

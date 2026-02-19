@@ -110,14 +110,7 @@ struct FoodsScreen: View {
     }
 
     private func loadSampleFoods() {
-        // Sample data - will be replaced with shared repository
-        foods = [
-            FoodItemUI(id: 1, name: "Chicken Breast", calories: 165, protein: 31, carbs: 0, fat: 3.6, unit: "100g"),
-            FoodItemUI(id: 2, name: "Brown Rice", calories: 112, protein: 2.6, carbs: 24, fat: 0.9, unit: "100g"),
-            FoodItemUI(id: 3, name: "Broccoli", calories: 34, protein: 2.8, carbs: 7, fat: 0.4, unit: "100g"),
-            FoodItemUI(id: 4, name: "Salmon", calories: 208, protein: 20, carbs: 0, fat: 13, unit: "100g"),
-            FoodItemUI(id: 5, name: "Eggs", calories: 155, protein: 13, carbs: 1.1, fat: 11, unit: "100g"),
-        ]
+        foods = SeedDataLoader.shared.loadFoods()
     }
 }
 
@@ -137,7 +130,7 @@ struct FoodRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(Int(food.calories)) kcal")
+                Text("\(food.calories) kcal")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 HStack(spacing: 8) {
@@ -186,7 +179,7 @@ struct EmptyFoodsView: View {
 struct FoodItemUI: Identifiable {
     let id: Int64
     let name: String
-    let calories: Double
+    let calories: Int
     let protein: Double
     let carbs: Double
     let fat: Double

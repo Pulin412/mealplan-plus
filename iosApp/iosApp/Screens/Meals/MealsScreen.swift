@@ -103,13 +103,7 @@ struct MealsScreen: View {
     }
 
     private func loadSampleMeals() {
-        meals = [
-            MealUI(id: 1, name: "Chicken & Rice Bowl", slot: "Lunch", calories: 550, protein: 45, carbs: 55, fat: 12, foodCount: 3),
-            MealUI(id: 2, name: "Oatmeal with Berries", slot: "Breakfast", calories: 350, protein: 12, carbs: 58, fat: 8, foodCount: 4),
-            MealUI(id: 3, name: "Grilled Salmon Dinner", slot: "Dinner", calories: 620, protein: 42, carbs: 35, fat: 28, foodCount: 4),
-            MealUI(id: 4, name: "Protein Smoothie", slot: "Snack", calories: 280, protein: 25, carbs: 30, fat: 6, foodCount: 5),
-            MealUI(id: 5, name: "Turkey Sandwich", slot: "Lunch", calories: 420, protein: 28, carbs: 42, fat: 15, foodCount: 4),
-        ]
+        meals = SeedDataLoader.shared.loadMeals()
     }
 }
 
@@ -175,7 +169,7 @@ struct MealRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(Int(meal.calories)) kcal")
+                Text("\(meal.calories) kcal")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 HStack(spacing: 4) {
@@ -223,7 +217,7 @@ struct MealUI: Identifiable {
     let id: Int64
     let name: String
     let slot: String
-    let calories: Double
+    let calories: Int
     let protein: Double
     let carbs: Double
     let fat: Double
