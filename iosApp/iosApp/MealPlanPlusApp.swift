@@ -5,7 +5,7 @@ import shared
 struct MealPlanPlusApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppNavigation()
         }
     }
 }

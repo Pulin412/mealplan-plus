@@ -12,6 +12,18 @@
 		2A1234560003 /* shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A1234570003 /* shared.framework */; };
 		2A1234560004 /* shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2A1234570003 /* shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2A1234560005 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A1234570006 /* libsqlite3.tbd */; };
+		2A1234560010 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570010 /* AppNavigation.swift */; };
+		2A1234560011 /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570011 /* LoginScreen.swift */; };
+		2A1234560012 /* SignUpScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570012 /* SignUpScreen.swift */; };
+		2A1234560013 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570013 /* HomeScreen.swift */; };
+		2A1234560014 /* FoodsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570014 /* FoodsScreen.swift */; };
+		2A1234560015 /* AddFoodScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570015 /* AddFoodScreen.swift */; };
+		2A1234560016 /* MealsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570016 /* MealsScreen.swift */; };
+		2A1234560017 /* AddMealScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570017 /* AddMealScreen.swift */; };
+		2A1234560018 /* DietsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570018 /* DietsScreen.swift */; };
+		2A1234560019 /* DietDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570019 /* DietDetailScreen.swift */; };
+		2A1234560020 /* DailyLogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570020 /* DailyLogScreen.swift */; };
+		2A1234560021 /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570021 /* MoreScreen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -35,6 +47,18 @@
 		2A1234570004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2A1234570005 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A1234570006 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		2A1234570010 /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
+		2A1234570011 /* LoginScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginScreen.swift; sourceTree = "<group>"; };
+		2A1234570012 /* SignUpScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpScreen.swift; sourceTree = "<group>"; };
+		2A1234570013 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
+		2A1234570014 /* FoodsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodsScreen.swift; sourceTree = "<group>"; };
+		2A1234570015 /* AddFoodScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFoodScreen.swift; sourceTree = "<group>"; };
+		2A1234570016 /* MealsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealsScreen.swift; sourceTree = "<group>"; };
+		2A1234570017 /* AddMealScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMealScreen.swift; sourceTree = "<group>"; };
+		2A1234570018 /* DietsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietsScreen.swift; sourceTree = "<group>"; };
+		2A1234570019 /* DietDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietDetailScreen.swift; sourceTree = "<group>"; };
+		2A1234570020 /* DailyLogScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyLogScreen.swift; sourceTree = "<group>"; };
+		2A1234570021 /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +89,8 @@
 				2A1234570001 /* MealPlanPlusApp.swift */,
 				2A1234570002 /* ContentView.swift */,
 				2A1234570004 /* Info.plist */,
+				2A12345A0010 /* Navigation */,
+				2A12345A0011 /* Screens */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -84,6 +110,88 @@
 				2A1234570006 /* libsqlite3.tbd */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		2A12345A0010 /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570010 /* AppNavigation.swift */,
+			);
+			path = Navigation;
+			sourceTree = "<group>";
+		};
+		2A12345A0011 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				2A12345A0012 /* Auth */,
+				2A12345A0013 /* Home */,
+				2A12345A0014 /* Foods */,
+				2A12345A0015 /* Meals */,
+				2A12345A0016 /* Diets */,
+				2A12345A0017 /* DailyLog */,
+				2A12345A0018 /* More */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		2A12345A0012 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570011 /* LoginScreen.swift */,
+				2A1234570012 /* SignUpScreen.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		2A12345A0013 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570013 /* HomeScreen.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		2A12345A0014 /* Foods */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570014 /* FoodsScreen.swift */,
+				2A1234570015 /* AddFoodScreen.swift */,
+			);
+			path = Foods;
+			sourceTree = "<group>";
+		};
+		2A12345A0015 /* Meals */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570016 /* MealsScreen.swift */,
+				2A1234570017 /* AddMealScreen.swift */,
+			);
+			path = Meals;
+			sourceTree = "<group>";
+		};
+		2A12345A0016 /* Diets */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570018 /* DietsScreen.swift */,
+				2A1234570019 /* DietDetailScreen.swift */,
+			);
+			path = Diets;
+			sourceTree = "<group>";
+		};
+		2A12345A0017 /* DailyLog */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570020 /* DailyLogScreen.swift */,
+			);
+			path = DailyLog;
+			sourceTree = "<group>";
+		};
+		2A12345A0018 /* More */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570021 /* MoreScreen.swift */,
+			);
+			path = More;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -168,6 +276,18 @@
 			files = (
 				2A1234560001 /* MealPlanPlusApp.swift in Sources */,
 				2A1234560002 /* ContentView.swift in Sources */,
+				2A1234560010 /* AppNavigation.swift in Sources */,
+				2A1234560011 /* LoginScreen.swift in Sources */,
+				2A1234560012 /* SignUpScreen.swift in Sources */,
+				2A1234560013 /* HomeScreen.swift in Sources */,
+				2A1234560014 /* FoodsScreen.swift in Sources */,
+				2A1234560015 /* AddFoodScreen.swift in Sources */,
+				2A1234560016 /* MealsScreen.swift in Sources */,
+				2A1234560017 /* AddMealScreen.swift in Sources */,
+				2A1234560018 /* DietsScreen.swift in Sources */,
+				2A1234560019 /* DietDetailScreen.swift in Sources */,
+				2A1234560020 /* DailyLogScreen.swift in Sources */,
+				2A1234560021 /* MoreScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,7 +346,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -283,7 +403,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
