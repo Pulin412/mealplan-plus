@@ -40,6 +40,7 @@ import com.mealplanplus.ui.screens.meals.EditMealScreen
 import com.mealplanplus.ui.screens.diets.DietsScreen
 import com.mealplanplus.ui.screens.diets.AddDietScreen
 import com.mealplanplus.ui.screens.diets.DietDetailScreen
+import androidx.compose.material.icons.filled.Restaurant
 import com.mealplanplus.ui.screens.log.DailyLogScreen
 import com.mealplanplus.ui.screens.log.LogMealPickerScreen
 import com.mealplanplus.ui.screens.calendar.CalendarScreen
@@ -125,7 +126,7 @@ private val bottomNavItems = listOf(
     BottomNavItem("Meal Plan", Icons.Filled.CalendarMonth, Screen.Calendar.route),
     BottomNavItem("Log", Icons.Filled.EditNote, Screen.DailyLog.route),
     BottomNavItem("Health", Icons.Filled.FavoriteBorder, Screen.Health.route),
-    BottomNavItem("Grocery", Icons.Filled.ShoppingCart, Screen.GroceryLists.route)
+    BottomNavItem("Diets", Icons.Filled.Restaurant, Screen.Diets.route)
 )
 
 // Routes where the bottom nav should be visible
@@ -134,7 +135,7 @@ private val bottomNavRoutes = setOf(
     Screen.Calendar.route,
     Screen.DailyLog.route,
     Screen.Health.route,
-    Screen.GroceryLists.route
+    Screen.Diets.route
 )
 
 @Composable
@@ -213,8 +214,7 @@ fun MealPlanNavHost() {
                     onNavigateToHealth = { navController.navigate(Screen.Health.route) },
                     onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                     onNavigateToGroceryLists = { navController.navigate(Screen.GroceryLists.route) },
-                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                    onNavigateToDiets = { navController.navigate(Screen.Diets.route) }
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
                 )
             }
             composable(Screen.Foods.route) {

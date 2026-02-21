@@ -178,9 +178,9 @@ struct MainTabView: View {
                 }
                 .tag(3)
 
-            GroceryTab()
+            DietsTab()
                 .tabItem {
-                    Label("Grocery", systemImage: "cart.fill")
+                    Label("Diets", systemImage: "fork.knife")
                 }
                 .tag(4)
         }
@@ -190,14 +190,9 @@ struct MainTabView: View {
 
 // Tab wrapper views
 struct HomeTab: View {
-    @State private var navigateToDiets = false
-
     var body: some View {
         NavigationStack {
-            HomeScreen(onNavigateToDiets: { navigateToDiets = true })
-                .navigationDestination(isPresented: $navigateToDiets) {
-                    DietsScreen()
-                }
+            HomeScreen()
         }
     }
 }
@@ -230,6 +225,14 @@ struct GroceryTab: View {
     var body: some View {
         NavigationStack {
             GroceryListsScreen()
+        }
+    }
+}
+
+struct DietsTab: View {
+    var body: some View {
+        NavigationStack {
+            DietsScreen()
         }
     }
 }

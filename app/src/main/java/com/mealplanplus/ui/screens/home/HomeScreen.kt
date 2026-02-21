@@ -55,7 +55,6 @@ fun HomeScreen(
     onNavigateToCalendar: () -> Unit = {},
     onNavigateToGroceryLists: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
-    onNavigateToDiets: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -127,12 +126,11 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ── Stats row (A1C / Weight / Streak / Diets) ─────────
+            // ── Stats row (A1C / Weight / Streak) ─────────────────
             StatsRow(
                 latestHba1c = uiState.latestHba1c,
                 latestWeight = uiState.latestWeight,
                 dayStreak = uiState.dayStreak,
-                onNavigateToDiets = onNavigateToDiets,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -714,7 +712,6 @@ fun StatsRow(
     latestHba1c: HealthMetric?,
     latestWeight: HealthMetric?,
     dayStreak: Int,
-    onNavigateToDiets: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -738,14 +735,6 @@ fun StatsRow(
             label = "Streak",
             iconBg = Color(0xFFFFF8E1),
             modifier = Modifier.weight(1f)
-        )
-        StatCard(
-            emoji = "🥗",
-            value = "Diets",
-            label = "View All",
-            iconBg = Color(0xFFE8F5E9),
-            modifier = Modifier.weight(1f),
-            onClick = onNavigateToDiets
         )
     }
 }

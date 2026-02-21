@@ -16,7 +16,6 @@ private let weekRed      = Color(red: 0xD3/255.0, green: 0x2F/255.0, blue: 0x2F/
 struct HomeScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = HomeViewModel()
-    var onNavigateToDiets: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -66,8 +65,7 @@ struct HomeScreen: View {
                     StatsRow(
                         hba1c: viewModel.latestHba1c,
                         weight: viewModel.latestWeight,
-                        dayStreak: viewModel.dayStreak,
-                        onNavigateToDiets: onNavigateToDiets
+                        dayStreak: viewModel.dayStreak
                     )
                     .padding(.horizontal, 16)
 
@@ -505,7 +503,6 @@ private struct StatsRow: View {
     let hba1c: HealthMetric?
     let weight: HealthMetric?
     let dayStreak: Int
-    var onNavigateToDiets: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -526,13 +523,6 @@ private struct StatsRow: View {
                 iconColor: Color.orange,
                 label: "Streak",
                 value: "\(dayStreak) days"
-            )
-            StatCard(
-                icon: "fork.knife",
-                iconColor: primaryGreen,
-                label: "Diets",
-                value: "View",
-                onClick: onNavigateToDiets
             )
         }
     }
