@@ -154,61 +154,105 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeTab()
+            HomeTab(onNavigateToLogWithDate: { date in
+                selectedTab = 2
+                // date navigation handled inside LogTab via notification
+                NotificationCenter.default.post(name: .navigateToDate, object: date)
+            })
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
 
-            FoodsTab()
+            MealPlanTab()
                 .tabItem {
-                    Label("Foods", systemImage: "leaf.fill")
+                    Label("Meal Plan", systemImage: "calendar")
                 }
                 .tag(1)
 
-            MealsTab()
+            LogTab()
                 .tabItem {
-                    Label("Meals", systemImage: "fork.knife")
+                    Label("Log", systemImage: "square.and.pencil")
                 }
                 .tag(2)
 
             DietsTab()
                 .tabItem {
-                    Label("Diets", systemImage: "calendar")
+                    Label("Diets", systemImage: "fork.knife")
                 }
                 .tag(3)
 
-            MoreTab()
+            HealthTab()
                 .tabItem {
-                    Label("More", systemImage: "ellipsis.circle")
+                    Label("Health", systemImage: "heart.fill")
                 }
                 .tag(4)
+
+            GroceryTab()
+                .tabItem {
+                    Label("Grocery", systemImage: "cart.fill")
+                }
+                .tag(5)
         }
-        .accentColor(.green)
+        .accentColor(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0))
     }
+}
+
+// MARK: - Notification name for date-based log navigation
+extension Notification.Name {
+    static let navigateToDate = Notification.Name("navigateToDate")
 }
 
 // Tab wrapper views
 struct HomeTab: View {
+    var onNavigateToLogWithDate: ((String) -> Void)?
+
     var body: some View {
         NavigationStack {
-            HomeScreen()
+            HomeScreen(onNavigateToLogWithDate: onNavigateToLogWithDate)
         }
     }
 }
 
-struct FoodsTab: View {
+struct MealPlanTab: View {
     var body: some View {
         NavigationStack {
-            FoodsScreen()
+            CalendarScreen()
         }
     }
 }
 
-struct MealsTab: View {
+struct LogTab: View {
+    @State private var logDate: Date = Date()
+
     var body: some View {
         NavigationStack {
-            MealsScreen()
+            DailyLogScreen(date: logDate)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToDate)) { notification in
+            if let isoString = notification.object as? String {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                if let date = formatter.date(from: isoString) {
+                    logDate = date
+                }
+            }
+        }
+    }
+}
+
+struct HealthTab: View {
+    var body: some View {
+        NavigationStack {
+            HealthMetricsScreen()
+        }
+    }
+}
+
+struct GroceryTab: View {
+    var body: some View {
+        NavigationStack {
+            GroceryListsScreen()
         }
     }
 }
@@ -217,14 +261,6 @@ struct DietsTab: View {
     var body: some View {
         NavigationStack {
             DietsScreen()
-        }
-    }
-}
-
-struct MoreTab: View {
-    var body: some View {
-        NavigationStack {
-            MoreScreen()
         }
     }
 }
