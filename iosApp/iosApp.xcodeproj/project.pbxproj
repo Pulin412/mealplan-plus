@@ -15,6 +15,7 @@
 		2A1234560010 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570010 /* AppNavigation.swift */; };
 		2A1234560011 /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570011 /* LoginScreen.swift */; };
 		2A1234560012 /* SignUpScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570012 /* SignUpScreen.swift */; };
+		2A123456009A /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A123457009A /* ForgotPasswordScreen.swift */; };
 		2A1234560013 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570013 /* HomeScreen.swift */; };
 		2A1234560014 /* FoodsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570014 /* FoodsScreen.swift */; };
 		2A1234560015 /* AddFoodScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570015 /* AddFoodScreen.swift */; };
@@ -26,9 +27,16 @@
 		2A1234560021 /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570021 /* MoreScreen.swift */; };
 		2A1234560022 /* BarcodeScannerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570022 /* BarcodeScannerScreen.swift */; };
 		2A1234560023 /* OnlineSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570023 /* OnlineSearchScreen.swift */; };
-		2A1234560030 /* SeedDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570030 /* SeedDataLoader.swift */; };
 		2A1234560031 /* ingredients.json in Resources */ = {isa = PBXBuildFile; fileRef = 2A1234570031 /* ingredients.json */; };
 		2A1234560032 /* seed_data.json in Resources */ = {isa = PBXBuildFile; fileRef = 2A1234570032 /* seed_data.json */; };
+		2A1234560033 /* DatabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570033 /* DatabaseManager.swift */; };
+		2A1234560034 /* RepositoryProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570034 /* RepositoryProvider.swift */; };
+		2A1234560035 /* FlowCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570035 /* FlowCollector.swift */; };
+		2A1234560036 /* HealthMetricsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570036 /* HealthMetricsScreen.swift */; };
+		2A1234560037 /* AddMetricScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570037 /* AddMetricScreen.swift */; };
+		2A1234560038 /* ChartsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570038 /* ChartsScreen.swift */; };
+		2A1234560039 /* DatabaseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570039 /* DatabaseSeeder.swift */; };
+		2A1234560040 /* DataImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570040 /* DataImporter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -55,6 +63,7 @@
 		2A1234570010 /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
 		2A1234570011 /* LoginScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginScreen.swift; sourceTree = "<group>"; };
 		2A1234570012 /* SignUpScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpScreen.swift; sourceTree = "<group>"; };
+		2A123457009A /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
 		2A1234570013 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		2A1234570014 /* FoodsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodsScreen.swift; sourceTree = "<group>"; };
 		2A1234570015 /* AddFoodScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFoodScreen.swift; sourceTree = "<group>"; };
@@ -66,9 +75,16 @@
 		2A1234570021 /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
 		2A1234570022 /* BarcodeScannerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerScreen.swift; sourceTree = "<group>"; };
 		2A1234570023 /* OnlineSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineSearchScreen.swift; sourceTree = "<group>"; };
-		2A1234570030 /* SeedDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedDataLoader.swift; sourceTree = "<group>"; };
 		2A1234570031 /* ingredients.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ingredients.json; sourceTree = "<group>"; };
 		2A1234570032 /* seed_data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = seed_data.json; sourceTree = "<group>"; };
+		2A1234570033 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
+		2A1234570034 /* RepositoryProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryProvider.swift; sourceTree = "<group>"; };
+		2A1234570035 /* FlowCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowCollector.swift; sourceTree = "<group>"; };
+		2A1234570036 /* HealthMetricsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricsScreen.swift; sourceTree = "<group>"; };
+		2A1234570037 /* AddMetricScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMetricScreen.swift; sourceTree = "<group>"; };
+		2A1234570038 /* ChartsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsScreen.swift; sourceTree = "<group>"; };
+		2A1234570039 /* DatabaseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseSeeder.swift; sourceTree = "<group>"; };
+		2A1234570040 /* DataImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataImporter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +118,7 @@
 				2A12345A0010 /* Navigation */,
 				2A12345A0011 /* Screens */,
 				2A12345A0020 /* Data */,
+				2A12345A0022 /* Utils */,
 				2A12345A0021 /* Resources */,
 			);
 			path = iosApp;
@@ -143,6 +160,8 @@
 				2A12345A0017 /* DailyLog */,
 				2A12345A0018 /* More */,
 				2A12345A0019 /* Scanner */,
+				2A12345A0023 /* Health */,
+				2A12345A0024 /* Charts */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -152,6 +171,7 @@
 			children = (
 				2A1234570011 /* LoginScreen.swift */,
 				2A1234570012 /* SignUpScreen.swift */,
+				2A123457009A /* ForgotPasswordScreen.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -219,7 +239,10 @@
 		2A12345A0020 /* Data */ = {
 			isa = PBXGroup;
 			children = (
-				2A1234570030 /* SeedDataLoader.swift */,
+				2A1234570033 /* DatabaseManager.swift */,
+				2A1234570034 /* RepositoryProvider.swift */,
+				2A1234570039 /* DatabaseSeeder.swift */,
+				2A1234570040 /* DataImporter.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -231,6 +254,31 @@
 				2A1234570032 /* seed_data.json */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		2A12345A0022 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570035 /* FlowCollector.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		2A12345A0023 /* Health */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570036 /* HealthMetricsScreen.swift */,
+				2A1234570037 /* AddMetricScreen.swift */,
+			);
+			path = Health;
+			sourceTree = "<group>";
+		};
+		2A12345A0024 /* Charts */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570038 /* ChartsScreen.swift */,
+			);
+			path = Charts;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -319,6 +367,7 @@
 				2A1234560010 /* AppNavigation.swift in Sources */,
 				2A1234560011 /* LoginScreen.swift in Sources */,
 				2A1234560012 /* SignUpScreen.swift in Sources */,
+				2A123456009A /* ForgotPasswordScreen.swift in Sources */,
 				2A1234560013 /* HomeScreen.swift in Sources */,
 				2A1234560014 /* FoodsScreen.swift in Sources */,
 				2A1234560015 /* AddFoodScreen.swift in Sources */,
@@ -330,7 +379,14 @@
 				2A1234560021 /* MoreScreen.swift in Sources */,
 				2A1234560022 /* BarcodeScannerScreen.swift in Sources */,
 				2A1234560023 /* OnlineSearchScreen.swift in Sources */,
-				2A1234560030 /* SeedDataLoader.swift in Sources */,
+				2A1234560033 /* DatabaseManager.swift in Sources */,
+				2A1234560034 /* RepositoryProvider.swift in Sources */,
+				2A1234560035 /* FlowCollector.swift in Sources */,
+				2A1234560036 /* HealthMetricsScreen.swift in Sources */,
+				2A1234560037 /* AddMetricScreen.swift in Sources */,
+				2A1234560038 /* ChartsScreen.swift in Sources */,
+				2A1234560039 /* DatabaseSeeder.swift in Sources */,
+				2A1234560040 /* DataImporter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

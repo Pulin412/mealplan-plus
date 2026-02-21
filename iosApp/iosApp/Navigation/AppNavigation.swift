@@ -14,24 +14,90 @@ enum AppScreen: Hashable {
     case diets
     case dietDetail(id: Int64)
     case addDiet
+    case editDiet(id: Int64)
+    case dietMealSlot(dietId: Int64, slot: String)
     case dailyLog(date: String) // ISO date string
+    case dietPicker(date: String)
     case calendar
     case groceryLists
+    case groceryDetail(id: Int64)
+    case healthMetrics
+    case addMetric
+    case charts
     case settings
     case profile
 }
 
+@MainActor
 class AppState: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var currentUserId: Int64? = nil
     @Published var navigationPath = NavigationPath()
+    @Published var isLoading: Bool = true  // Start true - show loading while DB inits
+
+    private let userDefaults = UserDefaults.standard
+
+    // Lazy preferencesManager - don't access during init
+    private var _preferencesManager: PreferencesManager?
+    private var preferencesManager: PreferencesManager {
+        if _preferencesManager == nil {
+            _preferencesManager = RepositoryProvider.shared.preferencesManager
+        }
+        return _preferencesManager!
+    }
+
+    private let isLoggedInKey = "is_logged_in"
+    private let userIdKey = "user_id"
+
+    init() {
+        // Start async initialization - don't block main thread
+        Task { await initializeApp() }
+    }
+
+    private func initializeApp() async {
+        // Initialize database on background thread to avoid blocking main thread
+        await Task.detached(priority: .userInitiated) {
+            // This triggers DatabaseManager initialization off main thread
+            _ = RepositoryProvider.shared.foodRepository
+        }.value
+
+        // Initialize database
+        await DatabaseSeeder.shared.initialize()
+
+        // Check auth state (uses UserDefaults, fast)
+        checkAuthState()
+
+        // Done loading
+        isLoading = false
+    }
+
+    private func checkAuthState() {
+        // Check persisted auth state on launch via UserDefaults directly
+        // (PreferencesManager uses NSUserDefaults underneath)
+        isLoggedIn = userDefaults.bool(forKey: isLoggedInKey)
+        if userDefaults.object(forKey: userIdKey) != nil {
+            currentUserId = Int64(userDefaults.integer(forKey: userIdKey))
+        }
+    }
 
     func login(userId: Int64) {
+        Task {
+            try? await preferencesManager.setLoggedIn(userId: userId)
+        }
+        // Also update local state immediately
+        userDefaults.set(true, forKey: isLoggedInKey)
+        userDefaults.set(Int(userId), forKey: userIdKey)
         self.currentUserId = userId
         self.isLoggedIn = true
     }
 
     func logout() {
+        Task {
+            try? await preferencesManager.clearAuth()
+        }
+        // Also update local state immediately
+        userDefaults.set(false, forKey: isLoggedInKey)
+        userDefaults.removeObject(forKey: userIdKey)
         self.currentUserId = nil
         self.isLoggedIn = false
         self.navigationPath = NavigationPath()
@@ -53,7 +119,9 @@ struct AppNavigation: View {
 
     var body: some View {
         Group {
-            if appState.isLoggedIn {
+            if appState.isLoading {
+                ProgressView("Loading...")
+            } else if appState.isLoggedIn {
                 MainTabView()
             } else {
                 AuthNavigationView()
@@ -65,13 +133,16 @@ struct AppNavigation: View {
 
 struct AuthNavigationView: View {
     @State private var showSignUp = false
+    @State private var showForgotPassword = false
 
     var body: some View {
         NavigationStack {
             if showSignUp {
                 SignUpScreen(showSignUp: $showSignUp)
+            } else if showForgotPassword {
+                ForgotPasswordScreen(showForgotPassword: $showForgotPassword)
             } else {
-                LoginScreen(showSignUp: $showSignUp)
+                LoginScreen(showSignUp: $showSignUp, showForgotPassword: $showForgotPassword)
             }
         }
     }
