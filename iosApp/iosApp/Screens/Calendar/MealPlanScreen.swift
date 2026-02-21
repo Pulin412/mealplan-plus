@@ -149,24 +149,77 @@ struct MealPlanScreen: View {
 
     // MARK: - Calendar Card
 
+    /// Sunday of the week containing selectedDate
+    private var weekStart: Date {
+        let cal = Calendar.current
+        // weekday: 1=Sun … 7=Sat; offset back to Sunday
+        let weekday = cal.component(.weekday, from: selectedDate)
+        return cal.date(byAdding: .day, value: -(weekday - 1), to: selectedDate)!
+    }
+
+    /// 7 days of the current week
+    private var daysInWeek: [Date] {
+        let cal = Calendar.current
+        return (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: weekStart) }
+    }
+
+    private var calendarHeaderText: String {
+        if plansVM.isWeekView {
+            let cal = Calendar.current
+            let weekEnd = cal.date(byAdding: .day, value: 6, to: weekStart)!
+            let startMonth = cal.component(.month, from: weekStart)
+            let endMonth = cal.component(.month, from: weekEnd)
+            let year = cal.component(.year, from: weekEnd)
+            let monthFmt = DateFormatter()
+            if startMonth == endMonth {
+                monthFmt.dateFormat = "MMMM yyyy"
+                return monthFmt.string(from: weekStart)
+            } else {
+                monthFmt.dateFormat = "MMM"
+                return "\(monthFmt.string(from: weekStart)) – \(monthFmt.string(from: weekEnd)) \(year)"
+            }
+        } else {
+            return monthYearString
+        }
+    }
+
     private var calendarCard: some View {
         VStack(spacing: 0) {
-            // Header: month + toggle
+            // Header: label + arrows (week view) + toggle pill
             HStack {
                 if plansVM.isWeekView {
-                    Button(action: { currentMonth = Calendar.current.date(byAdding: .month, value: -1, to: currentMonth)! }) {
+                    Button(action: {
+                        let prev = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: selectedDate)!
+                        selectedDate = prev
+                        plansVM.selectDate(isoString(prev), userId: userId)
+                    }) {
                         Image(systemName: "chevron.left").foregroundColor(darkGreen)
                     }
+                } else {
+                    Spacer().frame(width: 28)
                 }
-                Text(monthYearString)
+
+                Spacer()
+
+                Text(calendarHeaderText)
                     .font(.headline)
                     .foregroundColor(.primary)
+
+                Spacer()
+
                 if plansVM.isWeekView {
-                    Button(action: { currentMonth = Calendar.current.date(byAdding: .month, value: 1, to: currentMonth)! }) {
+                    Button(action: {
+                        let next = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: selectedDate)!
+                        selectedDate = next
+                        plansVM.selectDate(isoString(next), userId: userId)
+                    }) {
                         Image(systemName: "chevron.right").foregroundColor(darkGreen)
                     }
+                } else {
+                    Spacer().frame(width: 28)
                 }
-                Spacer()
+
+                // Toggle pill: shows what you'll switch TO
                 Button(action: { plansVM.toggleView() }) {
                     Text(plansVM.isWeekView ? "Month" : "Week")
                         .font(.caption)
@@ -196,38 +249,55 @@ struct MealPlanScreen: View {
             }
             .padding(.horizontal, 4)
 
-            // Grid
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
-                ForEach(daysInMonth, id: \.self) { date in
-                    if let date = date {
+            if plansVM.isWeekView {
+                // Single week row
+                HStack(spacing: 0) {
+                    ForEach(daysInWeek, id: \.self) { date in
                         let dateStr = isoString(date)
                         let plan = plansVM.plans.first(where: { $0.date == dateStr })
-                        let hasPlan = plan != nil
-                        let isCompleted = plan?.isCompleted ?? false
-                        let isSelected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
-                        let isToday = Calendar.current.isDateInToday(date)
-                        let dietName = plan?.dietName.flatMap { extractShortDietName($0) }
-
                         MealPlanDayCell(
                             day: Calendar.current.component(.day, from: date),
-                            isSelected: isSelected,
-                            isToday: isToday,
-                            hasPlan: hasPlan,
-                            isCompleted: isCompleted,
-                            compact: !plansVM.isWeekView,
-                            dietName: dietName
+                            isSelected: Calendar.current.isDate(date, inSameDayAs: selectedDate),
+                            isToday: Calendar.current.isDateInToday(date),
+                            hasPlan: plan != nil,
+                            isCompleted: plan?.isCompleted ?? false,
+                            compact: false,
+                            dietName: plan?.dietName.flatMap { extractShortDietName($0) }
                         ) {
                             selectedDate = date
                             plansVM.selectDate(dateStr, userId: userId)
                         }
-                    } else {
-                        Color.clear
-                            .aspectRatio(1, contentMode: .fit)
                     }
                 }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
+            } else {
+                // Full month grid
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
+                    ForEach(daysInMonth, id: \.self) { date in
+                        if let date = date {
+                            let dateStr = isoString(date)
+                            let plan = plansVM.plans.first(where: { $0.date == dateStr })
+                            MealPlanDayCell(
+                                day: Calendar.current.component(.day, from: date),
+                                isSelected: Calendar.current.isDate(date, inSameDayAs: selectedDate),
+                                isToday: Calendar.current.isDateInToday(date),
+                                hasPlan: plan != nil,
+                                isCompleted: plan?.isCompleted ?? false,
+                                compact: true,
+                                dietName: plan?.dietName.flatMap { extractShortDietName($0) }
+                            ) {
+                                selectedDate = date
+                                plansVM.selectDate(dateStr, userId: userId)
+                            }
+                        } else {
+                            Color.clear.aspectRatio(1, contentMode: .fit)
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 4)
-            .padding(.bottom, 8)
         }
         .background(Color.white)
         .cornerRadius(16)

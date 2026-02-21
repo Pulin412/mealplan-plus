@@ -149,6 +149,22 @@ private fun CalendarCard(
     onNextMonth: () -> Unit,
     onToggleView: () -> Unit
 ) {
+    // For week view, track which week's Sunday we're showing (start of week containing selectedDate)
+    val weekStart = remember(selectedDate) {
+        val dow = selectedDate.dayOfWeek.value % 7 // Sunday=0
+        selectedDate.minusDays(dow.toLong())
+    }
+    // Derive header label from week view context
+    val headerText = if (isWeekView) {
+        val weekEnd = weekStart.plusDays(6)
+        if (weekStart.month == weekEnd.month)
+            "${weekStart.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${weekStart.year}"
+        else
+            "${weekStart.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())} – ${weekEnd.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())} ${weekEnd.year}"
+    } else {
+        "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -158,33 +174,41 @@ private fun CalendarCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Header row: month title + navigation (week view only) + toggle
+            // Header row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Prev arrow: navigate week (week view) or hidden (month view)
                 if (isWeekView) {
-                    IconButton(onClick = onPreviousMonth, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev", tint = Color.Gray)
+                    IconButton(
+                        onClick = { onDateSelected(selectedDate.minusWeeks(1)) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev week", tint = Color.Gray)
                     }
                 } else {
                     Spacer(Modifier.width(32.dp))
                 }
 
                 Text(
-                    text = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}",
+                    text = headerText,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Next arrow: navigate week (week view) or hidden (month view)
                     if (isWeekView) {
-                        IconButton(onClick = onNextMonth, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next", tint = Color.Gray)
+                        IconButton(
+                            onClick = { onDateSelected(selectedDate.plusWeeks(1)) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next week", tint = Color.Gray)
                         }
                     }
-                    // Month/Week toggle pill
+                    // Toggle pill: label shows what you'll switch TO
                     Box(
                         modifier = Modifier
                             .border(1.dp, DarkGreen, RoundedCornerShape(16.dp))
@@ -201,7 +225,7 @@ private fun CalendarCard(
                             )
                             Spacer(Modifier.width(4.dp))
                             Text(
-                                text = if (isWeekView) "Week" else "Month",
+                                text = if (isWeekView) "Month" else "Week",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = DarkGreen,
                                 fontWeight = FontWeight.SemiBold
@@ -228,14 +252,25 @@ private fun CalendarCard(
 
             Spacer(Modifier.height(4.dp))
 
-            // Calendar grid
-            MealPlanCalendarGrid(
-                month = currentMonth,
-                selectedDate = selectedDate,
-                plans = plans,
-                dietNames = dietNames,
-                onDateSelected = onDateSelected
-            )
+            if (isWeekView) {
+                // Single week row: 7 days starting from weekStart
+                WeekRow(
+                    weekStart = weekStart,
+                    selectedDate = selectedDate,
+                    plans = plans,
+                    dietNames = dietNames,
+                    onDateSelected = onDateSelected
+                )
+            } else {
+                // Full month grid
+                MealPlanCalendarGrid(
+                    month = currentMonth,
+                    selectedDate = selectedDate,
+                    plans = plans,
+                    dietNames = dietNames,
+                    onDateSelected = onDateSelected
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
 
@@ -267,6 +302,34 @@ private fun LegendItem(color: Color, label: String, isOutline: Boolean = false) 
         )
         Spacer(Modifier.width(3.dp))
         Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+    }
+}
+
+@Composable
+private fun WeekRow(
+    weekStart: LocalDate,
+    selectedDate: LocalDate,
+    plans: Map<String, Plan>,
+    dietNames: Map<String, String>,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        for (i in 0..6) {
+            val date = weekStart.plusDays(i.toLong())
+            val dateStr = date.toString()
+            val plan = plans[dateStr]
+            val hasPlan = plan != null && plan.dietId != null
+            CalendarDayCell(
+                day = date.dayOfMonth,
+                isSelected = date == selectedDate,
+                isToday = date == LocalDate.now(),
+                hasPlan = hasPlan,
+                isCompleted = plan?.isCompleted ?: false,
+                dietName = dietNames[dateStr],
+                onClick = { onDateSelected(date) },
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
