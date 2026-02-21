@@ -160,31 +160,31 @@ struct MainTabView: View {
                 }
                 .tag(0)
 
-            FoodsTab()
+            MealPlanTab()
                 .tabItem {
-                    Label("Foods", systemImage: "leaf.fill")
+                    Label("Meal Plan", systemImage: "calendar")
                 }
                 .tag(1)
 
-            MealsTab()
+            LogTab()
                 .tabItem {
-                    Label("Meals", systemImage: "fork.knife")
+                    Label("Log", systemImage: "square.and.pencil")
                 }
                 .tag(2)
 
-            DietsTab()
+            HealthTab()
                 .tabItem {
-                    Label("Diets", systemImage: "calendar")
+                    Label("Health", systemImage: "heart.fill")
                 }
                 .tag(3)
 
-            MoreTab()
+            GroceryTab()
                 .tabItem {
-                    Label("More", systemImage: "ellipsis.circle")
+                    Label("Grocery", systemImage: "cart.fill")
                 }
                 .tag(4)
         }
-        .accentColor(.green)
+        .accentColor(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0))
     }
 }
 
@@ -197,34 +197,34 @@ struct HomeTab: View {
     }
 }
 
-struct FoodsTab: View {
+struct MealPlanTab: View {
     var body: some View {
         NavigationStack {
-            FoodsScreen()
+            CalendarScreen()
         }
     }
 }
 
-struct MealsTab: View {
+struct LogTab: View {
     var body: some View {
         NavigationStack {
-            MealsScreen()
+            DailyLogScreen(date: Date())
         }
     }
 }
 
-struct DietsTab: View {
+struct HealthTab: View {
     var body: some View {
         NavigationStack {
-            DietsScreen()
+            HealthMetricsScreen()
         }
     }
 }
 
-struct MoreTab: View {
+struct GroceryTab: View {
     var body: some View {
         NavigationStack {
-            MoreScreen()
+            GroceryListsScreen()
         }
     }
 }
