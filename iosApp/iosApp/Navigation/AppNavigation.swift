@@ -216,9 +216,7 @@ struct HomeTab: View {
 
 struct MealPlanTab: View {
     var body: some View {
-        NavigationStack {
-            CalendarScreen()
-        }
+        MealPlanScreen()
     }
 }
 

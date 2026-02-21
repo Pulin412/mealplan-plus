@@ -7,16 +7,16 @@ struct MoreScreen: View {
     var body: some View {
         List {
             Section {
-                NavigationLink(destination: CalendarScreen()) {
-                    MoreMenuItem(icon: "calendar", title: "Calendar", color: .purple)
-                }
-
                 NavigationLink(destination: GroceryListsScreen()) {
                     MoreMenuItem(icon: "cart.fill", title: "Grocery Lists", color: .orange)
                 }
 
-                NavigationLink(destination: HealthScreen()) {
+                NavigationLink(destination: HealthMetricsScreen()) {
                     MoreMenuItem(icon: "heart.fill", title: "Health Metrics", color: .red)
+                }
+
+                NavigationLink(destination: ChartsScreen()) {
+                    MoreMenuItem(icon: "chart.bar.fill", title: "Analytics", color: .green)
                 }
             }
 
@@ -80,185 +80,18 @@ struct MoreMenuItem: View {
     }
 }
 
-// MARK: - Calendar Screen
-
-struct CalendarScreen: View {
-    @State private var selectedDate = Date()
-    @State private var currentMonth = Date()
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Month navigation
-                HStack {
-                    Button(action: previousMonth) {
-                        Image(systemName: "chevron.left")
-                    }
-                    Spacer()
-                    Text(monthYearString)
-                        .font(.headline)
-                    Spacer()
-                    Button(action: nextMonth) {
-                        Image(systemName: "chevron.right")
-                    }
-                }
-                .padding()
-
-                // Calendar grid
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
-                    // Weekday headers
-                    ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { day in
-                        Text(day)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                    }
-
-                    // Days
-                    ForEach(daysInMonth, id: \.self) { date in
-                        if let date = date {
-                            CalendarDayCell(
-                                date: date,
-                                isSelected: Calendar.current.isDate(date, inSameDayAs: selectedDate),
-                                hasLog: Int.random(in: 0...1) == 1
-                            ) {
-                                selectedDate = date
-                            }
-                        } else {
-                            Text("")
-                                .frame(height: 40)
-                        }
-                    }
-                }
-                .padding(.horizontal)
-
-                // Selected date info
-                if Calendar.current.isDateInToday(selectedDate) || selectedDate < Date() {
-                    NavigationLink(destination: DailyLogScreen(date: selectedDate)) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(selectedDateString)
-                                    .font(.headline)
-                                Text("Tap to view daily log")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.secondary)
-                        }
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .shadow(color: .black.opacity(0.1), radius: 3)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.horizontal)
-                }
-
-                Spacer()
-            }
-        }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
-        .navigationTitle("Calendar")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var monthYearString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: currentMonth)
-    }
-
-    private var selectedDateString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        return formatter.string(from: selectedDate)
-    }
-
-    private var daysInMonth: [Date?] {
-        let calendar = Calendar.current
-        let range = calendar.range(of: .day, in: .month, for: currentMonth)!
-        let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
-        let firstWeekday = calendar.component(.weekday, from: firstDay)
-
-        var days: [Date?] = Array(repeating: nil, count: firstWeekday - 1)
-
-        for day in range {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstDay) {
-                days.append(date)
-            }
-        }
-
-        return days
-    }
-
-    private func previousMonth() {
-        currentMonth = Calendar.current.date(byAdding: .month, value: -1, to: currentMonth)!
-    }
-
-    private func nextMonth() {
-        currentMonth = Calendar.current.date(byAdding: .month, value: 1, to: currentMonth)!
-    }
-}
-
-struct CalendarDayCell: View {
-    let date: Date
-    let isSelected: Bool
-    let hasLog: Bool
-    let action: () -> Void
-
-    private var dayNumber: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
-    }
-
-    private var isToday: Bool {
-        Calendar.current.isDateInToday(date)
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                Text(dayNumber)
-                    .font(.subheadline)
-                    .fontWeight(isToday ? .bold : .regular)
-
-                if hasLog {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
-                } else {
-                    Circle()
-                        .fill(Color.clear)
-                        .frame(width: 6, height: 6)
-                }
-            }
-            .frame(width: 40, height: 40)
-            .background(isSelected ? Color.green : (isToday ? Color.green.opacity(0.2) : Color.clear))
-            .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(8)
-        }
-    }
-}
-
 // MARK: - Grocery Lists Screen
 
 struct GroceryListsScreen: View {
-    @State private var groceryLists: [GroceryListUI] = []
+    @EnvironmentObject var appState: AppState
+    @StateObject private var viewModel = GroceryViewModel()
     @State private var showCreateList = false
 
     var body: some View {
         ZStack {
-            if groceryLists.isEmpty {
+            if viewModel.isLoading {
+                ProgressView("Loading lists...")
+            } else if viewModel.groceryLists.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "cart")
                         .font(.system(size: 60))
@@ -271,11 +104,13 @@ struct GroceryListsScreen: View {
                 }
             } else {
                 List {
-                    ForEach(groceryLists) { list in
-                        GroceryListRow(list: list)
+                    ForEach(viewModel.groceryLists, id: \.id) { list in
+                        NavigationLink(destination: GroceryDetailScreen(listId: list.id, listName: list.name, onUpdate: { loadLists() })) {
+                            GroceryListRow(list: list)
+                        }
                     }
                     .onDelete { indexSet in
-                        groceryLists.remove(atOffsets: indexSet)
+                        deleteList(at: indexSet)
                     }
                 }
             }
@@ -290,38 +125,57 @@ struct GroceryListsScreen: View {
             }
         }
         .sheet(isPresented: $showCreateList) {
-            CreateGroceryListScreen { list in
-                groceryLists.append(list)
+            CreateGroceryListScreen(userId: appState.currentUserId ?? 1) {
+                loadLists()
             }
         }
         .onAppear {
-            loadSampleLists()
+            loadLists()
+        }
+        .refreshable {
+            loadLists()
         }
     }
 
-    private func loadSampleLists() {
-        groceryLists = [
-            GroceryListUI(id: 1, name: "Weekly Shopping", itemCount: 12, checkedCount: 5, createdDate: Date()),
-            GroceryListUI(id: 2, name: "High Protein Diet", itemCount: 8, checkedCount: 0, createdDate: Date()),
-        ]
+    private func loadLists() {
+        if let userId = appState.currentUserId {
+            viewModel.loadGroceryLists(userId: userId)
+        }
+    }
+
+    private func deleteList(at indexSet: IndexSet) {
+        Task {
+            for index in indexSet {
+                try? await viewModel.deleteGroceryList(id: viewModel.groceryLists[index].id)
+            }
+            loadLists()
+        }
     }
 }
 
 struct GroceryListRow: View {
-    let list: GroceryListUI
+    let list: GroceryList
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(list.name)
                     .font(.headline)
-                Text("\(list.checkedCount)/\(list.itemCount) items")
+                Text(formatDate(list.createdAt))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
             Spacer()
-            CircularProgress(progress: Double(list.checkedCount) / Double(max(list.itemCount, 1)))
+            Image(systemName: "chevron.right")
+                .foregroundColor(.secondary)
         }
+    }
+
+    private func formatDate(_ timestamp: Int64) -> String {
+        let date = Date(timeIntervalSince1970: Double(timestamp) / 1000.0)
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
     }
 }
 
@@ -343,9 +197,12 @@ struct CircularProgress: View {
 
 struct CreateGroceryListScreen: View {
     @Environment(\.dismiss) var dismiss
-    var onCreate: (GroceryListUI) -> Void
+    let userId: Int64
+    var onSave: () -> Void
 
+    @StateObject private var viewModel = GroceryViewModel()
     @State private var name = ""
+    @State private var isLoading = false
 
     var body: some View {
         NavigationStack {
@@ -355,7 +212,7 @@ struct CreateGroceryListScreen: View {
                 }
 
                 Section {
-                    Text("Items will be generated from your selected diet")
+                    Text("Add items manually after creating the list")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -364,12 +221,16 @@ struct CreateGroceryListScreen: View {
                     Button(action: createList) {
                         HStack {
                             Spacer()
-                            Text("Create List")
-                                .fontWeight(.semibold)
+                            if isLoading {
+                                ProgressView()
+                            } else {
+                                Text("Create List")
+                                    .fontWeight(.semibold)
+                            }
                             Spacer()
                         }
                     }
-                    .disabled(name.isEmpty)
+                    .disabled(name.isEmpty || isLoading)
                 }
             }
             .navigationTitle("New Grocery List")
@@ -383,48 +244,213 @@ struct CreateGroceryListScreen: View {
     }
 
     private func createList() {
-        let list = GroceryListUI(
-            id: Int64(Date().timeIntervalSince1970),
+        isLoading = true
+        let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
+        let list = GroceryList(
+            id: 0,
+            userId: userId,
             name: name,
-            itemCount: 0,
-            checkedCount: 0,
-            createdDate: Date()
+            startDate: nil,
+            endDate: nil,
+            createdAt: timestamp,
+            updatedAt: timestamp
         )
-        onCreate(list)
-        dismiss()
+
+        Task {
+            do {
+                _ = try await viewModel.insertGroceryList(list)
+                await MainActor.run {
+                    isLoading = false
+                    onSave()
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                }
+            }
+        }
     }
 }
 
-struct GroceryListUI: Identifiable {
-    let id: Int64
-    let name: String
-    let itemCount: Int
-    let checkedCount: Int
-    let createdDate: Date
+// MARK: - Grocery Detail Screen
+
+struct GroceryDetailScreen: View {
+    let listId: Int64
+    let listName: String
+    var onUpdate: () -> Void
+
+    @StateObject private var viewModel = GroceryViewModel()
+    @State private var showAddItem = false
+    @State private var newItemName = ""
+
+    var checkedCount: Int {
+        viewModel.currentList?.items.filter { $0.item.isChecked }.count ?? 0
+    }
+
+    var totalCount: Int {
+        viewModel.currentList?.items.count ?? 0
+    }
+
+    var items: [GroceryItemWithFood] {
+        viewModel.currentList?.items ?? []
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Progress header
+            if totalCount > 0 {
+                HStack {
+                    Text("\(checkedCount) of \(totalCount) items")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    CircularProgress(progress: Double(checkedCount) / Double(max(totalCount, 1)))
+                }
+                .padding()
+                .background(Color.white)
+            }
+
+            if viewModel.currentList == nil {
+                Spacer()
+                ProgressView("Loading items...")
+                Spacer()
+            } else if viewModel.currentList?.items.isEmpty == true {
+                VStack(spacing: 16) {
+                    Spacer()
+                    Image(systemName: "cart")
+                        .font(.system(size: 50))
+                        .foregroundColor(.gray.opacity(0.5))
+                    Text("No items yet")
+                        .font(.headline)
+                    Text("Tap + to add items")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+            } else {
+                List {
+                    ForEach(items, id: \.item.id) { itemWithFood in
+                        GroceryItemRow(itemWithFood: itemWithFood) { isChecked in
+                            toggleItem(itemWithFood: itemWithFood, isChecked: isChecked)
+                        }
+                    }
+                    .onDelete { indexSet in
+                        deleteItems(at: indexSet)
+                    }
+                }
+                .listStyle(PlainListStyle())
+            }
+        }
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+        )
+        .navigationTitle(listName)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showAddItem = true }) {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .alert("Add Item", isPresented: $showAddItem) {
+            TextField("Item name", text: $newItemName)
+            Button("Cancel", role: .cancel) { newItemName = "" }
+            Button("Add") { addItem() }
+        }
+        .onAppear {
+            loadItems()
+        }
+    }
+
+    private func loadItems() {
+        Task {
+            try? await viewModel.loadGroceryListWithItems(listId: listId)
+        }
+    }
+
+    private func toggleItem(itemWithFood: GroceryItemWithFood, isChecked: Bool) {
+        Task {
+            try? await viewModel.updateItemChecked(id: itemWithFood.item.id, isChecked: isChecked)
+            loadItems()
+        }
+    }
+
+    private func deleteItems(at indexSet: IndexSet) {
+        Task {
+            for index in indexSet {
+                try? await viewModel.deleteGroceryItem(id: items[index].item.id)
+            }
+            loadItems()
+        }
+    }
+
+    private func addItem() {
+        guard !newItemName.isEmpty else { return }
+        let item = GroceryItem(
+            id: 0,
+            listId: listId,
+            foodId: nil,
+            customName: newItemName,
+            quantity: 1.0,
+            unit: .piece,
+            isChecked: false,
+            sortOrder: 0
+        )
+        Task {
+            try? await viewModel.insertGroceryItem(item)
+            await MainActor.run {
+                newItemName = ""
+            }
+            loadItems()
+        }
+    }
 }
 
-// MARK: - Health Screen
+struct GroceryItemRow: View {
+    let itemWithFood: GroceryItemWithFood
+    var onToggle: (Bool) -> Void
 
-struct HealthScreen: View {
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Text("Health metrics coming soon")
+        HStack {
+            Button(action: { onToggle(!itemWithFood.item.isChecked) }) {
+                Image(systemName: itemWithFood.item.isChecked ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(itemWithFood.item.isChecked ? .green : .gray)
+                    .font(.title2)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(itemWithFood.displayName)
+                    .font(.body)
+                    .strikethrough(itemWithFood.item.isChecked)
+                    .foregroundColor(itemWithFood.item.isChecked ? .secondary : .primary)
+                Text(itemWithFood.displayQuantity)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
-            .padding()
+
+            Spacer()
         }
-        .navigationTitle("Health Metrics")
-        .navigationBarTitleDisplayMode(.inline)
+        .padding(.vertical, 4)
     }
 }
 
 // MARK: - Settings Screen
 
 struct SettingsScreen: View {
+    @EnvironmentObject var appState: AppState
     @State private var calorieGoal = "2000"
     @State private var darkMode = false
     @State private var notifications = true
+    @State private var isImporting = false
+    @State private var importMessage: String?
 
     var body: some View {
         Form {
@@ -451,7 +477,23 @@ struct SettingsScreen: View {
 
             Section("Data") {
                 Button("Export Data") {}
-                Button("Import Data") {}
+
+                Button(action: importSampleData) {
+                    HStack {
+                        if isImporting {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        }
+                        Text(isImporting ? "Importing..." : "Import Sample Data")
+                    }
+                }
+                .disabled(isImporting)
+
+                if let message = importMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundColor(message.contains("✓") ? .green : .red)
+                }
             }
 
             Section("About") {
@@ -465,6 +507,25 @@ struct SettingsScreen: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func importSampleData() {
+        guard let userId = appState.currentUserId else {
+            importMessage = "Error: Not logged in"
+            return
+        }
+
+        isImporting = true
+        importMessage = nil
+
+        Task {
+            let result = await DataImporter.shared.importSampleData(userId: userId)
+
+            await MainActor.run {
+                isImporting = false
+                importMessage = result
+            }
+        }
     }
 }
 

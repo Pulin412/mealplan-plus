@@ -38,6 +38,9 @@
 		2A1234560039 /* DatabaseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570039 /* DatabaseSeeder.swift */; };
 		2A1234560040 /* DataImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570040 /* DataImporter.swift */; };
 		2A12345800T1 /* AuthValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T2 /* AuthValidationTests.swift */; };
+		2A1234560041 /* MealPlanScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570041 /* MealPlanScreen.swift */; };
+		2A1234560042 /* DietPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570042 /* DietPickerSheet.swift */; };
+		2A12345800T10 /* MealPlanViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T11 /* MealPlanViewModelTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -87,6 +90,9 @@
 		2A1234570039 /* DatabaseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseSeeder.swift; sourceTree = "<group>"; };
 		2A1234570040 /* DataImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataImporter.swift; sourceTree = "<group>"; };
 		2A12345800T2 /* AuthValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthValidationTests.swift; sourceTree = "<group>"; };
+		2A1234570041 /* MealPlanScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanScreen.swift; sourceTree = "<group>"; };
+		2A1234570042 /* DietPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietPickerSheet.swift; sourceTree = "<group>"; };
+		2A12345800T11 /* MealPlanViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanViewModelTests.swift; sourceTree = "<group>"; };
 		2A12345800T3 /* iosAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iosAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -117,6 +123,7 @@
 			isa = PBXGroup;
 			children = (
 				2A12345800T2 /* AuthValidationTests.swift */,
+				2A12345800T11 /* MealPlanViewModelTests.swift */,
 			);
 			path = iosAppTests;
 			sourceTree = "<group>";
@@ -175,8 +182,18 @@
 				2A12345A0019 /* Scanner */,
 				2A12345A0023 /* Health */,
 				2A12345A0024 /* Charts */,
+				2A12345A0025 /* Calendar */,
 			);
 			path = Screens;
+			sourceTree = "<group>";
+		};
+		2A12345A0025 /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570041 /* MealPlanScreen.swift */,
+				2A1234570042 /* DietPickerSheet.swift */,
+			);
+			path = Calendar;
 			sourceTree = "<group>";
 		};
 		2A12345A0012 /* Auth */ = {
@@ -439,6 +456,8 @@
 				2A1234560038 /* ChartsScreen.swift in Sources */,
 				2A1234560039 /* DatabaseSeeder.swift in Sources */,
 				2A1234560040 /* DataImporter.swift in Sources */,
+				2A1234560041 /* MealPlanScreen.swift in Sources */,
+				2A1234560042 /* DietPickerSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -447,6 +466,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2A12345800T1 /* AuthValidationTests.swift in Sources */,
+				2A12345800T10 /* MealPlanViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

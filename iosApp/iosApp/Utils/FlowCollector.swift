@@ -237,14 +237,20 @@ class DailyLogViewModel: ObservableObject {
     }
 }
 
-/// ViewModel for Plans (calendar)
+/// ViewModel for Plans (calendar / meal plan screen)
 @MainActor
 class PlansViewModel: ObservableObject {
     @Published var plans: [PlanWithDietName] = []
     @Published var isLoading = false
     @Published var error: String?
+    @Published var selectedPlanDate: String = ""
+    @Published var selectedDiet: Diet? = nil
+    @Published var selectedDietWithMeals: DietWithMeals? = nil
+    @Published var selectedDietTags: [Tag] = []
+    @Published var isWeekView: Bool = false
 
     private let repository = RepositoryProvider.shared.planRepository
+    private let dietRepository = RepositoryProvider.shared.dietRepository
 
     func loadPlans(userId: Int64, startDate: String, endDate: String) {
         isLoading = true
@@ -276,6 +282,54 @@ class PlansViewModel: ObservableObject {
 
     func deletePlan(userId: Int64, date: String) async throws {
         try await repository.deletePlan(userId: userId, date: date)
+    }
+
+    func selectDate(_ date: String, userId: Int64) {
+        selectedPlanDate = date
+        Task {
+            let plan = try? await repository.getPlanByDate(userId: userId, date: date)
+            if let dietId = plan?.dietId?.int64Value {
+                await loadDietDetails(dietId: dietId)
+            } else {
+                self.selectedDiet = nil
+                self.selectedDietWithMeals = nil
+                self.selectedDietTags = []
+            }
+        }
+    }
+
+    func loadDietDetails(dietId: Int64) async {
+        let dwm = try? await dietRepository.getDietWithMeals(dietId: dietId)
+        let tags = (try? await dietRepository.getTagsForDietSnapshot(dietId: dietId)) ?? []
+        self.selectedDiet = dwm?.diet
+        self.selectedDietWithMeals = dwm
+        self.selectedDietTags = tags
+    }
+
+    func assignDiet(userId: Int64, date: String, diet: Diet) {
+        Task {
+            let plan = Plan(userId: userId, date: date, dietId: diet.id, notes: nil, isCompleted: false)
+            try? await repository.insertOrUpdatePlan(plan: plan)
+            self.selectedDiet = diet
+            // Update local plans list optimistically
+            let planWithName = PlanWithDietName(userId: userId, date: date, dietId: diet.id.toKotlinLong(), isCompleted: false, notes: nil, dietName: diet.name)
+            self.plans = self.plans.filter { $0.date != date } + [planWithName]
+            await loadDietDetails(dietId: diet.id)
+        }
+    }
+
+    func removeDiet(userId: Int64, date: String) {
+        Task {
+            try? await repository.deletePlan(userId: userId, date: date)
+            self.selectedDiet = nil
+            self.selectedDietWithMeals = nil
+            self.selectedDietTags = []
+            self.plans = self.plans.filter { $0.date != date }
+        }
+    }
+
+    func toggleView() {
+        isWeekView.toggle()
     }
 }
 
