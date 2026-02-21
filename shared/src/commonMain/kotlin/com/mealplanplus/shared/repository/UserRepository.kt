@@ -58,6 +58,10 @@ class UserRepository(private val database: MealPlanDatabase) {
         queries.deleteById(id)
     }
 
+    suspend fun getAllUsersSnapshot(): List<User> {
+        return queries.selectAll().executeAsList().map { it.toUser() }
+    }
+
     suspend fun verifyPassword(email: String, password: String): User? {
         val user = getUserByEmail(email) ?: return null
         val inputHash = sha256(password)

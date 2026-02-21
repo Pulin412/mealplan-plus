@@ -18,6 +18,8 @@ struct HomeScreen: View {
     @StateObject private var viewModel = HomeViewModel()
     var onNavigateToLogWithDate: ((String) -> Void)?
 
+    @State private var showQuickLog = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
@@ -40,7 +42,7 @@ struct HomeScreen: View {
                     )
                     .padding(.horizontal, 16)
 
-                    QuickLogFoodButton()
+                    QuickLogFoodButton(onTap: { showQuickLog = true })
                         .padding(.horizontal, 16)
 
                     ThisWeekCard(
@@ -80,6 +82,23 @@ struct HomeScreen: View {
         .background(lightGreenBg)
         .ignoresSafeArea(edges: .top)
         .navigationBarHidden(true)
+        .sheet(isPresented: $showQuickLog, onDismiss: {
+            if let userId = appState.currentUserId {
+                viewModel.load(userId: userId)
+            }
+        }) {
+            LogFoodPickerScreen(
+                slot: "BREAKFAST",
+                userId: appState.currentUserId ?? 0,
+                date: isoToday(),
+                onSave: {
+                    showQuickLog = false
+                    if let userId = appState.currentUserId {
+                        viewModel.load(userId: userId)
+                    }
+                }
+            )
+        }
         .onAppear {
             if let userId = appState.currentUserId {
                 viewModel.load(userId: userId)
@@ -265,8 +284,9 @@ private struct MacroRingItem: View {
 // MARK: - Quick Log Food button
 
 private struct QuickLogFoodButton: View {
+    var onTap: (() -> Void)?
     var body: some View {
-        Button(action: {}) {
+        Button(action: { onTap?() }) {
             HStack(spacing: 8) {
                 Image(systemName: "book.closed.fill")
                     .font(.system(size: 16))

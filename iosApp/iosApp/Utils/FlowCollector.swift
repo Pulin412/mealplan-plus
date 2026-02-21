@@ -486,11 +486,24 @@ class HomeViewModel: ObservableObject {
         let today = isoToday()
         let sevenDaysAgo = isoDate(daysAgo: 6)
 
+        // Set safe defaults before async block
+        self.userName = "User"
+        self.userInitial = "U"
+
         Task {
-            // User name
-            if let user = try? await userRepo.getUserById(id: userId) {
-                let name = user.displayName?.isEmpty == false ? (user.displayName ?? "") : String(user.email.split(separator: "@").first ?? "")
-                self.userName = name
+            // User name — try by id first, fall back to first user
+            var user = try? await userRepo.getUserById(id: userId)
+            if user == nil {
+                user = (try? await userRepo.getAllUsersSnapshot())?.first
+            }
+            if let user = user {
+                let name: String
+                if let display = user.displayName, !display.isEmpty {
+                    name = display
+                } else {
+                    name = String(user.email.split(separator: "@").first ?? "User")
+                }
+                self.userName = name.isEmpty ? "User" : name
                 self.userInitial = String(name.prefix(1)).uppercased()
             }
 
@@ -564,11 +577,24 @@ class HomeViewModel: ObservableObject {
         }
 
         guard let dietWithMeals = try? await dietRepo.getDietWithMeals(dietId: dietId) else { return }
-        // meals is bridged from KMP Map<String, MealWithFoods?> → [AnyHashable: Any]
-        let mealsDict = dietWithMeals.meals as? [String: Any] ?? [:]
-        let mealEntries = mealsDict.compactMap { (key, value) -> (String, String?, Int64?)? in
-            let meal = value as? MealWithFoods
-            return (key, meal?.meal.name, meal?.meal.id)
+        // KMP Map<String, MealWithFoods?> bridges to NSDictionary in Swift
+        // Cast to NSDictionary first, then iterate with string keys
+        let rawDict = dietWithMeals.meals as AnyObject
+        let nativeDict: [String: MealWithFoods?]
+        if let nd = rawDict as? NSDictionary {
+            var tmp: [String: MealWithFoods?] = [:]
+            for (k, v) in nd {
+                if let key = k as? String {
+                    tmp[key] = v as? MealWithFoods  // nil if NSNull or not castable
+                }
+            }
+            nativeDict = tmp
+        } else {
+            nativeDict = [:]
+        }
+        let mealEntries = nativeDict.compactMap { (key, value) -> (String, String?, Int64?)? in
+            guard let meal = value else { return (key, nil, nil) }
+            return (key, meal.meal.name, meal.meal.id)
         }
         .sorted { slotOrder($0.0) < slotOrder($1.0) }
 
