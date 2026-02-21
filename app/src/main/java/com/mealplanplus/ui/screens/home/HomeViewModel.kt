@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.DailyMacroSummary
+import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
+import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
@@ -28,6 +30,16 @@ data class TodaySummary(
     val foodCount: Int = 0
 )
 
+/** Represents a single slot in Today's Plan */
+data class TodayPlanSlot(
+    val slotType: String,          // e.g. "BREAKFAST"
+    val slotDisplayName: String,   // e.g. "Breakfast"
+    val emoji: String,
+    val plannedMealName: String?,  // name of the meal assigned in the diet
+    val isLogged: Boolean          // true if at least one meal was logged for this slot today
+)
+
+// Legacy – kept for any screen still referencing it
 data class MealSlotProgress(
     val slotName: String,
     val emoji: String,
@@ -37,6 +49,15 @@ data class MealSlotProgress(
 ) {
     val progress: Float get() = if (total > 0) (logged.toFloat() / total).coerceIn(0f, 1f) else 0f
 }
+
+/** State for a day in the week calendar */
+enum class WeekDayState { COMPLETED, PLANNED_FUTURE, MISSED, NO_DATA }
+
+data class WeekDayInfo(
+    val date: LocalDate,
+    val dietLabel: String?,   // Short name like "M17" or null
+    val state: WeekDayState
+)
 
 data class HomeUiState(
     val userName: String = "",
@@ -49,7 +70,10 @@ data class HomeUiState(
     val glucoseHistory: List<HealthMetric> = emptyList(),
     val dayStreak: Int = 0,
     val weeklyLoggedDates: Set<String> = emptySet(),
-    val todayPlanSlots: List<MealSlotProgress> = emptyList(),
+    // New: rich slot data from today's diet
+    val todayPlanSlots: List<TodayPlanSlot> = emptyList(),
+    // New: rich week info (colour + diet label)
+    val weekDays: List<WeekDayInfo> = emptyList(),
     val weeklyCalories: List<DailyMacroSummary> = emptyList(),
     val currentMonth: YearMonth = YearMonth.now(),
     val plansForMonth: Map<String, Boolean> = emptyMap(),
@@ -62,6 +86,7 @@ class HomeViewModel @Inject constructor(
     private val dailyLogRepository: DailyLogRepository,
     private val healthRepository: HealthRepository,
     private val planRepository: PlanRepository,
+    private val dietRepository: DietRepository,
     private val authRepository: AuthRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -72,9 +97,8 @@ class HomeViewModel @Inject constructor(
     init {
         loadUserName()
         loadTodayData()
-        loadTodaySlots()
-        loadPlansForMonth()
-        loadWeeklyCalories()
+        loadTodayPlanSlots()
+        loadWeekData()
         loadGlucoseHistory()
     }
 
@@ -137,45 +161,133 @@ class HomeViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    private fun loadTodaySlots() {
+    /**
+     * Loads Today's Plan slots from today's assigned diet.
+     * Only shows slots that are actually part of the diet.
+     * Each slot shows the meal name + whether it was logged today.
+     */
+    private fun loadTodayPlanSlots() {
         dailyLogRepository.getLogWithMeals(LocalDate.now())
             .onEach { logWithMeals ->
-                val loggedBySlot = logWithMeals?.meals
+                val loggedSlots = logWithMeals?.meals
                     ?.groupBy { it.loggedMeal.slotType.uppercase() }
                     ?: emptyMap()
 
-                val slots = listOf(
-                    MealSlotProgress("Breakfast", "🍳", "BREAKFAST",
-                        loggedBySlot["BREAKFAST"]?.size ?: 0, 3),
-                    MealSlotProgress("Lunch", "☀️", "LUNCH",
-                        loggedBySlot["LUNCH"]?.size ?: 0, 3),
-                    MealSlotProgress("Dinner", "🌙", "DINNER",
-                        loggedBySlot["DINNER"]?.size ?: 0, 3),
-                    MealSlotProgress("Snacks", "🍎", "SNACK",
-                        loggedBySlot["SNACK"]?.size ?: 0, 2)
-                )
+                val todayStr = LocalDate.now().toString()
+                val plan = planRepository.getPlanForDate(todayStr)
+                val dietId = plan?.dietId
+
+                val slots: List<TodayPlanSlot> = if (dietId != null) {
+                    val dietWithMeals = dietRepository.getDietWithMeals(dietId)
+                    dietWithMeals?.meals
+                        ?.entries
+                        ?.sortedBy { (slotType, _) ->
+                            DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
+                        }
+                        ?.map { (slotType, mealWithFoods) ->
+                            TodayPlanSlot(
+                                slotType = slotType,
+                                slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
+                                    ?: slotType.replace("_", " ").lowercase()
+                                        .replaceFirstChar { it.uppercaseChar() },
+                                emoji = slotEmoji(slotType),
+                                plannedMealName = mealWithFoods?.meal?.name,
+                                isLogged = loggedSlots.containsKey(slotType)
+                            )
+                        } ?: emptyList()
+                } else {
+                    // No diet assigned — fall back to showing logged slots only
+                    loggedSlots.entries
+                        .sortedBy { (slotType, _) ->
+                            DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
+                        }
+                        .map { (slotType, _) ->
+                            TodayPlanSlot(
+                                slotType = slotType,
+                                slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
+                                    ?: slotType.replace("_", " ").lowercase()
+                                        .replaceFirstChar { it.uppercaseChar() },
+                                emoji = slotEmoji(slotType),
+                                plannedMealName = null,
+                                isLogged = true
+                            )
+                        }
+                }
+
                 _uiState.update { it.copy(todayPlanSlots = slots) }
             }
             .launchIn(viewModelScope)
     }
 
-    private fun loadWeeklyCalories() {
-        val endDate = LocalDate.now()
-        val startDate = endDate.minusDays(6)
+    /**
+     * Loads the 7-day week row with rich colour states and diet labels,
+     * plus weekly logged dates, streak, and month plans.
+     */
+    private fun loadWeekData() {
+        val today = LocalDate.now()
+        val weekStart = today.minusDays(6)
+        val monthStart = today.withDayOfMonth(1).toString()
+        val monthEnd = YearMonth.from(today).atEndOfMonth().toString()
 
-        dailyLogRepository.getCompletedDaysCalories(startDate, endDate)
-            .onEach { calories ->
-                val loggedDates = calories.filter { it.calories > 0 }.map { it.date }.toSet()
-                val streak = computeStreak(calories)
+        // Combine: macro summaries (to know which days have calories logged)
+        //          + plans for the week (to know planned/completed state)
+        combine(
+            dailyLogRepository.getCompletedDaysCalories(weekStart, today),
+            planRepository.getPlansWithDietNames(weekStart.toString(), today.toString())
+        ) { calories, plans ->
+            val loggedDates = calories.filter { it.calories > 0 }.map { it.date }.toSet()
+            val streak = computeStreak(calories)
+
+            // Build diet label map for the week
+            val weekDietLabels = plans
+                .filter { it.dietId != null }
+                .mapNotNull { p -> p.dietName?.let { p.date to extractShortDietName(it) } }
+                .toMap()
+            val weekPlansMap = plans.filter { it.dietId != null }
+                .associate { it.date to it.isCompleted }
+
+            val weekDays = (6 downTo 0).map { daysAgo ->
+                val date = today.minusDays(daysAgo.toLong())
+                val dateStr = date.toString()
+                val isFuture = date.isAfter(today)
+                val isCompleted = weekPlansMap[dateStr] == true
+                val hasCalories = dateStr in loggedDates
+                val hasplan = weekPlansMap.containsKey(dateStr)
+
+                val state = when {
+                    // Today or past: completed or has logged calories → green
+                    !isFuture && (isCompleted || hasCalories) -> WeekDayState.COMPLETED
+                    // Future with plan → orange
+                    isFuture && hasplan -> WeekDayState.PLANNED_FUTURE
+                    // Past with a plan but not completed and no calories → red (missed)
+                    !isFuture && hasplan && !hasCalories -> WeekDayState.MISSED
+                    // Past no plan and no calories → red (missed)
+                    !isFuture && date.isBefore(today) && !hasCalories -> WeekDayState.MISSED
+                    else -> WeekDayState.NO_DATA
+                }
+
+                WeekDayInfo(
+                    date = date,
+                    dietLabel = weekDietLabels[dateStr],
+                    state = state
+                )
+            }
+
+            Triple(loggedDates, streak, weekDays)
+        }
+            .onEach { (loggedDates, streak, weekDays) ->
                 _uiState.update {
                     it.copy(
-                        weeklyCalories = calories,
                         weeklyLoggedDates = loggedDates,
-                        dayStreak = streak
+                        dayStreak = streak,
+                        weekDays = weekDays
                     )
                 }
             }
             .launchIn(viewModelScope)
+
+        // Also load full month plans for the calendar section
+        loadPlansForMonth()
     }
 
     private fun computeStreak(weekData: List<DailyMacroSummary>): Int {
@@ -219,9 +331,25 @@ class HomeViewModel @Inject constructor(
     fun refresh() {
         _uiState.update { it.copy(isLoading = true) }
         loadTodayData()
-        loadTodaySlots()
-        loadWeeklyCalories()
+        loadTodayPlanSlots()
+        loadWeekData()
         loadGlucoseHistory()
-        loadPlansForMonth()
+    }
+
+    companion object {
+        fun slotEmoji(slotType: String): String = when (slotType.uppercase()) {
+            "BREAKFAST" -> "🍳"
+            "LUNCH" -> "☀️"
+            "DINNER" -> "🌙"
+            "SNACK", "EVENING_SNACK" -> "🍎"
+            "PRE_WORKOUT" -> "💪"
+            "POST_WORKOUT" -> "🥤"
+            "EARLY_MORNING" -> "🌅"
+            "NOON" -> "🌞"
+            "MID_MORNING" -> "☕"
+            "EVENING" -> "🌆"
+            "POST_DINNER" -> "🍵"
+            else -> "🍽️"
+        }
     }
 }

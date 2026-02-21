@@ -190,9 +190,14 @@ struct MainTabView: View {
 
 // Tab wrapper views
 struct HomeTab: View {
+    @State private var navigateToDiets = false
+
     var body: some View {
         NavigationStack {
-            HomeScreen()
+            HomeScreen(onNavigateToDiets: { navigateToDiets = true })
+                .navigationDestination(isPresented: $navigateToDiets) {
+                    DietsScreen()
+                }
         }
     }
 }

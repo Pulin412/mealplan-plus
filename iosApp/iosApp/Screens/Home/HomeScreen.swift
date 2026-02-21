@@ -8,12 +8,15 @@ private let lightGreenBg = Color(red: 0xF0/255.0, green: 0xF9/255.0, blue: 0xF4/
 private let carbsColor   = Color(red: 0xF5/255.0, green: 0xA6/255.0, blue: 0x23/255.0)
 private let proteinColor = Color(red: 0x4A/255.0, green: 0x90/255.0, blue: 0xD9/255.0)
 private let fatColor     = Color(red: 0xE9/255.0, green: 0x1E/255.0, blue: 0x8C/255.0)
+private let weekOrange   = Color(red: 0xF5/255.0, green: 0x7C/255.0, blue: 0x00/255.0)
+private let weekRed      = Color(red: 0xD3/255.0, green: 0x2F/255.0, blue: 0x2F/255.0)
 
 // MARK: - HomeScreen
 
 struct HomeScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = HomeViewModel()
+    var onNavigateToDiets: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -41,8 +44,15 @@ struct HomeScreen: View {
                         .padding(.horizontal, 16)
 
                     ThisWeekCard(
-                        weeklyLoggedDates: viewModel.weeklyLoggedDates,
+                        weekDays: viewModel.weekDays,
                         onFullLogTap: {}
+                    )
+                    .padding(.horizontal, 16)
+
+                    // Today's Plan ABOVE Blood Glucose
+                    TodaysPlanCard(
+                        slots: viewModel.todayPlanSlots,
+                        onEditPlanTap: {}
                     )
                     .padding(.horizontal, 16)
 
@@ -56,13 +66,8 @@ struct HomeScreen: View {
                     StatsRow(
                         hba1c: viewModel.latestHba1c,
                         weight: viewModel.latestWeight,
-                        dayStreak: viewModel.dayStreak
-                    )
-                    .padding(.horizontal, 16)
-
-                    TodaysPlanCard(
-                        slots: viewModel.mealSlots,
-                        onEditPlanTap: {}
+                        dayStreak: viewModel.dayStreak,
+                        onNavigateToDiets: onNavigateToDiets
                     )
                     .padding(.horizontal, 16)
 
@@ -91,8 +96,9 @@ private struct HomeHeaderSection: View {
     let caloriesConsumed: Double
     let calorieGoal: Double
 
+    private var isOver: Bool { caloriesConsumed > calorieGoal }
     private var progress: Double { min(caloriesConsumed / calorieGoal, 1.0) }
-    private var remaining: Int { max(Int(calorieGoal - caloriesConsumed), 0) }
+    private var diff: Int { abs(Int(caloriesConsumed) - Int(calorieGoal)) }
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
@@ -155,16 +161,23 @@ private struct HomeHeaderSection: View {
                                 .fill(Color.white.opacity(0.3))
                                 .frame(height: 8)
                             Capsule()
-                                .fill(Color.white)
+                                .fill(isOver ? Color.orange : Color.white)
                                 .frame(width: geo.size.width * CGFloat(progress), height: 8)
                         }
                     }
                     .frame(height: 8)
 
-                    Text("🔥 \(remaining) kcal remaining")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
+                    if isOver {
+                        Text("🔴 \(diff) kcal over")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                    } else {
+                        Text("🔥 \(diff) kcal remaining")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                    }
                 }
                 .padding(16)
                 .background(Color.white.opacity(0.15))
@@ -270,27 +283,11 @@ private struct QuickLogFoodButton: View {
 // MARK: - This Week card
 
 private struct ThisWeekCard: View {
-    let weeklyLoggedDates: Set<String>
+    let weekDays: [WeekDayInfo]
     let onFullLogTap: () -> Void
-
-    private let calendar = Calendar.current
-    private var weekDays: [(String, String)] { // (dayLetter, isoDate)
-        let today = Date()
-        return (0..<7).reversed().compactMap { i -> (String, String) in
-            guard let d = calendar.date(byAdding: .day, value: -i, to: today) else { return ("?", "") }
-            let letter = calendar.shortWeekdaySymbols[calendar.component(.weekday, from: d) - 1].prefix(1).uppercased()
-            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-            return (letter, f.string(from: d))
-        }
-    }
 
     private var monthYear: String {
         let f = DateFormatter(); f.dateFormat = "MMMM yyyy"
-        return f.string(from: Date())
-    }
-
-    private func isoToday() -> String {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         return f.string(from: Date())
     }
 
@@ -309,32 +306,9 @@ private struct ThisWeekCard: View {
             }
 
             HStack(spacing: 0) {
-                ForEach(weekDays, id: \.1) { (letter, iso) in
-                    let isToday = iso == isoToday()
-                    let isLogged = weeklyLoggedDates.contains(iso)
-                    let isFuture = iso > isoToday()
-
-                    VStack(spacing: 4) {
-                        Text(letter)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        ZStack {
-                            Circle()
-                                .fill(isToday ? primaryGreen : (isLogged ? primaryGreen.opacity(0.35) : (isFuture ? Color.gray.opacity(0.15) : Color.gray.opacity(0.15))))
-                                .frame(width: 30, height: 30)
-                            if isToday {
-                                Text(dayNumber(iso))
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                            } else {
-                                Text(dayNumber(iso))
-                                    .font(.caption)
-                                    .foregroundColor(isLogged ? primaryGreen : .gray)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
+                ForEach(weekDays, id: \.isoDate) { info in
+                    WeekDayCell(info: info)
+                        .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -343,11 +317,74 @@ private struct ThisWeekCard: View {
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
+}
 
-    private func dayNumber(_ iso: String) -> String {
-        let parts = iso.split(separator: "-")
-        guard parts.count == 3, let day = Int(parts[2]) else { return "?" }
-        return "\(day)"
+private struct WeekDayCell: View {
+    let info: WeekDayInfo
+
+    private var dayLetter: String {
+        let cal = Calendar.current
+        let weekday = cal.component(.weekday, from: info.date)
+        return cal.shortWeekdaySymbols[weekday - 1].prefix(1).uppercased()
+    }
+
+    private var dayNumber: String {
+        let cal = Calendar.current
+        return "\(cal.component(.day, from: info.date))"
+    }
+
+    private var isToday: Bool {
+        Calendar.current.isDateInToday(info.date)
+    }
+
+    private var fillColor: Color {
+        switch info.state {
+        case .completed:
+            return primaryGreen
+        case .plannedFuture:
+            return weekOrange.opacity(0.6)
+        case .missed:
+            return weekRed.opacity(0.6)
+        case .noData:
+            return Color.gray.opacity(0.15)
+        }
+    }
+
+    private var textColor: Color {
+        switch info.state {
+        case .completed: return .white
+        case .plannedFuture: return .white
+        case .missed: return .white
+        case .noData: return .gray
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(dayLetter)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            ZStack {
+                Circle()
+                    .fill(fillColor)
+                    .frame(width: 30, height: 30)
+                Text(dayNumber)
+                    .font(.caption)
+                    .fontWeight(isToday ? .bold : .regular)
+                    .foregroundColor(textColor)
+            }
+            // Diet label below circle
+            if let label = info.dietLabel {
+                Text(label)
+                    .font(.system(size: 8))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Text(" ")
+                    .font(.system(size: 8))
+            }
+        }
     }
 }
 
@@ -388,7 +425,7 @@ private struct BloodGlucoseCard: View {
                     Text(isInRange ? "In Range" : "Out of Range")
                         .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(isInRange ? .white : .white)
+                        .foregroundColor(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(isInRange ? primaryGreen : Color.red)
@@ -468,9 +505,10 @@ private struct StatsRow: View {
     let hba1c: HealthMetric?
     let weight: HealthMetric?
     let dayStreak: Int
+    var onNavigateToDiets: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             StatCard(
                 icon: "waveform.path.ecg",
                 iconColor: Color.purple,
@@ -489,6 +527,13 @@ private struct StatsRow: View {
                 label: "Streak",
                 value: "\(dayStreak) days"
             )
+            StatCard(
+                icon: "fork.knife",
+                iconColor: primaryGreen,
+                label: "Diets",
+                value: "View",
+                onClick: onNavigateToDiets
+            )
         }
     }
 }
@@ -498,31 +543,35 @@ private struct StatCard: View {
     let iconColor: Color
     let label: String
     let value: String
+    var onClick: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundColor(iconColor)
-            Text(value)
-                .font(.system(size: 15, weight: .bold))
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+        Button(action: { onClick?() }) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(iconColor)
+                Text(value)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.primary)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        .buttonStyle(.plain)
     }
 }
 
 // MARK: - Today's Plan card
 
 private struct TodaysPlanCard: View {
-    // (slotName, emoji, slotType, logged, total)
-    let slots: [(String, String, String, Int, Int)]
+    let slots: [TodayPlanSlot]
     let onEditPlanTap: () -> Void
 
     var body: some View {
@@ -536,8 +585,24 @@ private struct TodaysPlanCard: View {
                     .foregroundColor(primaryGreen)
             }
 
-            ForEach(slots, id: \.0) { (name, emoji, _, logged, total) in
-                MealSlotProgressRow(name: name, emoji: emoji, logged: logged, total: total)
+            if slots.isEmpty {
+                VStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 28))
+                        .foregroundColor(.secondary)
+                    Text("No diet planned for today")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+            } else {
+                ForEach(slots) { slot in
+                    TodayPlanSlotRow(slot: slot)
+                    if slot.id != slots.last?.id {
+                        Divider()
+                    }
+                }
             }
         }
         .padding(16)
@@ -547,52 +612,63 @@ private struct TodaysPlanCard: View {
     }
 }
 
-private struct MealSlotProgressRow: View {
-    let name: String
-    let emoji: String
-    let logged: Int
-    let total: Int
-
-    private var progress: Double {
-        guard total > 0 else { return 0 }
-        return min(Double(logged) / Double(total), 1.0)
-    }
+private struct TodayPlanSlotRow: View {
+    let slot: TodayPlanSlot
 
     private var emojiBgColor: Color {
-        switch name {
-        case "Breakfast": return Color.orange.opacity(0.15)
-        case "Lunch": return Color.yellow.opacity(0.15)
-        case "Dinner": return Color.blue.opacity(0.15)
-        default: return Color.green.opacity(0.15)
+        switch slot.slotType.uppercased() {
+        case "BREAKFAST":    return Color.orange.opacity(0.15)
+        case "LUNCH":        return Color.yellow.opacity(0.15)
+        case "DINNER":       return Color.blue.opacity(0.15)
+        case "EARLY_MORNING": return Color.pink.opacity(0.12)
+        case "PRE_WORKOUT":  return Color.purple.opacity(0.12)
+        case "POST_WORKOUT": return Color.teal.opacity(0.12)
+        default:             return primaryGreen.opacity(0.12)
         }
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 12) {
-                // Emoji circle
-                ZStack {
-                    Circle()
-                        .fill(emojiBgColor)
-                        .frame(width: 40, height: 40)
-                    Text(emoji)
-                        .font(.system(size: 18))
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.system(size: 14, weight: .medium))
-                    Text("\(logged)/\(total) logged")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
+        HStack(spacing: 12) {
+            // Emoji circle
+            ZStack {
+                Circle()
+                    .fill(emojiBgColor)
+                    .frame(width: 40, height: 40)
+                Text(slot.emoji)
+                    .font(.system(size: 18))
             }
 
-            ProgressView(value: progress)
-                .tint(primaryGreen)
+            // Slot name + meal name
+            VStack(alignment: .leading, spacing: 2) {
+                Text(slot.slotDisplayName)
+                    .font(.system(size: 14, weight: .semibold))
+                if let mealName = slot.plannedMealName {
+                    Text(mealName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            // Logged indicator: green check or grey circle
+            if slot.isLogged {
+                ZStack {
+                    Circle()
+                        .fill(primaryGreen)
+                        .frame(width: 26, height: 26)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            } else {
+                Circle()
+                    .stroke(Color.gray.opacity(0.4), lineWidth: 2)
+                    .frame(width: 26, height: 26)
+            }
         }
+        .padding(.vertical, 4)
     }
 }
 

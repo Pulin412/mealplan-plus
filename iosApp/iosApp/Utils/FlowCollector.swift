@@ -417,6 +417,26 @@ class UserViewModel: ObservableObject {
     }
 }
 
+// MARK: - Home screen models
+
+enum WeekDayState { case completed, plannedFuture, missed, noData }
+
+struct WeekDayInfo {
+    let date: Date
+    let isoDate: String
+    let dietLabel: String?
+    let state: WeekDayState
+}
+
+struct TodayPlanSlot: Identifiable {
+    let id = UUID()
+    let slotType: String
+    let slotDisplayName: String
+    let emoji: String
+    let plannedMealName: String?
+    let isLogged: Bool
+}
+
 /// ViewModel for Home screen - aggregates today's data, health metrics, week stats
 @MainActor
 class HomeViewModel: ObservableObject {
@@ -434,14 +454,15 @@ class HomeViewModel: ObservableObject {
     @Published var glucoseHistory: [HealthMetric] = []
 
     // Week stats
+    @Published var weekDays: [WeekDayInfo] = []
     @Published var weeklyLoggedDates: Set<String> = []
     @Published var dayStreak: Int = 0
 
     // Macro summaries for weekly data
     @Published var macroSummaries: [DailyMacroSummary] = []
 
-    // Meal slot progress: (slotName, emoji, slotType, logged, total)
-    @Published var mealSlots: [(String, String, String, Int, Int)] = []
+    // Today's plan from assigned diet
+    @Published var todayPlanSlots: [TodayPlanSlot] = []
 
     // User name
     @Published var userName: String = ""
@@ -452,6 +473,8 @@ class HomeViewModel: ObservableObject {
     private let logRepo = RepositoryProvider.shared.dailyLogRepository
     private let healthRepo = RepositoryProvider.shared.healthMetricRepository
     private let userRepo = RepositoryProvider.shared.userRepository
+    private let planRepo = RepositoryProvider.shared.planRepository
+    private let dietRepo = RepositoryProvider.shared.dietRepository
 
     func load(userId: Int64) {
         isLoading = true
@@ -467,23 +490,17 @@ class HomeViewModel: ObservableObject {
             }
 
             // Today's macros from logged foods
-            if let foods = try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today) {
-                self.todayCalories = foods.reduce(0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
-                self.todayProtein = foods.reduce(0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
-                self.todayCarbs = foods.reduce(0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
-                self.todayFat = foods.reduce(0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            let foods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+            self.todayCalories = foods.reduce(0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayProtein = foods.reduce(0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayCarbs = foods.reduce(0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayFat = foods.reduce(0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            let loggedBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
 
-                // Meal slot progress
-                let bySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
-                self.mealSlots = [
-                    ("Breakfast", "🍳", "BREAKFAST", bySlot["BREAKFAST"]?.count ?? 0, 3),
-                    ("Lunch", "☀️", "LUNCH", bySlot["LUNCH"]?.count ?? 0, 3),
-                    ("Dinner", "🌙", "DINNER", bySlot["DINNER"]?.count ?? 0, 3),
-                    ("Snacks", "🍎", "SNACK", bySlot["SNACK"]?.count ?? 0, 2)
-                ]
-            }
+            // Today's plan from diet
+            await loadTodayPlanSlots(userId: userId, date: today, loggedBySlot: loggedBySlot)
 
-            // Health metrics for today
+            // Health metrics
             if let weight = try? await healthRepo.getLatestMetricByType(userId: userId, metricType: "WEIGHT") {
                 self.latestWeight = weight
             }
@@ -499,14 +516,86 @@ class HomeViewModel: ObservableObject {
                 self.glucoseHistory = history.filter { $0.metricType == "FASTING_SUGAR" }
             }
 
-            // Weekly macro summaries for logged dates + streak
+            // Weekly macro summaries + week days
             if let summaries = try? await logRepo.getDailyMacroSummarySnapshot(userId: userId, startDate: sevenDaysAgo, endDate: today) {
                 self.macroSummaries = summaries
                 self.weeklyLoggedDates = Set(summaries.filter { $0.calories > 0 }.map { $0.date })
                 self.dayStreak = computeStreak(summaries: summaries)
             }
 
+            // Week plans for colours
+            if let weekPlans = try? await planRepo.getPlansWithDietNameSnapshot(userId: userId, startDate: sevenDaysAgo, endDate: today) {
+                let plansByDate = Dictionary(grouping: weekPlans) { $0.date }.mapValues { $0.first }
+                self.weekDays = buildWeekDays(plansByDate: plansByDate)
+            } else {
+                self.weekDays = buildWeekDays(plansByDate: [:])
+            }
+
             self.isLoading = false
+        }
+    }
+
+    private func loadTodayPlanSlots(userId: Int64, date: String, loggedBySlot: [String: [LoggedFoodWithDetails]]) async {
+        let plan = try? await planRepo.getPlanByDate(userId: userId, date: date)
+        guard let dietId = plan?.dietId?.int64Value else {
+            // No diet: show only logged slots
+            self.todayPlanSlots = loggedBySlot.keys.sorted().map { slotType in
+                TodayPlanSlot(
+                    slotType: slotType,
+                    slotDisplayName: displayName(for: slotType),
+                    emoji: slotEmoji(slotType),
+                    plannedMealName: nil,
+                    isLogged: true
+                )
+            }
+            return
+        }
+
+        guard let dietWithMeals = try? await dietRepo.getDietWithMeals(dietId: dietId) else { return }
+        // meals is bridged from KMP Map<String, MealWithFoods?> → [AnyHashable: Any]
+        let mealsDict = dietWithMeals.meals as? [String: Any] ?? [:]
+        let mealEntries = mealsDict.compactMap { (key, value) -> (String, String?)? in
+            let mealName = (value as? MealWithFoods)?.meal.name
+            return (key, mealName)
+        }
+        .sorted { slotOrder($0.0) < slotOrder($1.0) }
+
+        self.todayPlanSlots = mealEntries.map { (slotType, mealName) in
+            TodayPlanSlot(
+                slotType: slotType,
+                slotDisplayName: displayName(for: slotType),
+                emoji: slotEmoji(slotType),
+                plannedMealName: mealName,
+                isLogged: loggedBySlot[slotType.uppercased()] != nil
+            )
+        }
+    }
+
+    private func buildWeekDays(plansByDate: [String: PlanWithDietName?]) -> [WeekDayInfo] {
+        let cal = Calendar.current
+        let todayDate = Date()
+        let todayIso = isoToday()
+        return (0...6).reversed().compactMap { daysAgo -> WeekDayInfo? in
+            guard let date = cal.date(byAdding: .day, value: -daysAgo, to: todayDate) else { return nil }
+            let iso = isoDate(from: date)
+            let isFuture = iso > todayIso
+            let plan = plansByDate[iso] ?? nil
+            let hasPlan = plan?.dietId != nil
+            let isCompleted = plan?.isCompleted == true
+            let hasCalories = weeklyLoggedDates.contains(iso)
+            let dietLabel = plan?.dietName.map { extractShortDietName($0) }
+
+            let state: WeekDayState
+            if !isFuture && (isCompleted || hasCalories) {
+                state = .completed
+            } else if isFuture && hasPlan {
+                state = .plannedFuture
+            } else if !isFuture && iso < todayIso {
+                state = .missed
+            } else {
+                state = .noData
+            }
+            return WeekDayInfo(date: date, isoDate: iso, dietLabel: dietLabel, state: state)
         }
     }
 
@@ -514,26 +603,83 @@ class HomeViewModel: ObservableObject {
         var streak = 0
         for i in 0...6 {
             let date = isoDate(daysAgo: i)
-            if summaries.contains(where: { $0.date == date && $0.calories > 0 }) {
-                streak += 1
-            } else {
-                break
-            }
+            if summaries.contains(where: { $0.date == date && $0.calories > 0 }) { streak += 1 } else { break }
         }
         return streak
     }
 
-    private func isoToday() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: Date())
-    }
+    // MARK: - Helpers
+
+    private func isoToday() -> String { isoDate(from: Date()) }
 
     private func isoDate(daysAgo: Int) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
         let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
+        return isoDate(from: date)
+    }
+
+    private func isoDate(from date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         return f.string(from: date)
+    }
+
+    func slotEmoji(_ slotType: String) -> String {
+        switch slotType.uppercased() {
+        case "BREAKFAST": return "🍳"
+        case "LUNCH": return "☀️"
+        case "DINNER": return "🌙"
+        case "SNACK", "EVENING_SNACK": return "🍎"
+        case "PRE_WORKOUT": return "💪"
+        case "POST_WORKOUT": return "🥤"
+        case "EARLY_MORNING": return "🌅"
+        case "NOON": return "🌞"
+        case "MID_MORNING": return "☕"
+        case "EVENING": return "🌆"
+        case "POST_DINNER": return "🍵"
+        default: return "🍽️"
+        }
+    }
+
+    func displayName(for slotType: String) -> String {
+        switch slotType.uppercased() {
+        case "BREAKFAST": return "Breakfast"
+        case "LUNCH": return "Lunch"
+        case "DINNER": return "Dinner"
+        case "SNACK": return "Snacks"
+        case "EVENING_SNACK": return "Evening Snack"
+        case "PRE_WORKOUT": return "Pre-Workout"
+        case "POST_WORKOUT": return "Post-Workout"
+        case "EARLY_MORNING": return "Early Morning"
+        case "NOON": return "Noon"
+        case "MID_MORNING": return "Mid Morning"
+        case "EVENING": return "Evening"
+        case "POST_DINNER": return "Post Dinner"
+        default: return slotType.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private func slotOrder(_ slotType: String) -> Int {
+        switch slotType.uppercased() {
+        case "EARLY_MORNING": return 0
+        case "BREAKFAST": return 1
+        case "NOON": return 2
+        case "MID_MORNING": return 3
+        case "LUNCH": return 4
+        case "PRE_WORKOUT": return 5
+        case "EVENING": return 6
+        case "EVENING_SNACK": return 7
+        case "POST_WORKOUT": return 8
+        case "DINNER": return 9
+        case "POST_DINNER": return 10
+        default: return 99
+        }
+    }
+
+    private func extractShortDietName(_ name: String) -> String {
+        let words = name.split(separator: " ")
+        if words.count == 1 { return String(name.prefix(4)) }
+        let initials = words.prefix(2).map { String($0.prefix(1)) }.joined()
+        let num = name.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+        return initials.uppercased() + num.prefix(2)
     }
 }
 

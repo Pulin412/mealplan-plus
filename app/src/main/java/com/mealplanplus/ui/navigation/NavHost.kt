@@ -213,7 +213,8 @@ fun MealPlanNavHost() {
                     onNavigateToHealth = { navController.navigate(Screen.Health.route) },
                     onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                     onNavigateToGroceryLists = { navController.navigate(Screen.GroceryLists.route) },
-                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                    onNavigateToDiets = { navController.navigate(Screen.Diets.route) }
                 )
             }
             composable(Screen.Foods.route) {
