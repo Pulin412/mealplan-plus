@@ -125,8 +125,9 @@ private val bottomNavItems = listOf(
     BottomNavItem("Home", Icons.Filled.Home, Screen.Home.route),
     BottomNavItem("Meal Plan", Icons.Filled.CalendarMonth, Screen.Calendar.route),
     BottomNavItem("Log", Icons.Filled.EditNote, Screen.DailyLog.route),
+    BottomNavItem("Diets", Icons.Filled.Restaurant, Screen.Diets.route),
     BottomNavItem("Health", Icons.Filled.FavoriteBorder, Screen.Health.route),
-    BottomNavItem("Diets", Icons.Filled.Restaurant, Screen.Diets.route)
+    BottomNavItem("Grocery", Icons.Filled.ShoppingCart, Screen.GroceryLists.route)
 )
 
 // Routes where the bottom nav should be visible
@@ -134,8 +135,9 @@ private val bottomNavRoutes = setOf(
     Screen.Home.route,
     Screen.Calendar.route,
     Screen.DailyLog.route,
+    Screen.Diets.route,
     Screen.Health.route,
-    Screen.Diets.route
+    Screen.GroceryLists.route
 )
 
 @Composable
@@ -211,6 +213,9 @@ fun MealPlanNavHost() {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToLog = { navController.navigate(Screen.DailyLog.route) },
+                    onNavigateToLogWithDate = { date ->
+                        navController.navigate(Screen.DailyLogWithDate.createRoute(date))
+                    },
                     onNavigateToHealth = { navController.navigate(Screen.Health.route) },
                     onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                     onNavigateToGroceryLists = { navController.navigate(Screen.GroceryLists.route) },

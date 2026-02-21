@@ -16,6 +16,7 @@ private let weekRed      = Color(red: 0xD3/255.0, green: 0x2F/255.0, blue: 0x2F/
 struct HomeScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = HomeViewModel()
+    var onNavigateToLogWithDate: ((String) -> Void)?
 
     var body: some View {
         ScrollView {
@@ -44,14 +45,15 @@ struct HomeScreen: View {
 
                     ThisWeekCard(
                         weekDays: viewModel.weekDays,
-                        onFullLogTap: {}
+                        onDayTap: { isoDate in onNavigateToLogWithDate?(isoDate) }
                     )
                     .padding(.horizontal, 16)
 
                     // Today's Plan ABOVE Blood Glucose
                     TodaysPlanCard(
                         slots: viewModel.todayPlanSlots,
-                        onEditPlanTap: {}
+                        onLogTodayTap: { onNavigateToLogWithDate?(isoToday()) },
+                        onSlotToggle: { slot in viewModel.toggleSlotLogged(slot: slot) }
                     )
                     .padding(.horizontal, 16)
 
@@ -83,6 +85,11 @@ struct HomeScreen: View {
                 viewModel.load(userId: userId)
             }
         }
+    }
+
+    private func isoToday() -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
     }
 }
 
@@ -282,7 +289,7 @@ private struct QuickLogFoodButton: View {
 
 private struct ThisWeekCard: View {
     let weekDays: [WeekDayInfo]
-    let onFullLogTap: () -> Void
+    var onDayTap: ((String) -> Void)?
 
     private var monthYear: String {
         let f = DateFormatter(); f.dateFormat = "MMMM yyyy"
@@ -298,15 +305,15 @@ private struct ThisWeekCard: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                Button("Full Log >") { onFullLogTap() }
-                    .font(.caption)
-                    .foregroundColor(primaryGreen)
             }
 
             HStack(spacing: 0) {
                 ForEach(weekDays, id: \.isoDate) { info in
-                    WeekDayCell(info: info)
-                        .frame(maxWidth: .infinity)
+                    WeekDayCell(
+                        info: info,
+                        onTap: info.state != .noData ? { onDayTap?(info.isoDate) } : nil
+                    )
+                    .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -319,6 +326,7 @@ private struct ThisWeekCard: View {
 
 private struct WeekDayCell: View {
     let info: WeekDayInfo
+    var onTap: (() -> Void)?
 
     private var dayLetter: String {
         let cal = Calendar.current
@@ -371,6 +379,7 @@ private struct WeekDayCell: View {
                     .fontWeight(isToday ? .bold : .regular)
                     .foregroundColor(textColor)
             }
+            .onTapGesture { onTap?() }
             // Diet label below circle
             if let label = info.dietLabel {
                 Text(label)
@@ -562,7 +571,8 @@ private struct StatCard: View {
 
 private struct TodaysPlanCard: View {
     let slots: [TodayPlanSlot]
-    let onEditPlanTap: () -> Void
+    let onLogTodayTap: () -> Void
+    var onSlotToggle: ((TodayPlanSlot) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -570,7 +580,7 @@ private struct TodaysPlanCard: View {
                 Text("Today's Plan")
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
-                Button("Edit Plan >") { onEditPlanTap() }
+                Button("Log Today >") { onLogTodayTap() }
                     .font(.caption)
                     .foregroundColor(primaryGreen)
             }
@@ -580,15 +590,16 @@ private struct TodaysPlanCard: View {
                     Image(systemName: "calendar.badge.plus")
                         .font(.system(size: 28))
                         .foregroundColor(.secondary)
-                    Text("No diet planned for today")
+                    Text("No diet planned — tap Log Today to add meals")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
             } else {
                 ForEach(slots) { slot in
-                    TodayPlanSlotRow(slot: slot)
+                    TodayPlanSlotRow(slot: slot, onToggle: { onSlotToggle?(slot) })
                     if slot.id != slots.last?.id {
                         Divider()
                     }
@@ -604,6 +615,11 @@ private struct TodaysPlanCard: View {
 
 private struct TodayPlanSlotRow: View {
     let slot: TodayPlanSlot
+    var onToggle: (() -> Void)?
+
+    private var canToggle: Bool {
+        slot.plannedMealId != nil || slot.isLogged
+    }
 
     private var emojiBgColor: Color {
         switch slot.slotType.uppercased() {
@@ -642,20 +658,25 @@ private struct TodayPlanSlotRow: View {
 
             Spacer()
 
-            // Logged indicator: green check or grey circle
-            if slot.isLogged {
-                ZStack {
+            // Logged indicator: green check or grey circle (tappable if canToggle)
+            Group {
+                if slot.isLogged {
+                    ZStack {
+                        Circle()
+                            .fill(primaryGreen)
+                            .frame(width: 26, height: 26)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                } else {
                     Circle()
-                        .fill(primaryGreen)
+                        .stroke(Color.gray.opacity(0.4), lineWidth: 2)
                         .frame(width: 26, height: 26)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
                 }
-            } else {
-                Circle()
-                    .stroke(Color.gray.opacity(0.4), lineWidth: 2)
-                    .frame(width: 26, height: 26)
+            }
+            .onTapGesture {
+                if canToggle { onToggle?() }
             }
         }
         .padding(.vertical, 4)

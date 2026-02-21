@@ -434,6 +434,8 @@ struct TodayPlanSlot: Identifiable {
     let slotDisplayName: String
     let emoji: String
     let plannedMealName: String?
+    let plannedMealId: Int64?   // meal id from diet (for quick-log)
+    let loggedMealId: Int64?    // LoggedMeal row id if already logged
     let isLogged: Bool
 }
 
@@ -476,7 +478,10 @@ class HomeViewModel: ObservableObject {
     private let planRepo = RepositoryProvider.shared.planRepository
     private let dietRepo = RepositoryProvider.shared.dietRepository
 
+    private var currentUserId: Int64?
+
     func load(userId: Int64) {
+        currentUserId = userId
         isLoading = true
         let today = isoToday()
         let sevenDaysAgo = isoDate(daysAgo: 6)
@@ -536,6 +541,11 @@ class HomeViewModel: ObservableObject {
     }
 
     private func loadTodayPlanSlots(userId: Int64, date: String, loggedBySlot: [String: [LoggedFoodWithDetails]]) async {
+        // Also load logged meals to get loggedMealId for toggle
+        let loggedMeals = (try? await logRepo.getLoggedMealsSnapshot(userId: userId, date: date)) ?? []
+        let loggedMealBySlot = Dictionary(grouping: loggedMeals) { $0.slotType.uppercased() }
+            .mapValues { $0.first?.id }
+
         let plan = try? await planRepo.getPlanByDate(userId: userId, date: date)
         guard let dietId = plan?.dietId?.int64Value else {
             // No diet: show only logged slots
@@ -545,6 +555,8 @@ class HomeViewModel: ObservableObject {
                     slotDisplayName: displayName(for: slotType),
                     emoji: slotEmoji(slotType),
                     plannedMealName: nil,
+                    plannedMealId: nil,
+                    loggedMealId: loggedMealBySlot[slotType.uppercased()] ?? nil,
                     isLogged: true
                 )
             }
@@ -554,19 +566,22 @@ class HomeViewModel: ObservableObject {
         guard let dietWithMeals = try? await dietRepo.getDietWithMeals(dietId: dietId) else { return }
         // meals is bridged from KMP Map<String, MealWithFoods?> → [AnyHashable: Any]
         let mealsDict = dietWithMeals.meals as? [String: Any] ?? [:]
-        let mealEntries = mealsDict.compactMap { (key, value) -> (String, String?)? in
-            let mealName = (value as? MealWithFoods)?.meal.name
-            return (key, mealName)
+        let mealEntries = mealsDict.compactMap { (key, value) -> (String, String?, Int64?)? in
+            let meal = value as? MealWithFoods
+            return (key, meal?.meal.name, meal?.meal.id)
         }
         .sorted { slotOrder($0.0) < slotOrder($1.0) }
 
-        self.todayPlanSlots = mealEntries.map { (slotType, mealName) in
-            TodayPlanSlot(
+        self.todayPlanSlots = mealEntries.map { (slotType, mealName, mealId) in
+            let upperSlot = slotType.uppercased()
+            return TodayPlanSlot(
                 slotType: slotType,
                 slotDisplayName: displayName(for: slotType),
                 emoji: slotEmoji(slotType),
                 plannedMealName: mealName,
-                isLogged: loggedBySlot[slotType.uppercased()] != nil
+                plannedMealId: mealId,
+                loggedMealId: loggedMealBySlot[upperSlot] ?? nil,
+                isLogged: loggedBySlot[upperSlot] != nil || loggedMealBySlot[upperSlot] != nil
             )
         }
     }
@@ -671,6 +686,33 @@ class HomeViewModel: ObservableObject {
         case "DINNER": return 9
         case "POST_DINNER": return 10
         default: return 99
+        }
+    }
+
+    /// Toggle a slot: log the planned meal if not logged, delete if already logged.
+    func toggleSlotLogged(slot: TodayPlanSlot) {
+        guard let userId = currentUserId else { return }
+        let today = isoToday()
+        Task {
+            if slot.isLogged, let loggedMealId = slot.loggedMealId {
+                try? await logRepo.deleteLoggedMeal(id: loggedMealId)
+            } else if !slot.isLogged, let mealId = slot.plannedMealId {
+                let meal = LoggedMeal(
+                    id: 0,
+                    userId: userId,
+                    logDate: today,
+                    mealId: mealId,
+                    slotType: slot.slotType,
+                    quantity: 1.0,
+                    timestamp: nil,
+                    notes: nil
+                )
+                _ = try? await logRepo.insertLoggedMeal(loggedMeal: meal)
+            }
+            // Reload plan slots to reflect updated state
+            let foods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+            let loggedBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
+            await loadTodayPlanSlots(userId: userId, date: today, loggedBySlot: loggedBySlot)
         }
     }
 

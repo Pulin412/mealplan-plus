@@ -154,7 +154,11 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeTab()
+            HomeTab(onNavigateToLogWithDate: { date in
+                selectedTab = 2
+                // date navigation handled inside LogTab via notification
+                NotificationCenter.default.post(name: .navigateToDate, object: date)
+            })
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
@@ -172,27 +176,40 @@ struct MainTabView: View {
                 }
                 .tag(2)
 
-            HealthTab()
-                .tabItem {
-                    Label("Health", systemImage: "heart.fill")
-                }
-                .tag(3)
-
             DietsTab()
                 .tabItem {
                     Label("Diets", systemImage: "fork.knife")
                 }
+                .tag(3)
+
+            HealthTab()
+                .tabItem {
+                    Label("Health", systemImage: "heart.fill")
+                }
                 .tag(4)
+
+            GroceryTab()
+                .tabItem {
+                    Label("Grocery", systemImage: "cart.fill")
+                }
+                .tag(5)
         }
         .accentColor(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0))
     }
 }
 
+// MARK: - Notification name for date-based log navigation
+extension Notification.Name {
+    static let navigateToDate = Notification.Name("navigateToDate")
+}
+
 // Tab wrapper views
 struct HomeTab: View {
+    var onNavigateToLogWithDate: ((String) -> Void)?
+
     var body: some View {
         NavigationStack {
-            HomeScreen()
+            HomeScreen(onNavigateToLogWithDate: onNavigateToLogWithDate)
         }
     }
 }
@@ -206,9 +223,20 @@ struct MealPlanTab: View {
 }
 
 struct LogTab: View {
+    @State private var logDate: Date = Date()
+
     var body: some View {
         NavigationStack {
-            DailyLogScreen(date: Date())
+            DailyLogScreen(date: logDate)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToDate)) { notification in
+            if let isoString = notification.object as? String {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                if let date = formatter.date(from: isoString) {
+                    logDate = date
+                }
+            }
         }
     }
 }

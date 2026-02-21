@@ -36,6 +36,8 @@ data class TodayPlanSlot(
     val slotDisplayName: String,   // e.g. "Breakfast"
     val emoji: String,
     val plannedMealName: String?,  // name of the meal assigned in the diet
+    val plannedMealId: Long?,      // meal id from diet (used for quick-log toggle)
+    val loggedMealId: Long?,       // id of the LoggedMeal row if already logged
     val isLogged: Boolean          // true if at least one meal was logged for this slot today
 )
 
@@ -169,6 +171,7 @@ class HomeViewModel @Inject constructor(
     private fun loadTodayPlanSlots() {
         dailyLogRepository.getLogWithMeals(LocalDate.now())
             .onEach { logWithMeals ->
+                // Map slotType → first LoggedMeal for that slot (for toggle support)
                 val loggedSlots = logWithMeals?.meals
                     ?.groupBy { it.loggedMeal.slotType.uppercase() }
                     ?: emptyMap()
@@ -185,6 +188,7 @@ class HomeViewModel @Inject constructor(
                             DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
                         }
                         ?.map { (slotType, mealWithFoods) ->
+                            val loggedList = loggedSlots[slotType]
                             TodayPlanSlot(
                                 slotType = slotType,
                                 slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
@@ -192,7 +196,9 @@ class HomeViewModel @Inject constructor(
                                         .replaceFirstChar { it.uppercaseChar() },
                                 emoji = slotEmoji(slotType),
                                 plannedMealName = mealWithFoods?.meal?.name,
-                                isLogged = loggedSlots.containsKey(slotType)
+                                plannedMealId = mealWithFoods?.meal?.id,
+                                loggedMealId = loggedList?.firstOrNull()?.loggedMeal?.id,
+                                isLogged = loggedList != null
                             )
                         } ?: emptyList()
                 } else {
@@ -201,7 +207,7 @@ class HomeViewModel @Inject constructor(
                         .sortedBy { (slotType, _) ->
                             DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
                         }
-                        .map { (slotType, _) ->
+                        .map { (slotType, loggedList) ->
                             TodayPlanSlot(
                                 slotType = slotType,
                                 slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
@@ -209,6 +215,8 @@ class HomeViewModel @Inject constructor(
                                         .replaceFirstChar { it.uppercaseChar() },
                                 emoji = slotEmoji(slotType),
                                 plannedMealName = null,
+                                plannedMealId = null,
+                                loggedMealId = loggedList.firstOrNull()?.loggedMeal?.id,
                                 isLogged = true
                             )
                         }
@@ -217,6 +225,26 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { it.copy(todayPlanSlots = slots) }
             }
             .launchIn(viewModelScope)
+    }
+
+    /** Toggle a slot: log the planned meal if not logged, delete the logged meal if already logged. */
+    fun toggleSlotLogged(slot: TodayPlanSlot) {
+        viewModelScope.launch {
+            val today = LocalDate.now()
+            if (slot.isLogged && slot.loggedMealId != null) {
+                // Un-log: delete the logged meal entry
+                dailyLogRepository.deleteLoggedMeal(slot.loggedMealId)
+            } else if (!slot.isLogged && slot.plannedMealId != null) {
+                // Log: insert a new LoggedMeal for this slot
+                dailyLogRepository.logMeal(
+                    date = today,
+                    mealId = slot.plannedMealId,
+                    slotType = slot.slotType,
+                    quantity = 1.0
+                )
+            }
+            // The getLogWithMeals flow will auto-refresh todayPlanSlots
+        }
     }
 
     /**

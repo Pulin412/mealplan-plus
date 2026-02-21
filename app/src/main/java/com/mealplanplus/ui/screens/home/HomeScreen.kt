@@ -51,6 +51,7 @@ private val WeekRed = Color(0xFFD32F2F)
 @Composable
 fun HomeScreen(
     onNavigateToLog: () -> Unit = {},
+    onNavigateToLogWithDate: (String) -> Unit = {},
     onNavigateToHealth: () -> Unit = {},
     onNavigateToCalendar: () -> Unit = {},
     onNavigateToGroceryLists: () -> Unit = {},
@@ -101,7 +102,7 @@ fun HomeScreen(
             // ── This Week mini-calendar ────────────────────────────
             ThisWeekCard(
                 weekDays = uiState.weekDays,
-                onFullLogClick = onNavigateToLog,
+                onDayClick = { date -> onNavigateToLogWithDate(date.toString()) },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -110,7 +111,8 @@ fun HomeScreen(
             // ── Today's Plan (moved above Blood Glucose) ───────────
             TodaysPlanCard(
                 slots = uiState.todayPlanSlots,
-                onEditPlanClick = onNavigateToCalendar,
+                onEditPlanClick = onNavigateToLog,
+                onSlotToggle = { slot -> viewModel.toggleSlotLogged(slot) },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -349,7 +351,7 @@ fun QuickLogFoodButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 fun ThisWeekCard(
     weekDays: List<WeekDayInfo>,
-    onFullLogClick: () -> Unit,
+    onDayClick: (LocalDate) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
@@ -375,9 +377,6 @@ fun ThisWeekCard(
                 Column {
                     Text("This Week", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A1A))
                     Text("$monthName ${today.year}", fontSize = 12.sp, color = Color(0xFF888888))
-                }
-                TextButton(onClick = onFullLogClick) {
-                    Text("Full Log >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
 
@@ -418,6 +417,8 @@ fun ThisWeekCard(
                         bgColor == Color.Transparent -> Color(0xFFCCCCCC)
                         else -> Color.White
                     }
+                    // Only allow tap on days that have data (completed, missed, or planned)
+                    val isClickable = info.state != WeekDayState.NO_DATA
 
                     Column(
                         modifier = Modifier.weight(1f),
@@ -428,7 +429,11 @@ fun ThisWeekCard(
                             modifier = Modifier
                                 .aspectRatio(1f)
                                 .clip(CircleShape)
-                                .background(bgColor),
+                                .background(bgColor)
+                                .then(
+                                    if (isClickable) Modifier.clickable { onDayClick(info.date) }
+                                    else Modifier
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -485,6 +490,7 @@ fun LegendDot(color: Color, label: String) {
 fun TodaysPlanCard(
     slots: List<TodayPlanSlot>,
     onEditPlanClick: () -> Unit,
+    onSlotToggle: (TodayPlanSlot) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -501,14 +507,14 @@ fun TodaysPlanCard(
             ) {
                 Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1A1A1A))
                 TextButton(onClick = onEditPlanClick) {
-                    Text("Edit Plan >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text("Log Today >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
 
             if (slots.isEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "No diet planned for today.\nTap Edit Plan to assign a diet.",
+                    "No diet planned for today.\nTap Log Today to add meals.",
                     fontSize = 13.sp,
                     color = Color(0xFF888888),
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -516,7 +522,7 @@ fun TodaysPlanCard(
             } else {
                 Spacer(modifier = Modifier.height(8.dp))
                 slots.forEach { slot ->
-                    TodayPlanSlotRow(slot = slot)
+                    TodayPlanSlotRow(slot = slot, onToggle = { onSlotToggle(slot) })
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -525,7 +531,7 @@ fun TodaysPlanCard(
 }
 
 @Composable
-fun TodayPlanSlotRow(slot: TodayPlanSlot) {
+fun TodayPlanSlotRow(slot: TodayPlanSlot, onToggle: () -> Unit = {}) {
     val slotBgColor = when (slot.slotType.uppercase()) {
         "BREAKFAST" -> Color(0xFFFFF3E0)
         "LUNCH" -> Color(0xFFE3F2FD)
@@ -535,6 +541,8 @@ fun TodayPlanSlotRow(slot: TodayPlanSlot) {
         "EVENING", "EVENING_SNACK", "POST_DINNER" -> Color(0xFFFCE4EC)
         else -> Color(0xFFE8F5E9)
     }
+    // Only show toggle if this slot has a planned meal to log/un-log
+    val canToggle = slot.plannedMealId != null || slot.isLogged
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -571,18 +579,19 @@ fun TodayPlanSlotRow(slot: TodayPlanSlot) {
             }
         }
 
-        // Tick or unticked circle
+        // Tappable tick or unticked circle
         if (slot.isLogged) {
             Box(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(PrimaryGreen),
+                    .background(PrimaryGreen)
+                    .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Check,
-                    contentDescription = "Logged",
+                    contentDescription = "Logged – tap to undo",
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
@@ -592,10 +601,11 @@ fun TodayPlanSlotRow(slot: TodayPlanSlot) {
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE0E0E0)),
+                    .background(Color(0xFFE0E0E0))
+                    .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
                 contentAlignment = Alignment.Center
             ) {
-                // empty circle for "not yet logged"
+                // empty circle — tap to log
             }
         }
     }

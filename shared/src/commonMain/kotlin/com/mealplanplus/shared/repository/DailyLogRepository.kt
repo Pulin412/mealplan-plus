@@ -178,6 +178,88 @@ class DailyLogRepository(private val database: MealPlanDatabase) {
         }
     }
 
+    // MARK: - Snapshot functions for iOS
+
+    /**
+     * Get daily logs for date range as a one-shot list
+     */
+    suspend fun getDailyLogsForRangeSnapshot(userId: Long, startDate: String, endDate: String): List<DailyLog> {
+        return queries.selectDailyLogsForRange(userId, startDate, endDate).executeAsList().map { it.toDailyLog() }
+    }
+
+    /**
+     * Get logged foods as a one-shot list
+     */
+    suspend fun getLoggedFoodsSnapshot(userId: Long, date: String): List<LoggedFoodWithDetails> {
+        return queries.selectLoggedFoods(userId, date).executeAsList().map { row ->
+            LoggedFoodWithDetails(
+                loggedFood = LoggedFood(
+                    id = row.id,
+                    userId = row.userId,
+                    logDate = row.logDate,
+                    foodId = row.foodId,
+                    quantity = row.quantity,
+                    unit = FoodUnit.fromString(row.unit),
+                    slotType = row.slotType,
+                    timestamp = row.timestamp,
+                    notes = row.notes
+                ),
+                food = FoodItem(
+                    id = row.id_,
+                    name = row.name,
+                    brand = row.brand,
+                    barcode = row.barcode,
+                    caloriesPer100 = row.caloriesPer100,
+                    proteinPer100 = row.proteinPer100,
+                    carbsPer100 = row.carbsPer100,
+                    fatPer100 = row.fatPer100,
+                    gramsPerPiece = row.gramsPerPiece,
+                    gramsPerCup = row.gramsPerCup,
+                    gramsPerTbsp = row.gramsPerTbsp,
+                    gramsPerTsp = row.gramsPerTsp,
+                    glycemicIndex = row.glycemicIndex?.toInt(),
+                    isFavorite = row.isFavorite == 1L,
+                    lastUsed = row.lastUsed,
+                    createdAt = row.createdAt,
+                    isSystemFood = row.isSystemFood == 1L
+                )
+            )
+        }
+    }
+
+    /**
+     * Get logged meals as a one-shot list (for iOS slot toggle)
+     */
+    suspend fun getLoggedMealsSnapshot(userId: Long, date: String): List<LoggedMeal> {
+        return queries.selectLoggedMeals(userId, date).executeAsList().map { row ->
+            LoggedMeal(
+                id = row.id,
+                userId = row.userId,
+                logDate = row.logDate,
+                mealId = row.mealId,
+                slotType = row.slotType,
+                quantity = row.quantity,
+                timestamp = row.timestamp,
+                notes = row.notes
+            )
+        }
+    }
+
+    /**
+     * Get daily macro summary as a one-shot list
+     */
+    suspend fun getDailyMacroSummarySnapshot(userId: Long, startDate: String, endDate: String): List<DailyMacroSummary> {
+        return queries.selectDailyMacroSummary(userId, startDate, endDate).executeAsList().map {
+            DailyMacroSummary(
+                date = it.date,
+                calories = it.calories ?: 0.0,
+                protein = it.protein ?: 0.0,
+                carbs = it.carbs ?: 0.0,
+                fat = it.fat ?: 0.0
+            )
+        }
+    }
+
     private fun com.mealplanplus.shared.db.Daily_logs.toDailyLog(): DailyLog {
         return DailyLog(
             userId = userId,
