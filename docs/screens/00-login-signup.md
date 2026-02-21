@@ -159,6 +159,51 @@
 
 ---
 
+## Tests
+
+### Android — Unit Tests (`app/src/test/.../auth/AuthViewModelTest.kt`)
+
+| Test | What it verifies |
+|------|-----------------|
+| `signIn_blankEmail_setsError` | blank email → "Email and password required" |
+| `signIn_blankPassword_setsError` | blank password → "Email and password required" |
+| `signIn_success_setsLoggedInAndUser` | valid creds → `isLoggedIn=true`, `user` set |
+| `signIn_wrongPassword_setsError` | wrong pass → error from repo propagated |
+| `signUp_blankName_setsError` | blank name → "All fields are required" |
+| `signUp_blankEmail_setsError` | blank email → "All fields are required" |
+| `signUp_passwordMismatch_setsError` | pass≠confirm → "Passwords do not match" |
+| `signUp_shortPassword_setsError` | len<6 → "Password must be at least 6 characters" |
+| `signUp_success_setsLoggedIn` | valid signup → `isLoggedIn=true` |
+| `signUp_duplicateEmail_setsError` | dup email → error from repo propagated |
+| `forgotPassword_blankEmail_setsError` | blank → "Please enter your email address" |
+| `forgotPassword_emailNotFound_setsError` | unknown → "No account found with this email" |
+| `forgotPassword_emailFound_setsForgotPasswordResult` | found → `forgotPasswordResult` set |
+| `signOut_clearsStateAndCallsRepo` | signOut → `isLoggedIn=false`, repo called |
+| `clearError_resetsError` | error set → `clearError()` → error=null |
+| `clearForgotPasswordResult_resetsResult` | result set → `clearForgotPasswordResult()` → null |
+
+**Run**: `./gradlew :app:testDebugUnitTest --tests "*.AuthViewModelTest"`
+
+**Deps added**: `mockk:1.13.10`, `kotlinx-coroutines-test:1.7.3`, `turbine:1.1.0`
+
+---
+
+### iOS — Unit Tests (`iosApp/iosAppTests/AuthValidationTests.swift`)
+
+| Test Suite | Tests | What it verifies |
+|-----------|-------|-----------------|
+| `SignInValidationTests` | 4 | blank email/pass → error; valid → nil |
+| `SignUpValidationTests` | 13 | blank fields, mismatch, short pass, form validity, mismatch detection |
+| `ForgotPasswordValidationTests` | 3 | blank email → error; valid → nil |
+
+**Total**: 20 tests, 0 failures
+
+**Run**: `xcodebuild test -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'name=iPhone 17' -only-testing iosAppTests`
+
+**Infrastructure added**: `iosAppTests` XCTest target in `project.pbxproj` + `iosApp.xcscheme` with test action.
+
+---
+
 ## Verification Checklist
 
 - [ ] Login screen shows green circle+fork logo, "MealPlan+", tagline

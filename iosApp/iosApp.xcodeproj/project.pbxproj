@@ -37,6 +37,7 @@
 		2A1234560038 /* ChartsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570038 /* ChartsScreen.swift */; };
 		2A1234560039 /* DatabaseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570039 /* DatabaseSeeder.swift */; };
 		2A1234560040 /* DataImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570040 /* DataImporter.swift */; };
+		2A12345800T1 /* AuthValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T2 /* AuthValidationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -85,6 +86,8 @@
 		2A1234570038 /* ChartsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsScreen.swift; sourceTree = "<group>"; };
 		2A1234570039 /* DatabaseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseSeeder.swift; sourceTree = "<group>"; };
 		2A1234570040 /* DataImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataImporter.swift; sourceTree = "<group>"; };
+		2A12345800T2 /* AuthValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthValidationTests.swift; sourceTree = "<group>"; };
+		2A12345800T3 /* iosAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iosAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,9 +107,18 @@
 			isa = PBXGroup;
 			children = (
 				2A12345A0002 /* iosApp */,
+				2A12345800T4 /* iosAppTests */,
 				2A12345A0003 /* Products */,
 				2A12345A0004 /* Frameworks */,
 			);
+			sourceTree = "<group>";
+		};
+		2A12345800T4 /* iosAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				2A12345800T2 /* AuthValidationTests.swift */,
+			);
+			path = iosAppTests;
 			sourceTree = "<group>";
 		};
 		2A12345A0002 /* iosApp */ = {
@@ -128,6 +140,7 @@
 			isa = PBXGroup;
 			children = (
 				2A1234570005 /* iosApp.app */,
+				2A12345800T3 /* iosAppTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -283,6 +296,24 @@
 		};
 /* End PBXGroup section */
 
+/* Begin PBXContainerItemProxy section */
+		2A12345800TB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2A12345F0001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2A12345B0001;
+			remoteInfo = iosApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		2A12345800TA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2A12345B0001 /* iosApp */;
+			targetProxy = 2A12345800TB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin PBXNativeTarget section */
 		2A12345B0001 /* iosApp */ = {
 			isa = PBXNativeTarget;
@@ -303,6 +334,22 @@
 			productReference = 2A1234570005 /* iosApp.app */;
 			productType = "com.apple.product-type.application";
 		};
+		2A12345800T5 /* iosAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2A12345800T9 /* Build configuration list for PBXNativeTarget "iosAppTests" */;
+			buildPhases = (
+				2A12345800T6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2A12345800TA /* PBXTargetDependency */,
+			);
+			name = iosAppTests;
+			productName = iosAppTests;
+			productReference = 2A12345800T3 /* iosAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -315,6 +362,10 @@
 				TargetAttributes = {
 					2A12345B0001 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					2A12345800T5 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 2A12345B0001;
 					};
 				};
 			};
@@ -332,6 +383,7 @@
 			projectRoot = "";
 			targets = (
 				2A12345B0001 /* iosApp */,
+				2A12345800T5 /* iosAppTests */,
 			);
 		};
 /* End PBXProject section */
@@ -387,6 +439,14 @@
 				2A1234560038 /* ChartsScreen.swift in Sources */,
 				2A1234560039 /* DatabaseSeeder.swift in Sources */,
 				2A1234560040 /* DataImporter.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2A12345800T6 /* Sources (Tests) */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A12345800T1 /* AuthValidationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -594,6 +654,64 @@
 			};
 			name = Release;
 		};
+		2A12345800T7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mealplanplus.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2A12345800T8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mealplanplus.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -611,6 +729,15 @@
 			buildConfigurations = (
 				2A1234610001 /* Debug */,
 				2A1234610002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2A12345800T9 /* Build configuration list for PBXNativeTarget "iosAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2A12345800T7 /* Debug */,
+				2A12345800T8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
