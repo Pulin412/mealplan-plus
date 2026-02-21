@@ -13,7 +13,8 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
     val error: String? = null,
-    val user: User? = null
+    val user: User? = null,
+    val forgotPasswordResult: String? = null
 )
 
 @HiltViewModel
@@ -84,6 +85,30 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun forgotPassword(email: String) {
+        if (email.isBlank()) {
+            _uiState.update { it.copy(error = "Please enter your email address") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val user = authRepository.getUserByEmail(email.lowercase().trim())
+            _uiState.update { it.copy(isLoading = false) }
+
+            if (user == null) {
+                _uiState.update { it.copy(error = "No account found with this email") }
+            } else {
+                // Passwords are SHA-256 hashed locally — cannot be recovered or emailed
+                _uiState.update {
+                    it.copy(
+                        forgotPasswordResult = "For security reasons, your password is stored locally and cannot be sent via email.\n\nTo reset your password, please reinstall the app or contact support."
+                    )
+                }
+            }
+        }
+    }
+
     fun signOut() {
         viewModelScope.launch {
             authRepository.signOut()
@@ -93,5 +118,9 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearForgotPasswordResult() {
+        _uiState.update { it.copy(forgotPasswordResult = null) }
     }
 }

@@ -35,6 +35,7 @@ import com.mealplanplus.ui.screens.diets.DietMealPickerScreen
 import com.mealplanplus.ui.screens.log.DietPickerScreen
 import com.mealplanplus.ui.screens.auth.LoginScreen
 import com.mealplanplus.ui.screens.auth.SignUpScreen
+import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.grocery.GroceryListsScreen
 import com.mealplanplus.ui.screens.grocery.CreateGroceryListScreen
@@ -82,6 +83,7 @@ sealed class Screen(val route: String) {
     object Calendar : Screen("calendar")
     object Health : Screen("health")
     object Charts : Screen("charts")
+    object ForgotPassword : Screen("forgot_password")
     object Settings : Screen("settings")
     object BarcodeScanner : Screen("barcode_scanner")
     object OnlineSearch : Screen("online_search")
@@ -115,11 +117,17 @@ fun MealPlanNavHost() {
         composable(Screen.Login.route) {
             LoginScreen(
                 onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
+                onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) },
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
+            )
+        }
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                onNavigateToLogin = { navController.popBackStack() }
             )
         }
         composable(Screen.SignUp.route) {

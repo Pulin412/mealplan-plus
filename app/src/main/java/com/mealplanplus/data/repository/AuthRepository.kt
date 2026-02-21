@@ -82,6 +82,10 @@ class AuthRepository @Inject constructor(
         AuthPreferences.clearAuth(context)
     }
 
+    suspend fun getUserByEmail(email: String): User? {
+        return userDao.getUserByEmail(email)
+    }
+
     suspend fun updateProfile(user: User): Result<User> {
         return try {
             val updatedUser = user.copy(updatedAt = System.currentTimeMillis())
