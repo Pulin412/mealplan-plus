@@ -520,8 +520,13 @@ struct MealPlanScreen: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            // Meal slots
-            let mealsMap = (dwm.meals as? [String: MealWithFoods?]) ?? [:]
+            // Meal slots — NSDictionary cast (KMP map bridges as NSDictionary, not Swift Dict)
+            var mealsMap: [String: MealWithFoods?] = [:]
+            if let nd = dwm.meals as? NSDictionary {
+                for (k, v) in nd {
+                    if let key = k as? String { mealsMap[key] = v as? MealWithFoods }
+                }
+            }
             VStack(spacing: 0) {
                 ForEach(allSlots, id: \.self) { slot in
                     let meal = mealsMap[slot] ?? nil
