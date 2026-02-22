@@ -531,6 +531,7 @@ class HomeViewModel: ObservableObject {
     private let userRepo = RepositoryProvider.shared.userRepository
     private let planRepo = RepositoryProvider.shared.planRepository
     private let dietRepo = RepositoryProvider.shared.dietRepository
+    private let mealRepo = RepositoryProvider.shared.mealRepository
 
     private var currentUserId: Int64?
 
@@ -769,15 +770,25 @@ class HomeViewModel: ObservableObject {
         }
     }
 
-    /// Toggle a slot: log the planned meal if not logged, delete if already logged.
+    /// Toggle a slot: log/unlog the planned meal AND its constituent foods so macros update.
     func toggleSlotLogged(slot: TodayPlanSlot) {
         guard let userId = currentUserId else { return }
         let today = isoToday()
         Task {
-            if slot.isLogged, let loggedMealId = slot.loggedMealId {
-                try? await logRepo.deleteLoggedMeal(id: loggedMealId)
-            } else if !slot.isLogged, let mealId = slot.plannedMealId {
-                let meal = LoggedMeal(
+            if slot.isLogged {
+                // --- Unlog: delete LoggedMeal + all LoggedFood rows for this slot today ---
+                if let loggedMealId = slot.loggedMealId {
+                    try? await logRepo.deleteLoggedMeal(id: loggedMealId)
+                }
+                // Delete logged foods for this slot (they were inserted when we logged the meal)
+                let existingFoods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+                let slotFoods = existingFoods.filter { $0.loggedFood.slotType.uppercased() == slot.slotType.uppercased() }
+                for lf in slotFoods {
+                    try? await logRepo.deleteLoggedFood(id: lf.loggedFood.id)
+                }
+            } else if let mealId = slot.plannedMealId {
+                // --- Log: insert LoggedMeal + one LoggedFood per food item in the meal ---
+                let loggedMeal = LoggedMeal(
                     id: 0,
                     userId: userId,
                     logDate: today,
@@ -787,11 +798,34 @@ class HomeViewModel: ObservableObject {
                     timestamp: nil,
                     notes: nil
                 )
-                _ = try? await logRepo.insertLoggedMeal(loggedMeal: meal)
+                _ = try? await logRepo.insertLoggedMeal(loggedMeal: loggedMeal)
+
+                // Also insert a LoggedFood for each food in the meal so macros are tracked
+                if let mwf = try? await mealRepo.getMealWithFoods(mealId: mealId) {
+                    for item in mwf.items {
+                        let lf = LoggedFood(
+                            id: 0,
+                            userId: userId,
+                            logDate: today,
+                            foodId: item.mealFoodItem.foodId,
+                            quantity: item.mealFoodItem.quantity,
+                            unit: item.mealFoodItem.unit,
+                            slotType: slot.slotType,
+                            timestamp: nil,
+                            notes: nil
+                        )
+                        _ = try? await logRepo.insertLoggedFood(loggedFood: lf)
+                    }
+                }
             }
-            // Reload plan slots to reflect updated state
-            let foods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
-            let loggedBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
+
+            // Reload macros + plan slots to reflect updated state
+            let freshFoods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+            self.todayCalories = freshFoods.reduce(0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayProtein  = freshFoods.reduce(0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayCarbs    = freshFoods.reduce(0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayFat      = freshFoods.reduce(0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            let loggedBySlot = Dictionary(grouping: freshFoods) { $0.loggedFood.slotType.uppercased() }
             await loadTodayPlanSlots(userId: userId, date: today, loggedBySlot: loggedBySlot)
         }
     }
