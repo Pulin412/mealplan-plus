@@ -286,14 +286,14 @@ class PlansViewModel: ObservableObject {
 
     func selectDate(_ date: String, userId: Int64) {
         selectedPlanDate = date
+        // Clear immediately so UI shows correct empty state while loading
+        selectedDiet = nil
+        selectedDietWithMeals = nil
+        selectedDietTags = []
         Task {
             let plan = try? await repository.getPlanByDate(userId: userId, date: date)
             if let dietId = plan?.dietId?.int64Value {
                 await loadDietDetails(dietId: dietId)
-            } else {
-                self.selectedDiet = nil
-                self.selectedDietWithMeals = nil
-                self.selectedDietTags = []
             }
         }
     }

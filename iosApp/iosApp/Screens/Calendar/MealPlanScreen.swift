@@ -320,21 +320,21 @@ struct MealPlanScreen: View {
 
     // MARK: - Selected Date Panel
 
+    private var isSelectedDateToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+    private var isSelectedDatePast: Bool {
+        selectedDate < Calendar.current.startOfDay(for: Date()) && !isSelectedDateToday
+    }
+
     @ViewBuilder
     private var selectedDatePanel: some View {
-        let calendar = Calendar.current
-        let isToday = calendar.isDateInToday(selectedDate)
-        let isPast = selectedDate < calendar.startOfDay(for: Date()) && !isToday
-        let hasDiet = plansVM.selectedDiet != nil
-
-        if isToday || isPast {
-            if hasDiet {
-                todayWithDietPanel(isPast: isPast)
+        if isSelectedDateToday || isSelectedDatePast {
+            if plansVM.selectedDiet != nil {
+                todayWithDietPanel(isPast: isSelectedDatePast)
             } else {
-                pastNoDietPanel(isPast: isPast)
+                pastNoDietPanel(isPast: isSelectedDatePast)
             }
         } else {
-            if hasDiet {
+            if plansVM.selectedDiet != nil {
                 futureWithDietPanel
             } else {
                 futureNoDietPanel
