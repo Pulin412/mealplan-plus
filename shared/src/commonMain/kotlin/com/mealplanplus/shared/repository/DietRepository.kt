@@ -132,6 +132,7 @@ class DietRepository(
     }
 
     // MARK: - Snapshot functions for iOS
+    @Throws(Exception::class)
     suspend fun getDietSummariesSnapshot(userId: Long): List<DietSummary> {
         return queries.selectDietSummaries(userId).executeAsList().map {
             DietSummary(
@@ -146,14 +147,21 @@ class DietRepository(
         }
     }
 
+    @Throws(Exception::class)
     suspend fun getTagsForDietSnapshot(dietId: Long): List<Tag> {
-        return queries.selectTagsForDiet(dietId).executeAsList().map { it.toTag() }
+        return try {
+            queries.selectTagsForDiet(dietId).executeAsList().map { it.toTag() }
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
+    @Throws(Exception::class)
     suspend fun getAllTagsSnapshot(userId: Long): List<Tag> {
         return queries.selectAllTags(userId).executeAsList().map { it.toTag() }
     }
 
+    @Throws(Exception::class)
     suspend fun getAllDietsSnapshot(userId: Long): List<Diet> {
         return queries.selectAllDiets(userId).executeAsList().map { it.toDiet() }
     }
