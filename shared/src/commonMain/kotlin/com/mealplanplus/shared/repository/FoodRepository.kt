@@ -116,6 +116,15 @@ class FoodRepository(private val database: MealPlanDatabase) {
         queries.deleteById(id)
     }
 
+    // MARK: - Snapshot functions for iOS
+    suspend fun getAllFoodsSnapshot(): List<FoodItem> {
+        return queries.selectAll().executeAsList().map { it.toFoodItem() }
+    }
+
+    suspend fun searchByNameSnapshot(query: String, limit: Long = 50): List<FoodItem> {
+        return queries.searchByName(query, limit).executeAsList().map { it.toFoodItem() }
+    }
+
     private fun com.mealplanplus.shared.db.Food_items.toFoodItem(): FoodItem {
         return FoodItem(
             id = id,

@@ -131,6 +131,33 @@ class DietRepository(
         queries.deleteDietTagsByDietId(dietId)
     }
 
+    // MARK: - Snapshot functions for iOS
+    suspend fun getDietSummariesSnapshot(userId: Long): List<DietSummary> {
+        return queries.selectDietSummaries(userId).executeAsList().map {
+            DietSummary(
+                id = it.id,
+                userId = it.userId,
+                name = it.name,
+                description = it.description,
+                createdAt = it.createdAt,
+                mealCount = it.mealCount.toInt(),
+                totalCalories = it.totalCalories.toInt()
+            )
+        }
+    }
+
+    suspend fun getTagsForDietSnapshot(dietId: Long): List<Tag> {
+        return queries.selectTagsForDiet(dietId).executeAsList().map { it.toTag() }
+    }
+
+    suspend fun getAllTagsSnapshot(userId: Long): List<Tag> {
+        return queries.selectAllTags(userId).executeAsList().map { it.toTag() }
+    }
+
+    suspend fun getAllDietsSnapshot(userId: Long): List<Diet> {
+        return queries.selectAllDiets(userId).executeAsList().map { it.toDiet() }
+    }
+
     private fun com.mealplanplus.shared.db.Diets.toDiet(): Diet {
         return Diet(
             id = id,

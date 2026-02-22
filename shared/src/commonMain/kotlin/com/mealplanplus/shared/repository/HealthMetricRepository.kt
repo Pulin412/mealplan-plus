@@ -115,6 +115,23 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
         return queries.selectLatestMetricByType(userId, metricType).executeAsOneOrNull()?.toHealthMetric()
     }
 
+    // MARK: - Snapshot functions for iOS
+    suspend fun getAllHealthMetricsSnapshot(userId: Long): List<HealthMetric> {
+        return queries.selectHealthMetrics(userId).executeAsList().map { it.toHealthMetric() }
+    }
+
+    suspend fun getActiveCustomMetricTypesSnapshot(userId: Long): List<CustomMetricType> {
+        return queries.selectCustomMetricTypes(userId).executeAsList().map { it.toCustomMetricType() }
+    }
+
+    suspend fun getHealthMetricsByTypeSnapshot(userId: Long, metricType: String): List<HealthMetric> {
+        return queries.selectHealthMetricsByType(userId, metricType).executeAsList().map { it.toHealthMetric() }
+    }
+
+    suspend fun getHealthMetricsForDateRangeSnapshot(userId: Long, startDate: String, endDate: String): List<HealthMetric> {
+        return queries.selectHealthMetricsForDateRange(userId, startDate, endDate).executeAsList().map { it.toHealthMetric() }
+    }
+
     private fun com.mealplanplus.shared.db.Custom_metric_types.toCustomMetricType(): CustomMetricType {
         return CustomMetricType(
             id = id,

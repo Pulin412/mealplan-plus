@@ -64,6 +64,20 @@ class PlanRepository(private val database: MealPlanDatabase) {
         queries.deletePlansForDateRange(userId, startDate, endDate)
     }
 
+    // MARK: - Snapshot functions for iOS
+    suspend fun getPlansWithDietNameSnapshot(userId: Long, startDate: String, endDate: String): List<PlanWithDietName> {
+        return queries.selectPlansWithDietName(userId, startDate, endDate).executeAsList().map {
+            PlanWithDietName(
+                userId = it.userId,
+                date = it.date,
+                dietId = it.dietId,
+                isCompleted = it.isCompleted == 1L,
+                notes = it.notes,
+                dietName = it.dietName
+            )
+        }
+    }
+
     private fun com.mealplanplus.shared.db.Plans.toPlan(): Plan {
         return Plan(
             userId = userId,
