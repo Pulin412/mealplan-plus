@@ -81,7 +81,8 @@ private struct DietPickerRow: View {
                 id: summary.id,
                 userId: summary.userId,
                 name: summary.name,
-                description: summary.description_
+                description: summary.description_,
+                createdAt: summary.createdAt
             )
             onSelect(diet)
         }) {
@@ -109,16 +110,11 @@ private struct DietPickerRow: View {
                     }
                 }
                 Spacer()
-                // Macro summary
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(Int(summary.totalCalories)) kcal")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                    Text("P:\(Int(summary.totalProtein))g  C:\(Int(summary.totalCarbs))g  F:\(Int(summary.totalFat))g")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
+                // Calories only (DietSummary does not expose protein/carbs/fat)
+                Text("\(summary.totalCalories) kcal")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
             }
             .padding(.vertical, 4)
         }

@@ -521,9 +521,10 @@ struct MealPlanScreen: View {
                     .foregroundColor(.secondary)
             }
             // Meal slots
+            let mealsMap = (dwm.meals as? [String: MealWithFoods?]) ?? [:]
             VStack(spacing: 0) {
                 ForEach(allSlots, id: \.self) { slot in
-                    let meal = dwm.meals[slot] as? MealWithFoods
+                    let meal = mealsMap[slot] ?? nil
                     MealPlanSlotRow(slot: slot, meal: meal)
                     if slot != allSlots.last {
                         Divider().padding(.leading, 44)
