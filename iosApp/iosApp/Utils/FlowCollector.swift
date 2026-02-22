@@ -237,14 +237,20 @@ class DailyLogViewModel: ObservableObject {
     }
 }
 
-/// ViewModel for Plans (calendar)
+/// ViewModel for Plans (calendar / meal plan screen)
 @MainActor
 class PlansViewModel: ObservableObject {
     @Published var plans: [PlanWithDietName] = []
     @Published var isLoading = false
     @Published var error: String?
+    @Published var selectedPlanDate: String = ""
+    @Published var selectedDiet: Diet? = nil
+    @Published var selectedDietWithMeals: DietWithMeals? = nil
+    @Published var selectedDietTags: [Tag] = []
+    @Published var isWeekView: Bool = true
 
     private let repository = RepositoryProvider.shared.planRepository
+    private let dietRepository = RepositoryProvider.shared.dietRepository
 
     func loadPlans(userId: Int64, startDate: String, endDate: String) {
         isLoading = true
@@ -276,6 +282,54 @@ class PlansViewModel: ObservableObject {
 
     func deletePlan(userId: Int64, date: String) async throws {
         try await repository.deletePlan(userId: userId, date: date)
+    }
+
+    func selectDate(_ date: String, userId: Int64) {
+        selectedPlanDate = date
+        // Clear immediately so UI shows correct empty state while loading
+        selectedDiet = nil
+        selectedDietWithMeals = nil
+        selectedDietTags = []
+        Task {
+            let plan = try? await repository.getPlanByDate(userId: userId, date: date)
+            if let dietId = plan?.dietId?.int64Value {
+                await loadDietDetails(dietId: dietId)
+            }
+        }
+    }
+
+    func loadDietDetails(dietId: Int64) async {
+        let dwm = try? await dietRepository.getDietWithMeals(dietId: dietId)
+        let tags = (try? await dietRepository.getTagsForDietSnapshot(dietId: dietId)) ?? []
+        self.selectedDiet = dwm?.diet
+        self.selectedDietWithMeals = dwm
+        self.selectedDietTags = tags
+    }
+
+    func assignDiet(userId: Int64, date: String, diet: Diet) {
+        Task {
+            let plan = Plan(userId: userId, date: date, dietId: diet.id.toKotlinLong(), notes: nil, isCompleted: false)
+            try? await repository.insertOrUpdatePlan(plan: plan)
+            self.selectedDiet = diet
+            // Update local plans list optimistically
+            let planWithName = PlanWithDietName(userId: userId, date: date, dietId: diet.id.toKotlinLong(), isCompleted: false, notes: nil, dietName: diet.name)
+            self.plans = self.plans.filter { $0.date != date } + [planWithName]
+            await loadDietDetails(dietId: diet.id)
+        }
+    }
+
+    func removeDiet(userId: Int64, date: String) {
+        Task {
+            try? await repository.deletePlan(userId: userId, date: date)
+            self.selectedDiet = nil
+            self.selectedDietWithMeals = nil
+            self.selectedDietTags = []
+            self.plans = self.plans.filter { $0.date != date }
+        }
+    }
+
+    func toggleView() {
+        isWeekView.toggle()
     }
 }
 
@@ -477,6 +531,7 @@ class HomeViewModel: ObservableObject {
     private let userRepo = RepositoryProvider.shared.userRepository
     private let planRepo = RepositoryProvider.shared.planRepository
     private let dietRepo = RepositoryProvider.shared.dietRepository
+    private let mealRepo = RepositoryProvider.shared.mealRepository
 
     private var currentUserId: Int64?
 
@@ -715,15 +770,25 @@ class HomeViewModel: ObservableObject {
         }
     }
 
-    /// Toggle a slot: log the planned meal if not logged, delete if already logged.
+    /// Toggle a slot: log/unlog the planned meal AND its constituent foods so macros update.
     func toggleSlotLogged(slot: TodayPlanSlot) {
         guard let userId = currentUserId else { return }
         let today = isoToday()
         Task {
-            if slot.isLogged, let loggedMealId = slot.loggedMealId {
-                try? await logRepo.deleteLoggedMeal(id: loggedMealId)
-            } else if !slot.isLogged, let mealId = slot.plannedMealId {
-                let meal = LoggedMeal(
+            if slot.isLogged {
+                // --- Unlog: delete LoggedMeal + all LoggedFood rows for this slot today ---
+                if let loggedMealId = slot.loggedMealId {
+                    try? await logRepo.deleteLoggedMeal(id: loggedMealId)
+                }
+                // Delete logged foods for this slot (they were inserted when we logged the meal)
+                let existingFoods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+                let slotFoods = existingFoods.filter { $0.loggedFood.slotType.uppercased() == slot.slotType.uppercased() }
+                for lf in slotFoods {
+                    try? await logRepo.deleteLoggedFood(id: lf.loggedFood.id)
+                }
+            } else if let mealId = slot.plannedMealId {
+                // --- Log: insert LoggedMeal + one LoggedFood per food item in the meal ---
+                let loggedMeal = LoggedMeal(
                     id: 0,
                     userId: userId,
                     logDate: today,
@@ -733,11 +798,34 @@ class HomeViewModel: ObservableObject {
                     timestamp: nil,
                     notes: nil
                 )
-                _ = try? await logRepo.insertLoggedMeal(loggedMeal: meal)
+                _ = try? await logRepo.insertLoggedMeal(loggedMeal: loggedMeal)
+
+                // Also insert a LoggedFood for each food in the meal so macros are tracked
+                if let mwf = try? await mealRepo.getMealWithFoods(mealId: mealId) {
+                    for item in mwf.items {
+                        let lf = LoggedFood(
+                            id: 0,
+                            userId: userId,
+                            logDate: today,
+                            foodId: item.mealFoodItem.foodId,
+                            quantity: item.mealFoodItem.quantity,
+                            unit: item.mealFoodItem.unit,
+                            slotType: slot.slotType,
+                            timestamp: nil,
+                            notes: nil
+                        )
+                        _ = try? await logRepo.insertLoggedFood(loggedFood: lf)
+                    }
+                }
             }
-            // Reload plan slots to reflect updated state
-            let foods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
-            let loggedBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
+
+            // Reload macros + plan slots to reflect updated state
+            let freshFoods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+            self.todayCalories = freshFoods.reduce(0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayProtein  = freshFoods.reduce(0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayCarbs    = freshFoods.reduce(0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            self.todayFat      = freshFoods.reduce(0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            let loggedBySlot = Dictionary(grouping: freshFoods) { $0.loggedFood.slotType.uppercased() }
             await loadTodayPlanSlots(userId: userId, date: today, loggedBySlot: loggedBySlot)
         }
     }

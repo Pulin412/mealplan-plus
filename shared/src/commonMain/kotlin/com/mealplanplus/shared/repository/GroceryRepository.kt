@@ -123,6 +123,11 @@ class GroceryRepository(private val database: MealPlanDatabase) {
         queries.deleteGroceryItemsByListId(listId)
     }
 
+    // MARK: - Snapshot functions for iOS
+    suspend fun getAllGroceryListsSnapshot(userId: Long): List<GroceryList> {
+        return queries.selectAllGroceryLists(userId).executeAsList().map { it.toGroceryList() }
+    }
+
     private fun com.mealplanplus.shared.db.Grocery_lists.toGroceryList(): GroceryList {
         return GroceryList(
             id = id,

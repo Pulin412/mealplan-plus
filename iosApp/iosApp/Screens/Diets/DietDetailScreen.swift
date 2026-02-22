@@ -1,166 +1,264 @@
 import SwiftUI
 import shared
 
-struct DietDetailScreen: View {
-    let diet: DietUI
-    @State private var selectedDay = 0
+struct DietDetailScreenNew: View {
+    let dietId: Int64
+    var onUpdate: (() -> Void)? = nil
 
-    let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    @StateObject private var viewModel = DietsViewModel()
+    @State private var dietWithMeals: DietWithMeals?
+    @State private var tags: [Tag] = []
+    @State private var selectedDay = 0
+    @State private var showEditSheet = false
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                // Header card
-                VStack(spacing: 12) {
-                    Text(diet.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text(diet.description)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    // Tags
-                    HStack(spacing: 8) {
-                        ForEach(diet.tags, id: \.self) { tag in
-                            Text(tag)
-                                .font(.caption)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Color.green.opacity(0.2))
-                                .foregroundColor(.green)
-                                .cornerRadius(12)
-                        }
-                    }
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
-                // Daily nutrition
-                VStack(spacing: 16) {
-                    Text("Daily Nutrition")
-                        .font(.headline)
-
-                    HStack(spacing: 16) {
-                        NutritionBox(value: Double(diet.calories), label: "Calories", unit: "kcal", color: .green)
-                        NutritionBox(value: diet.protein, label: "Protein", unit: "g", color: .red)
-                        NutritionBox(value: diet.carbs, label: "Carbs", unit: "g", color: .blue)
-                        NutritionBox(value: diet.fat, label: "Fat", unit: "g", color: .yellow)
-                    }
-                }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
-                // Day selector
-                VStack(spacing: 12) {
-                    Text("Meal Plan")
-                        .font(.headline)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(0..<7) { index in
-                                Button(action: { selectedDay = index }) {
-                                    Text(days[index])
-                                        .font(.subheadline)
-                                        .fontWeight(selectedDay == index ? .bold : .regular)
-                                        .frame(width: 44, height: 44)
-                                        .background(selectedDay == index ? Color.green : Color.clear)
-                                        .foregroundColor(selectedDay == index ? .white : .primary)
-                                        .cornerRadius(22)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 22)
-                                                .stroke(Color.green, lineWidth: selectedDay == index ? 0 : 1)
-                                        )
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
-                // Meal slots
-                VStack(alignment: .leading, spacing: 12) {
-                    MealSlotCard(slot: "Breakfast", mealName: "Oatmeal with Berries", calories: 350)
-                    MealSlotCard(slot: "Lunch", mealName: "Chicken & Rice Bowl", calories: 550)
-                    MealSlotCard(slot: "Dinner", mealName: "Grilled Salmon Dinner", calories: 620)
-                    MealSlotCard(slot: "Snacks", mealName: "Protein Smoothie", calories: 280)
-                }
-                .padding(.horizontal)
-
-                // Actions
-                HStack(spacing: 12) {
-                    Button(action: {}) {
-                        HStack {
-                            Image(systemName: "calendar.badge.plus")
-                            Text("Apply to Today")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                    }
-
-                    Button(action: {}) {
-                        HStack {
-                            Image(systemName: "cart")
-                            Text("Grocery List")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.white)
-                        .foregroundColor(.green)
-                        .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.green, lineWidth: 1)
-                        )
-                    }
-                }
-                .padding(.horizontal)
-
-                Spacer().frame(height: 20)
-            }
-            .padding(.top)
+            contentView
         }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
+        .background(backgroundGradient)
         .navigationTitle("Diet Details")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button(action: {}) {
-                        Label("Edit Diet", systemImage: "pencil")
+        .toolbar { toolbarContent }
+        .sheet(isPresented: $showEditSheet) { editSheetContent }
+        .onAppear { loadDietDetails() }
+    }
+
+    @ViewBuilder
+    private var contentView: some View {
+        if let dwm = dietWithMeals {
+            dietContent(dwm)
+        } else {
+            loadingView
+        }
+    }
+
+    private var loadingView: some View {
+        VStack {
+            Spacer()
+            ProgressView("Loading diet...")
+            Spacer()
+        }
+    }
+
+    private func dietContent(_ dwm: DietWithMeals) -> some View {
+        VStack(spacing: 20) {
+            headerCard(dwm)
+            nutritionCard(dwm)
+            daySelector
+            mealSlotsSection(dwm)
+            actionButtons
+            Spacer().frame(height: 20)
+        }
+        .padding(.top)
+    }
+
+    private func headerCard(_ dwm: DietWithMeals) -> some View {
+        VStack(spacing: 12) {
+            Text(dwm.diet.name)
+                .font(.title2)
+                .fontWeight(.bold)
+
+            if let desc = dwm.diet.description_ {
+                Text(desc)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            tagsView
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var tagsView: some View {
+        if !tags.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(tags, id: \.id) { tag in
+                        tagChip(tag)
                     }
-                    Button(action: {}) {
-                        Label("Duplicate", systemImage: "doc.on.doc")
-                    }
-                    Button(role: .destructive, action: {}) {
-                        Label("Delete", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+    }
+
+    private func tagChip(_ tag: Tag) -> some View {
+        let tagColor = Color(hex: tag.color ?? "#4CAF50")
+        return Text(tag.name)
+            .font(.caption)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(tagColor.opacity(0.2))
+            .foregroundColor(tagColor)
+            .cornerRadius(12)
+    }
+
+    private func nutritionCard(_ dwm: DietWithMeals) -> some View {
+        VStack(spacing: 16) {
+            Text("Daily Nutrition")
+                .font(.headline)
+
+            HStack(spacing: 16) {
+                NutritionBox(value: dwm.totalCalories, label: "Calories", unit: "kcal", color: .green)
+                NutritionBox(value: dwm.totalProtein, label: "Protein", unit: "g", color: .red)
+                NutritionBox(value: dwm.totalCarbs, label: "Carbs", unit: "g", color: .blue)
+                NutritionBox(value: dwm.totalFat, label: "Fat", unit: "g", color: .yellow)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+        .padding(.horizontal)
+    }
+
+    private var daySelector: some View {
+        let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        return VStack(spacing: 12) {
+            Text("Meal Plan")
+                .font(.headline)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(0..<7, id: \.self) { index in
+                        dayButton(days[index], index: index)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+        .padding(.horizontal)
+    }
+
+    private func dayButton(_ day: String, index: Int) -> some View {
+        let isSelected = selectedDay == index
+        return Button(action: { selectedDay = index }) {
+            Text(day)
+                .font(.subheadline)
+                .fontWeight(isSelected ? .bold : .regular)
+                .frame(width: 44, height: 44)
+                .background(isSelected ? Color.green : Color.clear)
+                .foregroundColor(isSelected ? .white : .primary)
+                .cornerRadius(22)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22)
+                        .stroke(Color.green, lineWidth: isSelected ? 0 : 1)
+                )
+        }
+    }
+
+    private func mealSlotsSection(_ dwm: DietWithMeals) -> some View {
+        let slots = ["Breakfast", "Lunch", "Dinner", "Snack"]
+        // NSDictionary cast — KMP Map<String, MealWithFoods?> bridges as NSDictionary
+        var mealsMap: [String: MealWithFoods?] = [:]
+        if let nd = dwm.meals as? NSDictionary {
+            for (k, v) in nd {
+                if let key = k as? String { mealsMap[key] = v as? MealWithFoods }
+            }
+        }
+        return VStack(alignment: .leading, spacing: 12) {
+            ForEach(slots, id: \.self) { slot in
+                if let mealWithFoods = mealsMap[slot] ?? nil {
+                    MealSlotCardNew(slot: slot, mealWithFoods: mealWithFoods)
+                } else {
+                    EmptyMealSlotCard(slot: slot)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 12) {
+            applyTodayButton
+            groceryButton
+        }
+        .padding(.horizontal)
+    }
+
+    private var applyTodayButton: some View {
+        Button(action: {}) {
+            HStack {
+                Image(systemName: "calendar.badge.plus")
+                Text("Apply to Today")
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.green)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+        }
+    }
+
+    private var groceryButton: some View {
+        Button(action: {}) {
+            HStack {
+                Image(systemName: "cart")
+                Text("Grocery List")
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.white)
+            .foregroundColor(.green)
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.green, lineWidth: 1)
+            )
+        }
+    }
+
+    private var backgroundGradient: some View {
+        LinearGradient(
+            gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Menu {
+                Button(action: { showEditSheet = true }) {
+                    Label("Edit Diet", systemImage: "pencil")
+                }
+                Button(action: {}) {
+                    Label("Duplicate", systemImage: "doc.on.doc")
+                }
+                Button(role: .destructive, action: {}) {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var editSheetContent: some View {
+        if let dwm = dietWithMeals {
+            AddDietScreenNew(userId: dwm.diet.userId, onSave: {
+                loadDietDetails()
+                onUpdate?()
+            }, existingDiet: dwm.diet)
+        }
+    }
+
+    private func loadDietDetails() {
+        Task {
+            dietWithMeals = try? await viewModel.getDietWithMeals(dietId: dietId)
+            tags = (try? await viewModel.getTagsForDiet(dietId: dietId)) ?? []
         }
     }
 }
@@ -190,10 +288,18 @@ struct NutritionBox: View {
     }
 }
 
-struct MealSlotCard: View {
+struct MealSlotCardNew: View {
     let slot: String
-    let mealName: String
-    let calories: Double
+    let mealWithFoods: MealWithFoods
+
+    var slotIcon: String {
+        switch slot {
+        case "Breakfast": return "sunrise.fill"
+        case "Lunch": return "sun.max.fill"
+        case "Dinner": return "moon.fill"
+        default: return "leaf.fill"
+        }
+    }
 
     var body: some View {
         HStack {
@@ -205,14 +311,14 @@ struct MealSlotCard: View {
                 Text(slot)
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text(mealName)
+                Text(mealWithFoods.meal.name)
                     .font(.subheadline)
                     .fontWeight(.medium)
             }
 
             Spacer()
 
-            Text("\(Int(calories)) kcal")
+            Text("\(Int(mealWithFoods.totalCalories)) kcal")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -225,6 +331,10 @@ struct MealSlotCard: View {
         .cornerRadius(10)
         .shadow(color: .black.opacity(0.05), radius: 2)
     }
+}
+
+struct EmptyMealSlotCard: View {
+    let slot: String
 
     var slotIcon: String {
         switch slot {
@@ -234,132 +344,257 @@ struct MealSlotCard: View {
         default: return "leaf.fill"
         }
     }
+
+    var body: some View {
+        HStack {
+            Image(systemName: slotIcon)
+                .foregroundColor(.gray)
+                .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(slot)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("No meal assigned")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "plus.circle")
+                .foregroundColor(.green)
+        }
+        .padding()
+        .background(Color.white.opacity(0.7))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.gray.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5]))
+        )
+    }
 }
 
-struct AddDietScreen: View {
+struct AddDietScreenNew: View {
     @Environment(\.dismiss) var dismiss
-    var onSave: (DietUI) -> Void
+    let userId: Int64
+    var onSave: () -> Void
+    var existingDiet: Diet? = nil
 
+    @StateObject private var viewModel = DietsViewModel()
     @State private var name = ""
     @State private var description = ""
     @State private var tagInput = ""
-    @State private var tags: [String] = []
+    @State private var selectedTags: [Tag] = []
+    @State private var availableTags: [Tag] = []
 
-    var isFormValid: Bool {
-        !name.isEmpty
-    }
+    var isEditMode: Bool { existingDiet != nil }
+    var isFormValid: Bool { !name.isEmpty }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Diet Info") {
-                    TextField("Diet Name", text: $name)
-                    TextField("Description", text: $description, axis: .vertical)
-                        .lineLimit(3...6)
-                }
-
-                Section("Tags") {
-                    HStack {
-                        TextField("Add tag", text: $tagInput)
-                        Button(action: addTag) {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.green)
-                        }
-                        .disabled(tagInput.isEmpty)
-                    }
-
-                    if !tags.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack {
-                                ForEach(tags, id: \.self) { tag in
-                                    HStack(spacing: 4) {
-                                        Text(tag)
-                                            .font(.caption)
-                                        Button(action: { tags.removeAll { $0 == tag } }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.caption)
-                                        }
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.green.opacity(0.2))
-                                    .foregroundColor(.green)
-                                    .cornerRadius(12)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Section {
-                    Text("After creating, add meals to each slot")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Section {
-                    Button(action: saveDiet) {
-                        HStack {
-                            Spacer()
-                            Text("Create Diet")
-                                .fontWeight(.semibold)
-                            Spacer()
-                        }
-                    }
-                    .disabled(!isFormValid)
-                }
+                dietInfoSection
+                tagsSection
+                noteSection
+                saveButtonSection
             }
-            .navigationTitle("New Diet")
+            .navigationTitle(isEditMode ? "Edit Diet" : "New Diet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .onAppear { onAppearSetup() }
+        }
+    }
+
+    private var dietInfoSection: some View {
+        Section("Diet Info") {
+            TextField("Diet Name", text: $name)
+            TextField("Description", text: $description, axis: .vertical)
+                .lineLimit(3...6)
+        }
+    }
+
+    private var tagsSection: some View {
+        Section("Tags") {
+            if !availableTags.isEmpty {
+                availableTagsView
+            }
+            newTagField
+        }
+    }
+
+    private var availableTagsView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack {
+                ForEach(availableTags, id: \.id) { tag in
+                    tagToggleButton(tag)
                 }
             }
         }
     }
 
-    private func addTag() {
-        let tag = tagInput.trimmingCharacters(in: .whitespaces)
-        if !tag.isEmpty && !tags.contains(tag) {
-            tags.append(tag)
-            tagInput = ""
+    private func tagToggleButton(_ tag: Tag) -> some View {
+        let isSelected = selectedTags.contains(where: { $0.id == tag.id })
+        return Button(action: {
+            if isSelected {
+                selectedTags.removeAll { $0.id == tag.id }
+            } else {
+                selectedTags.append(tag)
+            }
+        }) {
+            Text(tag.name)
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.green : Color.gray.opacity(0.2))
+                .foregroundColor(isSelected ? .white : .primary)
+                .cornerRadius(16)
+        }
+    }
+
+    private var newTagField: some View {
+        HStack {
+            TextField("New tag name", text: $tagInput)
+            Button(action: createTag) {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundColor(.green)
+            }
+            .disabled(tagInput.isEmpty)
+        }
+    }
+
+    private var noteSection: some View {
+        Section {
+            Text("After creating, assign meals to each slot")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var saveButtonSection: some View {
+        Section {
+            Button(action: saveDiet) {
+                HStack {
+                    Spacer()
+                    Text(isEditMode ? "Update Diet" : "Create Diet")
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+            }
+            .disabled(!isFormValid)
+        }
+    }
+
+    private func onAppearSetup() {
+        loadTags()
+        if let diet = existingDiet {
+            name = diet.name
+            description = diet.description_ ?? ""
+            loadDietTags(dietId: diet.id)
+        }
+    }
+
+    private func loadTags() {
+        Task {
+            availableTags = (try? await viewModel.getAllTags(userId: userId)) ?? []
+        }
+    }
+
+    private func loadDietTags(dietId: Int64) {
+        Task {
+            selectedTags = (try? await viewModel.getTagsForDiet(dietId: dietId)) ?? []
+        }
+    }
+
+    private func createTag() {
+        let tagName = tagInput.trimmingCharacters(in: .whitespaces)
+        guard !tagName.isEmpty else { return }
+
+        Task {
+            let tag = Tag(
+                id: 0,
+                userId: userId,
+                name: tagName,
+                color: "#4CAF50",
+                createdAt: Int64(Date().timeIntervalSince1970 * 1000)
+            )
+            if let id = try? await RepositoryProvider.shared.dietRepository.insertTag(tag: tag) {
+                let newTag = Tag(id: id.int64Value, userId: userId, name: tagName, color: "#4CAF50", createdAt: tag.createdAt)
+                availableTags.append(newTag)
+                selectedTags.append(newTag)
+                tagInput = ""
+            }
         }
     }
 
     private func saveDiet() {
-        let diet = DietUI(
-            id: Int64(Date().timeIntervalSince1970),
-            name: name,
-            description: description,
-            calories: 0,
-            protein: 0,
-            carbs: 0,
-            fat: 0,
-            mealCount: 0,
-            tags: tags
+        Task {
+            let diet = Diet(
+                id: existingDiet?.id ?? 0,
+                userId: userId,
+                name: name,
+                description: description.isEmpty ? nil : description,
+                createdAt: existingDiet?.createdAt ?? Int64(Date().timeIntervalSince1970 * 1000)
+            )
+
+            do {
+                let dietId: Int64
+                if isEditMode {
+                    try await viewModel.updateDiet(diet)
+                    dietId = diet.id
+                    try await RepositoryProvider.shared.dietRepository.clearDietTags(dietId: dietId)
+                } else {
+                    dietId = try await viewModel.insertDiet(diet)
+                }
+
+                for tag in selectedTags {
+                    try await viewModel.addTagToDiet(dietId: dietId, tagId: tag.id)
+                }
+
+                onSave()
+                dismiss()
+            } catch {
+                print("Error saving diet: \(error)")
+            }
+        }
+    }
+}
+
+// Color extension for hex colors
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3:
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6:
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8:
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255
         )
-        onSave(diet)
-        dismiss()
     }
 }
 
 struct DietDetailScreen_Previews: PreviewProvider {
     static var previews: some View {
         NavigationStack {
-            DietDetailScreen(diet: DietUI(
-                id: 1,
-                name: "High Protein",
-                description: "Focus on protein-rich meals",
-                calories: 2200,
-                protein: 180,
-                carbs: 200,
-                fat: 70,
-                mealCount: 4,
-                tags: ["Muscle", "High Protein"]
-            ))
+            DietDetailScreenNew(dietId: 1)
         }
     }
 }

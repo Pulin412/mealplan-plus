@@ -97,7 +97,7 @@ DELETE FROM tags WHERE id = ?;
 
 -- Diet-Tag queries
 selectTagsForDiet:
-SELECT t.* FROM tags t
+SELECT t.id, t.userId, t.name, t.color, t.createdAt FROM tags t
 JOIN diet_tags dt ON t.id = dt.tagId
 WHERE dt.dietId = ?;
 

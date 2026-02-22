@@ -114,6 +114,11 @@ class MealRepository(private val database: MealPlanDatabase) {
         queries.deleteCustomSlot(id)
     }
 
+    // MARK: - Snapshot functions for iOS
+    suspend fun getAllMealsSnapshot(userId: Long): List<Meal> {
+        return queries.selectAllMeals(userId).executeAsList().map { it.toMeal() }
+    }
+
     private fun com.mealplanplus.shared.db.Meals.toMeal(): Meal {
         return Meal(
             id = id,
