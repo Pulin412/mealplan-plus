@@ -40,7 +40,7 @@ struct DietPickerSheet: View {
                         Image(systemName: "fork.knife")
                             .font(.largeTitle)
                             .foregroundColor(.secondary.opacity(0.4))
-                        Text(diets.isEmpty ? "No diets available" : "No results for "\(searchText)"")
+                        Text(diets.isEmpty ? "No diets available" : "No results for \"\(searchText)\"")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
