@@ -46,7 +46,7 @@ struct DietsScreen: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(filteredDiets) { diet in
-                                NavigationLink(destination: DietDetailScreen(diet: diet)) {
+                                NavigationLink(destination: DietDetailScreenNew(dietId: diet.id)) {
                                     DietCardView(diet: diet)
                                 }
                                 .buttonStyle(PlainButtonStyle())

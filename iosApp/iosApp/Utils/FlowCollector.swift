@@ -308,7 +308,7 @@ class PlansViewModel: ObservableObject {
 
     func assignDiet(userId: Int64, date: String, diet: Diet) {
         Task {
-            let plan = Plan(userId: userId, date: date, dietId: diet.id, notes: nil, isCompleted: false)
+            let plan = Plan(userId: userId, date: date, dietId: diet.id.toKotlinLong(), notes: nil, isCompleted: false)
             try? await repository.insertOrUpdatePlan(plan: plan)
             self.selectedDiet = diet
             // Update local plans list optimistically

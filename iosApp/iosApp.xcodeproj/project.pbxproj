@@ -36,6 +36,8 @@
 		2A1234560037 /* AddMetricScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570037 /* AddMetricScreen.swift */; };
 		2A1234560038 /* ChartsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570038 /* ChartsScreen.swift */; };
 		2A1234560039 /* DatabaseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570039 /* DatabaseSeeder.swift */; };
+		2A1234560043 /* SeedDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570043 /* SeedDataLoader.swift */; };
+		2A1234560044 /* AddDietScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570044 /* AddDietScreen.swift */; };
 		2A1234560040 /* DataImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570040 /* DataImporter.swift */; };
 		2A12345800T1 /* AuthValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T2 /* AuthValidationTests.swift */; };
 		2A1234560041 /* MealPlanScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570041 /* MealPlanScreen.swift */; };
@@ -88,6 +90,8 @@
 		2A1234570037 /* AddMetricScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMetricScreen.swift; sourceTree = "<group>"; };
 		2A1234570038 /* ChartsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsScreen.swift; sourceTree = "<group>"; };
 		2A1234570039 /* DatabaseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseSeeder.swift; sourceTree = "<group>"; };
+		2A1234570043 /* SeedDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedDataLoader.swift; sourceTree = "<group>"; };
+		2A1234570044 /* AddDietScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDietScreen.swift; sourceTree = "<group>"; };
 		2A1234570040 /* DataImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataImporter.swift; sourceTree = "<group>"; };
 		2A12345800T2 /* AuthValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthValidationTests.swift; sourceTree = "<group>"; };
 		2A1234570041 /* MealPlanScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanScreen.swift; sourceTree = "<group>"; };
@@ -237,6 +241,7 @@
 			children = (
 				2A1234570018 /* DietsScreen.swift */,
 				2A1234570019 /* DietDetailScreen.swift */,
+				2A1234570044 /* AddDietScreen.swift */,
 			);
 			path = Diets;
 			sourceTree = "<group>";
@@ -272,6 +277,7 @@
 				2A1234570033 /* DatabaseManager.swift */,
 				2A1234570034 /* RepositoryProvider.swift */,
 				2A1234570039 /* DatabaseSeeder.swift */,
+				2A1234570043 /* SeedDataLoader.swift */,
 				2A1234570040 /* DataImporter.swift */,
 			);
 			path = Data;
@@ -444,6 +450,7 @@
 				2A1234560017 /* AddMealScreen.swift in Sources */,
 				2A1234560018 /* DietsScreen.swift in Sources */,
 				2A1234560019 /* DietDetailScreen.swift in Sources */,
+				2A1234560044 /* AddDietScreen.swift in Sources */,
 				2A1234560020 /* DailyLogScreen.swift in Sources */,
 				2A1234560021 /* MoreScreen.swift in Sources */,
 				2A1234560022 /* BarcodeScannerScreen.swift in Sources */,
@@ -455,6 +462,7 @@
 				2A1234560037 /* AddMetricScreen.swift in Sources */,
 				2A1234560038 /* ChartsScreen.swift in Sources */,
 				2A1234560039 /* DatabaseSeeder.swift in Sources */,
+				2A1234560043 /* SeedDataLoader.swift in Sources */,
 				2A1234560040 /* DataImporter.swift in Sources */,
 				2A1234560041 /* MealPlanScreen.swift in Sources */,
 				2A1234560042 /* DietPickerSheet.swift in Sources */,

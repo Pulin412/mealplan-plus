@@ -87,17 +87,7 @@ struct HomeScreen: View {
                 viewModel.load(userId: userId)
             }
         }) {
-            LogFoodPickerScreen(
-                slot: "BREAKFAST",
-                userId: appState.currentUserId ?? 0,
-                date: isoToday(),
-                onSave: {
-                    showQuickLog = false
-                    if let userId = appState.currentUserId {
-                        viewModel.load(userId: userId)
-                    }
-                }
-            )
+            DailyLogScreen(date: Date())
         }
         .onAppear {
             if let userId = appState.currentUserId {

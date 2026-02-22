@@ -505,8 +505,19 @@ struct MealPlanScreen: View {
 
     // MARK: - Diet Detail Section
 
+    private func buildMealsMap(_ dwm: DietWithMeals) -> [String: MealWithFoods?] {
+        var map: [String: MealWithFoods?] = [:]
+        if let nd = dwm.meals as? NSDictionary {
+            for (k, v) in nd {
+                if let key = k as? String { map[key] = v as? MealWithFoods }
+            }
+        }
+        return map
+    }
+
     private func dietDetailSection(_ dwm: DietWithMeals) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let mealsMap = buildMealsMap(dwm)
+        return VStack(alignment: .leading, spacing: 12) {
             // Macro tiles
             HStack(spacing: 8) {
                 MacroTile(value: Int(dwm.totalCalories), label: "Calories", unit: "kcal")
@@ -520,13 +531,7 @@ struct MealPlanScreen: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            // Meal slots — NSDictionary cast (KMP map bridges as NSDictionary, not Swift Dict)
-            var mealsMap: [String: MealWithFoods?] = [:]
-            if let nd = dwm.meals as? NSDictionary {
-                for (k, v) in nd {
-                    if let key = k as? String { mealsMap[key] = v as? MealWithFoods }
-                }
-            }
+            // Meal slots
             VStack(spacing: 0) {
                 ForEach(allSlots, id: \.self) { slot in
                     let meal = mealsMap[slot] ?? nil
