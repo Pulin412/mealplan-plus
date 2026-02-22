@@ -22,7 +22,7 @@ data class CalendarUiState(
     val selectedDietWithMeals: DietWithMeals? = null,
     val selectedDietTags: List<Tag> = emptyList(),
     val showDietPicker: Boolean = false,
-    val isWeekView: Boolean = false,
+    val isWeekView: Boolean = true,
     val isLoading: Boolean = false
 )
 

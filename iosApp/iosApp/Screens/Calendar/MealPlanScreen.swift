@@ -250,7 +250,7 @@ struct MealPlanScreen: View {
             .padding(.horizontal, 4)
 
             if plansVM.isWeekView {
-                // Single week row
+                // Single week row — fixed height prevents cells expanding to fill card
                 HStack(spacing: 0) {
                     ForEach(daysInWeek, id: \.self) { date in
                         let dateStr = isoString(date)
@@ -261,14 +261,16 @@ struct MealPlanScreen: View {
                             isToday: Calendar.current.isDateInToday(date),
                             hasPlan: plan != nil,
                             isCompleted: plan?.isCompleted ?? false,
-                            compact: false,
+                            compact: true,
                             dietName: plan?.dietName.flatMap { extractShortDietName($0) }
                         ) {
                             selectedDate = date
                             plansVM.selectDate(dateStr, userId: userId)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: 48)
                     }
                 }
+                .frame(height: 48)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 8)
             } else {

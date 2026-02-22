@@ -247,7 +247,7 @@ class PlansViewModel: ObservableObject {
     @Published var selectedDiet: Diet? = nil
     @Published var selectedDietWithMeals: DietWithMeals? = nil
     @Published var selectedDietTags: [Tag] = []
-    @Published var isWeekView: Bool = false
+    @Published var isWeekView: Bool = true
 
     private let repository = RepositoryProvider.shared.planRepository
     private let dietRepository = RepositoryProvider.shared.dietRepository
