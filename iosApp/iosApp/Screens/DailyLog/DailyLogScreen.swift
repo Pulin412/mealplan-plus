@@ -1,331 +1,625 @@
 import SwiftUI
 import shared
 
-struct DailyLogScreen: View {
-    let date: Date
-    @State private var loggedMeals: [LoggedMealUI] = []
-    @State private var showMealPicker = false
-    @State private var selectedSlot: String = "Breakfast"
+// ── Colours ───────────────────────────────────────────────────────────────────
+private let topBarGreen = Color(red: 0.18, green: 0.49, blue: 0.32)
+private let logBg = Color(red: 0.94, green: 0.976, blue: 0.957)
+private let caloriesColor = Color(red: 0.298, green: 0.686, blue: 0.314)
+private let carbsColor    = Color(red: 1.0, green: 0.596, blue: 0.0)
+private let proteinColor  = Color(red: 0.129, green: 0.588, blue: 0.953)
+private let fatColor      = Color(red: 0.914, green: 0.118, blue: 0.388)
+private let overColor     = Color(red: 1.0, green: 0.596, blue: 0.0)
 
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d, yyyy"
-        return formatter
+// ── Slot Order ────────────────────────────────────────────────────────────────
+private let slotOrder: [String: Int] = [
+    "EARLY_MORNING": 0, "BREAKFAST": 1, "MID_MORNING": 2,
+    "NOON": 3, "LUNCH": 4, "PRE_WORKOUT": 5,
+    "EVENING": 6, "EVENING_SNACK": 7, "POST_WORKOUT": 8,
+    "DINNER": 9, "POST_DINNER": 10
+]
+private let mainSlots = ["BREAKFAST", "LUNCH", "DINNER", "EVENING_SNACK"]
+private func slotDisplayName(_ key: String) -> String {
+    key.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+}
+private func slotEmoji(_ key: String) -> String {
+    switch key {
+    case "BREAKFAST": return "🌅"
+    case "LUNCH": return "🍽️"
+    case "DINNER": return "🌙"
+    case "EVENING_SNACK": return "🍎"
+    case "EARLY_MORNING": return "🌙"
+    case "MID_MORNING": return "☕"
+    case "NOON": return "☀️"
+    case "PRE_WORKOUT": return "💪"
+    case "EVENING": return "🌆"
+    case "POST_WORKOUT": return "🥤"
+    case "POST_DINNER": return "🍵"
+    default: return "🍴"
     }
-
-    var totalCalories: Double {
-        loggedMeals.reduce(0) { $0 + $1.calories }
-    }
-
-    var totalProtein: Double {
-        loggedMeals.reduce(0) { $0 + $1.protein }
-    }
-
-    var totalCarbs: Double {
-        loggedMeals.reduce(0) { $0 + $1.carbs }
-    }
-
-    var totalFat: Double {
-        loggedMeals.reduce(0) { $0 + $1.fat }
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Date header
-                Text(dateFormatter.string(from: date))
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                    .padding(.top)
-
-                // Daily summary
-                VStack(spacing: 16) {
-                    Text("Daily Summary")
-                        .font(.headline)
-
-                    HStack(spacing: 20) {
-                        DailyStat(value: totalCalories, label: "Calories", color: .green)
-                        DailyStat(value: totalProtein, label: "Protein", color: .red)
-                        DailyStat(value: totalCarbs, label: "Carbs", color: .blue)
-                        DailyStat(value: totalFat, label: "Fat", color: .yellow)
-                    }
-                }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
-                // Meal slots
-                ForEach(["Breakfast", "Lunch", "Dinner", "Snacks"], id: \.self) { slot in
-                    MealSlotSection(
-                        slot: slot,
-                        meals: loggedMeals.filter { $0.slot == slot },
-                        onAddTapped: {
-                            selectedSlot = slot
-                            showMealPicker = true
-                        },
-                        onRemove: { meal in
-                            loggedMeals.removeAll { $0.id == meal.id }
-                        }
-                    )
-                }
-
-                Spacer().frame(height: 20)
-            }
-        }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
-        .navigationTitle("Daily Log")
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showMealPicker) {
-            LogMealPickerScreen(slot: selectedSlot) { meal in
-                loggedMeals.append(meal)
-            }
-        }
-        .onAppear {
-            loadSampleData()
-        }
-    }
-
-    private func loadSampleData() {
-        loggedMeals = [
-            LoggedMealUI(id: 1, name: "Oatmeal with Berries", slot: "Breakfast", calories: 350, protein: 12, carbs: 58, fat: 8, quantity: 1.0),
-            LoggedMealUI(id: 2, name: "Protein Smoothie", slot: "Snacks", calories: 280, protein: 25, carbs: 30, fat: 6, quantity: 1.0),
-        ]
+}
+private func slotColor(_ key: String) -> Color {
+    switch key {
+    case "BREAKFAST": return carbsColor
+    case "LUNCH": return proteinColor
+    case "DINNER": return Color(red: 0.612, green: 0.153, blue: 0.69)
+    case "EVENING_SNACK": return caloriesColor
+    default: return Color.gray
     }
 }
 
-struct DailyStat: View {
-    let value: Double
-    let label: String
-    let color: Color
+// ── isoDate helpers ───────────────────────────────────────────────────────────
+private func isoDate(from date: Date) -> String {
+    let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"; return fmt.string(from: date)
+}
+private func date(from iso: String) -> Date? {
+    let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"; return fmt.date(from: iso)
+}
+private func displayDate(_ date: Date) -> String {
+    let fmt = DateFormatter(); fmt.dateFormat = "MMMM d, yyyy"; return fmt.string(from: date)
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
+struct DailyLogScreen: View {
+    @EnvironmentObject var appState: AppState
+    @StateObject private var vm = DailyLogViewModel()
+    @State private var selectedDate: Date = Date()
+    @State private var selectedTab: Int = 0
+    @State private var expandedSlots: Set<String> = ["BREAKFAST"]
+    @State private var showAddFood: Bool = false
+    @State private var addFoodSlot: String = "BREAKFAST"
+
+    private var userId: Int64 { Int64(appState.currentUserId ?? 0) }
+    private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
 
     var body: some View {
-        VStack(spacing: 4) {
-            Text("\(Int(value))")
-                .font(.title3)
-                .fontWeight(.bold)
+        NavigationStack {
+            ZStack(alignment: .top) {
+                logBg.ignoresSafeArea()
+                VStack(spacing: 0) {
+                    dateNavigatorPill
+                    macroSummaryCard
+                    if vm.isLoading {
+                        Spacer()
+                        ProgressView().tint(caloriesColor)
+                        Spacer()
+                    } else if selectedTab == 0 {
+                        dailyLogTab
+                    } else {
+                        planVsActualTab
+                    }
+                }
+            }
+            .navigationTitle("Food Log")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(topBarGreen, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .sheet(isPresented: $showAddFood) {
+                FoodPickerSheet(
+                    slotKey: addFoodSlot,
+                    userId: userId,
+                    date: isoDate(from: selectedDate),
+                    onLogged: { reload() }
+                )
+            }
+        }
+        .onAppear { reload() }
+        .onChange(of: selectedDate) { _ in reload() }
+    }
+
+    private func reload() {
+        vm.loadLog(userId: userId, date: isoDate(from: selectedDate))
+    }
+
+    // ── Date Navigator Pill ──────────────────────────────────────────────────
+    private var dateNavigatorPill: some View {
+        HStack {
+            Button(action: { selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate }) {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(topBarGreen)
+                    .frame(width: 40, height: 40)
+            }
+            Spacer()
+            VStack(spacing: 0) {
+                if isToday {
+                    Text("Today · \(displayDate(selectedDate))")
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(Color(red: 0.106, green: 0.369, blue: 0.125))
+                } else {
+                    Text(displayDate(selectedDate))
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(Color(red: 0.106, green: 0.369, blue: 0.125))
+                }
+            }
+            Spacer()
+            Button(action: { selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate }) {
+                Image(systemName: "chevron.right")
+                    .foregroundColor(isToday ? Color.gray : topBarGreen)
+                    .frame(width: 40, height: 40)
+            }
+            .disabled(isToday)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+    }
+
+    // ── Macro Summary Card ───────────────────────────────────────────────────
+    private var macroSummaryCard: some View {
+        let totalCal = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+        let totalPro = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+        let totalCarb = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+        let totalFat_ = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+
+        return VStack(spacing: 12) {
+            HStack(spacing: 0) {
+                MacroTileView(label: "Calories", value: Int(totalCal), unit: "kcal", planned: Int(vm.plannedCalories), color: caloriesColor)
+                MacroTileView(label: "Carbs",    value: Int(totalCarb), unit: "g",    planned: Int(vm.plannedCarbs),    color: carbsColor)
+                MacroTileView(label: "Protein",  value: Int(totalPro),  unit: "g",    planned: Int(vm.plannedProtein),  color: proteinColor)
+                MacroTileView(label: "Fat",      value: Int(totalFat_), unit: "g",    planned: Int(vm.plannedFat),      color: fatColor)
+            }
+            // Tab toggle
+            HStack(spacing: 0) {
+                tabButton(label: "Daily Log", index: 0)
+                tabButton(label: "Plan vs Actual", index: 1)
+            }
+            .background(Color(white: 0.96))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+        }
+        .padding(16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private func tabButton(label: String, index: Int) -> some View {
+        let selected = selectedTab == index
+        Text(label)
+            .font(.system(size: 13, weight: selected ? .semibold : .regular))
+            .foregroundColor(selected ? .white : .gray)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(selected ? topBarGreen : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 17))
+            .padding(3)
+            .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { selectedTab = index } }
+    }
+
+    // ── Daily Log Tab ────────────────────────────────────────────────────────
+    private var dailyLogTab: some View {
+        let foodSlotKeys = Set(vm.loggedFoods.map { $0.loggedFood.slotType.uppercased() })
+        let allKeys = (Set(mainSlots) + foodSlotKeys).sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
+
+        return ScrollView {
+            LazyVStack(spacing: 8) {
+                ForEach(allKeys, id: \.self) { key in
+                    let foods = vm.loggedFoodsBySlot[key] ?? []
+                    SlotCard(
+                        slotKey: key,
+                        foods: foods,
+                        isExpanded: expandedSlots.contains(key),
+                        onToggle: {
+                            if expandedSlots.contains(key) { expandedSlots.remove(key) }
+                            else { expandedSlots.insert(key) }
+                        },
+                        onAddFood: {
+                            addFoodSlot = key
+                            showAddFood = true
+                        },
+                        onDeleteFood: { id in
+                            vm.removeLoggedFood(userId: userId, id: id)
+                        }
+                    )
+                }
+                Spacer().frame(height: 80)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+        }
+    }
+
+    // ── Plan vs Actual Tab ───────────────────────────────────────────────────
+    private var planVsActualTab: some View {
+        let totalCal = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+        let totalPro = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+        let totalCarb = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+        let totalFat_ = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+
+        return ScrollView {
+            VStack(spacing: 0) {
+                // Legend
+                HStack(spacing: 16) {
+                    legendDot(color: Color.gray.opacity(0.4), label: "Planned")
+                    legendDot(color: caloriesColor, label: "Actual")
+                    legendDot(color: overColor, label: "Over target")
+                    Spacer()
+                }
+                .padding(.bottom, 12)
+                MacroCompRowView(label: "Calories", actual: Int(totalCal),  planned: Int(vm.plannedCalories), color: caloriesColor, unit: "kcal")
+                MacroCompRowView(label: "Carbs",    actual: Int(totalCarb), planned: Int(vm.plannedCarbs),    color: carbsColor,    unit: "g")
+                MacroCompRowView(label: "Protein",  actual: Int(totalPro),  planned: Int(vm.plannedProtein),  color: proteinColor,  unit: "g")
+                MacroCompRowView(label: "Fat",      actual: Int(totalFat_), planned: Int(vm.plannedFat),      color: fatColor,      unit: "g")
+            }
+            .padding(16)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.05), radius: 3)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+        }
+    }
+
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 10, height: 10)
+            Text(label).font(.caption).foregroundColor(.secondary)
+        }
+    }
+}
+
+// ── Macro Tile ────────────────────────────────────────────────────────────────
+private struct MacroTileView: View {
+    let label: String
+    let value: Int
+    let unit: String
+    let planned: Int
+    let color: Color
+
+    private var fraction: CGFloat {
+        planned > 0 ? min(1.0, CGFloat(value) / CGFloat(planned)) : 0
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.system(size: 20, weight: .bold))
                 .foregroundColor(color)
+            Text(unit)
+                .font(.system(size: 10))
+                .foregroundColor(color.opacity(0.7))
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(color.opacity(0.15))
+                        .frame(height: 4)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(color)
+                        .frame(width: geo.size.width * fraction, height: 4)
+                }
+            }
+            .frame(height: 4)
+            .padding(.vertical, 3)
             Text(label)
-                .font(.caption)
+                .font(.system(size: 10))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-struct MealSlotSection: View {
-    let slot: String
-    let meals: [LoggedMealUI]
-    let onAddTapped: () -> Void
-    let onRemove: (LoggedMealUI) -> Void
+// ── Slot Card ─────────────────────────────────────────────────────────────────
+private struct SlotCard: View {
+    let slotKey: String
+    let foods: [LoggedFoodWithDetails]
+    let isExpanded: Bool
+    let onToggle: () -> Void
+    let onAddFood: () -> Void
+    let onDeleteFood: (Int64) -> Void
 
-    var slotCalories: Double {
-        meals.reduce(0) { $0 + $1.calories }
+    private var totalKcal: Int {
+        Int(foods.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) })
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: slotIcon)
-                    .foregroundColor(.green)
-                Text(slot)
-                    .font(.headline)
-                Spacer()
-                Text("\(Int(slotCalories)) kcal")
-                    .font(.subheadline)
+        VStack(spacing: 0) {
+            // Header
+            Button(action: onToggle) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(slotColor(slotKey).opacity(0.15))
+                            .frame(width: 36, height: 36)
+                        Text(slotEmoji(slotKey)).font(.system(size: 16))
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(slotDisplayName(slotKey))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Text("\(foods.count) logged · \(totalKcal) kcal")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 13))
+                }
+                .padding(12)
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                Divider().padding(.horizontal, 0)
+                if foods.isEmpty {
+                    Text("No foods logged")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    ForEach(foods, id: \.loggedFood.id) { lf in
+                        FoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
+                        Divider().padding(.horizontal, 12).opacity(0.4)
+                    }
+                }
+                // Add Food button
+                Button(action: onAddFood) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13))
+                        Text("Add Food")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
+    }
+}
+
+// ── Food Row ──────────────────────────────────────────────────────────────────
+private struct FoodRowView: View {
+    let food: LoggedFoodWithDetails
+    let onDelete: () -> Void
+
+    private var kcal: Int {
+        Int(food.food.calculateCalories(quantity: food.loggedFood.quantity, unit: food.loggedFood.unit))
+    }
+    private var carbs: Int {
+        Int(food.food.calculateCarbs(quantity: food.loggedFood.quantity, unit: food.loggedFood.unit))
+    }
+    private var gi: Int32? { food.food.glycemicIndex?.int32Value }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Green logged circle
+            ZStack {
+                Circle().fill(caloriesColor).frame(width: 20, height: 20)
+                Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(food.food.name)
+                        .font(.system(size: 14))
+                        .lineLimit(1)
+                    if let gi = gi {
+                        GiBadgeView(gi: Int(gi))
+                    }
+                }
+                Text("\(Int(food.loggedFood.quantity))g · \(carbs)g carbs")
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
-            .padding(.horizontal)
-
-            if meals.isEmpty {
-                Button(action: onAddTapped) {
-                    HStack {
-                        Image(systemName: "plus.circle")
-                        Text("Add \(slot)")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.white)
-                    .foregroundColor(.green)
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
-            } else {
-                ForEach(meals) { meal in
-                    LoggedMealRow(meal: meal, onRemove: { onRemove(meal) })
-                }
-                .padding(.horizontal)
-
-                Button(action: onAddTapped) {
-                    HStack {
-                        Image(systemName: "plus")
-                        Text("Add more")
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(.green)
-                }
-                .padding(.horizontal)
+            Spacer()
+            Text("\(kcal) kcal")
+                .font(.system(size: 12, weight: .medium))
+            Button(action: onDelete) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .frame(width: 28, height: 28)
             }
         }
+        .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
+}
 
-    var slotIcon: String {
-        switch slot {
-        case "Breakfast": return "sunrise.fill"
-        case "Lunch": return "sun.max.fill"
-        case "Dinner": return "moon.fill"
-        default: return "leaf.fill"
-        }
+// ── GI Badge ──────────────────────────────────────────────────────────────────
+private struct GiBadgeView: View {
+    let gi: Int
+    private var bg: Color {
+        gi <= 55 ? caloriesColor : gi <= 69 ? carbsColor : Color.red
+    }
+    var body: some View {
+        Text("GI \(gi)")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(bg)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
-struct LoggedMealRow: View {
-    let meal: LoggedMealUI
-    let onRemove: () -> Void
+// ── Macro Comparison Row ──────────────────────────────────────────────────────
+private struct MacroCompRowView: View {
+    let label: String
+    let actual: Int
+    let planned: Int
+    let color: Color
+    let unit: String
+
+    private var diff: Int { actual - planned }
+    private var isOver: Bool { diff > 0 && planned > 0 }
+    private var barColor: Color { isOver ? overColor : color }
+    private var fraction: CGFloat {
+        planned > 0 ? min(1.0, CGFloat(actual) / CGFloat(planned)) : 0
+    }
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(meal.name)
-                    .font(.subheadline)
-                HStack(spacing: 8) {
-                    Text("P: \(Int(meal.protein))g")
-                    Text("C: \(Int(meal.carbs))g")
-                    Text("F: \(Int(meal.fat))g")
+        VStack(spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Plan: \(planned)\(unit)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("\(actual)\(unit)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(barColor)
+                if planned > 0 {
+                    Text(diff >= 0 ? "+\(diff)" : "\(diff)")
+                        .font(.caption)
+                        .foregroundColor(isOver ? overColor : caloriesColor)
                 }
-                .font(.caption2)
-                .foregroundColor(.secondary)
             }
-
-            Spacer()
-
-            Text("\(Int(meal.calories)) kcal")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.red.opacity(0.7))
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(height: 6)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(barColor)
+                        .frame(width: geo.size.width * fraction, height: 6)
+                }
             }
+            .frame(height: 6)
         }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(10)
+        .padding(.bottom, 10)
     }
 }
 
-struct LogMealPickerScreen: View {
-    @Environment(\.dismiss) var dismiss
-    let slot: String
-    var onSelect: (LoggedMealUI) -> Void
+// ── Food Picker Sheet ─────────────────────────────────────────────────────────
+struct FoodPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let slotKey: String
+    let userId: Int64
+    let date: String
+    let onLogged: () -> Void
 
-    @State private var meals: [MealUI] = []
+    @StateObject private var foodsVM = FoodsViewModel()
     @State private var searchText = ""
+    @State private var selectedFood: FoodItem?   // KMP FoodItem
+    @State private var quantityText = "100"
 
-    var filteredMeals: [MealUI] {
-        if searchText.isEmpty {
-            return meals
-        }
-        return meals.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    private var filtered: [FoodItem] {
+        searchText.isEmpty
+            ? foodsVM.foods
+            : foodsVM.foods.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
+    private var logRepo: DailyLogRepository { RepositoryProvider.shared.dailyLogRepository }
 
     var body: some View {
         NavigationStack {
-            VStack {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                    TextField("Search meals...", text: $searchText)
+            Group {
+                if selectedFood == nil {
+                    foodList
+                } else {
+                    quantityPicker
                 }
-                .padding(12)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                .padding()
-
-                List(filteredMeals) { meal in
-                    Button(action: { selectMeal(meal) }) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(meal.name)
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Text("\(meal.slot) • \(meal.foodCount) foods")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Text("\(Int(meal.calories)) kcal")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .listStyle(PlainListStyle())
             }
-            .navigationTitle("Log \(slot)")
+            .navigationTitle("Add Food to \(slotDisplayName(slotKey))")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+                    if selectedFood != nil {
+                        Button("Back") { selectedFood = nil; quantityText = "100" }
+                    } else {
+                        Button("Cancel") { dismiss() }
                     }
                 }
             }
-            .onAppear {
-                loadMeals()
+        }
+        .onAppear { foodsVM.loadFoods() }
+    }
+
+    private var foodList: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundColor(.gray)
+                TextField("Search foods…", text: $searchText)
+                    .onChange(of: searchText) { q in
+                        if q.isEmpty { foodsVM.loadFoods() } else { foodsVM.searchFoods(query: q) }
+                    }
             }
+            .padding(10)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            List(filtered, id: \.id) { food in
+                Button(action: { selectedFood = food; quantityText = "100" }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(food.name).font(.system(size: 14)).foregroundColor(.primary)
+                            Text("\(Int(food.caloriesPer100)) kcal/100g · P:\(Int(food.proteinPer100))g C:\(Int(food.carbsPer100))g")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        if let gi = food.glycemicIndex {
+                            GiBadgeView(gi: Int(gi.int32Value))
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
         }
     }
 
-    private func selectMeal(_ meal: MealUI) {
-        let logged = LoggedMealUI(
-            id: Int64(Date().timeIntervalSince1970),
-            name: meal.name,
-            slot: slot,
-            calories: Double(meal.calories),
-            protein: meal.protein,
-            carbs: meal.carbs,
-            fat: meal.fat,
-            quantity: 1.0
-        )
-        onSelect(logged)
-        dismiss()
+    private var quantityPicker: some View {
+        let food = selectedFood!
+        let qty = Double(quantityText) ?? 100.0
+        let kcal    = Int(food.caloriesPer100 * qty / 100)
+        let protein = Int(food.proteinPer100  * qty / 100)
+        let carbs   = Int(food.carbsPer100    * qty / 100)
+        let fat     = Int(food.fatPer100      * qty / 100)
+
+        return VStack(spacing: 16) {
+            Text(food.name)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+            Text("\(kcal) kcal · P:\(protein)g C:\(carbs)g F:\(fat)g")
+                .font(.subheadline).foregroundColor(.secondary)
+            TextField("Quantity (grams)", text: $quantityText)
+                .keyboardType(.decimalPad)
+                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal, 16)
+            Button(action: { logFood(food: food, qty: qty) }) {
+                Text("Log Food")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(red: 0.18, green: 0.49, blue: 0.32))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .padding(.horizontal, 16)
+            Spacer()
+        }
     }
 
-    private func loadMeals() {
-        meals = [
-            MealUI(id: 1, name: "Chicken & Rice Bowl", slot: "Lunch", calories: 550, protein: 45, carbs: 55, fat: 12, foodCount: 3),
-            MealUI(id: 2, name: "Oatmeal with Berries", slot: "Breakfast", calories: 350, protein: 12, carbs: 58, fat: 8, foodCount: 4),
-            MealUI(id: 3, name: "Grilled Salmon Dinner", slot: "Dinner", calories: 620, protein: 42, carbs: 35, fat: 28, foodCount: 4),
-            MealUI(id: 4, name: "Protein Smoothie", slot: "Snack", calories: 280, protein: 25, carbs: 30, fat: 6, foodCount: 5),
-        ]
-    }
-}
-
-// UI Model
-struct LoggedMealUI: Identifiable {
-    let id: Int64
-    let name: String
-    let slot: String
-    let calories: Double
-    let protein: Double
-    let carbs: Double
-    let fat: Double
-    let quantity: Double
-}
-
-struct DailyLogScreen_Previews: PreviewProvider {
-    static var previews: some View {
-        NavigationStack {
-            DailyLogScreen(date: Date())
+    private func logFood(food: FoodItem, qty: Double) {
+        Task {
+            let lf = LoggedFood(
+                id: 0, userId: userId, logDate: date, foodId: food.id,
+                quantity: qty, unit: FoodUnit.gram,
+                slotType: slotKey, timestamp: nil, notes: nil
+            )
+            _ = try? await logRepo.insertLoggedFood(loggedFood: lf)
+            await MainActor.run {
+                onLogged()
+                dismiss()
+            }
         }
     }
 }

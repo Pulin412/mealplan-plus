@@ -185,26 +185,80 @@ class DietsViewModel: ObservableObject {
 class DailyLogViewModel: ObservableObject {
     @Published var dailyLog: DailyLog?
     @Published var loggedFoods: [LoggedFoodWithDetails] = []
+    @Published var loggedFoodsBySlot: [String: [LoggedFoodWithDetails]] = [:]
     @Published var macroSummaries: [DailyMacroSummary] = []
     @Published var isLoading = false
     @Published var error: String?
 
-    private let repository = RepositoryProvider.shared.dailyLogRepository
+    // Planned macros from diet plan
+    @Published var plannedCalories: Double = 0
+    @Published var plannedProtein: Double = 0
+    @Published var plannedCarbs: Double = 0
+    @Published var plannedFat: Double = 0
 
-    func loadDailyLog(userId: Int64, date: String) {
+    // Current loaded date (iso yyyy-MM-dd)
+    private(set) var currentDate: String = ""
+    private(set) var currentUserId: Int64 = 0
+
+    private let repository = RepositoryProvider.shared.dailyLogRepository
+    private let planRepo = RepositoryProvider.shared.planRepository
+    private let dietRepo = RepositoryProvider.shared.dietRepository
+
+    /// Load log for a given user + date. Populates loggedFoods, loggedFoodsBySlot, planned macros.
+    func loadLog(userId: Int64, date: String) {
+        currentUserId = userId
+        currentDate = date
         isLoading = true
         error = nil
-
         Task {
-            do {
-                self.dailyLog = try await repository.getDailyLog(userId: userId, date: date)
-                self.loggedFoods = try await repository.getLoggedFoodsSnapshot(userId: userId, date: date)
-                self.isLoading = false
-            } catch {
-                self.error = error.localizedDescription
-                self.isLoading = false
+            let foods = (try? await repository.getLoggedFoodsSnapshot(userId: userId, date: date)) ?? []
+            self.loggedFoods = foods
+            self.loggedFoodsBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
+            // Planned macros from diet plan
+            if let plan = try? await planRepo.getPlanByDate(userId: userId, date: date),
+               let dietId = plan.dietId?.int64Value,
+               let dwm = try? await dietRepo.getDietWithMeals(dietId: dietId) {
+                self.plannedCalories = dwm.totalCalories
+                self.plannedProtein  = dwm.totalProtein
+                self.plannedCarbs    = dwm.totalCarbs
+                self.plannedFat      = dwm.totalFat
+            } else {
+                self.plannedCalories = 0
+                self.plannedProtein  = 0
+                self.plannedCarbs    = 0
+                self.plannedFat      = 0
+            }
+            self.isLoading = false
+        }
+    }
+
+    /// Log a single food item for the current date.
+    func logFood(userId: Int64, date: String, foodId: Int64, quantity: Double, slotType: String) {
+        Task {
+            let lf = LoggedFood(
+                id: 0, userId: userId, logDate: date, foodId: foodId,
+                quantity: quantity, unit: FoodUnit.gram,
+                slotType: slotType, timestamp: nil, notes: nil
+            )
+            _ = try? await repository.insertLoggedFood(loggedFood: lf)
+            loadLog(userId: userId, date: date)
+        }
+    }
+
+    /// Delete a logged food and reload.
+    func removeLoggedFood(userId: Int64, id: Int64) {
+        Task {
+            try? await repository.deleteLoggedFood(id: id)
+            if !currentDate.isEmpty {
+                loadLog(userId: userId, date: currentDate)
             }
         }
+    }
+
+    // ── Legacy methods kept for backward compat ──────────────────────────────
+
+    func loadDailyLog(userId: Int64, date: String) {
+        loadLog(userId: userId, date: date)
     }
 
     func loadMacroSummaries(userId: Int64, startDate: String, endDate: String) {

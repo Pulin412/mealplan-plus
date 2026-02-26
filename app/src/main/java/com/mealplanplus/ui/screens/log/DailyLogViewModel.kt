@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.PlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,15 +34,15 @@ data class MacroComparison(
 
 data class DailyLogUiState(
     val date: LocalDate = LocalDate.now(),
-    val logWithMeals: DailyLogWithMeals? = null,
+    val logWithFoods: DailyLogWithFoods? = null,
     val plannedDiet: DietWithMeals? = null,
-    val planForDate: Plan? = null,  // To check isCompleted status
+    val planForDate: Plan? = null,
     val comparison: MacroComparison = MacroComparison(),
     val isLoading: Boolean = true,
-    val showMealPicker: Boolean = false,
-    val showDietPicker: Boolean = false,
-    val selectedSlot: String? = null,
-    val finishCompleted: Boolean = false  // Trigger navigation after finish
+    val selectedTab: Int = 0, // 0=Daily Log, 1=Plan vs Actual
+    val showFoodPicker: Boolean = false,
+    val selectedSlot: DefaultMealSlot? = null,
+    val finishCompleted: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -50,7 +51,8 @@ class DailyLogViewModel @Inject constructor(
     private val logRepository: DailyLogRepository,
     private val mealRepository: MealRepository,
     private val planRepository: PlanRepository,
-    private val dietRepository: DietRepository
+    private val dietRepository: DietRepository,
+    private val foodRepository: FoodRepository
 ) : ViewModel() {
 
     private val _date = MutableStateFlow(LocalDate.now())
@@ -58,29 +60,22 @@ class DailyLogViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DailyLogUiState())
     val uiState: StateFlow<DailyLogUiState> = _uiState.asStateFlow()
 
-    val availableMeals: StateFlow<List<Meal>> = mealRepository.getMealsByUser()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-
-    val availableDiets: StateFlow<List<Diet>> = dietRepository.getDietsByUser()
+    val allFoods: StateFlow<List<FoodItem>> = foodRepository.getAllFoods()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        // Use flatMapLatest to properly handle date changes and Flow updates
         viewModelScope.launch {
             _date.flatMapLatest { date ->
                 _uiState.update { it.copy(date = date, isLoading = true) }
-                logRepository.getLogWithMeals(date)
-            }.collect { logWithMeals ->
+                logRepository.getLogWithFoods(date)
+            }.collect { logWithFoods ->
                 val date = _date.value
-                // Load plan and planned diet for comparison
                 val plan = planRepository.getPlanForDate(date.toString())
-                val plannedDiet = plan?.dietId?.let {
-                    dietRepository.getDietWithMeals(it)
-                }
-                val comparison = buildComparison(plannedDiet, logWithMeals)
+                val plannedDiet = plan?.dietId?.let { dietRepository.getDietWithMeals(it) }
+                val comparison = buildComparison(plannedDiet, logWithFoods)
                 _uiState.update {
                     it.copy(
-                        logWithMeals = logWithMeals,
+                        logWithFoods = logWithFoods,
                         planForDate = plan,
                         plannedDiet = plannedDiet,
                         comparison = comparison,
@@ -91,7 +86,7 @@ class DailyLogViewModel @Inject constructor(
         }
     }
 
-    private fun buildComparison(planned: DietWithMeals?, actual: DailyLogWithMeals?): MacroComparison {
+    private fun buildComparison(planned: DietWithMeals?, actual: DailyLogWithFoods?): MacroComparison {
         return MacroComparison(
             plannedCalories = planned?.totalCalories?.toInt() ?: 0,
             plannedProtein = planned?.totalProtein?.toInt() ?: 0,
@@ -104,113 +99,53 @@ class DailyLogViewModel @Inject constructor(
         )
     }
 
-    fun setDate(date: LocalDate) {
-        _date.value = date
-    }
-
     fun setDateFromString(dateStr: String?) {
         dateStr?.let {
-            try {
-                _date.value = logRepository.parseDate(it)
-            } catch (e: Exception) {
-                // Invalid date, keep current
-            }
+            try { _date.value = logRepository.parseDate(it) } catch (_: Exception) {}
         }
     }
 
-    fun goToPreviousDay() {
-        _date.value = _date.value.minusDays(1)
+    fun goToPreviousDay() { _date.value = _date.value.minusDays(1) }
+    fun goToNextDay() { _date.value = _date.value.plusDays(1) }
+    fun goToToday() { _date.value = LocalDate.now() }
+
+    fun setSelectedTab(tab: Int) { _uiState.update { it.copy(selectedTab = tab) } }
+
+    fun showFoodPickerFor(slot: DefaultMealSlot) {
+        _uiState.update { it.copy(showFoodPicker = true, selectedSlot = slot) }
     }
 
-    fun goToNextDay() {
-        _date.value = _date.value.plusDays(1)
+    fun hideFoodPicker() {
+        _uiState.update { it.copy(showFoodPicker = false, selectedSlot = null) }
     }
 
-    fun goToToday() {
-        _date.value = LocalDate.now()
-    }
-
-    fun showMealPicker(slotType: String) {
-        _uiState.value = _uiState.value.copy(showMealPicker = true, selectedSlot = slotType)
-    }
-
-    fun hideMealPicker() {
-        _uiState.value = _uiState.value.copy(showMealPicker = false, selectedSlot = null)
-    }
-
-    fun logMeal(meal: Meal, quantity: Double = 1.0) {
+    fun logFood(foodId: Long, quantity: Double = 100.0) {
         val slot = _uiState.value.selectedSlot ?: return
         viewModelScope.launch {
-            logRepository.logMeal(
+            logRepository.logFood(
                 date = _date.value,
-                mealId = meal.id,
-                slotType = slot,
+                foodId = foodId,
                 quantity = quantity,
+                slotType = slot.name,
                 timestamp = System.currentTimeMillis()
             )
-            hideMealPicker()
+            hideFoodPicker()
         }
     }
 
-    // Overload for navigation-based meal picker
-    fun logMeal(mealId: Long, slotType: String, quantity: Double = 1.0) {
-        viewModelScope.launch {
-            logRepository.logMeal(
-                date = _date.value,
-                mealId = mealId,
-                slotType = slotType,
-                quantity = quantity,
-                timestamp = System.currentTimeMillis()
-            )
-        }
-    }
-
-    fun deleteLoggedMeal(id: Long) {
-        viewModelScope.launch {
-            logRepository.deleteLoggedMeal(id)
-        }
-    }
-
-    fun updateMealQuantity(loggedMeal: LoggedMeal, newQuantity: Double) {
-        if (newQuantity <= 0) {
-            deleteLoggedMeal(loggedMeal.id)
-        } else {
-            viewModelScope.launch {
-                logRepository.updateLoggedMeal(loggedMeal.copy(quantity = newQuantity))
-            }
-        }
-    }
-
-    fun showDietPicker() {
-        _uiState.value = _uiState.value.copy(showDietPicker = true)
-    }
-
-    fun hideDietPicker() {
-        _uiState.value = _uiState.value.copy(showDietPicker = false)
-    }
-
-    fun applyDiet(diet: Diet) {
-        viewModelScope.launch {
-            val dietWithMeals = dietRepository.getDietWithMeals(diet.id)
-            if (dietWithMeals != null) {
-                logRepository.applyDiet(_date.value, dietWithMeals)
-            }
-            hideDietPicker()
-        }
+    fun deleteLoggedFood(id: Long) {
+        viewModelScope.launch { logRepository.deleteLoggedFood(id) }
     }
 
     fun applyDietById(dietId: Long, dateStr: String? = null) {
         viewModelScope.launch {
             val date = dateStr?.let {
-                try { LocalDate.parse(it) } catch (e: Exception) { null }
+                try { LocalDate.parse(it) } catch (_: Exception) { null }
             } ?: _date.value
             val dietWithMeals = dietRepository.getDietWithMeals(dietId)
             if (dietWithMeals != null) {
-                // Create/update plan for the date (shows color on calendar)
                 planRepository.setPlanForDate(date.toString(), dietId)
-                // Log the meals
                 logRepository.applyDiet(date, dietWithMeals)
-                // Reload plan for current date
                 loadPlanForDate(date)
             }
         }
@@ -221,25 +156,16 @@ class DailyLogViewModel @Inject constructor(
         _uiState.update { it.copy(planForDate = plan) }
     }
 
-    /**
-     * Mark the planned diet for current date as completed
-     */
     fun finishPlan() {
         viewModelScope.launch {
             planRepository.completePlan(_date.value.toString())
-            // Reload plan and trigger navigation
             loadPlanForDate(_date.value)
             _uiState.update { it.copy(finishCompleted = true) }
         }
     }
 
-    fun clearFinishCompleted() {
-        _uiState.update { it.copy(finishCompleted = false) }
-    }
+    fun clearFinishCompleted() { _uiState.update { it.copy(finishCompleted = false) } }
 
-    /**
-     * Clear the plan and logged meals for current date
-     */
     fun clearPlan() {
         viewModelScope.launch {
             logRepository.clearLoggedMeals(_date.value)
@@ -248,9 +174,6 @@ class DailyLogViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Reopen a completed day (mark as not completed)
-     */
     fun reopenPlan() {
         viewModelScope.launch {
             planRepository.uncompletePlan(_date.value.toString())
