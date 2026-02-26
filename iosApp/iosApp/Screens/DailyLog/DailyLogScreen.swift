@@ -196,15 +196,19 @@ struct DailyLogScreen: View {
     // ── Daily Log Tab ────────────────────────────────────────────────────────
     private var dailyLogTab: some View {
         let foodSlotKeys = Set(vm.loggedFoods.map { $0.loggedFood.slotType.uppercased() })
-        let allKeys = (Set(mainSlots) + foodSlotKeys).sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
+        let plannedSlotKeys = Set(vm.plannedMealsBySlot.keys)
+        let allKeys = (Set(mainSlots) + foodSlotKeys + plannedSlotKeys)
+            .sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
 
         return ScrollView {
             LazyVStack(spacing: 8) {
                 ForEach(allKeys, id: \.self) { key in
                     let foods = vm.loggedFoodsBySlot[key] ?? []
+                    let plannedItems = vm.plannedMealsBySlot[key] ?? []
                     SlotCard(
                         slotKey: key,
                         foods: foods,
+                        plannedItems: plannedItems,
                         isExpanded: expandedSlots.contains(key),
                         onToggle: {
                             if expandedSlots.contains(key) { expandedSlots.remove(key) }
@@ -309,13 +313,25 @@ private struct MacroTileView: View {
 private struct SlotCard: View {
     let slotKey: String
     let foods: [LoggedFoodWithDetails]
+    let plannedItems: [MealFoodItemWithDetails]
     let isExpanded: Bool
     let onToggle: () -> Void
     let onAddFood: () -> Void
     let onDeleteFood: (Int64) -> Void
 
-    private var totalKcal: Int {
+    private var loggedKcal: Int {
         Int(foods.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) })
+    }
+    private var plannedKcal: Int {
+        Int(plannedItems.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) })
+    }
+    private var subtitle: String {
+        switch (foods.isEmpty, plannedItems.isEmpty) {
+        case (false, false): return "\(foods.count) logged · \(plannedItems.count) planned · \(loggedKcal) kcal"
+        case (false, true):  return "\(foods.count) logged · \(loggedKcal) kcal"
+        case (true, false):  return "\(plannedItems.count) planned · \(plannedKcal) kcal"
+        case (true, true):   return "Nothing logged"
+        }
     }
 
     var body: some View {
@@ -333,7 +349,7 @@ private struct SlotCard: View {
                         Text(slotDisplayName(slotKey))
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.primary)
-                        Text("\(foods.count) logged · \(totalKcal) kcal")
+                        Text(subtitle)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -348,18 +364,23 @@ private struct SlotCard: View {
 
             if isExpanded {
                 Divider().padding(.horizontal, 0)
-                if foods.isEmpty {
+                if foods.isEmpty && plannedItems.isEmpty {
                     Text("No foods logged")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    ForEach(foods, id: \.loggedFood.id) { lf in
-                        FoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
-                        Divider().padding(.horizontal, 12).opacity(0.4)
-                    }
+                }
+                // Planned items (grey circles) — from diet plan
+                ForEach(Array(plannedItems.enumerated()), id: \.offset) { _, item in
+                    PlannedFoodRowView(item: item)
+                    Divider().padding(.horizontal, 12).opacity(0.3)
+                }
+                // Individually logged foods (green ticks)
+                ForEach(foods, id: \.loggedFood.id) { lf in
+                    FoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
+                    Divider().padding(.horizontal, 12).opacity(0.4)
                 }
                 // Add Food button
                 Button(action: onAddFood) {
@@ -424,6 +445,49 @@ private struct FoodRowView: View {
                     .foregroundColor(.secondary)
                     .frame(width: 28, height: 28)
             }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+}
+
+// ── Planned Food Row ──────────────────────────────────────────────────────────
+private struct PlannedFoodRowView: View {
+    let item: MealFoodItemWithDetails
+
+    private var kcal: Int {
+        Int(item.food.calculateCalories(quantity: item.mealFoodItem.quantity, unit: item.mealFoodItem.unit))
+    }
+    private var carbs: Int {
+        Int(item.food.calculateCarbs(quantity: item.mealFoodItem.quantity, unit: item.mealFoodItem.unit))
+    }
+    private var gi: Int32? { item.food.glycemicIndex?.int32Value }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Grey planned circle
+            Circle()
+                .fill(Color.gray.opacity(0.15))
+                .frame(width: 20, height: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(item.food.name)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                    if let gi = gi {
+                        GiBadgeView(gi: Int(gi))
+                    }
+                }
+                Text("\(Int(item.mealFoodItem.quantity))g · \(carbs)g carbs")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.secondary.opacity(0.7))
+            }
+            Spacer()
+            Text("\(kcal) kcal")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            Spacer().frame(width: 28) // align with FoodRowView delete button
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

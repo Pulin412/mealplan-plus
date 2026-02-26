@@ -195,6 +195,8 @@ class DailyLogViewModel: ObservableObject {
     @Published var plannedProtein: Double = 0
     @Published var plannedCarbs: Double = 0
     @Published var plannedFat: Double = 0
+    // Planned meal food items per slot (from diet plan)
+    @Published var plannedMealsBySlot: [String: [MealFoodItemWithDetails]] = [:]
 
     // Current loaded date (iso yyyy-MM-dd)
     private(set) var currentDate: String = ""
@@ -214,7 +216,7 @@ class DailyLogViewModel: ObservableObject {
             let foods = (try? await repository.getLoggedFoodsSnapshot(userId: userId, date: date)) ?? []
             self.loggedFoods = foods
             self.loggedFoodsBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
-            // Planned macros from diet plan
+            // Planned macros + meal items from diet plan
             if let plan = try? await planRepo.getPlanByDate(userId: userId, date: date),
                let dietId = plan.dietId?.int64Value,
                let dwm = try? await dietRepo.getDietWithMeals(dietId: dietId) {
@@ -222,11 +224,23 @@ class DailyLogViewModel: ObservableObject {
                 self.plannedProtein  = dwm.totalProtein
                 self.plannedCarbs    = dwm.totalCarbs
                 self.plannedFat      = dwm.totalFat
+                // Build plannedMealsBySlot from DietWithMeals.meals (NSDictionary bridge)
+                var bySlot: [String: [MealFoodItemWithDetails]] = [:]
+                if let nd = dwm.meals as? NSDictionary {
+                    for (k, v) in nd {
+                        if let key = k as? String, let mwf = v as? MealWithFoods {
+                            let items = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+                            bySlot[key.uppercased()] = items
+                        }
+                    }
+                }
+                self.plannedMealsBySlot = bySlot
             } else {
                 self.plannedCalories = 0
                 self.plannedProtein  = 0
                 self.plannedCarbs    = 0
                 self.plannedFat      = 0
+                self.plannedMealsBySlot = [:]
             }
             self.isLoading = false
         }

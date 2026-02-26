@@ -25,8 +25,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.DailyLogWithFoods
+import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.model.LoggedFoodWithDetails
+import com.mealplanplus.data.model.MealFoodItemWithDetails
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.min
@@ -118,6 +120,7 @@ fun DailyLogScreen(
                 when (uiState.selectedTab) {
                     0 -> DailyLogTab(
                         logWithFoods = uiState.logWithFoods,
+                        plannedDiet = uiState.plannedDiet,
                         expandedSlots = expandedSlots.value,
                         onToggleSlot = { slot ->
                             expandedSlots.value = if (slot.name in expandedSlots.value)
@@ -349,6 +352,7 @@ fun MacroTile(label: String, actual: Int, unit: String, planned: Int, color: Col
 @Composable
 fun DailyLogTab(
     logWithFoods: DailyLogWithFoods?,
+    plannedDiet: DietWithMeals? = null,
     expandedSlots: Set<String>,
     onToggleSlot: (DefaultMealSlot) -> Unit,
     onAddFood: (DefaultMealSlot) -> Unit,
@@ -361,7 +365,10 @@ fun DailyLogTab(
     val foodSlots = logWithFoods?.foods
         ?.mapNotNull { DefaultMealSlot.fromString(it.loggedFood.slotType) }
         ?.toSet() ?: emptySet()
-    val slotsToShow = (mainSlots + foodSlots).sortedBy { it.order }
+    val plannedSlots = plannedDiet?.meals?.keys
+        ?.mapNotNull { DefaultMealSlot.fromString(it) }
+        ?.toSet() ?: emptySet()
+    val slotsToShow = (mainSlots + foodSlots + plannedSlots).sortedBy { it.order }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -370,9 +377,11 @@ fun DailyLogTab(
     ) {
         items(slotsToShow) { slot ->
             val slotFoods = logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
+            val plannedItems = plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
             MealSlotCard(
                 slot = slot,
                 foods = slotFoods,
+                plannedItems = plannedItems,
                 isExpanded = slot.name in expandedSlots,
                 onToggleExpand = { onToggleSlot(slot) },
                 onAddFood = { onAddFood(slot) },
@@ -389,12 +398,22 @@ fun DailyLogTab(
 fun MealSlotCard(
     slot: DefaultMealSlot,
     foods: List<LoggedFoodWithDetails>,
+    plannedItems: List<MealFoodItemWithDetails> = emptyList(),
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
     onAddFood: () -> Unit,
     onDeleteFood: (Long) -> Unit
 ) {
-    val totalKcal = foods.sumOf { it.calculatedCalories }.toInt()
+    val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
+    val plannedKcal = plannedItems.sumOf { it.calculatedCalories }.toInt()
+    val totalKcal = if (foods.isNotEmpty()) loggedKcal else plannedKcal
+    val subtitle = when {
+        foods.isNotEmpty() && plannedItems.isNotEmpty() ->
+            "${foods.size} logged · ${plannedItems.size} planned · $loggedKcal kcal"
+        foods.isNotEmpty() -> "${foods.size} logged · $loggedKcal kcal"
+        plannedItems.isNotEmpty() -> "${plannedItems.size} planned · $plannedKcal kcal"
+        else -> "Nothing logged"
+    }
     val color = slotColor(slot)
 
     Card(
@@ -423,11 +442,7 @@ fun MealSlotCard(
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(slot.displayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "${foods.size} logged · $totalKcal kcal",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,
@@ -439,18 +454,23 @@ fun MealSlotCard(
             AnimatedVisibility(visible = isExpanded) {
                 Column {
                     HorizontalDivider(color = Color(0xFFF0F0F0))
-                    if (foods.isEmpty()) {
+                    if (foods.isEmpty() && plannedItems.isEmpty()) {
                         Text(
                             "No foods logged",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
-                    } else {
-                        foods.forEach { food ->
-                            FoodRow(food = food, onDelete = { onDeleteFood(food.loggedFood.id) })
-                            HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
-                        }
+                    }
+                    // Planned items (grey circle) — shown when diet assigned
+                    plannedItems.forEach { item ->
+                        PlannedFoodRow(item = item)
+                        HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
+                    }
+                    // Individually logged foods (green tick)
+                    foods.forEach { food ->
+                        FoodRow(food = food, onDelete = { onDeleteFood(food.loggedFood.id) })
+                        HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
                     }
                     Row(
                         modifier = Modifier
@@ -516,6 +536,54 @@ fun FoodRow(food: LoggedFoodWithDetails, onDelete: () -> Unit) {
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp), tint = Color.Gray)
         }
+    }
+}
+
+@Composable
+fun PlannedFoodRow(item: MealFoodItemWithDetails) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(Color.Gray.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Circle, contentDescription = null, tint = Color.Gray.copy(alpha = 0.4f), modifier = Modifier.size(8.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    item.food.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                item.food.glycemicIndex?.let { gi ->
+                    Spacer(Modifier.width(6.dp))
+                    GiBadge(gi)
+                }
+            }
+            Text(
+                "${item.mealFoodItem.quantity.toInt()}g · ${item.calculatedCarbs.toInt()}g carbs",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray.copy(alpha = 0.7f)
+            )
+        }
+        Text(
+            "${item.calculatedCalories.toInt()} kcal",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray
+        )
+        Spacer(Modifier.width(36.dp)) // align with FoodRow delete button space
     }
 }
 
