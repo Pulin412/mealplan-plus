@@ -151,10 +151,16 @@ struct DailyLogScreen: View {
 
     // ── Macro Summary Card ───────────────────────────────────────────────────
     private var macroSummaryCard: some View {
+        // Actual = individually logged foods + planned diet food items (shown in slot cards)
+        let allPlanned = vm.plannedMealsBySlot.values.flatMap { $0 }
         let totalCal = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
         let totalPro = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateProtein(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
         let totalCarb = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateCarbs(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
         let totalFat_ = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateFat(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
 
         return VStack(spacing: 12) {
             HStack(spacing: 0) {
@@ -232,10 +238,15 @@ struct DailyLogScreen: View {
 
     // ── Plan vs Actual Tab ───────────────────────────────────────────────────
     private var planVsActualTab: some View {
+        let allPlanned = vm.plannedMealsBySlot.values.flatMap { $0 }
         let totalCal = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
         let totalPro = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateProtein(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateProtein(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
         let totalCarb = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateCarbs(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateCarbs(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
         let totalFat_ = vm.loggedFoods.reduce(0.0) { $0 + $1.food.calculateFat(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) }
+            + allPlanned.reduce(0.0) { $0 + $1.food.calculateFat(quantity: $1.mealFoodItem.quantity, unit: $1.mealFoodItem.unit) }
 
         return ScrollView {
             VStack(spacing: 0) {

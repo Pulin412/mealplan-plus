@@ -87,15 +87,22 @@ class DailyLogViewModel @Inject constructor(
     }
 
     private fun buildComparison(planned: DietWithMeals?, actual: DailyLogWithFoods?): MacroComparison {
+        // Include planned diet food items in actual totals — when a diet is assigned,
+        // its foods are shown in the slot cards and count toward the day's consumption.
+        val plannedItems = planned?.meals?.values?.filterNotNull()?.flatMap { it.items } ?: emptyList()
+        val loggedCal = actual?.totalCalories ?: 0.0
+        val loggedPro = actual?.totalProtein ?: 0.0
+        val loggedCarb = actual?.totalCarbs ?: 0.0
+        val loggedFat = actual?.totalFat ?: 0.0
         return MacroComparison(
             plannedCalories = planned?.totalCalories?.toInt() ?: 0,
             plannedProtein = planned?.totalProtein?.toInt() ?: 0,
             plannedCarbs = planned?.totalCarbs?.toInt() ?: 0,
             plannedFat = planned?.totalFat?.toInt() ?: 0,
-            actualCalories = actual?.totalCalories?.toInt() ?: 0,
-            actualProtein = actual?.totalProtein?.toInt() ?: 0,
-            actualCarbs = actual?.totalCarbs?.toInt() ?: 0,
-            actualFat = actual?.totalFat?.toInt() ?: 0
+            actualCalories = (loggedCal + plannedItems.sumOf { it.calculatedCalories }).toInt(),
+            actualProtein = (loggedPro + plannedItems.sumOf { it.calculatedProtein }).toInt(),
+            actualCarbs = (loggedCarb + plannedItems.sumOf { it.calculatedCarbs }).toInt(),
+            actualFat = (loggedFat + plannedItems.sumOf { it.calculatedFat }).toInt()
         )
     }
 
