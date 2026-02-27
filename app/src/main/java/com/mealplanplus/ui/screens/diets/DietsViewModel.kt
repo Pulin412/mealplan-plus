@@ -43,7 +43,7 @@ data class DietsUiState(
     val totalDietCount: Int = 0,
     val allTags: List<Tag> = emptyList(),
     val selectedTagIds: Set<Long> = emptySet(),
-    val tagFilterMode: TagFilterMode = TagFilterMode.ANY,
+    val tagFilterMode: TagFilterMode = TagFilterMode.ALL,
     val tagCountMap: Map<Long, Int> = emptyMap(),
     val searchQuery: String = "",
     val foodFilter: String = "",

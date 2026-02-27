@@ -22,10 +22,18 @@ fun DietDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToFoodPicker: () -> Unit,
     savedStateHandle: SavedStateHandle? = null,
+    autoEdit: Boolean = false,
     viewModel: DietDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Auto-enter edit mode when navigated from Edit button
+    LaunchedEffect(autoEdit, uiState.diet) {
+        if (autoEdit && uiState.diet != null && !uiState.isEditing) {
+            viewModel.startEditing()
+        }
+    }
 
     // Handle food selection result from picker
     LaunchedEffect(savedStateHandle) {
@@ -139,7 +147,10 @@ fun DietDetailScreen(
                         selectedTagIds = uiState.selectedTagIds,
                         onNameChange = viewModel::updateName,
                         onDescriptionChange = viewModel::updateDescription,
-                        onTagToggle = viewModel::toggleTag
+                        onTagToggle = viewModel::toggleTag,
+                        newTagName = uiState.newTagName,
+                        onNewTagNameChange = viewModel::updateNewTagName,
+                        onCreateTag = viewModel::createNewTagAndSelect
                     )
                 }
             } else {

@@ -27,7 +27,8 @@ data class DietDetailUiState(
     val editName: String = "",
     val editDescription: String = "",
     val isSaved: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val newTagName: String = ""
 )
 
 @HiltViewModel
@@ -228,6 +229,26 @@ class DietDetailViewModel @Inject constructor(
     }
 
     fun clearError() { _uiState.update { it.copy(error = null) } }
+
+    fun updateNewTagName(name: String) { _uiState.update { it.copy(newTagName = name) } }
+
+    fun createNewTagAndSelect() {
+        val name = _uiState.value.newTagName.trim()
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val newId = tagRepository.createTag(name)
+                _uiState.update { state ->
+                    state.copy(
+                        newTagName = "",
+                        selectedTagIds = state.selectedTagIds + newId
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
+        }
+    }
 
     fun deleteDiet(onDeleted: () -> Unit) {
         val diet = _uiState.value.diet ?: return

@@ -18,9 +18,11 @@ import javax.inject.Inject
 data class GroceryDetailUiState(
     val list: GroceryListWithItems? = null,
     val isLoading: Boolean = true,
+    val isRegenerating: Boolean = false,
     val error: String? = null,
     val showAddItemDialog: Boolean = false,
-    val showEditItemDialog: GroceryItemWithFood? = null
+    val showEditItemDialog: GroceryItemWithFood? = null,
+    val selectedTab: Int = 0  // 0=All, 1=To Buy (unchecked only)
 )
 
 @HiltViewModel
@@ -53,6 +55,10 @@ class GroceryDetailViewModel @Inject constructor(
         }
     }
 
+    fun setSelectedTab(tab: Int) {
+        _uiState.update { it.copy(selectedTab = tab) }
+    }
+
     fun toggleItemChecked(itemId: Long, currentChecked: Boolean) {
         viewModelScope.launch {
             groceryRepository.toggleItemChecked(itemId, !currentChecked)
@@ -79,9 +85,9 @@ class GroceryDetailViewModel @Inject constructor(
         _uiState.update { it.copy(showAddItemDialog = false) }
     }
 
-    fun addCustomItem(name: String, quantity: Double, unit: FoodUnit) {
+    fun addCustomItem(name: String, quantity: Double, unit: FoodUnit, category: String? = null) {
         viewModelScope.launch {
-            groceryRepository.addCustomItem(listId, name, quantity, unit)
+            groceryRepository.addCustomItem(listId, name, quantity, unit, category)
             _uiState.update { it.copy(showAddItemDialog = false) }
         }
     }
@@ -98,6 +104,19 @@ class GroceryDetailViewModel @Inject constructor(
         viewModelScope.launch {
             groceryRepository.updateItemQuantity(itemId, quantity)
             _uiState.update { it.copy(showEditItemDialog = null) }
+        }
+    }
+
+    fun regenerateList() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRegenerating = true) }
+            try {
+                groceryRepository.regenerateList(listId)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            } finally {
+                _uiState.update { it.copy(isRegenerating = false) }
+            }
         }
     }
 
@@ -120,9 +139,7 @@ class GroceryDetailViewModel @Inject constructor(
     private fun formatListAsText(list: GroceryListWithItems): String {
         val sb = StringBuilder()
         sb.appendLine("🛒 ${list.list.name}")
-        list.list.dateRangeDisplay?.let {
-            sb.appendLine(it)
-        }
+        list.list.dateRangeDisplay?.let { sb.appendLine(it) }
         sb.appendLine("---")
 
         val sortedItems = list.items.sortedWith(

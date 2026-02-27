@@ -139,13 +139,12 @@ class HomeViewModel @Inject constructor(
         healthRepository.getMetricsForDate(today)
             .onEach { metrics ->
                 val weight = metrics.firstOrNull { it.metricType == MetricType.WEIGHT.name }
-                val sugar = metrics.firstOrNull { it.metricType == MetricType.FASTING_SUGAR.name }
-                val hba1c = metrics.firstOrNull { it.metricType == MetricType.HBA1C.name }
+                val sugar = metrics.firstOrNull { it.metricType == MetricType.BLOOD_GLUCOSE.name }
                 _uiState.update {
                     it.copy(
                         latestWeight = weight,
                         latestSugar = sugar,
-                        latestHba1c = hba1c,
+                        latestHba1c = null,
                         isLoading = false
                     )
                 }
@@ -157,7 +156,7 @@ class HomeViewModel @Inject constructor(
         val endDate = LocalDate.now()
         val startDate = endDate.minusDays(6)
         healthRepository.getMetricsByTypeInRange(
-            MetricType.FASTING_SUGAR,
+            MetricType.BLOOD_GLUCOSE,
             startDate.toString(),
             endDate.toString()
         ).onEach { history ->

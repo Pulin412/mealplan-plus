@@ -28,6 +28,8 @@ class HealthRepository @Inject constructor(
         type: MetricType,
         value: Double,
         date: String = LocalDate.now().toString(),
+        subType: String? = null,
+        secondaryValue: Double? = null,
         notes: String? = null
     ): Long {
         return healthMetricDao.insertMetric(
@@ -36,6 +38,8 @@ class HealthRepository @Inject constructor(
                 date = date,
                 metricType = type.name,
                 value = value,
+                subType = subType,
+                secondaryValue = secondaryValue,
                 notes = notes
             )
         )
@@ -74,6 +78,9 @@ class HealthRepository @Inject constructor(
 
     fun getRecentMetrics(limit: Int = 50): Flow<List<HealthMetric>> =
         healthMetricDao.getRecentMetrics(getCurrentUserId(), limit)
+
+    fun getMetricsByCustomType(customTypeId: Long): Flow<List<HealthMetric>> =
+        healthMetricDao.getMetricsByCustomType(getCurrentUserId(), customTypeId)
 
     // Custom Metric Types
     suspend fun addCustomType(name: String, unit: String, minValue: Double? = null, maxValue: Double? = null): Long {

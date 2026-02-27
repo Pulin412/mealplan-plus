@@ -650,6 +650,18 @@ object DatabaseModule {
         }
     }
 
+    // Migration 15->16: Add subType+secondaryValue to health_metrics; category to grocery_items; migrate FASTING_SUGAR->BLOOD_GLUCOSE
+    private val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE health_metrics ADD COLUMN subType TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE health_metrics ADD COLUMN secondaryValue REAL DEFAULT NULL")
+            db.execSQL("UPDATE health_metrics SET metricType = 'BLOOD_GLUCOSE' WHERE metricType = 'FASTING_SUGAR'")
+            db.execSQL("UPDATE health_metrics SET metricType = 'BLOOD_GLUCOSE' WHERE metricType = 'HBA1C'")
+            db.execSQL("UPDATE health_metrics SET subType = 'FASTING' WHERE metricType = 'BLOOD_GLUCOSE' AND subType IS NULL")
+            db.execSQL("ALTER TABLE grocery_items ADD COLUMN category TEXT DEFAULT NULL")
+        }
+    }
+
     // Migration 12->13: Add grocery list tables
     private val MIGRATION_12_13 = object : Migration(12, 13) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -696,7 +708,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
             // Removed fallbackToDestructiveMigration() - this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

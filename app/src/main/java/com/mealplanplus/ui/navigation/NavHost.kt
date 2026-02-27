@@ -81,8 +81,8 @@ sealed class Screen(val route: String) {
     object FoodPickerForEdit : Screen("food_picker_edit")
     object Diets : Screen("diets")
     object AddDiet : Screen("add_diet")
-    object DietDetail : Screen("diet_detail/{dietId}") {
-        fun createRoute(dietId: Long) = "diet_detail/$dietId"
+    object DietDetail : Screen("diet_detail/{dietId}?autoEdit={autoEdit}") {
+        fun createRoute(dietId: Long, autoEdit: Boolean = false) = "diet_detail/$dietId?autoEdit=$autoEdit"
     }
     object DietMealSlot : Screen("diet_meal_slot/{dietId}/{slotType}") {
         fun createRoute(dietId: Long, slotType: String) = "diet_meal_slot/$dietId/$slotType"
@@ -323,7 +323,7 @@ fun MealPlanNavHost() {
             composable(Screen.Diets.route) {
                 DietsScreen(
                     onNavigateToAddDiet = { navController.navigate(Screen.AddDiet.route) },
-                    onNavigateToDietDetail = { dietId -> navController.navigate(Screen.DietDetail.createRoute(dietId)) },
+                    onNavigateToDietDetail = { dietId -> navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = true)) },
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -337,13 +337,18 @@ fun MealPlanNavHost() {
             }
             composable(
                 route = Screen.DietDetail.route,
-                arguments = listOf(navArgument("dietId") { type = NavType.LongType })
+                arguments = listOf(
+                    navArgument("dietId") { type = NavType.LongType },
+                    navArgument("autoEdit") { type = NavType.BoolType; defaultValue = false }
+                )
             ) { backStackEntry ->
                 val savedStateHandle = backStackEntry.savedStateHandle
+                val autoEdit = backStackEntry.arguments?.getBoolean("autoEdit") ?: false
                 DietDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToFoodPicker = { navController.navigate(Screen.FoodPickerForDietSlot.route) },
-                    savedStateHandle = savedStateHandle
+                    savedStateHandle = savedStateHandle,
+                    autoEdit = autoEdit
                 )
             }
             composable(

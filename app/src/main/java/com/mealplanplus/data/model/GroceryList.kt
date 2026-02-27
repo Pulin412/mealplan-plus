@@ -66,7 +66,8 @@ data class GroceryItem(
     val quantity: Double,
     val unit: FoodUnit,
     val isChecked: Boolean = false,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val category: String? = null     // Food category for UI grouping
 )
 
 /**
