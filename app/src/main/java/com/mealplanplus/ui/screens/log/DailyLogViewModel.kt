@@ -173,6 +173,29 @@ class DailyLogViewModel @Inject constructor(
 
     fun clearFinishCompleted() { _uiState.update { it.copy(finishCompleted = false) } }
 
+    /** Toggle a slot: log all planned foods if not logged, clear if logged. Mirrors HomeScreen behaviour. */
+    fun toggleSlotLogged(slot: DefaultMealSlot) {
+        viewModelScope.launch {
+            val date = _date.value
+            val slotFoods = _uiState.value.logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
+            if (slotFoods.isNotEmpty()) {
+                logRepository.clearSlot(date, slot.name)
+            } else {
+                val plannedItems = _uiState.value.plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
+                val timestamp = System.currentTimeMillis()
+                plannedItems.forEach { foodItem ->
+                    logRepository.logFood(
+                        date = date,
+                        foodId = foodItem.mealFoodItem.foodId,
+                        quantity = foodItem.mealFoodItem.quantity,
+                        slotType = slot.name,
+                        timestamp = timestamp
+                    )
+                }
+            }
+        }
+    }
+
     fun clearPlan() {
         viewModelScope.launch {
             logRepository.clearLoggedMeals(_date.value)

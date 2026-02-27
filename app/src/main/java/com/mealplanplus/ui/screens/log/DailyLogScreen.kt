@@ -129,7 +129,8 @@ fun DailyLogScreen(
                                 expandedSlots.value + slot.name
                         },
                         onAddFood = { slot -> viewModel.showFoodPickerFor(slot) },
-                        onDeleteFood = { id -> viewModel.deleteLoggedFood(id) }
+                        onDeleteFood = { id -> viewModel.deleteLoggedFood(id) },
+                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) }
                     )
                     1 -> PlanVsActualTab(comparison = uiState.comparison)
                 }
@@ -356,7 +357,8 @@ fun DailyLogTab(
     expandedSlots: Set<String>,
     onToggleSlot: (DefaultMealSlot) -> Unit,
     onAddFood: (DefaultMealSlot) -> Unit,
-    onDeleteFood: (Long) -> Unit
+    onDeleteFood: (Long) -> Unit,
+    onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null
 ) {
     val mainSlots = setOf(
         DefaultMealSlot.BREAKFAST, DefaultMealSlot.LUNCH,
@@ -385,7 +387,8 @@ fun DailyLogTab(
                 isExpanded = slot.name in expandedSlots,
                 onToggleExpand = { onToggleSlot(slot) },
                 onAddFood = { onAddFood(slot) },
-                onDeleteFood = onDeleteFood
+                onDeleteFood = onDeleteFood,
+                onToggleSlotLogged = onToggleSlotLogged?.let { fn -> { fn(slot) } }
             )
         }
         item { Spacer(Modifier.height(80.dp)) }
@@ -402,11 +405,11 @@ fun MealSlotCard(
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
     onAddFood: () -> Unit,
-    onDeleteFood: (Long) -> Unit
+    onDeleteFood: (Long) -> Unit,
+    onToggleSlotLogged: (() -> Unit)? = null
 ) {
     val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
     val plannedKcal = plannedItems.sumOf { it.calculatedCalories }.toInt()
-    val totalKcal = if (foods.isNotEmpty()) loggedKcal else plannedKcal
     val subtitle = when {
         foods.isNotEmpty() && plannedItems.isNotEmpty() ->
             "${foods.size} logged · ${plannedItems.size} planned · $loggedKcal kcal"
@@ -415,6 +418,7 @@ fun MealSlotCard(
         else -> "Nothing logged"
     }
     val color = slotColor(slot)
+    val isSlotLogged = foods.isNotEmpty()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -443,6 +447,28 @@ fun MealSlotCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(slot.displayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                     Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
+                // Slot-level tick toggle (only when diet is assigned for this slot)
+                if (onToggleSlotLogged != null && plannedItems.isNotEmpty()) {
+                    Spacer(Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(if (isSlotLogged) CaloriesColor else Color(0xFFE0E0E0))
+                            .clickable { onToggleSlotLogged() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSlotLogged) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Logged – tap to undo",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(4.dp))
                 }
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,

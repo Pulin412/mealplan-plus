@@ -156,12 +156,10 @@ class DietsViewModel @Inject constructor(
         viewModelScope.launch {
             dietRepository.getDietsWithFullSummary().collect { summaries ->
                 _isLoading.value = true
-                val displayItems = summaries.map { summary ->
+
+                // Phase 1 — fast: load tags only, show list immediately
+                val basicItems = summaries.map { summary ->
                     val tags = dietRepository.getTagsForDiet(summary.id)
-                    val dietWithMeals = dietRepository.getDietWithMeals(summary.id)
-                    val foodNames = dietWithMeals?.meals?.values?.filterNotNull()
-                        ?.flatMap { mwf -> mwf.items.map { it.food.name } } ?: emptyList()
-                    val assignedSlots = dietWithMeals?.meals?.keys?.toSet() ?: emptySet()
                     DietDisplayItem(
                         diet = summary.toDiet(),
                         totalCalories = summary.totalCalories,
@@ -169,13 +167,21 @@ class DietsViewModel @Inject constructor(
                         totalCarbs = summary.totalCarbs,
                         totalFat = summary.totalFat,
                         mealCount = summary.mealCount,
-                        tags = tags,
-                        foodNames = foodNames,
-                        assignedSlots = assignedSlots
+                        tags = tags
                     )
                 }
-                _dietsWithMeals.value = displayItems
+                _dietsWithMeals.value = basicItems
                 _isLoading.value = false
+
+                // Phase 2 — background: enrich with foodNames/assignedSlots for filters
+                val enrichedItems = basicItems.mapIndexed { idx, item ->
+                    val dietWithMeals = dietRepository.getDietWithMeals(summaries[idx].id)
+                    val foodNames = dietWithMeals?.meals?.values?.filterNotNull()
+                        ?.flatMap { mwf -> mwf.items.map { it.food.name } } ?: emptyList()
+                    val assignedSlots = dietWithMeals?.meals?.keys?.toSet() ?: emptySet()
+                    item.copy(foodNames = foodNames, assignedSlots = assignedSlots)
+                }
+                _dietsWithMeals.value = enrichedItems
             }
         }
     }

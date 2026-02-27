@@ -542,8 +542,8 @@ fun TodayPlanSlotRow(slot: TodayPlanSlot, onToggle: () -> Unit = {}) {
         "EVENING", "EVENING_SNACK", "POST_DINNER" -> Color(0xFFFCE4EC)
         else -> Color(0xFFE8F5E9)
     }
-    // Only show toggle if this slot has a planned meal to log/un-log
-    val canToggle = slot.plannedMealId != null || slot.isLogged
+    // Only show toggle if this slot has planned foods or is already logged
+    val canToggle = slot.plannedFoods.isNotEmpty() || slot.isLogged
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
