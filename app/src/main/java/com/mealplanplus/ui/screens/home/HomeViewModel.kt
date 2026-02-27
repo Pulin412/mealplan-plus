@@ -115,7 +115,8 @@ class HomeViewModel @Inject constructor(
                     ?: user?.email?.substringBefore("@")
                     ?: ""
                 val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                _uiState.update { it.copy(userName = name, userInitial = initial) }
+                val calorieGoal = user?.targetCalories ?: 2000
+                _uiState.update { it.copy(userName = name, userInitial = initial, calorieGoal = calorieGoal) }
             }
         }
     }

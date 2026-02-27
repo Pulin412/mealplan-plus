@@ -58,4 +58,10 @@ interface HealthMetricDao {
 
     @Query("SELECT * FROM custom_metric_types WHERE id = :id")
     suspend fun getCustomTypeById(id: Long): CustomMetricType?
+
+    @Query("DELETE FROM health_metrics")
+    suspend fun deleteAllHealthMetrics()
+
+    @Query("DELETE FROM custom_metric_types")
+    suspend fun deleteAllCustomTypes()
 }

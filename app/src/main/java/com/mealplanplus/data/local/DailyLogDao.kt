@@ -139,4 +139,10 @@ interface DailyLogDao {
         ORDER BY p.date
     """)
     fun getCompletedDaysCalories(userId: Long, startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
+
+    @Query("DELETE FROM logged_foods")
+    suspend fun deleteAllLoggedFoods()
+
+    @Query("DELETE FROM daily_logs")
+    suspend fun deleteAllDailyLogs()
 }

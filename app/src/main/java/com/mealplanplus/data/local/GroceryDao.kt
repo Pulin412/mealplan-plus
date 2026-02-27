@@ -73,4 +73,10 @@ interface GroceryDao {
 
     @Query("SELECT COUNT(*) FROM grocery_items WHERE listId = :listId AND isChecked = 1")
     suspend fun getCheckedItemCount(listId: Long): Int
+
+    @Query("DELETE FROM grocery_lists")
+    suspend fun deleteAllGroceryLists()
+
+    @Query("DELETE FROM grocery_items")
+    suspend fun deleteAllGroceryItems()
 }

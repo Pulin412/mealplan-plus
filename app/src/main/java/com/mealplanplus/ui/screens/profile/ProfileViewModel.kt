@@ -2,19 +2,42 @@ package com.mealplanplus.ui.screens.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.model.ActivityLevel
+import com.mealplanplus.data.model.Gender
+import com.mealplanplus.data.model.GoalType
 import com.mealplanplus.data.model.User
 import com.mealplanplus.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 data class ProfileUiState(
     val user: User? = null,
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
+    val isClearing: Boolean = false,
     val saveSuccess: Boolean = false,
-    val error: String? = null
+    val clearSuccess: Boolean = false,
+    val error: String? = null,
+    // edit state
+    val name: String = "",
+    val age: String = "",
+    val contact: String = "",
+    val weightKg: String = "",
+    val heightCm: String = "",
+    val gender: Gender? = null,
+    val activityLevel: ActivityLevel? = null,
+    val targetCalories: String = "",
+    val goalType: GoalType? = null,
+    // computed estimates (null = insufficient data)
+    val computedBmr: Int? = null,
+    val computedTdee: Int? = null,
+    val computedBodyFatPct: Double? = null,
+    // dialogs
+    val showClearDataDialog: Boolean = false,
+    val showDeleteAccountDialog: Boolean = false
 )
 
 @HiltViewModel
@@ -34,7 +57,33 @@ class ProfileViewModel @Inject constructor(
             authRepository.getCurrentUserId().collect { userId ->
                 if (userId != null) {
                     authRepository.getCurrentUser(userId).collect { user ->
-                        _uiState.update { it.copy(user = user, isLoading = false) }
+                        val gender = user?.gender?.let { runCatching { Gender.valueOf(it) }.getOrNull() }
+                        val activity = user?.activityLevel?.let { runCatching { ActivityLevel.valueOf(it) }.getOrNull() }
+                        val goal = user?.goalType?.let { runCatching { GoalType.valueOf(it) }.getOrNull() }
+                        val w = user?.weightKg
+                        val h = user?.heightCm
+                        val a = user?.age
+                        val bmr = computeBmr(w, h, a, gender)
+                        val tdee = if (bmr != null && activity != null) (bmr * activity.multiplier).roundToInt() else null
+                        val bodyFat = computeBodyFat(w, h, a, gender)
+                        _uiState.update {
+                            it.copy(
+                                user = user,
+                                isLoading = false,
+                                name = user?.displayName ?: "",
+                                age = user?.age?.toString() ?: "",
+                                contact = user?.contact ?: "",
+                                weightKg = user?.weightKg?.let { v -> if (v == v.toLong().toDouble()) v.toLong().toString() else "%.1f".format(v) } ?: "",
+                                heightCm = user?.heightCm?.let { v -> if (v == v.toLong().toDouble()) v.toLong().toString() else "%.1f".format(v) } ?: "",
+                                gender = gender,
+                                activityLevel = activity,
+                                targetCalories = user?.targetCalories?.toString() ?: "",
+                                goalType = goal,
+                                computedBmr = bmr,
+                                computedTdee = tdee,
+                                computedBodyFatPct = bodyFat
+                            )
+                        }
                     }
                 } else {
                     _uiState.update { it.copy(isLoading = false) }
@@ -43,43 +92,133 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun updateProfile(name: String?, age: Int?, contact: String?) {
+    // ─── Field updaters ───────────────────────────────────────────────────────
+
+    fun updateName(v: String) = _uiState.update { it.copy(name = v) }
+    fun updateAge(v: String) = _uiState.update { it.copy(age = v) }
+    fun updateContact(v: String) = _uiState.update { it.copy(contact = v) }
+    fun updateGender(g: Gender) = _uiState.update { recompute(it.copy(gender = g)) }
+    fun updateGoalType(g: GoalType) = _uiState.update { it.copy(goalType = g) }
+    fun updateTargetCalories(v: String) = _uiState.update { it.copy(targetCalories = v) }
+
+    fun updateWeight(v: String) {
+        _uiState.update { recompute(it.copy(weightKg = v)) }
+    }
+
+    fun updateHeight(v: String) {
+        _uiState.update { recompute(it.copy(heightCm = v)) }
+    }
+
+    fun updateActivityLevel(a: ActivityLevel) {
+        _uiState.update { state ->
+            val newState = state.copy(activityLevel = a)
+            val tdee = if (newState.computedBmr != null) (newState.computedBmr * a.multiplier).roundToInt() else null
+            // auto-fill targetCalories from TDEE if blank
+            val tc = if (newState.targetCalories.isBlank() && tdee != null) tdee.toString() else newState.targetCalories
+            newState.copy(computedTdee = tdee, targetCalories = tc)
+        }
+    }
+
+    private fun recompute(state: ProfileUiState): ProfileUiState {
+        val w = state.weightKg.toDoubleOrNull()
+        val h = state.heightCm.toDoubleOrNull()
+        val a = state.age.toIntOrNull()
+        val g = state.gender
+        val bmr = computeBmr(w, h, a, g)
+        val tdee = if (bmr != null && state.activityLevel != null) (bmr * state.activityLevel.multiplier).roundToInt() else null
+        val bodyFat = computeBodyFat(w, h, a, g)
+        val tc = if (state.targetCalories.isBlank() && tdee != null) tdee.toString() else state.targetCalories
+        return state.copy(computedBmr = bmr, computedTdee = tdee, computedBodyFatPct = bodyFat, targetCalories = tc)
+    }
+
+    // ─── BMR / estimates ──────────────────────────────────────────────────────
+
+    // Mifflin-St Jeor
+    private fun computeBmr(w: Double?, h: Double?, a: Int?, g: Gender?): Int? {
+        if (w == null || h == null || a == null || g == null) return null
+        val base = 10.0 * w + 6.25 * h - 5.0 * a
+        return when (g) {
+            Gender.MALE -> (base + 5).roundToInt()
+            Gender.FEMALE -> (base - 161).roundToInt()
+            Gender.OTHER -> (base - 78).roundToInt() // avg of male/female offsets
+        }
+    }
+
+    // Deurenberg BMI-based body fat %
+    private fun computeBodyFat(w: Double?, h: Double?, a: Int?, g: Gender?): Double? {
+        if (w == null || h == null || a == null || g == null || g == Gender.OTHER) return null
+        val hM = h / 100.0
+        val bmi = w / (hM * hM)
+        val offset = if (g == Gender.MALE) 16.2 else 5.4
+        val pct = 1.20 * bmi + 0.23 * a - offset
+        return if (pct < 0) null else Math.round(pct * 10) / 10.0
+    }
+
+    // ─── Save ─────────────────────────────────────────────────────────────────
+
+    fun saveProfile() {
         val currentUser = _uiState.value.user ?: return
+        val state = _uiState.value
+
+        // If targetCalories blank, use TDEE; if still null, store null
+        val tc = state.targetCalories.toIntOrNull()
+            ?: state.computedTdee
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             val updatedUser = currentUser.copy(
-                displayName = name ?: currentUser.displayName,
-                age = age ?: currentUser.age,
-                contact = contact ?: currentUser.contact
+                displayName = state.name.ifBlank { null },
+                age = state.age.toIntOrNull(),
+                contact = state.contact.ifBlank { null },
+                weightKg = state.weightKg.toDoubleOrNull(),
+                heightCm = state.heightCm.toDoubleOrNull(),
+                gender = state.gender?.name,
+                activityLevel = state.activityLevel?.name,
+                targetCalories = tc,
+                goalType = state.goalType?.name
             )
             val result = authRepository.updateProfile(updatedUser)
             result.fold(
-                onSuccess = { user ->
-                    _uiState.update {
-                        it.copy(user = user, isSaving = false, saveSuccess = true)
-                    }
-                },
-                onFailure = { e ->
-                    _uiState.update {
-                        it.copy(isSaving = false, error = e.message ?: "Failed to update profile")
-                    }
-                }
+                onSuccess = { _uiState.update { it.copy(isSaving = false, saveSuccess = true) } },
+                onFailure = { e -> _uiState.update { it.copy(isSaving = false, error = e.message ?: "Failed to save") } }
             )
         }
     }
 
+    // ─── Logout ───────────────────────────────────────────────────────────────
+
     fun logout() {
+        viewModelScope.launch { authRepository.signOut() }
+    }
+
+    // ─── Clear / Delete ───────────────────────────────────────────────────────
+
+    fun showClearDataDialog() = _uiState.update { it.copy(showClearDataDialog = true) }
+    fun dismissClearDataDialog() = _uiState.update { it.copy(showClearDataDialog = false) }
+
+    fun confirmClearData() {
         viewModelScope.launch {
-            authRepository.signOut()
+            _uiState.update { it.copy(isClearing = true, showClearDataDialog = false) }
+            authRepository.clearAllUserData()
+            _uiState.update { it.copy(isClearing = false, clearSuccess = true) }
         }
     }
 
-    fun clearSaveSuccess() {
-        _uiState.update { it.copy(saveSuccess = false) }
+    fun showDeleteAccountDialog() = _uiState.update { it.copy(showDeleteAccountDialog = true) }
+    fun dismissDeleteAccountDialog() = _uiState.update { it.copy(showDeleteAccountDialog = false) }
+
+    fun confirmDeleteAccount(onLogout: () -> Unit) {
+        val userId = _uiState.value.user?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isClearing = true, showDeleteAccountDialog = false) }
+            authRepository.deleteAccount(userId)
+            onLogout()
+        }
     }
 
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
-    }
+    // ─── State cleanup ────────────────────────────────────────────────────────
+
+    fun clearSaveSuccess() = _uiState.update { it.copy(saveSuccess = false) }
+    fun clearClearSuccess() = _uiState.update { it.copy(clearSuccess = false) }
+    fun clearError() = _uiState.update { it.copy(error = null) }
 }

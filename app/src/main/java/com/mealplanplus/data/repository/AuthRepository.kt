@@ -3,6 +3,12 @@ package com.mealplanplus.data.repository
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
 import android.util.Log
+import com.mealplanplus.data.local.DailyLogDao
+import com.mealplanplus.data.local.DietDao
+import com.mealplanplus.data.local.GroceryDao
+import com.mealplanplus.data.local.HealthMetricDao
+import com.mealplanplus.data.local.MealDao
+import com.mealplanplus.data.local.PlanDao
 import com.mealplanplus.data.local.UserDao
 import com.mealplanplus.data.local.UserDataSeeder
 import com.mealplanplus.data.model.User
@@ -16,6 +22,12 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val userDao: UserDao,
     private val userDataSeeder: UserDataSeeder,
+    private val healthMetricDao: HealthMetricDao,
+    private val dailyLogDao: DailyLogDao,
+    private val planDao: PlanDao,
+    private val groceryDao: GroceryDao,
+    private val dietDao: DietDao,
+    private val mealDao: MealDao,
     @ApplicationContext private val context: Context
 ) {
     private val TAG = "AuthRepository"
@@ -45,7 +57,6 @@ class AuthRepository @Inject constructor(
         return try {
             val trimmedEmail = email.lowercase().trim()
 
-            // Check if user already exists
             val existingUser = userDao.getUserByEmail(trimmedEmail)
             if (existingUser != null) {
                 return Result.failure(Exception("Email already registered"))
@@ -60,13 +71,11 @@ class AuthRepository @Inject constructor(
             val userId = userDao.insertUser(user)
             val savedUser = user.copy(id = userId)
 
-            // Seed default tags, diets, and meals for new user
             try {
                 userDataSeeder.seedUserData(context, userId)
                 Log.d(TAG, "Seeded user data for userId=$userId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to seed user data: ${e.message}")
-                // Don't fail sign-up if seeding fails
             }
 
             AuthPreferences.setLoggedIn(context, userId)
@@ -91,6 +100,31 @@ class AuthRepository @Inject constructor(
             val updatedUser = user.copy(updatedAt = System.currentTimeMillis())
             userDao.updateUser(updatedUser)
             Result.success(updatedUser)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun clearAllUserData() {
+        healthMetricDao.deleteAllHealthMetrics()
+        healthMetricDao.deleteAllCustomTypes()
+        dailyLogDao.deleteAllLoggedFoods()
+        dailyLogDao.deleteAllDailyLogs()
+        planDao.deleteAllPlans()
+        groceryDao.deleteAllGroceryItems()
+        groceryDao.deleteAllGroceryLists()
+        dietDao.deleteAllDietMeals()
+        dietDao.deleteAllDiets()
+        mealDao.deleteAllMealFoodItems()
+        mealDao.deleteAllMeals()
+    }
+
+    suspend fun deleteAccount(userId: Long): Result<Unit> {
+        return try {
+            clearAllUserData()
+            userDao.deleteUser(userId)
+            signOut()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

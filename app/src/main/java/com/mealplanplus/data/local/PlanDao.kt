@@ -39,4 +39,7 @@ interface PlanDao {
 
     @Query("SELECT * FROM plans WHERE userId = :userId ORDER BY date DESC")
     fun getPlansByUser(userId: Long): Flow<List<Plan>>
+
+    @Query("DELETE FROM plans")
+    suspend fun deleteAllPlans()
 }
