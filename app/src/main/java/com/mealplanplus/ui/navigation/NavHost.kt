@@ -324,9 +324,7 @@ fun MealPlanNavHost() {
                 val savedStateHandle = backStackEntry.savedStateHandle
                 AddDietScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToMealPicker = { slotType ->
-                        navController.navigate(Screen.DietMealPicker.createRoute(slotType))
-                    },
+                    onNavigateToFoodPicker = { navController.navigate(Screen.FoodPickerForDietSlot.route) },
                     savedStateHandle = savedStateHandle
                 )
             }
@@ -334,12 +332,11 @@ fun MealPlanNavHost() {
                 route = Screen.DietDetail.route,
                 arguments = listOf(navArgument("dietId") { type = NavType.LongType })
             ) { backStackEntry ->
-                val dietId = backStackEntry.arguments?.getLong("dietId") ?: 0L
+                val savedStateHandle = backStackEntry.savedStateHandle
                 DietDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToMealSlot = { slotType ->
-                        navController.navigate(Screen.DietMealSlot.createRoute(dietId, slotType))
-                    }
+                    onNavigateToFoodPicker = { navController.navigate(Screen.FoodPickerForDietSlot.route) },
+                    savedStateHandle = savedStateHandle
                 )
             }
             composable(

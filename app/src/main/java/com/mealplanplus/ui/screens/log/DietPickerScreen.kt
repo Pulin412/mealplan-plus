@@ -1,20 +1,24 @@
 package com.mealplanplus.ui.screens.log
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.mealplanplus.ui.components.TagChip
+import com.mealplanplus.ui.screens.diets.AdvancedFilterSection
+import com.mealplanplus.ui.screens.diets.DietCard
+import com.mealplanplus.ui.screens.diets.DietsTopBar
+import com.mealplanplus.ui.screens.diets.DietsViewModel
+import com.mealplanplus.ui.screens.diets.TagFilterRow
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -24,50 +28,30 @@ fun DietPickerScreen(
     onNavigateBack: () -> Unit,
     onDietSelected: (Long, String) -> Unit,
     onNavigateHome: () -> Unit = {},
-    viewModel: DietPickerViewModel = hiltViewModel()
+    viewModel: DietsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedDiet by remember { mutableStateOf<DietPickerItem?>(null) }
+    var selectedDietId by remember { mutableStateOf<Long?>(null) }
     var showConfirmDialog by remember { mutableStateOf(false) }
-    var showSuccessSnackbar by remember { mutableStateOf(false) }
+    var showAdvancedFilters by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Check if date is future (planning) vs today/past (logging)
     val parsedDate = try { LocalDate.parse(date) } catch (e: Exception) { LocalDate.now() }
     val isFutureDate = parsedDate.isAfter(LocalDate.now())
     val actionText = if (isFutureDate) "Plan" else "Log"
 
-    // Show success snackbar
-    LaunchedEffect(showSuccessSnackbar) {
-        if (showSuccessSnackbar) {
-            val message = if (isFutureDate) "Diet planned successfully!" else "Diet logged successfully!"
-            val result = snackbarHostState.showSnackbar(
-                message = message,
-                actionLabel = "Go Home",
-                duration = SnackbarDuration.Short
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                onNavigateHome()
-            }
-            showSuccessSnackbar = false
-        }
-    }
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Select Diet") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            DietsTopBar(
+                totalCount = uiState.totalDietCount,
+                shownCount = uiState.diets.size,
+                searchQuery = uiState.searchQuery,
+                onSearchChange = viewModel::updateSearchQuery,
+                onNewDiet = null,  // no new diet in picker
+                onNavigateBack = onNavigateBack,
+                onTagsSettings = null,
+                title = "Select Diet"
             )
         }
     ) { padding ->
@@ -75,116 +59,82 @@ fun DietPickerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(Color(0xFFF5F5F5))
         ) {
-            // Search bar
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = viewModel::updateSearchQuery,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search diets...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                singleLine = true
+            // Tag filter row
+            TagFilterRow(
+                tags = uiState.allTags,
+                selectedTagIds = uiState.selectedTagIds,
+                tagCountMap = uiState.tagCountMap,
+                totalCount = uiState.totalDietCount,
+                onTagClick = viewModel::toggleTagFilter,
+                onAllClick = viewModel::clearTagFilters
             )
 
-            // Filter chips - dynamic tags
-            LazyRow(
+            // Advanced filters toggle
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // "All" chip
-                item {
-                    FilterChip(
-                        selected = uiState.selectedTagId == null,
-                        onClick = { viewModel.selectTag(null) },
-                        label = { Text("All") },
-                        leadingIcon = if (uiState.selectedTagId == null) {
-                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                        } else null
-                    )
-                }
-                // Dynamic tag chips
-                items(uiState.allTags) { tag ->
-                    FilterChip(
-                        selected = uiState.selectedTagId == tag.id,
-                        onClick = { viewModel.selectTag(tag.id) },
-                        label = { Text(tag.name) },
-                        leadingIcon = if (uiState.selectedTagId == tag.id) {
-                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                        } else null
+                TextButton(onClick = { showAdvancedFilters = !showAdvancedFilters }) {
+                    Text(
+                        text = if (showAdvancedFilters) "Hide Filters" else "More Filters",
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            AnimatedVisibility(
+                visible = showAdvancedFilters,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                AdvancedFilterSection(
+                    foodFilter = uiState.foodFilter,
+                    slotFilter = uiState.slotFilter,
+                    onFoodFilterChange = viewModel::updateFoodFilter,
+                    onSlotToggle = viewModel::toggleSlotFilter,
+                    onClearAll = { viewModel.clearAllFilters(); showAdvancedFilters = false }
+                )
+            }
 
-            // Count
-            Text(
-                text = "${uiState.diets.size} diets",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
 
             // Content
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            when {
+                uiState.isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
-            } else if (uiState.diets.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+                uiState.diets.isEmpty() -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = if (uiState.searchQuery.isNotEmpty())
-                                "No diets match your search"
+                            text = if (uiState.searchQuery.isBlank() && uiState.selectedTagIds.isEmpty())
+                                "No diets available"
                             else
-                                "No diets available",
-                            style = MaterialTheme.typography.bodyMedium,
+                                "No diets match your filters",
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(
-                        uiState.diets.distinctBy { it.diet.id },
-                        key = { it.diet.id }
-                    ) { item ->
-                        DietPickerCard(
-                            item = item,
-                            onClick = {
-                                selectedDiet = item
-                                showConfirmDialog = true
-                            }
-                        )
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(uiState.diets, key = { it.diet.id }) { item ->
+                            DietCard(
+                                item = item,
+                                onSelect = {
+                                    selectedDietId = item.diet.id
+                                    showConfirmDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -192,110 +142,35 @@ fun DietPickerScreen(
     }
 
     // Confirmation dialog
-    if (showConfirmDialog && selectedDiet != null) {
+    if (showConfirmDialog && selectedDietId != null) {
+        val selectedItem = uiState.diets.find { it.diet.id == selectedDietId }
         AlertDialog(
-            onDismissRequest = {
-                showConfirmDialog = false
-                selectedDiet = null
-            },
+            onDismissRequest = { showConfirmDialog = false; selectedDietId = null },
             title = { Text("$actionText Diet") },
             text = {
                 Column {
-                    Text("$actionText \"${selectedDiet!!.diet.name}\" for $date?")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("$actionText \"${selectedItem?.diet?.name}\" for $date?")
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "${selectedDiet!!.totalCalories} cal • ${selectedDiet!!.mealCount} meals",
+                        text = "${selectedItem?.totalCalories ?: 0} cal · ${selectedItem?.mealCount ?: 0} meals",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        selectedDiet?.let {
-                            onDietSelected(it.diet.id, date)
-                            showConfirmDialog = false
-                            showSuccessSnackbar = true
-                        }
+                Button(onClick = {
+                    selectedDietId?.let { id ->
+                        onDietSelected(id, date)
+                        showConfirmDialog = false
                     }
-                ) {
-                    Text("Confirm")
-                }
+                }) { Text("Confirm") }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        showConfirmDialog = false
-                        selectedDiet = null
-                    }
-                ) {
+                TextButton(onClick = { showConfirmDialog = false; selectedDietId = null }) {
                     Text("Cancel")
                 }
             }
         )
     }
 }
-
-@Composable
-fun DietPickerCard(
-    item: DietPickerItem,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.diet.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    // Tags
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        item.tags.forEach { tag ->
-                            TagChip(tag = tag)
-                        }
-                    }
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "${item.totalCalories} cal",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "${item.mealCount} meals",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            item.diet.description?.let { desc ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = desc,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-

@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.diets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.Tag
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.TagRepository
@@ -32,15 +33,21 @@ data class DietDisplayItem(
     val totalCarbs: Int = 0,
     val totalFat: Int = 0,
     val mealCount: Int = 0,
-    val tags: List<Tag> = emptyList()
+    val tags: List<Tag> = emptyList(),
+    val foodNames: List<String> = emptyList(),
+    val assignedSlots: Set<String> = emptySet()
 )
 
 data class DietsUiState(
     val diets: List<DietDisplayItem> = emptyList(),
+    val totalDietCount: Int = 0,
     val allTags: List<Tag> = emptyList(),
     val selectedTagIds: Set<Long> = emptySet(),
     val tagFilterMode: TagFilterMode = TagFilterMode.ANY,
+    val tagCountMap: Map<Long, Int> = emptyMap(),
     val searchQuery: String = "",
+    val foodFilter: String = "",
+    val slotFilter: Set<String> = emptySet(),
     val sortOption: DietSortOption = DietSortOption.NAME_ASC,
     val isLoading: Boolean = true,
     val showTagsDialog: Boolean = false
@@ -53,6 +60,8 @@ class DietsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
+    private val _foodFilter = MutableStateFlow("")
+    private val _slotFilter = MutableStateFlow<Set<String>>(emptySet())
     private val _sortOption = MutableStateFlow(DietSortOption.NAME_ASC)
     private val _selectedTagIds = MutableStateFlow<Set<Long>>(emptySet())
     private val _tagFilterMode = MutableStateFlow(TagFilterMode.ANY)
@@ -64,13 +73,16 @@ class DietsViewModel @Inject constructor(
     val uiState: StateFlow<DietsUiState> = combine(
         _dietsWithMeals,
         _allTags,
-        _selectedTagIds,
-        _tagFilterMode,
-        combine(_searchQuery, _sortOption, _isLoading, _showTagsDialog) { q, s, l, d ->
-            Triple(q, s, l to d)
-        }
-    ) { diets, tags, selectedTags, filterMode, (query, sort, loadingAndDialog) ->
-        val (loading, showDialog) = loadingAndDialog
+        combine(_selectedTagIds, _tagFilterMode) { ids, mode -> ids to mode },
+        combine(_searchQuery, _foodFilter, _slotFilter) { q, f, sl -> Triple(q, f, sl) },
+        combine(_sortOption, _isLoading, _showTagsDialog) { s, l, d -> Triple(s, l, d) }
+    ) { diets, tags, (selectedTags, filterMode), (query, foodFilter, slotFilter), (sort, loading, showDialog) ->
+
+        val tagCountMap = diets
+            .flatMap { item -> item.tags.map { it.id } }
+            .groupingBy { it }
+            .eachCount()
+
         val filtered = diets
             .filter { item ->
                 val matchesSearch = query.isBlank() ||
@@ -87,7 +99,13 @@ class DietsViewModel @Inject constructor(
                     }
                 }
 
-                matchesSearch && matchesTags
+                val matchesFood = foodFilter.isBlank() ||
+                    item.foodNames.any { it.contains(foodFilter, ignoreCase = true) }
+
+                val matchesSlots = slotFilter.isEmpty() ||
+                    item.assignedSlots.containsAll(slotFilter)
+
+                matchesSearch && matchesTags && matchesFood && matchesSlots
             }
             .let { list ->
                 when (sort) {
@@ -107,10 +125,14 @@ class DietsViewModel @Inject constructor(
 
         DietsUiState(
             diets = filtered,
+            totalDietCount = diets.size,
             allTags = tags,
             selectedTagIds = selectedTags,
             tagFilterMode = filterMode,
+            tagCountMap = tagCountMap,
             searchQuery = query,
+            foodFilter = foodFilter,
+            slotFilter = slotFilter,
             sortOption = sort,
             isLoading = loading,
             showTagsDialog = showDialog
@@ -136,6 +158,10 @@ class DietsViewModel @Inject constructor(
                 _isLoading.value = true
                 val displayItems = summaries.map { summary ->
                     val tags = dietRepository.getTagsForDiet(summary.id)
+                    val dietWithMeals = dietRepository.getDietWithMeals(summary.id)
+                    val foodNames = dietWithMeals?.meals?.values?.filterNotNull()
+                        ?.flatMap { mwf -> mwf.items.map { it.food.name } } ?: emptyList()
+                    val assignedSlots = dietWithMeals?.meals?.keys?.toSet() ?: emptySet()
                     DietDisplayItem(
                         diet = summary.toDiet(),
                         totalCalories = summary.totalCalories,
@@ -143,7 +169,9 @@ class DietsViewModel @Inject constructor(
                         totalCarbs = summary.totalCarbs,
                         totalFat = summary.totalFat,
                         mealCount = summary.mealCount,
-                        tags = tags
+                        tags = tags,
+                        foodNames = foodNames,
+                        assignedSlots = assignedSlots
                     )
                 }
                 _dietsWithMeals.value = displayItems
@@ -152,7 +180,6 @@ class DietsViewModel @Inject constructor(
         }
     }
 
-    // Natural sort comparator for diet names (Diet-1, Diet-2, ... Diet-10, Diet-11)
     private fun naturalSortKey(name: String): Pair<String, Int> {
         val regex = Regex("^(Diet-M?)(\\d+).*$")
         val match = regex.find(name)
@@ -165,12 +192,16 @@ class DietsViewModel @Inject constructor(
         }
     }
 
-    fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
-    }
+    fun updateSearchQuery(query: String) { _searchQuery.value = query }
+    fun updateFoodFilter(filter: String) { _foodFilter.value = filter }
+    fun updateSortOption(option: DietSortOption) { _sortOption.value = option }
 
-    fun updateSortOption(option: DietSortOption) {
-        _sortOption.value = option
+    fun toggleSlotFilter(slotName: String) {
+        _slotFilter.value = if (slotName in _slotFilter.value) {
+            _slotFilter.value - slotName
+        } else {
+            _slotFilter.value + slotName
+        }
     }
 
     fun toggleTagFilter(tagId: Long) {
@@ -181,8 +212,13 @@ class DietsViewModel @Inject constructor(
         }
     }
 
-    fun clearTagFilters() {
+    fun clearTagFilters() { _selectedTagIds.value = emptySet() }
+
+    fun clearAllFilters() {
         _selectedTagIds.value = emptySet()
+        _foodFilter.value = ""
+        _slotFilter.value = emptySet()
+        _searchQuery.value = ""
     }
 
     fun toggleTagFilterMode() {
@@ -192,24 +228,15 @@ class DietsViewModel @Inject constructor(
         }
     }
 
-    fun showTagsManagement() {
-        _showTagsDialog.value = true
-    }
-
-    fun hideTagsManagement() {
-        _showTagsDialog.value = false
-    }
+    fun showTagsManagement() { _showTagsDialog.value = true }
+    fun hideTagsManagement() { _showTagsDialog.value = false }
 
     fun createTag(name: String) {
-        viewModelScope.launch {
-            tagRepository.createTag(name)
-        }
+        viewModelScope.launch { tagRepository.createTag(name) }
     }
 
     fun createTagWithColor(name: String, color: String) {
-        viewModelScope.launch {
-            tagRepository.createTagWithColor(name, color)
-        }
+        viewModelScope.launch { tagRepository.createTagWithColor(name, color) }
     }
 
     fun deleteTag(tag: Tag) {
@@ -220,14 +247,10 @@ class DietsViewModel @Inject constructor(
     }
 
     fun deleteDiet(diet: Diet) {
-        viewModelScope.launch {
-            dietRepository.deleteDiet(diet)
-        }
+        viewModelScope.launch { dietRepository.deleteDiet(diet) }
     }
 
     fun duplicateDiet(diet: Diet) {
-        viewModelScope.launch {
-            dietRepository.duplicateDiet(diet.id, "${diet.name} (copy)")
-        }
+        viewModelScope.launch { dietRepository.duplicateDiet(diet.id, "${diet.name} (copy)") }
     }
 }

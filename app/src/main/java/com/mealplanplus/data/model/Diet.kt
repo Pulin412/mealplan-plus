@@ -1,5 +1,6 @@
 package com.mealplanplus.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -26,7 +27,9 @@ data class Diet(
     val userId: Long,
     val name: String,
     val description: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "0")
+    val isSystemDiet: Boolean = false
 )
 
 /**
@@ -86,7 +89,7 @@ data class DietSummary(
     val mealCount: Int,
     val totalCalories: Int
 ) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt)
+    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false)
 }
 
 /**
@@ -104,5 +107,5 @@ data class DietFullSummary(
     val totalCarbs: Int,
     val totalFat: Int
 ) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt)
+    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false)
 }

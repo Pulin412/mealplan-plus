@@ -1,46 +1,60 @@
 package com.mealplanplus.ui.screens.diets
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
-import com.mealplanplus.data.model.Meal
+import com.mealplanplus.data.repository.UsdaFoodResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddDietScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToMealPicker: (String) -> Unit = {},
+    onNavigateToFoodPicker: () -> Unit,
     savedStateHandle: SavedStateHandle? = null,
     viewModel: AddDietViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Handle meal selection result from picker
+    // Handle food selection result from picker
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.let { handle ->
-            handle.getStateFlow<Long?>("selected_meal_id", null).collect { mealId ->
-                val slotType = handle.get<String>("selected_slot_type")
-                if (mealId != null && slotType != null) {
-                    val slot = DefaultMealSlot.entries.find { it.name == slotType }
-                    if (slot != null) {
-                        viewModel.setMealForSlotById(slot, mealId)
-                    }
-                    handle.remove<Long>("selected_meal_id")
-                    handle.remove<String>("selected_slot_type")
-                }
+            handle.get<Long>("selected_food_id")?.let { foodId ->
+                val quantity = handle.get<Double>("selected_quantity") ?: 100.0
+                viewModel.addFoodById(foodId, quantity)
+                handle.remove<Long>("selected_food_id")
+                handle.remove<Double>("selected_quantity")
+            }
+            handle.get<String>("usda_food_name")?.let { name ->
+                val usdaFood = UsdaFoodResult(
+                    fdcId = 0,
+                    name = name,
+                    brand = handle.get<String>("usda_food_brand"),
+                    calories = handle.get<Double>("usda_food_calories") ?: 0.0,
+                    protein = handle.get<Double>("usda_food_protein") ?: 0.0,
+                    carbs = handle.get<Double>("usda_food_carbs") ?: 0.0,
+                    fat = handle.get<Double>("usda_food_fat") ?: 0.0,
+                    servingSize = handle.get<Double>("usda_food_serving_size") ?: 100.0,
+                    servingUnit = handle.get<String>("usda_food_serving_unit") ?: "g"
+                )
+                val quantity = handle.get<Double>("selected_quantity") ?: 100.0
+                viewModel.addUsdaFoodToSlot(usdaFood, quantity)
+                handle.remove<String>("usda_food_name")
+                handle.remove<String>("usda_food_brand")
+                handle.remove<Double>("usda_food_calories")
+                handle.remove<Double>("usda_food_protein")
+                handle.remove<Double>("usda_food_carbs")
+                handle.remove<Double>("usda_food_fat")
+                handle.remove<Double>("usda_food_serving_size")
+                handle.remove<String>("usda_food_serving_unit")
+                handle.remove<Double>("selected_quantity")
             }
         }
     }
@@ -51,18 +65,11 @@ fun AddDietScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Add Diet") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            DietFormTopBar(
+                title = "New Diet",
+                onNavigateBack = onNavigateBack,
+                onSave = viewModel::saveDiet,
+                isSaving = uiState.isLoading
             )
         }
     ) { padding ->
@@ -70,174 +77,64 @@ fun AddDietScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .background(Color(0xFFF5F5F5)),
+            contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Diet Info card
             item {
-                OutlinedTextField(
-                    value = uiState.name,
-                    onValueChange = viewModel::updateName,
-                    label = { Text("Diet Name *") },
-                    placeholder = { Text("e.g., Low Carb Day") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                DietInfoCard(
+                    name = uiState.name,
+                    description = uiState.description,
+                    allTags = uiState.allTags,
+                    selectedTagIds = uiState.selectedTagIds,
+                    onNameChange = viewModel::updateName,
+                    onDescriptionChange = viewModel::updateDescription,
+                    onTagToggle = viewModel::toggleTag,
+                    newTagName = uiState.newTagName,
+                    onNewTagNameChange = viewModel::updateNewTagName,
+                    onCreateTag = viewModel::createAndSelectTag
                 )
             }
 
+            // Estimated Totals card
             item {
-                OutlinedTextField(
-                    value = uiState.description,
-                    onValueChange = viewModel::updateDescription,
-                    label = { Text("Description") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2
+                EstimatedTotalsCard(
+                    calories = uiState.estimatedCalories,
+                    protein = uiState.estimatedProtein,
+                    carbs = uiState.estimatedCarbs,
+                    fat = uiState.estimatedFat
                 )
             }
 
-            // Tags selector
-            item {
-                Column {
-                    Text(
-                        text = "Tags",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    // Existing tags
-                    if (uiState.allTags.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier.horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            uiState.allTags.forEach { tag ->
-                                FilterChip(
-                                    selected = tag.id in uiState.selectedTagIds,
-                                    onClick = { viewModel.toggleTag(tag.id) },
-                                    label = { Text(tag.name) }
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-
-                    // Add new tag inline
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = uiState.newTagName,
-                            onValueChange = viewModel::updateNewTagName,
-                            label = { Text("New Tag") },
-                            placeholder = { Text("e.g., Keto") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        IconButton(
-                            onClick = viewModel::createAndSelectTag,
-                            enabled = uiState.newTagName.isNotBlank()
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add tag")
-                        }
-                    }
-                }
-            }
-
-            item {
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Text("Meal Slots", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Assign meals to each time slot",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            items(DefaultMealSlot.entries.toList()) { slot ->
-                MealSlotCard(
+            // Slot sections
+            val slots = slotsToShow(uiState.slotFoodItems)
+            items(slots.size) { index ->
+                val slot = slots[index]
+                val foods = uiState.slotFoodItems[slot] ?: emptyList()
+                DietSlotSection(
                     slot = slot,
-                    selectedMeal = uiState.slotMeals[slot],
-                    onSelectClick = { onNavigateToMealPicker(slot.name) },
-                    onClear = { viewModel.setMealForSlot(slot, null) }
+                    foods = foods,
+                    onAddFood = {
+                        viewModel.setPickingSlot(slot)
+                        onNavigateToFoodPicker()
+                    },
+                    onRemoveFood = { idx -> viewModel.removeFood(slot, idx) },
+                    onIncrement = { idx -> viewModel.incrementQty(slot, idx) },
+                    onDecrement = { idx -> viewModel.decrementQty(slot, idx) }
                 )
             }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = viewModel::saveDiet,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isLoading
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text("Save Diet")
-                    }
-                }
-            }
-
-            uiState.error?.let { error ->
+            // Error
+            if (uiState.error != null) {
                 item {
                     Text(
-                        text = error,
+                        text = uiState.error!!,
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MealSlotCard(
-    slot: DefaultMealSlot,
-    selectedMeal: Meal?,
-    onSelectClick: () -> Unit,
-    onClear: () -> Unit
-) {
-    Card {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onSelectClick)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = slot.displayName,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                if (selectedMeal != null) {
-                    Text(
-                        text = selectedMeal.name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Text(
-                        text = "Not assigned",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
-            }
-            if (selectedMeal != null) {
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
-                }
-            } else {
-                Icon(
-                    Icons.Default.KeyboardArrowRight,
-                    contentDescription = "Select",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
