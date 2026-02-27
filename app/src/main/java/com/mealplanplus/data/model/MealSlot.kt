@@ -1,9 +1,5 @@
 package com.mealplanplus.data.model
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
 
 /**
  * Predefined meal slots - matches seed_data.json slots
@@ -26,29 +22,6 @@ enum class DefaultMealSlot(val displayName: String, val order: Int) {
             entries.find { it.name == value }
     }
 }
-
-/**
- * Custom meal slots created by user
- */
-@Entity(
-    tableName = "custom_meal_slots",
-    foreignKeys = [
-        ForeignKey(
-            entity = User::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("userId")]
-)
-data class CustomMealSlot(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
-    val userId: Long,
-    val name: String,
-    val order: Int = 99  // Custom slots appear after defaults
-)
 
 /**
  * Unified slot reference - can be default or custom

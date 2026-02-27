@@ -196,7 +196,7 @@ class DailyLogViewModel @Inject constructor(
 
     fun clearPlan() {
         viewModelScope.launch {
-            logRepository.clearLoggedMeals(_date.value)
+            logRepository.clearAllFoodsForDate(_date.value)
             planRepository.removePlan(_date.value.toString())
             loadPlanForDate(_date.value)
         }

@@ -30,38 +30,6 @@ data class DailyLog(
 )
 
 /**
- * Per-slot override for a day's diet
- * Allows changing individual meal slots without affecting entire day
- */
-@Entity(
-    tableName = "daily_log_slot_overrides",
-    primaryKeys = ["userId", "logDate", "slotType"],
-    foreignKeys = [
-        ForeignKey(
-            entity = DailyLog::class,
-            parentColumns = ["userId", "date"],
-            childColumns = ["userId", "logDate"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = Meal::class,
-            parentColumns = ["id"],
-            childColumns = ["overrideMealId"],
-            onDelete = ForeignKey.SET_NULL
-        )
-    ],
-    indices = [Index("userId", "logDate"), Index("overrideMealId")]
-)
-data class DailyLogSlotOverride(
-    val userId: Long,
-    val logDate: String,
-    val slotType: String,
-    val overrideMealId: Long?,  // null = skip this slot
-    val notes: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
-)
-
-/**
  * Individual logged food item
  */
 @Entity(
@@ -124,8 +92,7 @@ data class LoggedFoodWithDetails(
 data class DailyLogWithFoods(
     val log: DailyLog,
     val foods: List<LoggedFoodWithDetails>,
-    val plannedDiet: Diet? = null,
-    val slotOverrides: List<DailyLogSlotOverride> = emptyList()
+    val plannedDiet: Diet? = null
 ) {
     val totalCalories: Double
         get() = foods.sumOf { it.calculatedCalories }
@@ -138,91 +105,6 @@ data class DailyLogWithFoods(
 
     fun foodsForSlot(slotType: String): List<LoggedFoodWithDetails> =
         foods.filter { it.loggedFood.slotType == slotType }
-
-    fun hasOverrideForSlot(slotType: String): Boolean =
-        slotOverrides.any { it.slotType == slotType }
-
-    fun getOverrideForSlot(slotType: String): DailyLogSlotOverride? =
-        slotOverrides.find { it.slotType == slotType }
-}
-
-/**
- * Logged meal - when user logs an entire meal for a slot
- */
-@Entity(
-    tableName = "logged_meals",
-    foreignKeys = [
-        ForeignKey(
-            entity = DailyLog::class,
-            parentColumns = ["userId", "date"],
-            childColumns = ["userId", "logDate"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = Meal::class,
-            parentColumns = ["id"],
-            childColumns = ["mealId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("userId", "logDate"), Index("mealId")]
-)
-data class LoggedMeal(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
-    val userId: Long,
-    val logDate: String,
-    val mealId: Long,
-    val slotType: String,
-    val quantity: Double = 1.0,  // Multiplier for the meal
-    val timestamp: Long? = null,
-    val notes: String? = null
-)
-
-/**
- * Logged meal with full details
- */
-data class LoggedMealWithDetails(
-    val loggedMeal: LoggedMeal,
-    val meal: Meal,
-    val foods: List<MealFoodItemWithDetails>
-) {
-    val totalCalories: Double
-        get() = foods.sumOf { it.calculatedCalories } * loggedMeal.quantity
-    val totalProtein: Double
-        get() = foods.sumOf { it.calculatedProtein } * loggedMeal.quantity
-    val totalCarbs: Double
-        get() = foods.sumOf { it.calculatedCarbs } * loggedMeal.quantity
-    val totalFat: Double
-        get() = foods.sumOf { it.calculatedFat } * loggedMeal.quantity
-}
-
-/**
- * Full daily log with meals
- */
-data class DailyLogWithMeals(
-    val log: DailyLog,
-    val meals: List<LoggedMealWithDetails>,
-    val plannedDiet: Diet? = null,
-    val slotOverrides: List<DailyLogSlotOverride> = emptyList()
-) {
-    val totalCalories: Double
-        get() = meals.sumOf { it.totalCalories }
-    val totalProtein: Double
-        get() = meals.sumOf { it.totalProtein }
-    val totalCarbs: Double
-        get() = meals.sumOf { it.totalCarbs }
-    val totalFat: Double
-        get() = meals.sumOf { it.totalFat }
-
-    fun mealsForSlot(slotType: String): List<LoggedMealWithDetails> =
-        meals.filter { it.loggedMeal.slotType == slotType }
-
-    fun hasOverrideForSlot(slotType: String): Boolean =
-        slotOverrides.any { it.slotType == slotType }
-
-    fun getOverrideForSlot(slotType: String): DailyLogSlotOverride? =
-        slotOverrides.find { it.slotType == slotType }
 }
 
 /**

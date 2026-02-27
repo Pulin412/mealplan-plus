@@ -2,10 +2,8 @@ package com.mealplanplus.data.local
 
 import androidx.room.*
 import com.mealplanplus.data.model.DailyLog
-import com.mealplanplus.data.model.DailyLogSlotOverride
 import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.LoggedFood
-import com.mealplanplus.data.model.LoggedMeal
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -59,107 +57,59 @@ interface DailyLogDao {
     @Query("DELETE FROM logged_foods WHERE userId = :userId AND logDate = :date AND slotType = :slotType")
     suspend fun clearLoggedFoodsForSlot(userId: Long, date: String, slotType: String)
 
-    // Logged meals
-    @Query("SELECT * FROM logged_meals WHERE userId = :userId AND logDate = :date ORDER BY slotType, timestamp")
-    fun getLoggedMeals(userId: Long, date: String): Flow<List<LoggedMeal>>
-
-    @Query("SELECT * FROM logged_meals WHERE userId = :userId AND logDate = :date AND slotType = :slotType")
-    suspend fun getLoggedMealsForSlot(userId: Long, date: String, slotType: String): List<LoggedMeal>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLoggedMeal(meal: LoggedMeal): Long
-
-    @Update
-    suspend fun updateLoggedMeal(meal: LoggedMeal)
-
-    @Delete
-    suspend fun deleteLoggedMeal(meal: LoggedMeal)
-
-    @Query("DELETE FROM logged_meals WHERE id = :id")
-    suspend fun deleteLoggedMealById(id: Long)
-
-    @Query("DELETE FROM logged_meals WHERE userId = :userId AND logDate = :date")
-    suspend fun clearLoggedMeals(userId: Long, date: String)
-
-    @Query("DELETE FROM logged_meals WHERE userId = :userId AND logDate = :date AND slotType = :slotType")
-    suspend fun clearLoggedMealsForSlot(userId: Long, date: String, slotType: String)
-
-    // Slot overrides
-    @Query("SELECT * FROM daily_log_slot_overrides WHERE userId = :userId AND logDate = :date")
-    fun getSlotOverrides(userId: Long, date: String): Flow<List<DailyLogSlotOverride>>
-
-    @Query("SELECT * FROM daily_log_slot_overrides WHERE userId = :userId AND logDate = :date")
-    suspend fun getSlotOverridesList(userId: Long, date: String): List<DailyLogSlotOverride>
-
-    @Query("SELECT * FROM daily_log_slot_overrides WHERE userId = :userId AND logDate = :date AND slotType = :slotType")
-    suspend fun getSlotOverride(userId: Long, date: String, slotType: String): DailyLogSlotOverride?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSlotOverride(override: DailyLogSlotOverride)
-
-    @Delete
-    suspend fun deleteSlotOverride(override: DailyLogSlotOverride)
-
-    @Query("DELETE FROM daily_log_slot_overrides WHERE userId = :userId AND logDate = :date AND slotType = :slotType")
-    suspend fun deleteSlotOverrideBySlot(userId: Long, date: String, slotType: String)
-
-    @Query("DELETE FROM daily_log_slot_overrides WHERE userId = :userId AND logDate = :date")
-    suspend fun clearSlotOverrides(userId: Long, date: String)
-
     // Chart data - daily macro totals
     @Query("""
         SELECT
-            lm.logDate as date,
+            lf.logDate as date,
             COALESCE(SUM(
                 (f.caloriesPer100 / 100.0) *
-                CASE mfi.unit
-                    WHEN 'GRAM' THEN mfi.quantity
-                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
-                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
-                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
-                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
-                    ELSE mfi.quantity
-                END * lm.quantity
+                CASE lf.unit
+                    WHEN 'GRAM' THEN lf.quantity
+                    WHEN 'PIECE' THEN lf.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN lf.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN lf.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN lf.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE lf.quantity
+                END
             ), 0) as calories,
             COALESCE(SUM(
                 (f.proteinPer100 / 100.0) *
-                CASE mfi.unit
-                    WHEN 'GRAM' THEN mfi.quantity
-                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
-                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
-                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
-                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
-                    ELSE mfi.quantity
-                END * lm.quantity
+                CASE lf.unit
+                    WHEN 'GRAM' THEN lf.quantity
+                    WHEN 'PIECE' THEN lf.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN lf.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN lf.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN lf.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE lf.quantity
+                END
             ), 0) as protein,
             COALESCE(SUM(
                 (f.carbsPer100 / 100.0) *
-                CASE mfi.unit
-                    WHEN 'GRAM' THEN mfi.quantity
-                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
-                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
-                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
-                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
-                    ELSE mfi.quantity
-                END * lm.quantity
+                CASE lf.unit
+                    WHEN 'GRAM' THEN lf.quantity
+                    WHEN 'PIECE' THEN lf.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN lf.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN lf.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN lf.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE lf.quantity
+                END
             ), 0) as carbs,
             COALESCE(SUM(
                 (f.fatPer100 / 100.0) *
-                CASE mfi.unit
-                    WHEN 'GRAM' THEN mfi.quantity
-                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
-                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
-                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
-                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
-                    ELSE mfi.quantity
-                END * lm.quantity
+                CASE lf.unit
+                    WHEN 'GRAM' THEN lf.quantity
+                    WHEN 'PIECE' THEN lf.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN lf.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN lf.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN lf.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE lf.quantity
+                END
             ), 0) as fat
-        FROM logged_meals lm
-        LEFT JOIN meal_food_items mfi ON lm.mealId = mfi.mealId
-        LEFT JOIN food_items f ON mfi.foodId = f.id
-        WHERE lm.userId = :userId AND lm.logDate BETWEEN :startDate AND :endDate
-        GROUP BY lm.logDate
-        ORDER BY lm.logDate
+        FROM logged_foods lf
+        LEFT JOIN food_items f ON lf.foodId = f.id
+        WHERE lf.userId = :userId AND lf.logDate BETWEEN :startDate AND :endDate
+        GROUP BY lf.logDate
+        ORDER BY lf.logDate
     """)
     fun getDailyMacroTotals(userId: Long, startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
 
@@ -169,22 +119,21 @@ interface DailyLogDao {
             p.date as date,
             COALESCE(SUM(
                 (f.caloriesPer100 / 100.0) *
-                CASE mfi.unit
-                    WHEN 'GRAM' THEN mfi.quantity
-                    WHEN 'PIECE' THEN mfi.quantity * COALESCE(f.gramsPerPiece, 100)
-                    WHEN 'CUP' THEN mfi.quantity * COALESCE(f.gramsPerCup, 240)
-                    WHEN 'TBSP' THEN mfi.quantity * COALESCE(f.gramsPerTbsp, 15)
-                    WHEN 'TSP' THEN mfi.quantity * COALESCE(f.gramsPerTsp, 5)
-                    ELSE mfi.quantity
-                END * lm.quantity
+                CASE lf.unit
+                    WHEN 'GRAM' THEN lf.quantity
+                    WHEN 'PIECE' THEN lf.quantity * COALESCE(f.gramsPerPiece, 100)
+                    WHEN 'CUP' THEN lf.quantity * COALESCE(f.gramsPerCup, 240)
+                    WHEN 'TBSP' THEN lf.quantity * COALESCE(f.gramsPerTbsp, 15)
+                    WHEN 'TSP' THEN lf.quantity * COALESCE(f.gramsPerTsp, 5)
+                    ELSE lf.quantity
+                END
             ), 0) as calories,
             0.0 as protein,
             0.0 as carbs,
             0.0 as fat
         FROM plans p
-        LEFT JOIN logged_meals lm ON lm.logDate = p.date AND lm.userId = p.userId
-        LEFT JOIN meal_food_items mfi ON lm.mealId = mfi.mealId
-        LEFT JOIN food_items f ON mfi.foodId = f.id
+        LEFT JOIN logged_foods lf ON lf.logDate = p.date AND lf.userId = p.userId
+        LEFT JOIN food_items f ON lf.foodId = f.id
         WHERE p.userId = :userId AND p.date BETWEEN :startDate AND :endDate AND p.isCompleted = 1
         GROUP BY p.date
         ORDER BY p.date

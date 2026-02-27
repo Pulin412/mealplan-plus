@@ -8,15 +8,12 @@ import com.mealplanplus.data.model.*
 @Database(
     entities = [
         FoodItem::class,
-        CustomMealSlot::class,
         Meal::class,
         MealFoodItem::class,
         Diet::class,
         DietMeal::class,
         DailyLog::class,
-        DailyLogSlotOverride::class,
         LoggedFood::class,
-        LoggedMeal::class,
         Plan::class,
         HealthMetric::class,
         CustomMetricType::class,
@@ -26,7 +23,7 @@ import com.mealplanplus.data.model.*
         GroceryList::class,
         GroceryItem::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
