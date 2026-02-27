@@ -1,13 +1,18 @@
 package com.mealplanplus.ui.screens.auth
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -25,7 +30,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.mealplanplus.BuildConfig
+import com.mealplanplus.R
+import kotlinx.coroutines.launch
+
 @Composable
 fun LoginScreen(
     onNavigateToSignUp: () -> Unit,
@@ -34,6 +47,8 @@ fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -163,6 +178,80 @@ fun LoginScreen(
                     )
                 } else {
                     Text("Sign In", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+
+            if (BuildConfig.OAUTH_GOOGLE_ANDROID_ENABLED) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            viewModel.clearError()
+                            val activity = context as? Activity
+                            if (activity == null) {
+                                viewModel.setOAuthError("Google sign-in requires an active screen context.")
+                                return@launch
+                            }
+
+                            val webClientId = context.getString(R.string.google_web_client_id).trim()
+                            if (webClientId.isBlank() || webClientId.contains("REPLACE")) {
+                                viewModel.setOAuthError("Google OAuth is not configured. Set google_web_client_id first.")
+                                return@launch
+                            }
+
+                            try {
+                                val credentialManager = CredentialManager.create(context)
+                                val googleIdOption = GetGoogleIdOption.Builder()
+                                    .setServerClientId(webClientId)
+                                    .setFilterByAuthorizedAccounts(false)
+                                    .setAutoSelectEnabled(false)
+                                    .build()
+
+                                val request = GetCredentialRequest.Builder()
+                                    .addCredentialOption(googleIdOption)
+                                    .build()
+
+                                val result = credentialManager.getCredential(
+                                    context = activity,
+                                    request = request
+                                )
+
+                                val credential = result.credential
+                                if (credential is CustomCredential &&
+                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                                ) {
+                                    try {
+                                        val googleCredential =
+                                            GoogleIdTokenCredential.createFrom(credential.data)
+                                        viewModel.signInWithGoogle(googleCredential.idToken)
+                                    } catch (e: GoogleIdTokenParsingException) {
+                                        viewModel.setOAuthError("Invalid Google token response.")
+                                    }
+                                } else {
+                                    viewModel.setOAuthError("Google sign-in did not return a valid credential.")
+                                }
+                            } catch (e: Exception) {
+                                val message = e.message ?: "Google sign-in failed"
+                                if (message.contains("canceled", ignoreCase = true)) {
+                                    viewModel.setOAuthError("Google sign-in was canceled.")
+                                } else {
+                                    viewModel.setOAuthError("Google sign-in unavailable: $message")
+                                }
+                            }
+                        }
+                    },
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Login,
+                        contentDescription = null
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Continue with Google", style = MaterialTheme.typography.labelLarge)
                 }
             }
 

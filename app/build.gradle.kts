@@ -3,7 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
-    // id("com.google.gms.google-services") // Uncomment when enabling Firebase auth
+    // Keep disabled by default to avoid hard build dependency on google-services.json.
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -16,6 +17,10 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("boolean", "ZERO_BILLING_MODE", "true")
+        buildConfigField("boolean", "OAUTH_GOOGLE_ANDROID_ENABLED", "true")
+        buildConfigField("boolean", "OAUTH_GOOGLE_IOS_ENABLED", "false")
+        buildConfigField("boolean", "FORBID_PAID_FIREBASE_FEATURES", "true")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -60,6 +65,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -125,14 +131,15 @@ dependencies {
     // Accompanist (Permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
-    // Firebase Auth (uncomment when enabling)
-    // implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    // implementation("com.google.firebase:firebase-auth-ktx")
+    // Firebase Auth (Spark/free-tier compatible for auth-only use-case)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
 
-    // Google Sign-In (uncomment when enabling)
-    // implementation("androidx.credentials:credentials:1.3.0")
-    // implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    // implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+    // Google Sign-In via Credential Manager
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -145,4 +152,31 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Zero-billing guardrail: fail build if obviously billable Firebase data products are added.
+tasks.register("verifyNoBillableFirebaseFeatures") {
+    doLast {
+        val forbidden = setOf(
+            "com.google.firebase:firebase-firestore",
+            "com.google.firebase:firebase-functions",
+            "com.google.firebase:firebase-storage",
+            "com.google.firebase:firebase-database"
+        )
+
+        val offenders = configurations
+            .flatMap { cfg -> cfg.dependencies.map { dep -> "${dep.group}:${dep.name}" } }
+            .filter { dep -> forbidden.any { dep.startsWith(it) } }
+            .distinct()
+
+        if (offenders.isNotEmpty()) {
+            throw GradleException(
+                "Zero-billing mode violation: forbidden Firebase dependencies detected: $offenders"
+            )
+        }
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("verifyNoBillableFirebaseFeatures")
 }

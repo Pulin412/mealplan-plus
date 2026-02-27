@@ -57,6 +57,26 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun signInWithGoogle(idToken: String) {
+        if (idToken.isBlank()) {
+            _uiState.update { it.copy(error = "Google sign-in returned an empty token") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val result = authRepository.signInWithGoogle(idToken)
+            result.fold(
+                onSuccess = { user ->
+                    _uiState.update { it.copy(isLoading = false, isLoggedIn = true, user = user) }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Google sign in failed") }
+                }
+            )
+        }
+    }
+
     fun signUp(email: String, password: String, confirmPassword: String, name: String) {
         if (email.isBlank() || password.isBlank() || name.isBlank()) {
             _uiState.update { it.copy(error = "All fields are required") }
@@ -118,6 +138,10 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun setOAuthError(message: String) {
+        _uiState.update { it.copy(isLoading = false, error = message) }
     }
 
     fun clearForgotPasswordResult() {

@@ -4,8 +4,9 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
-// Currently empty - local auth doesn't need additional providers
-// Firebase/Google providers will be added here when enabling external auth
+// Zero-billing policy:
+// - OAuth provider: Google (Android) only
+// - Do not add billable Firebase services in this module
 @Module
 @InstallIn(SingletonComponent::class)
 object AuthModule
