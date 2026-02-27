@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -58,6 +59,7 @@ fun HomeScreen(
     onNavigateToGroceryLists: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToDietPickerForToday: () -> Unit = {},
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
     savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -120,6 +122,12 @@ fun HomeScreen(
                 hasDietToday = uiState.hasDietToday,
                 onPlanOrChangeDiet = onNavigateToDietPickerForToday,
                 onSlotToggle = { slot -> viewModel.toggleSlotLogged(slot) },
+                onSlotTap = { slot ->
+                    val dId = slot.dietId
+                    if (dId != null && slot.plannedMealId != null) {
+                        onNavigateToMealDetail(dId, slot.slotType)
+                    }
+                },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -489,6 +497,7 @@ fun TodaysPlanCard(
     hasDietToday: Boolean,
     onPlanOrChangeDiet: () -> Unit,
     onSlotToggle: (TodayPlanSlot) -> Unit = {},
+    onSlotTap: (TodayPlanSlot) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val actionLabel = if (hasDietToday) "Change Diet" else "Plan a Diet"
@@ -523,7 +532,12 @@ fun TodaysPlanCard(
             } else {
                 Spacer(modifier = Modifier.height(8.dp))
                 slots.forEach { slot ->
-                    TodayPlanSlotRow(slot = slot, onToggle = { onSlotToggle(slot) })
+                    val canNavigate = slot.dietId != null && slot.plannedMealId != null
+                    TodayPlanSlotRow(
+                        slot = slot,
+                        onToggle = { onSlotToggle(slot) },
+                        onTap = if (canNavigate) { -> onSlotTap(slot) } else null
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -532,7 +546,11 @@ fun TodaysPlanCard(
 }
 
 @Composable
-fun TodayPlanSlotRow(slot: TodayPlanSlot, onToggle: () -> Unit = {}) {
+fun TodayPlanSlotRow(
+    slot: TodayPlanSlot,
+    onToggle: () -> Unit = {},
+    onTap: (() -> Unit)? = null
+) {
     val slotBgColor = when (slot.slotType.uppercase()) {
         "BREAKFAST" -> Color(0xFFFFF3E0)
         "LUNCH" -> Color(0xFFE3F2FD)
@@ -547,7 +565,9 @@ fun TodayPlanSlotRow(slot: TodayPlanSlot, onToggle: () -> Unit = {}) {
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onTap != null) Modifier.clickable(onClick = onTap) else Modifier)
     ) {
         // Emoji in colored rounded box
         Box(
@@ -578,6 +598,17 @@ fun TodayPlanSlotRow(slot: TodayPlanSlot, onToggle: () -> Unit = {}) {
                     maxLines = 1
                 )
             }
+        }
+
+        // Chevron (navigable slots only)
+        if (onTap != null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "View meal details",
+                tint = Color(0xFFBBBBBB),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
         // Tappable tick or unticked circle

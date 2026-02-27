@@ -39,7 +39,8 @@ data class TodayPlanSlot(
     val plannedMealName: String?,  // name of the meal assigned in the diet
     val plannedMealId: Long?,      // meal id from diet
     val plannedFoods: List<MealFoodItemWithDetails> = emptyList(), // foods in planned meal (for logging)
-    val isLogged: Boolean          // true if at least one food was logged for this slot today
+    val isLogged: Boolean,         // true if at least one food was logged for this slot today
+    val dietId: Long? = null       // dietId for navigating to MealDetailScreen
 )
 
 // Legacy – kept for any screen still referencing it
@@ -196,7 +197,8 @@ class HomeViewModel @Inject constructor(
                                 plannedMealName = mealWithFoods?.meal?.name,
                                 plannedMealId = mealWithFoods?.meal?.id,
                                 plannedFoods = mealWithFoods?.items ?: emptyList(),
-                                isLogged = slotFoods.isNotEmpty()
+                                isLogged = slotFoods.isNotEmpty(),
+                                dietId = dietId
                             )
                         } ?: emptyList()
                 } else {

@@ -230,6 +230,9 @@ fun MealPlanNavHost() {
                             Screen.DietPicker.createRoute(LocalDate.now().toString())
                         )
                     },
+                    onNavigateToMealDetail = { dietId, slotType ->
+                        navController.navigate(Screen.MealDetail.createRoute(dietId, slotType))
+                    },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
