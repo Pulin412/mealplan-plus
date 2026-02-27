@@ -120,15 +120,15 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadTodayData() {
-        dailyLogRepository.getLogWithMeals(LocalDate.now())
-            .onEach { logWithMeals ->
-                val summary = logWithMeals?.let {
+        dailyLogRepository.getLogWithFoods(LocalDate.now())
+            .onEach { logWithFoods ->
+                val summary = logWithFoods?.let {
                     TodaySummary(
                         calories = it.totalCalories.toInt(),
                         protein = it.totalProtein.toInt(),
                         carbs = it.totalCarbs.toInt(),
                         fat = it.totalFat.toInt(),
-                        foodCount = it.meals.size
+                        foodCount = it.foods.size
                     )
                 } ?: TodaySummary()
                 _uiState.update { it.copy(todaySummary = summary) }
