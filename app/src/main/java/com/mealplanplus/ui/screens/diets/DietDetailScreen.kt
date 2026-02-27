@@ -21,6 +21,7 @@ import com.mealplanplus.data.repository.UsdaFoodResult
 fun DietDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToFoodPicker: () -> Unit,
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
     savedStateHandle: SavedStateHandle? = null,
     autoEdit: Boolean = false,
     viewModel: DietDetailViewModel = hiltViewModel()
@@ -182,6 +183,7 @@ fun DietDetailScreen(
             items(slots.size) { index ->
                 val slot = slots[index]
                 val foods = slotFoodItems[slot] ?: emptyList()
+                val dietId = uiState.diet?.id ?: 0L
                 DietSlotSection(
                     slot = slot,
                     foods = foods,
@@ -197,7 +199,16 @@ fun DietDetailScreen(
                     },
                     onDecrement = { idx ->
                         if (idx in foods.indices) viewModel.decrementQty(slot, foods[idx])
-                    }
+                    },
+                    isEditing = isEditing,
+                    instructions = if (isEditing)
+                        uiState.editSlotInstructions[slot.name] ?: ""
+                    else
+                        uiState.dietWithMeals?.instructions?.get(slot.name) ?: "",
+                    onInstructionsChange = if (isEditing)
+                        { text -> viewModel.updateSlotInstructions(slot, text) } else null,
+                    onViewDetails = if (!isEditing && foods.isNotEmpty())
+                        { -> onNavigateToMealDetail(dietId, slot.name) } else null
                 )
             }
         }

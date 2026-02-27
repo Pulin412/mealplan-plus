@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import com.mealplanplus.data.model.Tag
+import androidx.compose.ui.text.style.TextAlign
 
 private val FormGreen = Color(0xFF2E7D52)
 
@@ -193,7 +194,11 @@ fun DietSlotSection(
     onAddFood: () -> Unit,
     onRemoveFood: (Int) -> Unit,
     onIncrement: (Int) -> Unit,
-    onDecrement: (Int) -> Unit
+    onDecrement: (Int) -> Unit,
+    isEditing: Boolean = false,
+    instructions: String = "",
+    onInstructionsChange: ((String) -> Unit)? = null,
+    onViewDetails: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val totalKcal = foods.sumOf { it.calculatedCalories }.toInt()
@@ -213,7 +218,11 @@ fun DietSlotSection(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
                         text = slotEmoji(slot),
                         style = MaterialTheme.typography.titleMedium
@@ -224,11 +233,27 @@ fun DietSlotSection(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Text(
-                    text = if (foods.isEmpty()) "0 foods" else "${foods.size} foods · ${totalKcal} kcal",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = if (foods.isEmpty()) "0 foods" else "${foods.size} foods · ${totalKcal} kcal",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    // View mode: chevron to open detail screen (only if there are foods)
+                    if (!isEditing && foods.isNotEmpty() && onViewDetails != null) {
+                        IconButton(
+                            onClick = onViewDetails,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = "View details",
+                                tint = FormGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             // Food rows
@@ -250,29 +275,71 @@ fun DietSlotSection(
                 }
             }
 
-            // Add Food + Scan buttons
-            HorizontalDivider(color = Color(0xFFEEEEEE))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TextButton(
-                    onClick = onAddFood,
-                    modifier = Modifier.weight(1f)
+            // Instructions field (edit mode) or display (view mode)
+            if (isEditing && onInstructionsChange != null) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                OutlinedTextField(
+                    value = instructions,
+                    onValueChange = onInstructionsChange,
+                    label = { Text("Preparation instructions (optional)") },
+                    placeholder = { Text("How to prepare this meal…") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    minLines = 2,
+                    maxLines = 5
+                )
+            } else if (!isEditing && instructions.isNotBlank()) {
+                // View mode: show instructions inline (collapsed summary)
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = FormGreen)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add Food", color = FormGreen)
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = FormGreen,
+                        modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                    )
+                    Text(
+                        text = instructions,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                TextButton(
-                    onClick = {
-                        Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.weight(1f)
+            }
+
+            // Add Food + Scan buttons (edit mode only)
+            if (isEditing) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("📷 Scan", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(
+                        onClick = onAddFood,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = FormGreen)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add Food", color = FormGreen)
+                    }
+                    TextButton(
+                        onClick = {
+                            Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("📷 Scan", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }

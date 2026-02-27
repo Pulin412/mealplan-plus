@@ -26,6 +26,7 @@ data class DietDetailUiState(
     val isEditing: Boolean = false,
     val editName: String = "",
     val editDescription: String = "",
+    val editSlotInstructions: Map<String, String> = emptyMap(),
     val isSaved: Boolean = false,
     val error: String? = null,
     val newTagName: String = ""
@@ -172,7 +173,9 @@ class DietDetailViewModel @Inject constructor(
                 isEditing = true,
                 editName = it.diet?.name ?: "",
                 editDescription = it.diet?.description ?: "",
-                selectedTagIds = it.dietTagIds
+                selectedTagIds = it.dietTagIds,
+                editSlotInstructions = it.dietWithMeals?.instructions
+                    ?.mapValues { (_, v) -> v ?: "" } ?: emptyMap()
             )
         }
     }
@@ -183,8 +186,16 @@ class DietDetailViewModel @Inject constructor(
                 isEditing = false,
                 editName = it.diet?.name ?: "",
                 editDescription = it.diet?.description ?: "",
-                selectedTagIds = it.dietTagIds
+                selectedTagIds = it.dietTagIds,
+                editSlotInstructions = it.dietWithMeals?.instructions
+                    ?.mapValues { (_, v) -> v ?: "" } ?: emptyMap()
             )
+        }
+    }
+
+    fun updateSlotInstructions(slot: DefaultMealSlot, text: String) {
+        _uiState.update { state ->
+            state.copy(editSlotInstructions = state.editSlotInstructions + (slot.name to text))
         }
     }
 
@@ -214,6 +225,12 @@ class DietDetailViewModel @Inject constructor(
                 )
                 dietRepository.updateDiet(updatedDiet)
                 dietRepository.setDietTags(dietId, _uiState.value.selectedTagIds.toList())
+                val instrs = _uiState.value.editSlotInstructions
+                for ((slotType, text) in instrs) {
+                    dietRepository.updateSlotInstructions(
+                        dietId, slotType, text.trim().takeIf { it.isNotBlank() }
+                    )
+                }
                 _uiState.update {
                     it.copy(
                         diet = updatedDiet,

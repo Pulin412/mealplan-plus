@@ -23,7 +23,7 @@ import com.mealplanplus.data.model.*
         GroceryList::class,
         GroceryItem::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

@@ -42,7 +42,8 @@ class DietRepository @Inject constructor(
             mealsMap[dm.slotType] = dm.mealId?.let { mealRepository.getMealWithFoods(it) }
         }
 
-        return DietWithMeals(diet, mealsMap)
+        val instructionsMap = dietMeals.associate { it.slotType to it.instructions }
+        return DietWithMeals(diet, mealsMap, instructionsMap)
     }
 
     suspend fun insertDiet(diet: Diet): Long {
@@ -55,7 +56,17 @@ class DietRepository @Inject constructor(
     suspend fun deleteDiet(diet: Diet) = dietDao.deleteDiet(diet)
 
     suspend fun setMealForSlot(dietId: Long, slotType: String, mealId: Long?) {
-        dietDao.insertDietMeal(DietMeal(dietId, slotType, mealId))
+        val existing = dietDao.getDietMeal(dietId, slotType)
+        dietDao.insertDietMeal(DietMeal(dietId, slotType, mealId, existing?.instructions))
+    }
+
+    suspend fun updateSlotInstructions(dietId: Long, slotType: String, instructions: String?) {
+        val existing = dietDao.getDietMeal(dietId, slotType)
+        if (existing != null) {
+            dietDao.updateDietMealInstructions(dietId, slotType, instructions)
+        } else {
+            dietDao.insertDietMeal(DietMeal(dietId, slotType, null, instructions))
+        }
     }
 
     suspend fun removeMealFromSlot(dietId: Long, slotType: String) {

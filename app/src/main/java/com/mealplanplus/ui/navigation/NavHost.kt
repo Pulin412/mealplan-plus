@@ -53,6 +53,7 @@ import com.mealplanplus.ui.screens.scanner.OnlineSearchScreen
 import com.mealplanplus.ui.screens.meals.FoodPickerScreen
 import com.mealplanplus.ui.screens.diets.DietMealSlotScreen
 import com.mealplanplus.ui.screens.diets.DietMealPickerScreen
+import com.mealplanplus.ui.screens.diets.MealDetailScreen
 import com.mealplanplus.ui.screens.log.DietPickerScreen
 import com.mealplanplus.ui.screens.auth.LoginScreen
 import com.mealplanplus.ui.screens.auth.SignUpScreen
@@ -86,6 +87,9 @@ sealed class Screen(val route: String) {
     }
     object DietMealSlot : Screen("diet_meal_slot/{dietId}/{slotType}") {
         fun createRoute(dietId: Long, slotType: String) = "diet_meal_slot/$dietId/$slotType"
+    }
+    object MealDetail : Screen("meal_detail/{dietId}/{slotType}") {
+        fun createRoute(dietId: Long, slotType: String) = "meal_detail/$dietId/$slotType"
     }
     object FoodPickerForDietSlot : Screen("food_picker_diet_slot")
     object DietMealPicker : Screen("diet_meal_picker/{slotType}") {
@@ -347,6 +351,9 @@ fun MealPlanNavHost() {
                 DietDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToFoodPicker = { navController.navigate(Screen.FoodPickerForDietSlot.route) },
+                    onNavigateToMealDetail = { dietId, slotType ->
+                        navController.navigate(Screen.MealDetail.createRoute(dietId, slotType))
+                    },
                     savedStateHandle = savedStateHandle,
                     autoEdit = autoEdit
                 )
@@ -366,6 +373,17 @@ fun MealPlanNavHost() {
                         navController.navigate(Screen.DietMealPicker.createRoute(slotType))
                     },
                     savedStateHandle = savedStateHandle
+                )
+            }
+            composable(
+                route = Screen.MealDetail.route,
+                arguments = listOf(
+                    navArgument("dietId") { type = NavType.LongType },
+                    navArgument("slotType") { type = NavType.StringType }
+                )
+            ) {
+                MealDetailScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.FoodPickerForDietSlot.route) {

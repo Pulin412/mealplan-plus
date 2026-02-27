@@ -57,7 +57,8 @@ data class Diet(
 data class DietMeal(
     val dietId: Long,
     val slotType: String,  // DefaultMealSlot name
-    val mealId: Long?  // Can be null if no meal assigned
+    val mealId: Long?,  // Can be null if no meal assigned
+    val instructions: String? = null
 )
 
 /**
@@ -65,7 +66,8 @@ data class DietMeal(
  */
 data class DietWithMeals(
     val diet: Diet,
-    val meals: Map<String, MealWithFoods?>  // slotType -> meal
+    val meals: Map<String, MealWithFoods?>,  // slotType -> meal
+    val instructions: Map<String, String?> = emptyMap()  // slotType -> prep instructions
 ) {
     val totalCalories: Double
         get() = meals.values.filterNotNull().sumOf { it.totalCalories }
