@@ -175,6 +175,14 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    /** Assign a diet by id — called when returning from DietPickerScreen via savedStateHandle. */
+    fun assignDietById(dietId: Long) {
+        viewModelScope.launch {
+            val diet = dietRepository.getDietById(dietId) ?: return@launch
+            assignDiet(diet)
+        }
+    }
+
     fun copyToDate(targetDate: LocalDate) {
         viewModelScope.launch {
             planRepository.copyPlanToDate(

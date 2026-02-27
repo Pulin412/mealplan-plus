@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.HealthMetric
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
@@ -56,9 +57,22 @@ fun HomeScreen(
     onNavigateToCalendar: () -> Unit = {},
     onNavigateToGroceryLists: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToDietPickerForToday: () -> Unit = {},
+    savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Observe diet selection result from DietPickerScreen
+    val selectedDietId by (savedStateHandle
+        ?.getStateFlow("selected_diet_id", -1L)
+        ?.collectAsState() ?: remember { mutableStateOf(-1L) })
+    LaunchedEffect(selectedDietId) {
+        if (selectedDietId != -1L) {
+            viewModel.planDietForToday(selectedDietId)
+            savedStateHandle?.set("selected_diet_id", -1L)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -91,14 +105,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ── Quick Log Food button ──────────────────────────────
-            QuickLogFoodButton(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                onClick = onNavigateToLog
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             // ── This Week mini-calendar ────────────────────────────
             ThisWeekCard(
                 weekDays = uiState.weekDays,
@@ -108,21 +114,12 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ── Today's Plan (moved above Blood Glucose) ───────────
+            // ── Today's Plan ───────────────────────────────────────
             TodaysPlanCard(
                 slots = uiState.todayPlanSlots,
-                onEditPlanClick = onNavigateToLog,
+                hasDietToday = uiState.hasDietToday,
+                onPlanOrChangeDiet = onNavigateToDietPickerForToday,
                 onSlotToggle = { slot -> viewModel.toggleSlotLogged(slot) },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ── Blood Glucose card ─────────────────────────────────
-            BloodGlucoseCard(
-                latestSugar = uiState.latestSugar,
-                glucoseHistory = uiState.glucoseHistory,
-                onDetailsClick = onNavigateToHealth,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -489,10 +486,13 @@ fun LegendDot(color: Color, label: String) {
 @Composable
 fun TodaysPlanCard(
     slots: List<TodayPlanSlot>,
-    onEditPlanClick: () -> Unit,
+    hasDietToday: Boolean,
+    onPlanOrChangeDiet: () -> Unit,
     onSlotToggle: (TodayPlanSlot) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val actionLabel = if (hasDietToday) "Change Diet" else "Plan a Diet"
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -506,15 +506,16 @@ fun TodaysPlanCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1A1A1A))
-                TextButton(onClick = onEditPlanClick) {
-                    Text("Log Today >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                TextButton(onClick = onPlanOrChangeDiet) {
+                    Text("$actionLabel >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
 
             if (slots.isEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "No diet planned for today.\nTap Log Today to add meals.",
+                    if (hasDietToday) "Loading plan…"
+                    else "No diet planned for today.\nTap \"Plan a Diet\" to get started.",
                     fontSize = 13.sp,
                     color = Color(0xFF888888),
                     modifier = Modifier.padding(vertical = 4.dp)

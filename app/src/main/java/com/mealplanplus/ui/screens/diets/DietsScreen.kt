@@ -207,10 +207,15 @@ fun DietsTopBar(
                         color = Color.White.copy(alpha = 0.8f)
                     )
                 }
-                // Settings icon for tag management (optional)
+                // Tags text button for tag management (optional)
                 if (onTagsSettings != null) {
-                    IconButton(onClick = onTagsSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Manage Tags", tint = Color.White)
+                    TextButton(onClick = onTagsSettings) {
+                        Text(
+                            "Tags",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelLarge
+                        )
                     }
                 }
                 // + New Diet pill button (optional)

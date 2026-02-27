@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.CircularProgressIndicator
+import java.time.LocalDate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -210,7 +211,7 @@ fun MealPlanNavHost() {
                     }
                 )
             }
-            composable(Screen.Home.route) {
+            composable(Screen.Home.route) { backStackEntry ->
                 HomeScreen(
                     onNavigateToLog = { navController.navigate(Screen.DailyLog.route) },
                     onNavigateToLogWithDate = { date ->
@@ -219,7 +220,13 @@ fun MealPlanNavHost() {
                     onNavigateToHealth = { navController.navigate(Screen.Health.route) },
                     onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                     onNavigateToGroceryLists = { navController.navigate(Screen.GroceryLists.route) },
-                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                    onNavigateToDietPickerForToday = {
+                        navController.navigate(
+                            Screen.DietPicker.createRoute(LocalDate.now().toString())
+                        )
+                    },
+                    savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
             composable(Screen.Foods.route) {
@@ -481,12 +488,16 @@ fun MealPlanNavHost() {
                     }
                 )
             }
-            composable(Screen.Calendar.route) {
+            composable(Screen.Calendar.route) { backStackEntry ->
                 CalendarScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToLog = { date ->
                         navController.navigate(Screen.DailyLogWithDate.createRoute(date))
-                    }
+                    },
+                    onNavigateToDietPicker = { date ->
+                        navController.navigate(Screen.DietPicker.createRoute(date))
+                    },
+                    savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
             composable(Screen.Health.route) {
@@ -555,15 +566,20 @@ private fun BottomNavBar(navController: NavController, currentRoute: String?) {
     ) {
         bottomNavItems.forEach { item ->
             val selected = currentRoute == item.route
+            val isHome = item.route == Screen.Home.route
             NavigationBarItem(
                 selected = selected,
                 onClick = {
-                    if (!selected) {
+                    // Home tab always navigates (clears back stack to home root).
+                    // Other tabs skip if already selected.
+                    if (!selected || isHome) {
                         navController.navigate(item.route) {
-                            // Pop up to home to avoid deep back stack
-                            popUpTo(Screen.Home.route) { saveState = true }
+                            popUpTo(Screen.Home.route) {
+                                saveState = !isHome
+                                inclusive = false
+                            }
                             launchSingleTop = true
-                            restoreState = true
+                            restoreState = !isHome
                         }
                     }
                 },

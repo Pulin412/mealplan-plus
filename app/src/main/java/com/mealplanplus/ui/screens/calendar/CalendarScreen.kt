@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.*
 import com.mealplanplus.ui.components.CalendarDayCell
 import java.time.DayOfWeek
@@ -45,15 +46,30 @@ private val TagPurple = Color(0xFF7B1FA2)
 fun CalendarScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLog: (String) -> Unit,
+    onNavigateToDietPicker: (String) -> Unit = {},
+    savedStateHandle: SavedStateHandle? = null,
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val diets by viewModel.diets.collectAsState()
+
+    // Observe diet selection result from DietPickerScreen
+    val pickedDietId by (savedStateHandle
+        ?.getStateFlow("selected_diet_id", -1L)
+        ?.collectAsState() ?: remember { mutableStateOf(-1L) })
+    LaunchedEffect(pickedDietId) {
+        if (pickedDietId != -1L) {
+            viewModel.assignDietById(pickedDietId)
+            savedStateHandle?.set("selected_diet_id", -1L)
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Dark green header
         MealPlanTopBar(
-            onSelectDietForToday = { viewModel.selectDate(LocalDate.now()); viewModel.showDietPicker() }
+            onSelectDietForToday = {
+                viewModel.selectDate(LocalDate.now())
+                onNavigateToDietPicker(LocalDate.now().toString())
+            }
         )
 
         Column(
@@ -84,22 +100,12 @@ fun CalendarScreen(
                 diet = uiState.selectedDiet,
                 dietWithMeals = uiState.selectedDietWithMeals,
                 tags = uiState.selectedDietTags,
-                onAssignDiet = { viewModel.showDietPicker() },
-                onChangeDiet = { viewModel.showDietPicker() },
+                onAssignDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
+                onChangeDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
                 onRemoveDiet = { viewModel.clearPlan() },
                 onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) }
             )
         }
-    }
-
-    // Diet picker dialog
-    if (uiState.showDietPicker) {
-        DietPickerDialog(
-            diets = diets,
-            selectedDietId = uiState.selectedDiet?.id,
-            onSelect = { viewModel.assignDiet(it) },
-            onDismiss = { viewModel.hideDietPicker() }
-        )
     }
 }
 

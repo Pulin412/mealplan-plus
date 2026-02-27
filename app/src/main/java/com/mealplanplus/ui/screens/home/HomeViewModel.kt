@@ -72,9 +72,10 @@ data class HomeUiState(
     val glucoseHistory: List<HealthMetric> = emptyList(),
     val dayStreak: Int = 0,
     val weeklyLoggedDates: Set<String> = emptySet(),
-    // New: rich slot data from today's diet
+    // Rich slot data from today's diet
     val todayPlanSlots: List<TodayPlanSlot> = emptyList(),
-    // New: rich week info (colour + diet label)
+    val hasDietToday: Boolean = false,
+    // Rich week info (colour + diet label)
     val weekDays: List<WeekDayInfo> = emptyList(),
     val weeklyCalories: List<DailyMacroSummary> = emptyList(),
     val currentMonth: YearMonth = YearMonth.now(),
@@ -165,20 +166,22 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Loads Today's Plan slots from today's assigned diet.
-     * Only shows slots that are actually part of the diet.
-     * Each slot shows the meal name + whether it was logged today.
+     * Combines both the log flow AND the plan flow so changes to either
+     * (e.g. a diet being assigned without any meals logged yet) trigger a refresh.
      */
     private fun loadTodayPlanSlots() {
-        dailyLogRepository.getLogWithMeals(LocalDate.now())
-            .onEach { logWithMeals ->
-                // Map slotType → first LoggedMeal for that slot (for toggle support)
+        val todayStr = LocalDate.now().toString()
+        combine(
+            dailyLogRepository.getLogWithMeals(LocalDate.now()),
+            planRepository.getPlansWithDietNames(todayStr, todayStr)
+        ) { logWithMeals, plans -> logWithMeals to plans }
+            .onEach { (logWithMeals, plans) ->
+                // Map slotType → logged meals for toggle support
                 val loggedSlots = logWithMeals?.meals
                     ?.groupBy { it.loggedMeal.slotType.uppercase() }
                     ?: emptyMap()
 
-                val todayStr = LocalDate.now().toString()
-                val plan = planRepository.getPlanForDate(todayStr)
-                val dietId = plan?.dietId
+                val dietId = plans.firstOrNull { it.dietId != null }?.dietId
 
                 val slots: List<TodayPlanSlot> = if (dietId != null) {
                     val dietWithMeals = dietRepository.getDietWithMeals(dietId)
@@ -222,9 +225,17 @@ class HomeViewModel @Inject constructor(
                         }
                 }
 
-                _uiState.update { it.copy(todayPlanSlots = slots) }
+                _uiState.update { it.copy(todayPlanSlots = slots, hasDietToday = dietId != null) }
             }
             .launchIn(viewModelScope)
+    }
+
+    /** Plan a diet for today (called when user picks a diet from DietPickerScreen via HomeScreen). */
+    fun planDietForToday(dietId: Long) {
+        viewModelScope.launch {
+            planRepository.setPlanForDate(LocalDate.now().toString(), dietId)
+            // flows auto-refresh via combine in loadTodayPlanSlots
+        }
     }
 
     /** Toggle a slot: log the planned meal if not logged, delete the logged meal if already logged. */
