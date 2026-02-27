@@ -94,7 +94,7 @@ fun MealDetailScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        "How to prepare",
+                                        "Instructions",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = DetailGreen,
                                         fontWeight = FontWeight.Bold

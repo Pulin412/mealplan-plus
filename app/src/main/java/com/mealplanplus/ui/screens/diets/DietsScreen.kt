@@ -40,6 +40,7 @@ private val DietGreenLight = Color(0xFFE8F5EE)
 fun DietsScreen(
     onNavigateToAddDiet: () -> Unit,
     onNavigateToDietDetail: (Long) -> Unit,
+    onNavigateToDietDetailView: (Long) -> Unit = {},
     onNavigateBack: () -> Unit,
     viewModel: DietsViewModel = hiltViewModel()
 ) {
@@ -145,6 +146,7 @@ fun DietsScreen(
                         items(uiState.diets, key = { it.diet.id }) { item ->
                             DietCard(
                                 item = item,
+                                onView = { onNavigateToDietDetailView(item.diet.id) },
                                 onEdit = { onNavigateToDietDetail(item.diet.id) },
                                 onDuplicate = { viewModel.duplicateDiet(item.diet) },
                                 onDelete = { viewModel.deleteDiet(item.diet) }
@@ -389,6 +391,7 @@ fun AdvancedFilterSection(
 @Composable
 fun DietCard(
     item: DietDisplayItem,
+    onView: () -> Unit = {},
     onEdit: () -> Unit = {},
     onDuplicate: () -> Unit = {},
     onDelete: () -> Unit = {},
@@ -505,6 +508,11 @@ fun DietCard(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        TextButton(onClick = onView) {
+                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("View", color = DietGreen)
+                        }
                         TextButton(onClick = onEdit) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))

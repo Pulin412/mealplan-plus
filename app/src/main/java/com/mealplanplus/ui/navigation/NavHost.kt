@@ -331,6 +331,7 @@ fun MealPlanNavHost() {
                 DietsScreen(
                     onNavigateToAddDiet = { navController.navigate(Screen.AddDiet.route) },
                     onNavigateToDietDetail = { dietId -> navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = true)) },
+                    onNavigateToDietDetailView = { dietId -> navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = false)) },
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
