@@ -411,8 +411,6 @@ fun MealSlotCard(
     val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
     val plannedKcal = plannedItems.sumOf { it.calculatedCalories }.toInt()
     val subtitle = when {
-        foods.isNotEmpty() && plannedItems.isNotEmpty() ->
-            "${foods.size} logged · ${plannedItems.size} planned · $loggedKcal kcal"
         foods.isNotEmpty() -> "${foods.size} logged · $loggedKcal kcal"
         plannedItems.isNotEmpty() -> "${plannedItems.size} planned · $plannedKcal kcal"
         else -> "Nothing logged"
@@ -488,10 +486,12 @@ fun MealSlotCard(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
                     }
-                    // Planned items (grey circle) — shown when diet assigned
-                    plannedItems.forEach { item ->
-                        PlannedFoodRow(item = item)
-                        HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
+                    // Planned items (grey circle) — only shown when slot not yet logged
+                    if (foods.isEmpty()) {
+                        plannedItems.forEach { item ->
+                            PlannedFoodRow(item = item)
+                            HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
+                        }
                     }
                     // Individually logged foods (green tick)
                     foods.forEach { food ->
