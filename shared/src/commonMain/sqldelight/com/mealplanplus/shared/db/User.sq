@@ -6,6 +6,12 @@ CREATE TABLE users (
     photoUrl TEXT,
     age INTEGER,
     contact TEXT,
+    weightKg REAL,
+    heightCm REAL,
+    gender TEXT,
+    activityLevel TEXT,
+    targetCalories INTEGER,
+    goalType TEXT,
     createdAt INTEGER NOT NULL,
     updatedAt INTEGER NOT NULL
 );
@@ -23,15 +29,18 @@ selectByEmail:
 SELECT * FROM users WHERE email = ?;
 
 insert:
-INSERT INTO users(email, passwordHash, displayName, photoUrl, age, contact, createdAt, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO users(email, passwordHash, displayName, photoUrl, age, contact,
+    weightKg, heightCm, gender, activityLevel, targetCalories, goalType, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 insertWithId:
-INSERT INTO users(id, email, passwordHash, displayName, photoUrl, age, contact, createdAt, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO users(id, email, passwordHash, displayName, photoUrl, age, contact,
+    weightKg, heightCm, gender, activityLevel, targetCalories, goalType, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 update:
-UPDATE users SET email = ?, passwordHash = ?, displayName = ?, photoUrl = ?, age = ?, contact = ?, updatedAt = ?
+UPDATE users SET email = ?, passwordHash = ?, displayName = ?, photoUrl = ?, age = ?, contact = ?,
+    weightKg = ?, heightCm = ?, gender = ?, activityLevel = ?, targetCalories = ?, goalType = ?, updatedAt = ?
 WHERE id = ?;
 
 deleteById:

@@ -90,6 +90,8 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             metricType = metric.metricType,
             customTypeId = metric.customTypeId,
             value_ = metric.value,
+            secondaryValue = metric.secondaryValue,
+            subType = metric.subType,
             notes = metric.notes
         )
         return queries.lastInsertRowId().executeAsOne()
@@ -102,6 +104,8 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             metricType = metric.metricType,
             customTypeId = metric.customTypeId,
             value_ = metric.value,
+            secondaryValue = metric.secondaryValue,
+            subType = metric.subType,
             notes = metric.notes,
             id = metric.id
         )
@@ -153,6 +157,8 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             metricType = metricType,
             customTypeId = customTypeId,
             value = value_,
+            secondaryValue = secondaryValue,
+            subType = subType,
             notes = notes
         )
     }

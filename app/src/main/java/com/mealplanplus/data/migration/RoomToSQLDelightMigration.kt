@@ -91,9 +91,17 @@ class RoomToSQLDelightMigration(
                 val contact = it.getStringOrNull(it.safeGetColumnIndex("contact"))
                 val createdAt = it.getLong(it.getColumnIndexOrThrow("createdAt"))
                 val updatedAt = it.getLongOrNull(it.safeGetColumnIndex("updatedAt")) ?: createdAt
+                val weightKg = it.getDoubleOrNull(it.safeGetColumnIndex("weightKg"))
+                val heightCm = it.getDoubleOrNull(it.safeGetColumnIndex("heightCm"))
+                val gender = it.getStringOrNull(it.safeGetColumnIndex("gender"))
+                val activityLevel = it.getStringOrNull(it.safeGetColumnIndex("activityLevel"))
+                val targetCalories = it.getLongOrNull(it.safeGetColumnIndex("targetCalories"))
+                val goalType = it.getStringOrNull(it.safeGetColumnIndex("goalType"))
 
                 sqlDelightDb.userQueries.insert(
-                    email, passwordHash, displayName, photoUrl, age, contact, createdAt, updatedAt
+                    email, passwordHash, displayName, photoUrl, age, contact,
+                    weightKg, heightCm, gender, activityLevel, targetCalories, goalType,
+                    createdAt, updatedAt
                 )
             }
         }
@@ -179,9 +187,10 @@ class RoomToSQLDelightMigration(
                 val name = it.getString(it.getColumnIndexOrThrow("name"))
                 val description = it.getStringOrNull(it.safeGetColumnIndex("description"))
                 val createdAt = it.getLong(it.getColumnIndexOrThrow("createdAt"))
+                val isSystemDiet = it.getLongOrNull(it.safeGetColumnIndex("isSystemDiet")) ?: 0L
 
                 sqlDelightDb.dietQueries.insertDiet(
-                    userId, name, description, createdAt
+                    userId, name, description, createdAt, isSystemDiet
                 )
             }
         }
@@ -196,9 +205,10 @@ class RoomToSQLDelightMigration(
                 val slotType = it.getStringOrNull(it.safeGetColumnIndex("slotType"))
                     ?: it.getString(it.getColumnIndexOrThrow("mealSlot"))
                 val mealId = it.getLongOrNull(it.safeGetColumnIndex("mealId"))
+                val instructions = it.getStringOrNull(it.safeGetColumnIndex("instructions"))
 
                 sqlDelightDb.dietQueries.insertDietMeal(
-                    dietId, slotType, mealId
+                    dietId, slotType, mealId, instructions
                 )
             }
         }
@@ -365,10 +375,13 @@ class RoomToSQLDelightMigration(
                 val metricType = it.getStringOrNull(it.safeGetColumnIndex("metricType"))
                 val customTypeId = it.getLongOrNull(it.safeGetColumnIndex("customTypeId"))
                 val value = it.getDouble(it.getColumnIndexOrThrow("value"))
+                val secondaryValue = it.getDoubleOrNull(it.safeGetColumnIndex("secondaryValue"))
+                val subType = it.getStringOrNull(it.safeGetColumnIndex("subType"))
                 val notes = it.getStringOrNull(it.safeGetColumnIndex("notes"))
 
                 sqlDelightDb.healthMetricQueries.insertHealthMetric(
-                    userId, date, timestamp, metricType, customTypeId, value, notes
+                    userId, date, timestamp, metricType, customTypeId, value,
+                    secondaryValue, subType, notes
                 )
             }
         }
@@ -408,9 +421,10 @@ class RoomToSQLDelightMigration(
                 val unit = it.getString(it.getColumnIndexOrThrow("unit"))
                 val isChecked = it.getLongOrNull(it.safeGetColumnIndex("isChecked")) ?: 0L
                 val sortOrder = it.getLongOrNull(it.safeGetColumnIndex("sortOrder")) ?: 0L
+                val category = it.getStringOrNull(it.safeGetColumnIndex("category"))
 
                 sqlDelightDb.groceryListQueries.insertGroceryItem(
-                    listId, foodId, customName, quantity, unit, isChecked, sortOrder
+                    listId, foodId, customName, quantity, unit, isChecked, sortOrder, category
                 )
             }
         }

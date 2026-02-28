@@ -1,0 +1,23 @@
+-- Migration v1 → v2
+-- Phase 0.5a: Sync shared KMP schema with Android Room v18
+
+-- users: body metric + fitness fields
+ALTER TABLE users ADD COLUMN weightKg REAL;
+ALTER TABLE users ADD COLUMN heightCm REAL;
+ALTER TABLE users ADD COLUMN gender TEXT;
+ALTER TABLE users ADD COLUMN activityLevel TEXT;
+ALTER TABLE users ADD COLUMN targetCalories INTEGER;
+ALTER TABLE users ADD COLUMN goalType TEXT;
+
+-- health_metrics: blood pressure diastolic + glucose sub-type
+ALTER TABLE health_metrics ADD COLUMN secondaryValue REAL;
+ALTER TABLE health_metrics ADD COLUMN subType TEXT;
+
+-- grocery_items: category for UI grouping
+ALTER TABLE grocery_items ADD COLUMN category TEXT;
+
+-- diets: system diet flag
+ALTER TABLE diets ADD COLUMN isSystemDiet INTEGER NOT NULL DEFAULT 0;
+
+-- diet_meals: prep instructions per slot
+ALTER TABLE diet_meals ADD COLUMN instructions TEXT;

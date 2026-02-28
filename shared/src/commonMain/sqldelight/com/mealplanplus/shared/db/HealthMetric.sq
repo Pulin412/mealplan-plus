@@ -19,6 +19,8 @@ CREATE TABLE health_metrics (
     metricType TEXT,
     customTypeId INTEGER,
     value REAL NOT NULL,
+    secondaryValue REAL,
+    subType TEXT,
     notes TEXT,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -75,11 +77,11 @@ LEFT JOIN custom_metric_types cmt ON hm.customTypeId = cmt.id
 WHERE hm.id = ?;
 
 insertHealthMetric:
-INSERT INTO health_metrics(userId, date, timestamp, metricType, customTypeId, value, notes)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO health_metrics(userId, date, timestamp, metricType, customTypeId, value, secondaryValue, subType, notes)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateHealthMetric:
-UPDATE health_metrics SET date = ?, timestamp = ?, metricType = ?, customTypeId = ?, value = ?, notes = ?
+UPDATE health_metrics SET date = ?, timestamp = ?, metricType = ?, customTypeId = ?, value = ?, secondaryValue = ?, subType = ?, notes = ?
 WHERE id = ?;
 
 deleteHealthMetric:
