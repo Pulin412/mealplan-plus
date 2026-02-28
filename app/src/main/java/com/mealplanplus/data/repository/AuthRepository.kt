@@ -3,6 +3,7 @@ package com.mealplanplus.data.repository
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
 import android.util.Log
+import com.google.firebase.auth.GoogleAuthProvider
 import com.mealplanplus.data.local.DailyLogDao
 import com.mealplanplus.data.local.DietDao
 import com.mealplanplus.data.local.GroceryDao
@@ -14,6 +15,7 @@ import com.mealplanplus.data.local.UserDataSeeder
 import com.mealplanplus.data.model.User
 import com.mealplanplus.util.AuthPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,6 +55,63 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun signInWithGoogle(idToken: String): Result<User> {
+        return try {
+            val firebaseAuth = runCatching { com.google.firebase.auth.FirebaseAuth.getInstance() }
+                .getOrElse {
+                    return Result.failure(
+                        Exception("Google OAuth is not configured for this build. Please add Firebase config first.")
+                    )
+                }
+
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            val firebaseUser = firebaseAuth.signInWithCredential(credential).await().user
+                ?: return Result.failure(Exception("Google sign-in failed: no user returned"))
+
+            val normalizedEmail = firebaseUser.email?.lowercase()?.trim()
+                ?: return Result.failure(Exception("Google account did not provide an email"))
+
+            val mappedUserId = AuthPreferences.getUserIdForProviderSubject(
+                context,
+                provider = "google",
+                subject = firebaseUser.uid
+            )
+
+            val existing = mappedUserId?.let { userDao.getUserByIdSync(it) }
+                ?: userDao.getUserByEmail(normalizedEmail)
+
+            val localUser = if (existing != null) {
+                existing
+            } else {
+                val created = User(
+                    email = normalizedEmail,
+                    // OAuth users do not need local password sign-in unless explicitly added later.
+                    passwordHash = "",
+                    displayName = firebaseUser.displayName?.trim(),
+                    photoUrl = firebaseUser.photoUrl?.toString()
+                )
+                val id = userDao.insertUser(created)
+                try {
+                    userDataSeeder.seedUserData(context, id)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to seed user data after Google sign-in: ${e.message}")
+                }
+                created.copy(id = id)
+            }
+
+            AuthPreferences.setProviderSubjectMapping(
+                context = context,
+                provider = "google",
+                subject = firebaseUser.uid,
+                userId = localUser.id
+            )
+            AuthPreferences.setLoggedIn(context, localUser.id)
+            Result.success(localUser)
+        } catch (e: Exception) {
+            Result.failure(Exception("Google sign-in failed: ${e.message ?: "unknown error"}"))
+        }
+    }
+
     suspend fun signUpWithEmail(email: String, password: String, name: String): Result<User> {
         return try {
             val trimmedEmail = email.lowercase().trim()
@@ -88,6 +147,7 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun signOut() {
+        runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().signOut() }
         AuthPreferences.clearAuth(context)
     }
 

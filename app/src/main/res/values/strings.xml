@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MealPlan+</string>
+    <!-- Set real Web OAuth client ID for Google sign-in -->
+    <string name="google_web_client_id">815506562788-nl2s2vjlhsa3tcofvf7rfs2a7i98vvvc.apps.googleusercontent.com</string>
 </resources>
