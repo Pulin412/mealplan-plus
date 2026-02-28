@@ -87,7 +87,7 @@ struct HomeScreen: View {
                 viewModel.load(userId: userId)
             }
         }) {
-            DailyLogScreen(date: Date())
+            DailyLogScreen()
         }
         .onAppear {
             if let userId = appState.currentUserId {

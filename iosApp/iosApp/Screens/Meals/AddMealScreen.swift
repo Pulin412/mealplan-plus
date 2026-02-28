@@ -229,70 +229,21 @@ struct FoodPickerScreen: View {
 struct MealDetailScreen: View {
     let meal: MealUI
 
+    @StateObject private var mealsVM = MealsViewModel()
+    @State private var mealWithFoods: MealWithFoods?
+    @State private var isLoadingFoods = true
+
+    var foodItems: [MealFoodItemWithDetails] {
+        guard let mwf = mealWithFoods else { return [] }
+        return (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Header
-                VStack(spacing: 12) {
-                    Image(systemName: "fork.knife.circle.fill")
-                        .font(.system(size: 50))
-                        .foregroundColor(.green)
-
-                    Text(meal.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text(meal.slot)
-                        .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.2))
-                        .cornerRadius(8)
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
-                // Nutrition
-                VStack(spacing: 16) {
-                    Text("Nutrition Summary")
-                        .font(.headline)
-
-                    HStack(spacing: 20) {
-                        NutritionCircle(value: Double(meal.calories), label: "kcal", color: .green)
-                        NutritionCircle(value: meal.protein, label: "Protein", color: .red)
-                        NutritionCircle(value: meal.carbs, label: "Carbs", color: .blue)
-                        NutritionCircle(value: meal.fat, label: "Fat", color: .yellow)
-                    }
-                }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
-                // Foods in meal
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Foods (\(meal.foodCount))")
-                        .font(.headline)
-                        .padding(.horizontal)
-
-                    // Placeholder - would show actual foods
-                    Text("Food items will be loaded from shared repository")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding()
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
+                mealHeaderCard
+                mealNutritionCard
+                ingredientsCard
                 Spacer()
             }
             .padding(.top)
@@ -307,6 +258,102 @@ struct MealDetailScreen: View {
         )
         .navigationTitle("Meal Details")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { loadMealDetails() }
+    }
+
+    private var mealHeaderCard: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "fork.knife.circle.fill")
+                .font(.system(size: 50))
+                .foregroundColor(.green)
+            Text(meal.name).font(.title2).fontWeight(.bold)
+            Text(meal.slot)
+                .font(.subheadline)
+                .padding(.horizontal, 12).padding(.vertical, 4)
+                .background(Color.green.opacity(0.2))
+                .cornerRadius(8)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+        .padding(.horizontal)
+    }
+
+    private var mealNutritionCard: some View {
+        VStack(spacing: 16) {
+            Text("Nutrition Summary").font(.headline)
+            HStack(spacing: 20) {
+                NutritionCircle(value: Double(meal.calories), label: "kcal", color: .green)
+                NutritionCircle(value: meal.protein, label: "Protein", color: .red)
+                NutritionCircle(value: meal.carbs, label: "Carbs", color: .blue)
+                NutritionCircle(value: meal.fat, label: "Fat", color: .yellow)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+        .padding(.horizontal)
+    }
+
+    private var ingredientsCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Ingredients")
+                .font(.headline)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            ingredientsContent
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var ingredientsContent: some View {
+        if isLoadingFoods {
+            HStack {
+                ProgressView()
+                Text("Loading ingredients...").font(.caption).foregroundColor(.secondary)
+            }
+            .padding()
+        } else if foodItems.isEmpty {
+            Text("No ingredients listed")
+                .font(.caption).foregroundColor(.secondary).padding()
+        } else {
+            ForEach(foodItems, id: \.food.id) { item in
+                IngredientRow(item: item, unitDisplay: unitDisplay)
+                if item.food.id != foodItems.last?.food.id {
+                    Divider().padding(.horizontal)
+                }
+            }
+        }
+    }
+
+    private func loadMealDetails() {
+        Task {
+            mealWithFoods = try? await mealsVM.getMealWithFoods(mealId: meal.id)
+            isLoadingFoods = false
+        }
+    }
+
+    private func unitDisplay(_ unit: FoodUnit) -> String {
+        switch unit.name {
+        case "GRAM":  return "g"
+        case "ML":    return "ml"
+        case "PIECE": return "pc"
+        case "CUP":   return "cup"
+        case "TBSP":  return "tbsp"
+        case "TSP":   return "tsp"
+        case "SLICE": return "slice"
+        case "SCOOP": return "scoop"
+        default:      return unit.name.lowercased()
+        }
     }
 }
 
@@ -332,6 +379,47 @@ struct NutritionCircle: View {
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+struct IngredientRow: View {
+    let item: MealFoodItemWithDetails
+    let unitDisplay: (FoodUnit) -> String
+
+    private var quantityText: String {
+        let qty = item.mealFoodItem.quantity
+        let formatted = qty.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", qty)
+            : String(format: "%.1f", qty)
+        return "\(formatted) \(unitDisplay(item.mealFoodItem.unit))"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.food.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(quantityText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(Int(item.calculatedCalories)) kcal")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                HStack(spacing: 6) {
+                    Text("P:\(Int(item.calculatedProtein))g")
+                    Text("C:\(Int(item.calculatedCarbs))g")
+                    Text("F:\(Int(item.calculatedFat))g")
+                }
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 }
 

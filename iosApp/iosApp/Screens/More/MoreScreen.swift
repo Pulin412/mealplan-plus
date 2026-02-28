@@ -275,6 +275,16 @@ struct CreateGroceryListScreen: View {
 
 // MARK: - Grocery Detail Screen
 
+private let groceryCategoryOrder = [
+    "Dairy", "Proteins", "Grains", "Vegetables", "Fruits",
+    "Fats & Oils", "Beverages", "Spices & Condiments", "Other"
+]
+private let groceryCategoryEmojis: [String: String] = [
+    "Dairy": "🥛", "Proteins": "🥩", "Grains": "🌾",
+    "Vegetables": "🥦", "Fruits": "🍎", "Fats & Oils": "🫙",
+    "Beverages": "🧃", "Spices & Condiments": "🧂", "Other": "🛒"
+]
+
 struct GroceryDetailScreen: View {
     let listId: Int64
     let listName: String
@@ -283,17 +293,25 @@ struct GroceryDetailScreen: View {
     @StateObject private var viewModel = GroceryViewModel()
     @State private var showAddItem = false
     @State private var newItemName = ""
+    @State private var selectedTab = 0  // 0 = All, 1 = To Buy
 
-    var checkedCount: Int {
-        viewModel.currentList?.items.filter { $0.item.isChecked }.count ?? 0
-    }
+    var checkedCount: Int { viewModel.currentList?.items.filter { $0.item.isChecked }.count ?? 0 }
+    var totalCount: Int   { viewModel.currentList?.items.count ?? 0 }
+    var items: [GroceryItemWithFood] { viewModel.currentList?.items ?? [] }
 
-    var totalCount: Int {
-        viewModel.currentList?.items.count ?? 0
-    }
+    var toBuyItems: [GroceryItemWithFood] { items.filter { !$0.item.isChecked } }
 
-    var items: [GroceryItemWithFood] {
-        viewModel.currentList?.items ?? []
+    var groupedItems: [(String, [GroceryItemWithFood])] {
+        var dict: [String: [GroceryItemWithFood]] = [:]
+        for item in items {
+            let cat = item.item.category ?? "Other"
+            dict[cat, default: []].append(item)
+        }
+        return groceryCategoryOrder.compactMap { cat -> (String, [GroceryItemWithFood])? in
+            guard let catItems = dict[cat], !catItems.isEmpty else { return nil }
+            let emoji = groceryCategoryEmojis[cat] ?? "🛒"
+            return (emoji + " " + cat, catItems)
+        }
     }
 
     var body: some View {
@@ -301,9 +319,16 @@ struct GroceryDetailScreen: View {
             // Progress header
             if totalCount > 0 {
                 HStack {
-                    Text("\(checkedCount) of \(totalCount) items")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(checkedCount) of \(totalCount) items")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        if totalCount > 0 {
+                            Text("\(Int(Double(checkedCount) / Double(totalCount) * 100))% complete")
+                                .font(.caption2)
+                                .foregroundColor(.green)
+                        }
+                    }
                     Spacer()
                     CircularProgress(progress: Double(checkedCount) / Double(max(totalCount, 1)))
                 }
@@ -311,11 +336,21 @@ struct GroceryDetailScreen: View {
                 .background(Color.white)
             }
 
+            // Tab selector
+            Picker("View", selection: $selectedTab) {
+                Text("All (\(totalCount))").tag(0)
+                Text("To Buy (\(toBuyItems.count))").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.white)
+
             if viewModel.currentList == nil {
                 Spacer()
                 ProgressView("Loading items...")
                 Spacer()
-            } else if viewModel.currentList?.items.isEmpty == true {
+            } else if items.isEmpty {
                 VStack(spacing: 16) {
                     Spacer()
                     Image(systemName: "cart")
@@ -328,18 +363,57 @@ struct GroceryDetailScreen: View {
                         .foregroundColor(.secondary)
                     Spacer()
                 }
-            } else {
+            } else if selectedTab == 0 {
+                // All — grouped by category
                 List {
-                    ForEach(items, id: \.item.id) { itemWithFood in
-                        GroceryItemRow(itemWithFood: itemWithFood) { isChecked in
-                            toggleItem(itemWithFood: itemWithFood, isChecked: isChecked)
+                    ForEach(groupedItems, id: \.0) { (header, catItems) in
+                        Section(header: Text(header)) {
+                            ForEach(catItems, id: \.item.id) { itemWithFood in
+                                GroceryItemRow(itemWithFood: itemWithFood) { isChecked in
+                                    toggleItem(itemWithFood: itemWithFood, isChecked: isChecked)
+                                }
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            try? await viewModel.deleteGroceryItem(id: itemWithFood.item.id)
+                                            loadItems()
+                                        }
+                                    } label: { Label("Delete", systemImage: "trash") }
+                                }
+                            }
                         }
                     }
-                    .onDelete { indexSet in
-                        deleteItems(at: indexSet)
-                    }
                 }
-                .listStyle(PlainListStyle())
+            } else {
+                // To Buy — flat unchecked list
+                if toBuyItems.isEmpty {
+                    VStack(spacing: 16) {
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.green.opacity(0.5))
+                        Text("All items checked!")
+                            .font(.headline)
+                        Spacer()
+                    }
+                } else {
+                    List {
+                        ForEach(toBuyItems, id: \.item.id) { itemWithFood in
+                            GroceryItemRow(itemWithFood: itemWithFood) { isChecked in
+                                toggleItem(itemWithFood: itemWithFood, isChecked: isChecked)
+                            }
+                        }
+                        .onDelete { indexSet in
+                            Task {
+                                for index in indexSet {
+                                    try? await viewModel.deleteGroceryItem(id: toBuyItems[index].item.id)
+                                }
+                                loadItems()
+                            }
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                }
             }
         }
         .background(
@@ -364,29 +438,16 @@ struct GroceryDetailScreen: View {
             Button("Cancel", role: .cancel) { newItemName = "" }
             Button("Add") { addItem() }
         }
-        .onAppear {
-            loadItems()
-        }
+        .onAppear { loadItems() }
     }
 
     private func loadItems() {
-        Task {
-            try? await viewModel.loadGroceryListWithItems(listId: listId)
-        }
+        Task { try? await viewModel.loadGroceryListWithItems(listId: listId) }
     }
 
     private func toggleItem(itemWithFood: GroceryItemWithFood, isChecked: Bool) {
         Task {
             try? await viewModel.updateItemChecked(id: itemWithFood.item.id, isChecked: isChecked)
-            loadItems()
-        }
-    }
-
-    private func deleteItems(at indexSet: IndexSet) {
-        Task {
-            for index in indexSet {
-                try? await viewModel.deleteGroceryItem(id: items[index].item.id)
-            }
             loadItems()
         }
     }
@@ -401,13 +462,12 @@ struct GroceryDetailScreen: View {
             quantity: 1.0,
             unit: .piece,
             isChecked: false,
-            sortOrder: 0
+            sortOrder: 0,
+            category: nil
         )
         Task {
             try? await viewModel.insertGroceryItem(item)
-            await MainActor.run {
-                newItemName = ""
-            }
+            await MainActor.run { newItemName = "" }
             loadItems()
         }
     }
@@ -531,97 +591,277 @@ struct SettingsScreen: View {
 
 // MARK: - Profile Screen
 
-struct ProfileScreen: View {
-    @EnvironmentObject var appState: AppState
-    @State private var name = "User"
-    @State private var email = "user@example.com"
+@MainActor
+class ProfileViewModel: ObservableObject {
+    @Published var user: User?
+    @Published var isSaving = false
 
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Profile header
-                VStack(spacing: 12) {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(.green)
+    private let repo = RepositoryProvider.shared.userRepository
 
-                    Text(name)
-                        .font(.title2)
-                        .fontWeight(.bold)
+    func load(userId: Int64) {
+        Task { user = try? await repo.getUserById(id: userId) }
+    }
 
-                    Text(email)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-
-                // Stats
-                HStack(spacing: 20) {
-                    ProfileStat(value: "45", label: "Days Active")
-                    ProfileStat(value: "156", label: "Meals Logged")
-                    ProfileStat(value: "12", label: "Diets Created")
-                }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 5)
-                .padding(.horizontal)
-
-                // Edit profile button
-                Button(action: {}) {
-                    Text("Edit Profile")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal)
-
-                // Logout button
-                Button(action: { appState.logout() }) {
-                    Text("Logout")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red.opacity(0.1))
-                        .foregroundColor(.red)
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal)
-
-                Spacer()
-            }
-            .padding(.top)
-        }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
-        .navigationTitle("Profile")
-        .navigationBarTitleDisplayMode(.inline)
+    func save(_ user: User) async {
+        isSaving = true
+        try? await repo.updateUser(user: user)
+        self.user = user
+        isSaving = false
     }
 }
 
-struct ProfileStat: View {
-    let value: String
-    let label: String
+struct ProfileScreen: View {
+    @EnvironmentObject var appState: AppState
+    @StateObject private var vm = ProfileViewModel()
+
+    @State private var displayName = ""
+    @State private var weightStr = ""
+    @State private var heightStr = ""
+    @State private var ageStr = ""
+    @State private var selectedGender = "OTHER"
+    @State private var selectedActivity = "SEDENTARY"
+    @State private var selectedGoal = "MAINTAIN"
+    @State private var targetCaloriesStr = ""
+    @State private var showDangerZone = false
+    @State private var showDeleteConfirm = false
+
+    var weight: Double? { Double(weightStr) }
+    var height: Double? { Double(heightStr) }
+    var age: Int? { Int(ageStr) }
+
+    var bmr: Int? {
+        guard let w = weight, let h = height, let a = age else { return nil }
+        let base = 10 * w + 6.25 * h - 5.0 * Double(a)
+        switch selectedGender {
+        case "MALE":   return Int((base + 5).rounded())
+        case "FEMALE": return Int((base - 161).rounded())
+        default:       return Int((base - 78).rounded())
+        }
+    }
+
+    var tdee: Int? {
+        guard let b = bmr else { return nil }
+        let m: Double
+        switch selectedActivity {
+        case "LIGHT":        m = 1.375
+        case "MODERATE":     m = 1.55
+        case "VERY_ACTIVE":  m = 1.725
+        case "EXTRA_ACTIVE": m = 1.9
+        default:             m = 1.2
+        }
+        return Int((Double(b) * m).rounded())
+    }
+
+    var bodyFatPct: Double? {
+        guard let w = weight, let h = height, let a = age,
+              selectedGender == "MALE" || selectedGender == "FEMALE" else { return nil }
+        let hM = h / 100.0
+        let bmi = w / (hM * hM)
+        let offset = selectedGender == "MALE" ? 16.2 : 5.4
+        let pct = 1.20 * bmi + 0.23 * Double(a) - offset
+        return pct < 0 ? nil : (pct * 10).rounded() / 10.0
+    }
 
     var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
+        Form {
+            // Avatar
+            Section {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 70))
+                            .foregroundColor(.green)
+                        if let email = vm.user?.email {
+                            Text(email)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+            }
+
+            // Identity
+            Section("Profile") {
+                HStack {
+                    Text("Name")
+                    Spacer()
+                    TextField("Display name", text: $displayName)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+
+            // Body metrics
+            Section("Body Metrics") {
+                HStack {
+                    Text("Weight")
+                    Spacer()
+                    TextField("0.0", text: $weightStr)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 70)
+                    Text("kg").foregroundColor(.secondary)
+                }
+                HStack {
+                    Text("Height")
+                    Spacer()
+                    TextField("0", text: $heightStr)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 70)
+                    Text("cm").foregroundColor(.secondary)
+                }
+                HStack {
+                    Text("Age")
+                    Spacer()
+                    TextField("0", text: $ageStr)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 70)
+                    Text("yrs").foregroundColor(.secondary)
+                }
+                Picker("Gender", selection: $selectedGender) {
+                    Text("Male").tag("MALE")
+                    Text("Female").tag("FEMALE")
+                    Text("Other").tag("OTHER")
+                }
+            }
+
+            // Goal & activity
+            Section("Goal & Activity") {
+                Picker("Goal", selection: $selectedGoal) {
+                    Text("Lose weight").tag("LOSE")
+                    Text("Maintain weight").tag("MAINTAIN")
+                    Text("Gain muscle").tag("GAIN")
+                }
+                Picker("Activity Level", selection: $selectedActivity) {
+                    Text("Sedentary").tag("SEDENTARY")
+                    Text("Lightly active").tag("LIGHT")
+                    Text("Moderately active").tag("MODERATE")
+                    Text("Very active").tag("VERY_ACTIVE")
+                    Text("Athlete").tag("EXTRA_ACTIVE")
+                }
+                HStack {
+                    Text("Target Calories")
+                    Spacer()
+                    TextField("2000", text: $targetCaloriesStr)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 70)
+                    Text("kcal").foregroundColor(.secondary)
+                }
+            }
+
+            // Estimates (BMR / TDEE / BodyFat)
+            if bmr != nil || tdee != nil || bodyFatPct != nil {
+                Section("Estimates") {
+                    if let b = bmr {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("BMR").font(.subheadline)
+                                Text("Base metabolic rate").font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Text("\(b) kcal").foregroundColor(.secondary)
+                        }
+                    }
+                    if let t = tdee {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("TDEE").font(.subheadline)
+                                Text("Daily energy expenditure").font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Text("\(t) kcal").foregroundColor(.green).fontWeight(.semibold)
+                        }
+                    }
+                    if let bf = bodyFatPct {
+                        HStack {
+                            Text("Est. Body Fat")
+                            Spacer()
+                            Text(String(format: "%.1f%%", bf)).foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+
+            // Save
+            Section {
+                Button(action: saveProfile) {
+                    HStack {
+                        Spacer()
+                        if vm.isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Save Changes").fontWeight(.semibold)
+                        }
+                        Spacer()
+                    }
+                }
                 .foregroundColor(.green)
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .disabled(vm.isSaving || vm.user == nil)
+            }
+
+            // Danger zone
+            Section {
+                DisclosureGroup(isExpanded: $showDangerZone) {
+                    Button(role: .destructive) { appState.logout() } label: {
+                        Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Label("Delete Account", systemImage: "trash")
+                    }
+                } label: {
+                    Text("Danger Zone").foregroundColor(.red)
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
+        .navigationTitle("Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Delete Account?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) { appState.logout() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will log you out. All data is stored locally on this device.")
+        }
+        .onAppear {
+            if let userId = appState.currentUserId { vm.load(userId: userId) }
+        }
+        .onChange(of: vm.user) { user in
+            guard let user = user else { return }
+            displayName          = user.displayName ?? ""
+            weightStr            = user.weightKg.map { String(format: "%.1f", $0.doubleValue) } ?? ""
+            heightStr            = user.heightCm.map { String(format: "%.0f", $0.doubleValue) } ?? ""
+            ageStr               = user.age.map { String($0.intValue) } ?? ""
+            selectedGender       = user.gender ?? "OTHER"
+            selectedActivity     = user.activityLevel ?? "SEDENTARY"
+            selectedGoal         = user.goalType ?? "MAINTAIN"
+            targetCaloriesStr    = user.targetCalories.map { String($0.intValue) } ?? ""
+        }
+    }
+
+    private func saveProfile() {
+        guard let user = vm.user else { return }
+        let updated = User(
+            id: user.id,
+            email: user.email,
+            passwordHash: user.passwordHash,
+            displayName: displayName.isEmpty ? nil : displayName,
+            photoUrl: user.photoUrl,
+            age: ageStr.isEmpty ? nil : KotlinInt(value: Int32(Int(ageStr) ?? 0)),
+            contact: user.contact,
+            weightKg: weightStr.isEmpty ? nil : KotlinDouble(value: Double(weightStr) ?? 0),
+            heightCm: heightStr.isEmpty ? nil : KotlinDouble(value: Double(heightStr) ?? 0),
+            gender: selectedGender,
+            activityLevel: selectedActivity,
+            targetCalories: targetCaloriesStr.isEmpty ? nil : KotlinInt(value: Int32(Int(targetCaloriesStr) ?? 0)),
+            goalType: selectedGoal,
+            createdAt: user.createdAt,
+            updatedAt: Int64(Date().timeIntervalSince1970 * 1000)
+        )
+        Task { await vm.save(updated) }
     }
 }
 

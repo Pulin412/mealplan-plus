@@ -105,6 +105,12 @@ struct DailyLogScreen: View {
         }
         .onAppear { reload() }
         .onChange(of: selectedDate) { _ in reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToDate)) { notification in
+            if let isoString = notification.object as? String {
+                let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+                if let date = f.date(from: isoString) { selectedDate = date }
+            }
+        }
     }
 
     private func reload() {
@@ -203,7 +209,7 @@ struct DailyLogScreen: View {
     private var dailyLogTab: some View {
         let foodSlotKeys = Set(vm.loggedFoods.map { $0.loggedFood.slotType.uppercased() })
         let plannedSlotKeys = Set(vm.plannedMealsBySlot.keys)
-        let allKeys = (Set(mainSlots) + foodSlotKeys + plannedSlotKeys)
+        let allKeys = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys)
             .sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
 
         return ScrollView {
@@ -385,12 +391,12 @@ private struct SlotCard: View {
                 }
                 // Planned items (grey circles) — from diet plan
                 ForEach(Array(plannedItems.enumerated()), id: \.offset) { _, item in
-                    PlannedFoodRowView(item: item)
+                    PlannedLogFoodRowView(item: item)
                     Divider().padding(.horizontal, 12).opacity(0.3)
                 }
                 // Individually logged foods (green ticks)
                 ForEach(foods, id: \.loggedFood.id) { lf in
-                    FoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
+                    LogFoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
                     Divider().padding(.horizontal, 12).opacity(0.4)
                 }
                 // Add Food button
@@ -415,7 +421,7 @@ private struct SlotCard: View {
 }
 
 // ── Food Row ──────────────────────────────────────────────────────────────────
-private struct FoodRowView: View {
+private struct LogFoodRowView: View {
     let food: LoggedFoodWithDetails
     let onDelete: () -> Void
 
@@ -463,7 +469,7 @@ private struct FoodRowView: View {
 }
 
 // ── Planned Food Row ──────────────────────────────────────────────────────────
-private struct PlannedFoodRowView: View {
+private struct PlannedLogFoodRowView: View {
     let item: MealFoodItemWithDetails
 
     private var kcal: Int {
@@ -498,7 +504,7 @@ private struct PlannedFoodRowView: View {
             Text("\(kcal) kcal")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
-            Spacer().frame(width: 28) // align with FoodRowView delete button
+            Spacer().frame(width: 28) // align with LogFoodRowView delete button
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
