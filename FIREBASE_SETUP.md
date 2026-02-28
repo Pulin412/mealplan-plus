@@ -11,7 +11,7 @@ To enable authentication in MealPlan+, you need to set up Firebase:
 1. In Firebase Console, click "Add app" → Android
 2. Enter package name: `com.mealplanplus`
 3. Download `google-services.json`
-4. Place it in `app/` folder
+4. Place it in `android/` folder
 
 ## 3. Enable Authentication Methods
 1. Go to Authentication → Sign-in method
@@ -20,7 +20,8 @@ To enable authentication in MealPlan+, you need to set up Firebase:
 4. For Google Sign-In, note the **Web client ID** (not Android client ID)
 
 ## 4. Update Web Client ID
-1. Open `app/src/main/java/com/mealplanplus/ui/screens/auth/AuthViewModel.kt`
+1. Open `android/src/main/java/com/mealplanplus/ui/screens/auth/AuthViewModel.kt`
+   (previously `app/src/...` — module renamed from `:app` → `:android`)
 2. Replace `YOUR_WEB_CLIENT_ID.apps.googleusercontent.com` with your actual Web client ID
 
 ## 5. Build and Run
@@ -36,4 +37,4 @@ To enable authentication in MealPlan+, you need to set up Firebase:
 - Add it to Firebase Console → Project settings → Your apps → SHA certificate fingerprints
 
 ### Build fails with google-services.json missing
-- Ensure `google-services.json` is in `app/` folder (not `app/src/`)
+- Ensure `google-services.json` is in `android/` folder (not `android/src/`)
