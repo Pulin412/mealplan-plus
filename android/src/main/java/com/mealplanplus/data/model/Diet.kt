@@ -29,7 +29,11 @@ data class Diet(
     val description: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(defaultValue = "0")
-    val isSystemDiet: Boolean = false
+    val isSystemDiet: Boolean = false,
+    // Sync columns (v19)
+    val serverId: String? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+    val syncedAt: Long? = null
 )
 
 /**

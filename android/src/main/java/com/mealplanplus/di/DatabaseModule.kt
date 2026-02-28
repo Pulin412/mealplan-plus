@@ -719,6 +719,31 @@ object DatabaseModule {
         }
     }
 
+    // Migration 18->19: Add sync columns (serverId, updatedAt, syncedAt)
+    private val MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // food_items
+            db.execSQL("ALTER TABLE food_items ADD COLUMN serverId TEXT")
+            db.execSQL("ALTER TABLE food_items ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE food_items ADD COLUMN syncedAt INTEGER")
+            // meals
+            db.execSQL("ALTER TABLE meals ADD COLUMN serverId TEXT")
+            db.execSQL("ALTER TABLE meals ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE meals ADD COLUMN syncedAt INTEGER")
+            // diets
+            db.execSQL("ALTER TABLE diets ADD COLUMN serverId TEXT")
+            db.execSQL("ALTER TABLE diets ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE diets ADD COLUMN syncedAt INTEGER")
+            // health_metrics
+            db.execSQL("ALTER TABLE health_metrics ADD COLUMN serverId TEXT")
+            db.execSQL("ALTER TABLE health_metrics ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE health_metrics ADD COLUMN syncedAt INTEGER")
+            // grocery_lists (updatedAt already exists)
+            db.execSQL("ALTER TABLE grocery_lists ADD COLUMN serverId TEXT")
+            db.execSQL("ALTER TABLE grocery_lists ADD COLUMN syncedAt INTEGER")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -727,7 +752,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
             // Removed fallbackToDestructiveMigration() - this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

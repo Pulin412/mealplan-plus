@@ -64,4 +64,17 @@ interface HealthMetricDao {
 
     @Query("DELETE FROM custom_metric_types")
     suspend fun deleteAllCustomTypes()
+
+    // Sync helpers (v19)
+    @Query("SELECT * FROM health_metrics WHERE userId = :userId AND (syncedAt IS NULL OR updatedAt > syncedAt)")
+    suspend fun getUnsyncedMetrics(userId: Long): List<HealthMetric>
+
+    @Query("SELECT * FROM health_metrics WHERE serverId = :serverId LIMIT 1")
+    suspend fun getMetricByServerId(serverId: String): HealthMetric?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHealthMetric(metric: HealthMetric): Long
+
+    @Update
+    suspend fun updateHealthMetric(metric: HealthMetric)
 }
