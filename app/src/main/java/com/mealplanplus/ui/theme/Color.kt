@@ -44,6 +44,9 @@ val Grey90 = Color(0xFFE0E3E5)
 val Grey95 = Color(0xFFEFF1F3)
 val Grey99 = Color(0xFFFAFCFE)
 
+// Brand
+val BrandGreen = Color(0xFF2E7D52)
+
 // Neutral Variant
 val GreyVariant30 = Color(0xFF404943)
 val GreyVariant50 = Color(0xFF6F7973)
