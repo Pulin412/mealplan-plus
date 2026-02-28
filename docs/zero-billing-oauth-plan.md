@@ -33,7 +33,35 @@
 - iOS OAuth is disabled for release in this phase (`oauth_google_ios_enabled = false`).
 - Rationale: keep scope aligned to no-billing + avoid Apple sign-in compliance expansion.
 
-## 6) Release Gates / Checklist
+## 6) SHA-1 Fingerprint Management
+
+Google OAuth validates requests against SHA-1 fingerprints registered in Firebase.
+**All three must be registered** — missing any one breaks OAuth for that build type.
+
+| Fingerprint | Purpose | How to get |
+|---|---|---|
+| **Debug** | Local dev/testing | `./gradlew signingReport` → `Variant: debug` |
+| **Release keystore** | Signed APK/AAB you upload | `./gradlew signingReport` with release signing config |
+| **Play App Signing** | What users actually install (Google re-signs) | Play Console → Release → Setup → App signing → "App signing key certificate" SHA-1 |
+
+**Current debug SHA-1:** `A8:5B:C7:99:69:02:E0:8B:CF:AB:21:38:73:C8:30:F2:6F:BB:34:66`
+
+**Steps to add a new fingerprint:**
+1. Firebase Console → Project Settings → Your Android app → Add fingerprint
+2. Paste SHA-1 → Save
+3. Re-download `google-services.json` → replace `app/google-services.json` → commit
+
+**Play App Signing note:** Google Play re-signs the APK before distributing to users.
+The SHA-1 on users' devices is Google's key, not the release keystore's.
+Get it from Play Console **after** first upload — it cannot be known before.
+Without it, OAuth will work in dev/internal testing but fail for all public users.
+
+**When to update this:**
+- New developer joins → add their debug SHA-1
+- Release keystore created → add release SHA-1
+- First Play Store upload → add Play App Signing SHA-1
+
+## 7) Release Gates / Checklist
 - [ ] Spark plan confirmed and no billing account attached.
 - [ ] Forbidden Firebase products not present in dependencies/config.
 - [ ] Android Google OAuth path tested (new + returning user).
@@ -41,12 +69,12 @@
 - [ ] iOS release build has no OAuth entry point.
 - [ ] User-facing error states verified (cancel/config/rate-limit style failures).
 
-## 7) Incident / Degradation Behavior
+## 8) Incident / Degradation Behavior
 - On OAuth cancellation: show cancellation message and remain on login screen.
 - On config errors (missing client ID/Firebase config): show actionable message; do not crash.
 - On temporary auth outages/rate limits: show retry-later message; keep local auth available.
 
-## 8) Ownership and Resume TODOs
+## 9) Ownership and Resume TODOs
 - Owner: App engineering.
 - [ ] Add CI enforcement to verify forbidden Firebase artifacts on every PR.
 - [ ] Add runbook section for free-tier auth outage response.
