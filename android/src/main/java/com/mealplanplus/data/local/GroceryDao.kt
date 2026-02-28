@@ -79,4 +79,17 @@ interface GroceryDao {
 
     @Query("DELETE FROM grocery_items")
     suspend fun deleteAllGroceryItems()
+
+    // Sync helpers (v19)
+    @Query("SELECT * FROM grocery_lists WHERE userId = :userId AND (syncedAt IS NULL OR updatedAt > syncedAt)")
+    suspend fun getUnsyncedGroceryLists(userId: Long): List<GroceryList>
+
+    @Query("SELECT * FROM grocery_lists WHERE serverId = :serverId LIMIT 1")
+    suspend fun getGroceryListByServerId(serverId: String): GroceryList?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGroceryList(list: GroceryList): Long
+
+    @Update
+    suspend fun updateGroceryList(list: GroceryList)
 }

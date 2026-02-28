@@ -25,7 +25,10 @@ data class GroceryList(
     val startDate: String? = null,  // yyyy-MM-dd or null if manual
     val endDate: String? = null,    // yyyy-MM-dd or null if manual
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    // Sync columns (v19)
+    val serverId: String? = null,
+    val syncedAt: Long? = null
 ) {
     val dateRangeDisplay: String?
         get() = when {

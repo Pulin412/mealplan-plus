@@ -138,4 +138,11 @@ interface DietDao {
         ORDER BY d.name
     """)
     fun getDietsWithFullSummaryByUser(userId: Long): Flow<List<DietFullSummary>>
+
+    // Sync helpers (v19)
+    @Query("SELECT * FROM diets WHERE userId = :userId AND (syncedAt IS NULL OR updatedAt > syncedAt)")
+    suspend fun getUnsyncedDiets(userId: Long): List<Diet>
+
+    @Query("SELECT * FROM diets WHERE serverId = :serverId LIMIT 1")
+    suspend fun getDietByServerId(serverId: String): Diet?
 }

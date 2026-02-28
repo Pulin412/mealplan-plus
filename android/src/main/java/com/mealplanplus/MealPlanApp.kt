@@ -1,7 +1,10 @@
 package com.mealplanplus
 
 import android.app.Application
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.WorkManager
 import com.mealplanplus.data.local.DatabaseSeeder
+import com.mealplanplus.work.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,5 +26,14 @@ class MealPlanApp : Application() {
         applicationScope.launch {
             databaseSeeder.seedFromFilesIfNeeded(this@MealPlanApp)
         }
+        scheduleSyncWork()
+    }
+
+    private fun scheduleSyncWork() {
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            SyncWorker.TAG,
+            ExistingPeriodicWorkPolicy.KEEP,
+            SyncWorker.periodicRequest()
+        )
     }
 }

@@ -24,7 +24,11 @@ data class FoodItem(
     val isFavorite: Boolean = false,
     val lastUsed: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val isSystemFood: Boolean = false    // Bundled foods from common_foods.json
+    val isSystemFood: Boolean = false,   // Bundled foods from common_foods.json
+    // Sync columns (v19)
+    val serverId: String? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+    val syncedAt: Long? = null
 ) {
     /**
      * Convert quantity in given unit to grams

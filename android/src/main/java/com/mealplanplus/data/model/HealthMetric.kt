@@ -72,7 +72,11 @@ data class HealthMetric(
     val value: Double,
     val secondaryValue: Double? = null,  // Diastolic for blood pressure
     val subType: String? = null,  // GlucoseSubType.name for blood glucose readings
-    val notes: String? = null
+    val notes: String? = null,
+    // Sync columns (v19)
+    val serverId: String? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+    val syncedAt: Long? = null
 )
 
 /**
