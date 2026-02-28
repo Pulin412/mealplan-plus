@@ -82,7 +82,8 @@ private struct DietPickerRow: View {
                 userId: summary.userId,
                 name: summary.name,
                 description: summary.description_,
-                createdAt: summary.createdAt
+                createdAt: summary.createdAt,
+                isSystemDiet: false
             )
             onSelect(diet)
         }) {

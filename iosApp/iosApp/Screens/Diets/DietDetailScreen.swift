@@ -158,17 +158,28 @@ struct DietDetailScreenNew: View {
 
     private func mealSlotsSection(_ dwm: DietWithMeals) -> some View {
         let slots = ["Breakfast", "Lunch", "Dinner", "Snack"]
-        // NSDictionary cast — KMP Map<String, MealWithFoods?> bridges as NSDictionary
+        // KMP Map<String, MealWithFoods?> bridges as NSDictionary
         var mealsMap: [String: MealWithFoods?] = [:]
         if let nd = dwm.meals as? NSDictionary {
             for (k, v) in nd {
                 if let key = k as? String { mealsMap[key] = v as? MealWithFoods }
             }
         }
+        // KMP Map<String, String?> (instructions) also bridges as NSDictionary
+        var instructionsMap: [String: String?] = [:]
+        if let nd = dwm.instructions as? NSDictionary {
+            for (k, v) in nd {
+                if let key = k as? String { instructionsMap[key] = v as? String }
+            }
+        }
         return VStack(alignment: .leading, spacing: 12) {
             ForEach(slots, id: \.self) { slot in
                 if let mealWithFoods = mealsMap[slot] ?? nil {
-                    MealSlotCardNew(slot: slot, mealWithFoods: mealWithFoods)
+                    MealSlotCardNew(
+                        slot: slot,
+                        mealWithFoods: mealWithFoods,
+                        instructions: instructionsMap[slot] ?? nil
+                    )
                 } else {
                     EmptyMealSlotCard(slot: slot)
                 }
@@ -291,6 +302,7 @@ struct NutritionBox: View {
 struct MealSlotCardNew: View {
     let slot: String
     let mealWithFoods: MealWithFoods
+    var instructions: String? = nil
 
     var slotIcon: String {
         switch slot {
@@ -302,29 +314,44 @@ struct MealSlotCardNew: View {
     }
 
     var body: some View {
-        HStack {
-            Image(systemName: slotIcon)
-                .foregroundColor(.green)
-                .frame(width: 30)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: slotIcon)
+                    .foregroundColor(.green)
+                    .frame(width: 30)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(slot)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(slot)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(mealWithFoods.meal.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+
+                Spacer()
+
+                Text("\(Int(mealWithFoods.totalCalories)) kcal")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text(mealWithFoods.meal.name)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
             }
 
-            Spacer()
-
-            Text("\(Int(mealWithFoods.totalCalories)) kcal")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            if let note = instructions, !note.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "note.text")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                    Text(note)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                .padding(.leading, 36)
+            }
         }
         .padding()
         .background(Color.white)
@@ -538,7 +565,8 @@ struct AddDietScreenNew: View {
                 userId: userId,
                 name: name,
                 description: description.isEmpty ? nil : description,
-                createdAt: existingDiet?.createdAt ?? Int64(Date().timeIntervalSince1970 * 1000)
+                createdAt: existingDiet?.createdAt ?? Int64(Date().timeIntervalSince1970 * 1000),
+                isSystemDiet: false
             )
 
             do {

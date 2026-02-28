@@ -221,20 +221,9 @@ struct MealPlanTab: View {
 }
 
 struct LogTab: View {
-    @State private var logDate: Date = Date()
-
     var body: some View {
         NavigationStack {
-            DailyLogScreen(date: logDate)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .navigateToDate)) { notification in
-            if let isoString = notification.object as? String {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
-                if let date = formatter.date(from: isoString) {
-                    logDate = date
-                }
-            }
+            DailyLogScreen()
         }
     }
 }

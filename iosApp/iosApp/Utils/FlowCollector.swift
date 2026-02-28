@@ -159,8 +159,8 @@ class DietsViewModel: ObservableObject {
         try await repository.deleteDiet(id: id)
     }
 
-    func setDietMeal(dietId: Int64, slotType: String, mealId: Int64?) async throws {
-        try await repository.setDietMeal(dietId: dietId, slotType: slotType, mealId: mealId?.toKotlinLong())
+    func setDietMeal(dietId: Int64, slotType: String, mealId: Int64?, instructions: String? = nil) async throws {
+        try await repository.setDietMeal(dietId: dietId, slotType: slotType, mealId: mealId?.toKotlinLong(), instructions: instructions)
     }
 
     func getTagsForDiet(dietId: Int64) async throws -> [Tag] {
