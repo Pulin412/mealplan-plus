@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: mealplan-api
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:mealplandb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:create-drop}
+    show-sql: false
+    database-platform: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+server:
+  port: ${PORT:8080}
+
+firebase:
+  project-id: ${FIREBASE_PROJECT_ID:mealplanplus-dev}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    com.mealplanplus: DEBUG
+    org.springframework.security: INFO
