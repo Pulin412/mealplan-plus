@@ -35,6 +35,12 @@ class UserRepository(private val database: MealPlanDatabase) {
             photoUrl = null,
             age = null,
             contact = null,
+            weightKg = null,
+            heightCm = null,
+            gender = null,
+            activityLevel = null,
+            targetCalories = null,
+            goalType = null,
             createdAt = now,
             updatedAt = now
         )
@@ -49,6 +55,12 @@ class UserRepository(private val database: MealPlanDatabase) {
             photoUrl = user.photoUrl,
             age = user.age?.toLong(),
             contact = user.contact,
+            weightKg = user.weightKg,
+            heightCm = user.heightCm,
+            gender = user.gender,
+            activityLevel = user.activityLevel,
+            targetCalories = user.targetCalories?.toLong(),
+            goalType = user.goalType,
             updatedAt = currentTimeMillis(),
             id = user.id
         )
@@ -77,6 +89,12 @@ class UserRepository(private val database: MealPlanDatabase) {
             photoUrl = photoUrl,
             age = age?.toInt(),
             contact = contact,
+            weightKg = weightKg,
+            heightCm = heightCm,
+            gender = gender,
+            activityLevel = activityLevel,
+            targetCalories = targetCalories?.toInt(),
+            goalType = goalType,
             createdAt = createdAt,
             updatedAt = updatedAt
         )

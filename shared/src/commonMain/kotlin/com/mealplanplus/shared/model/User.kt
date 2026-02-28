@@ -11,6 +11,13 @@ data class User(
     val photoUrl: String? = null,
     val age: Int? = null,
     val contact: String? = null,
+    // Body metrics
+    val weightKg: Double? = null,
+    val heightCm: Double? = null,
+    val gender: String? = null,          // Gender.name
+    val activityLevel: String? = null,   // ActivityLevel.name
+    val targetCalories: Int? = null,
+    val goalType: String? = null,        // GoalType.name
     val createdAt: Long = currentTimeMillis(),
     val updatedAt: Long = currentTimeMillis()
 ) {

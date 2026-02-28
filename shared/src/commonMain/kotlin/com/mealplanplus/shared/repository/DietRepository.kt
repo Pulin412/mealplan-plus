@@ -27,12 +27,14 @@ class DietRepository(
         val dietMeals = queries.selectDietMeals(dietId).executeAsList()
 
         val mealsMap = mutableMapOf<String, MealWithFoods?>()
+        val instructionsMap = mutableMapOf<String, String?>()
         for (dm in dietMeals) {
             val mealWithFoods = dm.mealId?.let { mealRepository.getMealWithFoods(it) }
             mealsMap[dm.slotType] = mealWithFoods
+            instructionsMap[dm.slotType] = dm.instructions
         }
 
-        return DietWithMeals(diet, mealsMap)
+        return DietWithMeals(diet, mealsMap, instructionsMap)
     }
 
     fun getDietSummaries(userId: Long): Flow<List<DietSummary>> {
@@ -56,7 +58,8 @@ class DietRepository(
             userId = diet.userId,
             name = diet.name,
             description = diet.description,
-            createdAt = diet.createdAt
+            createdAt = diet.createdAt,
+            isSystemDiet = if (diet.isSystemDiet) 1L else 0L
         )
         return queries.lastInsertRowId().executeAsOne()
     }
@@ -73,8 +76,8 @@ class DietRepository(
         queries.deleteDietById(id)
     }
 
-    suspend fun setDietMeal(dietId: Long, slotType: String, mealId: Long?) {
-        queries.insertDietMeal(dietId, slotType, mealId)
+    suspend fun setDietMeal(dietId: Long, slotType: String, mealId: Long?, instructions: String? = null) {
+        queries.insertDietMeal(dietId, slotType, mealId, instructions)
     }
 
     suspend fun removeDietMeal(dietId: Long, slotType: String) {
@@ -172,7 +175,8 @@ class DietRepository(
             userId = userId,
             name = name,
             description = description,
-            createdAt = createdAt
+            createdAt = createdAt,
+            isSystemDiet = isSystemDiet == 1L
         )
     }
 

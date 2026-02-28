@@ -31,7 +31,8 @@ class GroceryRepository(private val database: MealPlanDatabase) {
                     quantity = row.quantity,
                     unit = FoodUnit.fromString(row.unit),
                     isChecked = row.isChecked == 1L,
-                    sortOrder = row.sortOrder.toInt()
+                    sortOrder = row.sortOrder.toInt(),
+                    category = row.category
                 ),
                 food = row.id_?.let {
                     FoodItem(
@@ -94,7 +95,8 @@ class GroceryRepository(private val database: MealPlanDatabase) {
             quantity = item.quantity,
             unit = item.unit.name,
             isChecked = if (item.isChecked) 1L else 0L,
-            sortOrder = item.sortOrder.toLong()
+            sortOrder = item.sortOrder.toLong(),
+            category = item.category
         )
         return queries.lastInsertRowId().executeAsOne()
     }
@@ -107,6 +109,7 @@ class GroceryRepository(private val database: MealPlanDatabase) {
             unit = item.unit.name,
             isChecked = if (item.isChecked) 1L else 0L,
             sortOrder = item.sortOrder.toLong(),
+            category = item.category,
             id = item.id
         )
     }

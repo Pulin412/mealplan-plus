@@ -20,6 +20,7 @@ CREATE TABLE grocery_items (
     unit TEXT NOT NULL,
     isChecked INTEGER NOT NULL DEFAULT 0,
     sortOrder INTEGER NOT NULL DEFAULT 0,
+    category TEXT,
     FOREIGN KEY (listId) REFERENCES grocery_lists(id) ON DELETE CASCADE,
     FOREIGN KEY (foodId) REFERENCES food_items(id) ON DELETE SET NULL
 );
@@ -58,11 +59,11 @@ LEFT JOIN food_items fi ON gi.foodId = fi.id
 WHERE gi.id = ?;
 
 insertGroceryItem:
-INSERT INTO grocery_items(listId, foodId, customName, quantity, unit, isChecked, sortOrder)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO grocery_items(listId, foodId, customName, quantity, unit, isChecked, sortOrder, category)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 updateGroceryItem:
-UPDATE grocery_items SET foodId = ?, customName = ?, quantity = ?, unit = ?, isChecked = ?, sortOrder = ?
+UPDATE grocery_items SET foodId = ?, customName = ?, quantity = ?, unit = ?, isChecked = ?, sortOrder = ?, category = ?
 WHERE id = ?;
 
 updateGroceryItemChecked:

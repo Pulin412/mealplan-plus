@@ -8,7 +8,8 @@ data class Diet(
     val userId: Long,
     val name: String,
     val description: String? = null,
-    val createdAt: Long = currentTimeMillis()
+    val createdAt: Long = currentTimeMillis(),
+    val isSystemDiet: Boolean = false
 )
 
 /**
@@ -16,8 +17,9 @@ data class Diet(
  */
 data class DietMeal(
     val dietId: Long,
-    val slotType: String,  // DefaultMealSlot name
-    val mealId: Long?  // Can be null if no meal assigned
+    val slotType: String,       // DefaultMealSlot name
+    val mealId: Long?,          // Can be null if no meal assigned
+    val instructions: String? = null
 )
 
 /**
@@ -25,7 +27,8 @@ data class DietMeal(
  */
 data class DietWithMeals(
     val diet: Diet,
-    val meals: Map<String, MealWithFoods?>  // slotType -> meal
+    val meals: Map<String, MealWithFoods?>,             // slotType -> meal
+    val instructions: Map<String, String?> = emptyMap() // slotType -> prep instructions
 ) {
     val totalCalories: Double
         get() = meals.values.filterNotNull().sumOf { it.totalCalories }
@@ -67,5 +70,5 @@ data class DietFullSummary(
     val totalCarbs: Int,
     val totalFat: Int
 ) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt)
+    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false)
 }
