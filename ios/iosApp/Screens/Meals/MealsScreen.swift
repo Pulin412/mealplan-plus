@@ -1,23 +1,50 @@
 import SwiftUI
 import shared
 
+// Wrapper to make MealWithFoods usable with .sheet(item:)
+private struct EditMealRequest: Identifiable {
+    let id = UUID()
+    let mealWithFoods: MealWithFoods
+}
+
 struct MealsScreen: View {
+    @EnvironmentObject var appState: AppState
+    @StateObject private var mealsVM = MealsViewModel()
+
     @State private var searchText = ""
-    @State private var meals: [MealUI] = []
     @State private var selectedSlot: MealSlotFilter = .all
     @State private var showAddMeal = false
+    @State private var editRequest: EditMealRequest? = nil
 
-    var filteredMeals: [MealUI] {
-        var result = meals
+    private var userId: Int64 { appState.currentUserId ?? 0 }
 
+    private func slotDisplayName(_ slotType: String) -> String {
+        switch slotType.uppercased() {
+        case "BREAKFAST":     return "Breakfast"
+        case "LUNCH":         return "Lunch"
+        case "DINNER":        return "Dinner"
+        case "PRE_WORKOUT":   return "Pre-Workout"
+        case "POST_WORKOUT":  return "Post-Workout"
+        case "EVENING_SNACK": return "Evening Snack"
+        case "EARLY_MORNING": return "Early Morning"
+        default:              return "Snack"
+        }
+    }
+
+    private func toMealUI(_ meal: Meal) -> MealUI {
+        MealUI(id: meal.id, name: meal.name, slot: slotDisplayName(meal.slotType),
+               calories: 0, protein: 0, carbs: 0, fat: 0, foodCount: 0)
+    }
+
+    var filteredMeals: [Meal] {
+        var result = mealsVM.meals
         if !searchText.isEmpty {
             result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
-
         if selectedSlot != .all {
-            result = result.filter { $0.slot == selectedSlot.rawValue }
+            let target = selectedSlot.rawValue.uppercased()
+            result = result.filter { $0.slotType.uppercased() == target || slotDisplayName($0.slotType) == selectedSlot.rawValue }
         }
-
         return result
     }
 
@@ -33,13 +60,11 @@ struct MealsScreen: View {
             VStack(spacing: 0) {
                 // Search bar
                 HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
+                    Image(systemName: "magnifyingglass").foregroundColor(.gray)
                     TextField("Search meals...", text: $searchText)
                     if !searchText.isEmpty {
                         Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
+                            Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
                         }
                     }
                 }
@@ -53,10 +78,7 @@ struct MealsScreen: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(MealSlotFilter.allCases, id: \.self) { slot in
-                            FilterChip(
-                                title: slot.displayName,
-                                isSelected: selectedSlot == slot
-                            ) {
+                            FilterChip(title: slot.displayName, isSelected: selectedSlot == slot) {
                                 selectedSlot = slot
                             }
                         }
@@ -65,16 +87,38 @@ struct MealsScreen: View {
                     .padding(.vertical, 12)
                 }
 
-                if filteredMeals.isEmpty {
+                if mealsVM.isLoading {
+                    Spacer(); ProgressView("Loading meals..."); Spacer()
+                } else if filteredMeals.isEmpty {
                     EmptyMealsView()
                 } else {
                     List {
-                        ForEach(filteredMeals) { meal in
-                            NavigationLink(destination: MealDetailScreen(meal: meal)) {
-                                MealRowView(meal: meal)
+                        ForEach(filteredMeals, id: \.id) { meal in
+                            NavigationLink(destination: MealDetailScreen(meal: toMealUI(meal))) {
+                                KMPMealRowView(meal: meal, slotDisplayName: slotDisplayName)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button {
+                                    Task {
+                                        if let mwf = try? await mealsVM.getMealWithFoods(mealId: meal.id) {
+                                            await MainActor.run { editRequest = EditMealRequest(mealWithFoods: mwf) }
+                                        }
+                                    }
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.blue)
+
+                                Button(role: .destructive) {
+                                    Task {
+                                        try? await mealsVM.deleteMeal(id: meal.id)
+                                        await MainActor.run { mealsVM.loadMeals(userId: userId) }
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
-                        .onDelete(perform: deleteMeal)
                     }
                     .listStyle(PlainListStyle())
                 }
@@ -83,27 +127,18 @@ struct MealsScreen: View {
         .navigationTitle("My Meals")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showAddMeal = true }) {
-                    Image(systemName: "plus")
-                }
+                Button(action: { showAddMeal = true }) { Image(systemName: "plus") }
             }
         }
         .sheet(isPresented: $showAddMeal) {
-            AddMealScreen { newMeal in
-                meals.append(newMeal)
-            }
+            AddMealScreen(onSave: { mealsVM.loadMeals(userId: userId) })
+                .environmentObject(appState)
         }
-        .onAppear {
-            loadSampleMeals()
+        .sheet(item: $editRequest) { req in
+            AddMealScreen(existingMeal: req.mealWithFoods, onSave: { mealsVM.loadMeals(userId: userId) })
+                .environmentObject(appState)
         }
-    }
-
-    private func deleteMeal(at offsets: IndexSet) {
-        meals.remove(atOffsets: offsets)
-    }
-
-    private func loadSampleMeals() {
-        meals = SeedDataLoader.shared.loadMeals()
+        .onAppear { mealsVM.loadMeals(userId: userId) }
     }
 }
 
@@ -194,6 +229,38 @@ struct MealRowView: View {
     }
 }
 
+// Row view for KMP Meal objects
+struct KMPMealRowView: View {
+    let meal: Meal
+    let slotDisplayName: (String) -> String
+
+    private func slotIcon(for slotType: String) -> String {
+        switch slotType.uppercased() {
+        case "BREAKFAST", "EARLY_MORNING": return "sunrise.fill"
+        case "LUNCH", "NOON", "MID_MORNING": return "sun.max.fill"
+        case "DINNER", "POST_DINNER": return "moon.fill"
+        default: return "leaf.fill"
+        }
+    }
+
+    var body: some View {
+        HStack {
+            Image(systemName: slotIcon(for: meal.slotType))
+                .foregroundColor(.green)
+                .frame(width: 30)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(meal.name).font(.headline)
+                Text(slotDisplayName(meal.slotType))
+                    .font(.caption)
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(Color.green.opacity(0.2)).cornerRadius(4)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 4)
+    }
+}
+
 struct EmptyMealsView: View {
     var body: some View {
         VStack(spacing: 16) {
@@ -228,6 +295,7 @@ struct MealsScreen_Previews: PreviewProvider {
     static var previews: some View {
         NavigationStack {
             MealsScreen()
+                .environmentObject(AppState())
         }
     }
 }

@@ -1,6 +1,15 @@
 import SwiftUI
 import shared
 
+// Wrapper for sheet(item:) presentation
+struct SlotEditRequest: Identifiable {
+    let id = UUID()
+    let slot: String
+    let dietId: Int64
+    let currentMeal: MealWithFoods?
+    let instructions: String?
+}
+
 struct DietDetailScreenNew: View {
     let dietId: Int64
     var onUpdate: (() -> Void)? = nil
@@ -10,6 +19,7 @@ struct DietDetailScreenNew: View {
     @State private var tags: [Tag] = []
     @State private var selectedDay = 0
     @State private var showEditSheet = false
+    @State private var slotEditRequest: SlotEditRequest? = nil
 
     var body: some View {
         ScrollView {
@@ -20,6 +30,12 @@ struct DietDetailScreenNew: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .sheet(isPresented: $showEditSheet) { editSheetContent }
+        .sheet(item: $slotEditRequest) { req in
+            DietMealSlotSheet(request: req, viewModel: viewModel) {
+                slotEditRequest = nil
+                loadDietDetails()
+            }
+        }
         .onAppear { loadDietDetails() }
     }
 
@@ -174,15 +190,22 @@ struct DietDetailScreenNew: View {
         }
         return VStack(alignment: .leading, spacing: 12) {
             ForEach(slots, id: \.self) { slot in
-                if let mealWithFoods = mealsMap[slot] ?? nil {
-                    MealSlotCardNew(
-                        slot: slot,
-                        mealWithFoods: mealWithFoods,
-                        instructions: instructionsMap[slot] ?? nil
+                let currentMeal = mealsMap[slot] ?? nil
+                let instructions = instructionsMap[slot] ?? nil
+                Button {
+                    slotEditRequest = SlotEditRequest(
+                        slot: slot, dietId: dietId,
+                        currentMeal: currentMeal,
+                        instructions: instructions
                     )
-                } else {
-                    EmptyMealSlotCard(slot: slot)
+                } label: {
+                    if let mwf = currentMeal {
+                        MealSlotCardNew(slot: slot, mealWithFoods: mwf, instructions: instructions)
+                    } else {
+                        EmptyMealSlotCard(slot: slot)
+                    }
                 }
+                .buttonStyle(PlainButtonStyle())
             }
         }
         .padding(.horizontal)
@@ -620,6 +643,234 @@ extension Color {
             blue: Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+
+// MARK: - Diet Meal Slot Sheet
+struct DietMealSlotSheet: View {
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var appState: AppState
+    let request: SlotEditRequest
+    let viewModel: DietsViewModel
+    var onSave: () -> Void
+
+    @State private var instructions: String = ""
+    @State private var showMealPicker = false
+    @State private var selectedMealId: Int64? = nil
+    @State private var isSaving = false
+
+    private var currentMeal: MealWithFoods? { request.currentMeal }
+    private var displayMealId: Int64? { selectedMealId ?? currentMeal?.meal.id }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Slot") {
+                    HStack {
+                        Image(systemName: slotIcon(request.slot)).foregroundColor(.green)
+                        Text(request.slot).font(.headline)
+                    }
+                }
+
+                Section("Assigned Meal") {
+                    if let mwf = currentMeal, selectedMealId == nil {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(mwf.meal.name).font(.subheadline).fontWeight(.medium)
+                            Text("\(Int(mwf.totalCalories)) kcal · P:\(Int(mwf.totalProtein))g C:\(Int(mwf.totalCarbs))g F:\(Int(mwf.totalFat))g")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                    } else if let newId = selectedMealId {
+                        Text("Meal ID \(newId) selected").font(.subheadline).foregroundColor(.green)
+                    } else {
+                        Text("No meal assigned").foregroundColor(.secondary)
+                    }
+
+                    Button("Change Meal") { showMealPicker = true }
+                        .foregroundColor(.green)
+
+                    if displayMealId != nil {
+                        Button("Remove Meal", role: .destructive) {
+                            selectedMealId = -1  // sentinel for "remove"
+                        }
+                    }
+                }
+
+                Section("Instructions (optional)") {
+                    TextField("e.g. Prepare in advance", text: $instructions, axis: .vertical)
+                        .lineLimit(3)
+                }
+
+                Section {
+                    Button(action: save) {
+                        HStack {
+                            Spacer()
+                            if isSaving { ProgressView().padding(.trailing, 4) }
+                            Text("Save").fontWeight(.semibold)
+                            Spacer()
+                        }
+                    }
+                    .disabled(isSaving)
+                }
+            }
+            .navigationTitle("Edit Slot")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
+            }
+            .sheet(isPresented: $showMealPicker) {
+                DietMealPickerSheet(userId: appState.currentUserId ?? 0) { mealId in
+                    selectedMealId = mealId
+                    showMealPicker = false
+                }
+            }
+            .onAppear {
+                instructions = request.instructions ?? ""
+            }
+        }
+    }
+
+    private func slotIcon(_ slot: String) -> String {
+        switch slot {
+        case "Breakfast": return "sunrise.fill"
+        case "Lunch":     return "sun.max.fill"
+        case "Dinner":    return "moon.fill"
+        default:          return "leaf.fill"
+        }
+    }
+
+    private func save() {
+        isSaving = true
+        Task {
+            let mealId: Int64?
+            if selectedMealId == -1 {
+                mealId = nil  // remove
+            } else if let newId = selectedMealId {
+                mealId = newId
+            } else {
+                mealId = currentMeal?.meal.id  // keep existing
+            }
+            let instr = instructions.isEmpty ? nil : instructions
+            try? await viewModel.setDietMeal(
+                dietId: request.dietId,
+                slotType: request.slot,
+                mealId: mealId,
+                instructions: instr
+            )
+            await MainActor.run {
+                isSaving = false
+                onSave()
+                dismiss()
+            }
+        }
+    }
+}
+
+// MARK: - Diet Meal Picker Sheet
+struct DietMealPickerSheet: View {
+    @Environment(\.dismiss) var dismiss
+    let userId: Int64
+    var onSelect: (Int64) -> Void
+
+    @StateObject private var mealsVM = MealsViewModel()
+    @State private var searchText = ""
+    @State private var slotFilter: DietMealSlotFilter = .all
+
+    enum DietMealSlotFilter: String, CaseIterable {
+        case all = "All"
+        case breakfast = "Breakfast"
+        case lunch = "Lunch"
+        case dinner = "Dinner"
+        case snack = "Snack"
+    }
+
+    private func slotDisplayName(_ slotType: String) -> String {
+        switch slotType.uppercased() {
+        case "BREAKFAST": return "Breakfast"
+        case "LUNCH":     return "Lunch"
+        case "DINNER":    return "Dinner"
+        default:          return "Snack"
+        }
+    }
+
+    var filteredMeals: [Meal] {
+        var result = mealsVM.meals
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        if slotFilter != .all {
+            result = result.filter { slotDisplayName($0.slotType) == slotFilter.rawValue }
+        }
+        return result
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Search
+                HStack {
+                    Image(systemName: "magnifyingglass").foregroundColor(.gray)
+                    TextField("Search meals...", text: $searchText)
+                }
+                .padding(12)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                // Slot filter chips
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(DietMealSlotFilter.allCases, id: \.self) { f in
+                            Button(action: { slotFilter = f }) {
+                                Text(f.rawValue)
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 14).padding(.vertical, 7)
+                                    .background(slotFilter == f ? Color.green : Color.white)
+                                    .foregroundColor(slotFilter == f ? .white : .primary)
+                                    .cornerRadius(16)
+                                    .overlay(RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.green, lineWidth: slotFilter == f ? 0 : 1))
+                            }
+                        }
+                    }
+                    .padding(.horizontal).padding(.vertical, 8)
+                }
+
+                if mealsVM.isLoading {
+                    Spacer(); ProgressView("Loading meals..."); Spacer()
+                } else if filteredMeals.isEmpty {
+                    Spacer()
+                    Text(searchText.isEmpty ? "No meals available" : "No results for \"\(searchText)\"")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                } else {
+                    List(filteredMeals, id: \.id) { meal in
+                        Button(action: { onSelect(meal.id) }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(meal.name).font(.headline).foregroundColor(.primary)
+                                    Text(slotDisplayName(meal.slotType))
+                                        .font(.caption)
+                                        .padding(.horizontal, 8).padding(.vertical, 2)
+                                        .background(Color.green.opacity(0.15))
+                                        .cornerRadius(4)
+                                        .foregroundColor(.green)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                }
+            }
+            .navigationTitle("Select Meal")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
+            }
+            .onAppear { mealsVM.loadMeals(userId: userId) }
+        }
     }
 }
 

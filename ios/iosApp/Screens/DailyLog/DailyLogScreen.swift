@@ -67,6 +67,8 @@ struct DailyLogScreen: View {
     @State private var expandedSlots: Set<String> = ["BREAKFAST"]
     @State private var showAddFood: Bool = false
     @State private var addFoodSlot: String = "BREAKFAST"
+    @State private var showLogMeal: Bool = false
+    @State private var logMealSlot: String = "BREAKFAST"
 
     private var userId: Int64 { Int64(appState.currentUserId ?? 0) }
     private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
@@ -97,6 +99,14 @@ struct DailyLogScreen: View {
             .sheet(isPresented: $showAddFood) {
                 FoodPickerSheet(
                     slotKey: addFoodSlot,
+                    userId: userId,
+                    date: isoDate(from: selectedDate),
+                    onLogged: { reload() }
+                )
+            }
+            .sheet(isPresented: $showLogMeal) {
+                LogMealPickerSheet(
+                    slotKey: logMealSlot,
                     userId: userId,
                     date: isoDate(from: selectedDate),
                     onLogged: { reload() }
@@ -230,6 +240,10 @@ struct DailyLogScreen: View {
                             addFoodSlot = key
                             showAddFood = true
                         },
+                        onLogMeal: {
+                            logMealSlot = key
+                            showLogMeal = true
+                        },
                         onDeleteFood: { id in
                             vm.removeLoggedFood(userId: userId, id: id)
                         }
@@ -334,6 +348,7 @@ private struct SlotCard: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     let onAddFood: () -> Void
+    let onLogMeal: () -> Void
     let onDeleteFood: (Int64) -> Void
 
     private var loggedKcal: Int {
@@ -399,19 +414,26 @@ private struct SlotCard: View {
                     LogFoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
                     Divider().padding(.horizontal, 12).opacity(0.4)
                 }
-                // Add Food button
-                Button(action: onAddFood) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 13))
-                        Text("Add Food")
-                            .font(.system(size: 13, weight: .medium))
+                // Add Food / Log Meal buttons
+                HStack(spacing: 16) {
+                    Button(action: onAddFood) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus").font(.system(size: 13))
+                            Text("Add Food").font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
                     }
-                    .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    Button(action: onLogMeal) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "fork.knife").font(.system(size: 13))
+                            Text("Log Meal").font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
+                    }
+                    Spacer()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
         }
         .background(Color.white)
@@ -697,6 +719,175 @@ struct FoodPickerSheet: View {
                 slotType: slotKey, timestamp: nil, notes: nil
             )
             _ = try? await logRepo.insertLoggedFood(loggedFood: lf)
+            await MainActor.run {
+                onLogged()
+                dismiss()
+            }
+        }
+    }
+}
+
+// MARK: - Log Meal Picker Sheet
+struct LogMealPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let slotKey: String
+    let userId: Int64
+    let date: String
+    let onLogged: () -> Void
+
+    @StateObject private var mealsVM = MealsViewModel()
+    @State private var searchText = ""
+    @State private var selectedMealWithFoods: MealWithFoods? = nil
+    @State private var multiplier: Double = 1.0
+
+    private var logRepo: DailyLogRepository { RepositoryProvider.shared.dailyLogRepository }
+
+    private func slotDisplayName(_ key: String) -> String {
+        key.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+    }
+
+    private func mealSlotDisplayName(_ slotType: String) -> String {
+        switch slotType.uppercased() {
+        case "BREAKFAST": return "Breakfast"
+        case "LUNCH":     return "Lunch"
+        case "DINNER":    return "Dinner"
+        default:          return "Snack"
+        }
+    }
+
+    var filteredMeals: [Meal] {
+        if searchText.isEmpty { return mealsVM.meals }
+        return mealsVM.meals.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let mwf = selectedMealWithFoods {
+                    multiplierPicker(for: mwf)
+                } else {
+                    mealList
+                }
+            }
+            .navigationTitle("Log Meal to \(slotDisplayName(slotKey))")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if selectedMealWithFoods != nil {
+                        Button("Back") { selectedMealWithFoods = nil; multiplier = 1.0 }
+                    } else {
+                        Button("Cancel") { dismiss() }
+                    }
+                }
+            }
+            .onAppear { mealsVM.loadMeals(userId: userId) }
+        }
+    }
+
+    private var mealList: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundColor(.gray)
+                TextField("Search meals…", text: $searchText)
+            }
+            .padding(10)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16).padding(.vertical, 8)
+
+            if mealsVM.isLoading {
+                Spacer(); ProgressView("Loading meals..."); Spacer()
+            } else if filteredMeals.isEmpty {
+                Spacer()
+                Text(searchText.isEmpty ? "No meals available" : "No results for \"\(searchText)\"")
+                    .foregroundColor(.secondary)
+                Spacer()
+            } else {
+                List(filteredMeals, id: \.id) { meal in
+                    Button(action: {
+                        Task {
+                            if let mwf = try? await mealsVM.getMealWithFoods(mealId: meal.id) {
+                                await MainActor.run { selectedMealWithFoods = mwf }
+                            }
+                        }
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(meal.name).font(.system(size: 14)).foregroundColor(.primary)
+                                Text(mealSlotDisplayName(meal.slotType))
+                                    .font(.caption)
+                                    .padding(.horizontal, 8).padding(.vertical, 2)
+                                    .background(Color.green.opacity(0.15))
+                                    .cornerRadius(4)
+                                    .foregroundColor(.green)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .listStyle(.plain)
+            }
+        }
+    }
+
+    private func multiplierPicker(for mwf: MealWithFoods) -> some View {
+        let items = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+        let baseCal = items.reduce(0.0) { $0 + $1.calculatedCalories }
+        let basePro = items.reduce(0.0) { $0 + $1.calculatedProtein }
+        let baseCarb = items.reduce(0.0) { $0 + $1.calculatedCarbs }
+        let baseFat = items.reduce(0.0) { $0 + $1.calculatedFat }
+
+        return VStack(spacing: 20) {
+            Text(mwf.meal.name).font(.headline).multilineTextAlignment(.center).padding(.top, 8)
+            Text(String(format: "%.0f kcal · P:%.0fg C:%.0fg F:%.0fg",
+                        baseCal * multiplier, basePro * multiplier,
+                        baseCarb * multiplier, baseFat * multiplier))
+                .font(.subheadline).foregroundColor(.secondary)
+
+            // Multiplier selector
+            VStack(spacing: 8) {
+                Text("Portion size").font(.subheadline).fontWeight(.medium)
+                HStack(spacing: 12) {
+                    ForEach([0.5, 1.0, 1.5, 2.0], id: \.self) { m in
+                        Button(action: { multiplier = m }) {
+                            Text(m == 1.0 ? "1×" : m == 0.5 ? "½×" : "\(m, specifier: "%.1f")×")
+                                .font(.system(size: 14, weight: .semibold))
+                                .frame(width: 52, height: 44)
+                                .background(multiplier == m ? Color(red: 0.18, green: 0.49, blue: 0.32) : Color(.systemGray6))
+                                .foregroundColor(multiplier == m ? .white : .primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+                }
+            }
+
+            Button(action: { logMeal(mwf: mwf, items: items) }) {
+                Text("Log Meal")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(red: 0.18, green: 0.49, blue: 0.32))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .padding(.horizontal, 16)
+
+            Spacer()
+        }
+    }
+
+    private func logMeal(mwf: MealWithFoods, items: [MealFoodItemWithDetails]) {
+        Task {
+            for item in items {
+                let qty = item.mealFoodItem.quantity * multiplier
+                let lf = LoggedFood(
+                    id: 0, userId: userId, logDate: date, foodId: item.food.id,
+                    quantity: qty, unit: item.mealFoodItem.unit,
+                    slotType: slotKey, timestamp: nil, notes: nil
+                )
+                _ = try? await logRepo.insertLoggedFood(loggedFood: lf)
+            }
             await MainActor.run {
                 onLogged()
                 dismiss()

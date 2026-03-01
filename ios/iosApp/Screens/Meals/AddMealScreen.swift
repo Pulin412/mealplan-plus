@@ -3,102 +3,67 @@ import shared
 
 struct AddMealScreen: View {
     @Environment(\.dismiss) var dismiss
-    var onSave: (MealUI) -> Void
+    @EnvironmentObject var appState: AppState
+    var existingMeal: MealWithFoods? = nil   // nil = create, non-nil = edit
+    var onSave: () -> Void
 
     @State private var name = ""
     @State private var selectedSlot = "Lunch"
     @State private var selectedFoods: [FoodItemUI] = []
     @State private var showFoodPicker = false
+    @StateObject private var mealsVM = MealsViewModel()
+    @State private var isSaving = false
 
-    let slots = ["Breakfast", "Lunch", "Dinner", "Snack"]
+    let slots = ["Breakfast", "Lunch", "Dinner", "Snack",
+                 "Pre-Workout", "Post-Workout", "Evening Snack", "Early Morning"]
 
-    var totalCalories: Int {
-        selectedFoods.reduce(0) { $0 + $1.calories }
-    }
+    private var isEditing: Bool { existingMeal != nil }
+    private var userId: Int64 { appState.currentUserId ?? 0 }
 
-    var totalProtein: Double {
-        selectedFoods.reduce(0) { $0 + $1.protein }
-    }
-
-    var totalCarbs: Double {
-        selectedFoods.reduce(0) { $0 + $1.carbs }
-    }
-
-    var totalFat: Double {
-        selectedFoods.reduce(0) { $0 + $1.fat }
-    }
-
-    var isFormValid: Bool {
-        !name.isEmpty && !selectedFoods.isEmpty
-    }
+    var totalCalories: Int   { selectedFoods.reduce(0) { $0 + $1.calories } }
+    var totalProtein: Double { selectedFoods.reduce(0) { $0 + $1.protein } }
+    var totalCarbs: Double   { selectedFoods.reduce(0) { $0 + $1.carbs } }
+    var totalFat: Double     { selectedFoods.reduce(0) { $0 + $1.fat } }
+    var isFormValid: Bool    { !name.isEmpty && !selectedFoods.isEmpty }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Meal Info") {
                     TextField("Meal Name", text: $name)
-
                     Picker("Meal Slot", selection: $selectedSlot) {
-                        ForEach(slots, id: \.self) { slot in
-                            Text(slot).tag(slot)
-                        }
+                        ForEach(slots, id: \.self) { slot in Text(slot).tag(slot) }
                     }
                 }
 
                 Section {
                     Button(action: { showFoodPicker = true }) {
                         HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.green)
+                            Image(systemName: "plus.circle.fill").foregroundColor(.green)
                             Text("Add Foods")
                         }
                     }
-
                     ForEach(selectedFoods) { food in
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(food.name)
-                                    .font(.subheadline)
-                                Text(food.unit)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                Text(food.name).font(.subheadline)
+                                Text(food.unit).font(.caption).foregroundColor(.secondary)
                             }
                             Spacer()
-                            Text("\(Int(food.calories)) kcal")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            Text("\(Int(food.calories)) kcal").font(.caption).foregroundColor(.secondary)
                         }
                     }
-                    .onDelete { indexSet in
-                        selectedFoods.remove(atOffsets: indexSet)
-                    }
+                    .onDelete { indexSet in selectedFoods.remove(atOffsets: indexSet) }
                 } header: {
                     Text("Foods (\(selectedFoods.count))")
                 }
 
                 if !selectedFoods.isEmpty {
                     Section("Total Nutrition") {
-                        HStack {
-                            Text("Calories")
-                            Spacer()
-                            Text("\(Int(totalCalories)) kcal")
-                                .fontWeight(.semibold)
-                        }
-                        HStack {
-                            Text("Protein")
-                            Spacer()
-                            Text("\(Int(totalProtein)) g")
-                        }
-                        HStack {
-                            Text("Carbs")
-                            Spacer()
-                            Text("\(Int(totalCarbs)) g")
-                        }
-                        HStack {
-                            Text("Fat")
-                            Spacer()
-                            Text("\(Int(totalFat)) g")
-                        }
+                        HStack { Text("Calories"); Spacer(); Text("\(totalCalories) kcal").fontWeight(.semibold) }
+                        HStack { Text("Protein");  Spacer(); Text("\(Int(totalProtein)) g") }
+                        HStack { Text("Carbs");    Spacer(); Text("\(Int(totalCarbs)) g") }
+                        HStack { Text("Fat");      Spacer(); Text("\(Int(totalFat)) g") }
                     }
                 }
 
@@ -106,123 +71,187 @@ struct AddMealScreen: View {
                     Button(action: saveMeal) {
                         HStack {
                             Spacer()
-                            Text("Save Meal")
-                                .fontWeight(.semibold)
+                            if isSaving {
+                                ProgressView().progressViewStyle(CircularProgressViewStyle()).padding(.trailing, 4)
+                            }
+                            Text(isEditing ? "Save Changes" : "Save Meal").fontWeight(.semibold)
                             Spacer()
                         }
                     }
-                    .disabled(!isFormValid)
+                    .disabled(!isFormValid || isSaving)
                 }
             }
-            .navigationTitle("Create Meal")
+            .navigationTitle(isEditing ? "Edit Meal" : "Create Meal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
+                ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
             }
             .sheet(isPresented: $showFoodPicker) {
-                FoodPickerScreen { food in
-                    selectedFoods.append(food)
-                }
+                FoodPickerScreen { food in selectedFoods.append(food) }
             }
+            .onAppear { populateIfEditing() }
+        }
+    }
+
+    private func populateIfEditing() {
+        guard let mwf = existingMeal else { return }
+        name = mwf.meal.name
+        selectedSlot = slotDisplayName(mwf.meal.slotType)
+        let items = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+        selectedFoods = items.map { item in
+            FoodItemUI(
+                id: item.food.id,
+                name: item.food.name,
+                calories: Int(item.calculatedCalories),
+                protein: item.calculatedProtein,
+                carbs: item.calculatedCarbs,
+                fat: item.calculatedFat,
+                unit: "\(Int(item.mealFoodItem.quantity))g"
+            )
+        }
+    }
+
+    private func slotDisplayName(_ slotType: String) -> String {
+        switch slotType.uppercased() {
+        case "BREAKFAST":     return "Breakfast"
+        case "LUNCH":         return "Lunch"
+        case "DINNER":        return "Dinner"
+        case "PRE_WORKOUT":   return "Pre-Workout"
+        case "POST_WORKOUT":  return "Post-Workout"
+        case "EVENING_SNACK": return "Evening Snack"
+        case "EARLY_MORNING": return "Early Morning"
+        default:              return "Snack"
+        }
+    }
+
+    private func kmpSlotType(from displayName: String) -> String {
+        switch displayName {
+        case "Breakfast":     return "BREAKFAST"
+        case "Lunch":         return "LUNCH"
+        case "Dinner":        return "DINNER"
+        case "Pre-Workout":   return "PRE_WORKOUT"
+        case "Post-Workout":  return "POST_WORKOUT"
+        case "Evening Snack": return "EVENING_SNACK"
+        case "Early Morning": return "EARLY_MORNING"
+        default:              return "SNACK"
         }
     }
 
     private func saveMeal() {
-        let meal = MealUI(
-            id: Int64(Date().timeIntervalSince1970),
-            name: name,
-            slot: selectedSlot,
-            calories: totalCalories,
-            protein: totalProtein,
-            carbs: totalCarbs,
-            fat: totalFat,
-            foodCount: selectedFoods.count
-        )
-        onSave(meal)
-        dismiss()
+        guard !isSaving else { return }
+        isSaving = true
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let slot = kmpSlotType(from: selectedSlot)
+        Task {
+            if let existing = existingMeal {
+                let updated = Meal(
+                    id: existing.meal.id, userId: userId, name: name,
+                    description: existing.meal.description_,
+                    slotType: slot, customSlotId: existing.meal.customSlotId,
+                    createdAt: existing.meal.createdAt, serverId: existing.meal.serverId,
+                    updatedAt: now, syncedAt: existing.meal.syncedAt
+                )
+                try? await mealsVM.updateMeal(updated)
+                let mealId = existing.meal.id
+                let oldItems = (existing.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+                for item in oldItems {
+                    try? await mealsVM.removeFoodFromMeal(mealId: mealId, foodId: item.food.id)
+                }
+                for food in selectedFoods {
+                    try? await mealsVM.addFoodToMeal(mealId: mealId, foodId: food.id, quantity: 100.0, unit: .gram, notes: nil)
+                }
+            } else {
+                let meal = Meal(
+                    id: 0, userId: userId, name: name, description: nil,
+                    slotType: slot, customSlotId: nil,
+                    createdAt: now, serverId: nil, updatedAt: now, syncedAt: nil
+                )
+                let mealId = try? await mealsVM.insertMeal(meal)
+                if let id = mealId {
+                    for food in selectedFoods {
+                        try? await mealsVM.addFoodToMeal(mealId: id, foodId: food.id, quantity: 100.0, unit: .gram, notes: nil)
+                    }
+                }
+            }
+            await MainActor.run {
+                isSaving = false
+                onSave()
+                dismiss()
+            }
+        }
     }
 }
 
+// MARK: - Food Picker (uses real KMP database)
 struct FoodPickerScreen: View {
     @Environment(\.dismiss) var dismiss
     var onSelect: (FoodItemUI) -> Void
 
+    @StateObject private var foodsVM = FoodsViewModel()
     @State private var searchText = ""
-    @State private var availableFoods: [FoodItemUI] = []
 
-    var filteredFoods: [FoodItemUI] {
-        if searchText.isEmpty {
-            return availableFoods
-        }
-        return availableFoods.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    var filteredFoods: [FoodItem] {
+        if searchText.isEmpty { return foodsVM.foods }
+        return foodsVM.foods.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     var body: some View {
         NavigationStack {
-            VStack {
-                // Search
+            VStack(spacing: 0) {
                 HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
+                    Image(systemName: "magnifyingglass").foregroundColor(.gray)
                     TextField("Search foods...", text: $searchText)
+                        .onChange(of: searchText) { q in
+                            if q.isEmpty { foodsVM.loadFoods() } else { foodsVM.searchFoods(query: q) }
+                        }
                 }
                 .padding(12)
                 .background(Color(.systemGray6))
                 .cornerRadius(10)
                 .padding()
 
-                List(filteredFoods) { food in
-                    Button(action: {
-                        onSelect(food)
-                        dismiss()
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(food.name)
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Text(food.unit)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                if foodsVM.isLoading {
+                    Spacer(); ProgressView("Loading foods..."); Spacer()
+                } else if filteredFoods.isEmpty {
+                    Spacer()
+                    Text(searchText.isEmpty ? "No foods available" : "No results for \"\(searchText)\"")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                } else {
+                    List(filteredFoods, id: \.id) { food in
+                        Button(action: {
+                            onSelect(FoodItemUI(
+                                id: food.id,
+                                name: food.name,
+                                calories: Int(food.caloriesPer100),
+                                protein: food.proteinPer100,
+                                carbs: food.carbsPer100,
+                                fat: food.fatPer100,
+                                unit: "100g"
+                            ))
+                            dismiss()
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(food.name).font(.headline).foregroundColor(.primary)
+                                    Text("\(Int(food.caloriesPer100)) kcal/100g · P:\(Int(food.proteinPer100))g C:\(Int(food.carbsPer100))g")
+                                        .font(.caption).foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Text("\(Int(food.caloriesPer100)) kcal").foregroundColor(.secondary)
                             }
-                            Spacer()
-                            Text("\(Int(food.calories)) kcal")
-                                .foregroundColor(.secondary)
                         }
                     }
+                    .listStyle(PlainListStyle())
                 }
-                .listStyle(PlainListStyle())
             }
             .navigationTitle("Select Food")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
+                ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
             }
-            .onAppear {
-                loadFoods()
-            }
+            .onAppear { foodsVM.loadFoods() }
         }
-    }
-
-    private func loadFoods() {
-        availableFoods = [
-            FoodItemUI(id: 1, name: "Chicken Breast", calories: 165, protein: 31, carbs: 0, fat: 3.6, unit: "100g"),
-            FoodItemUI(id: 2, name: "Brown Rice", calories: 112, protein: 2.6, carbs: 24, fat: 0.9, unit: "100g"),
-            FoodItemUI(id: 3, name: "Broccoli", calories: 34, protein: 2.8, carbs: 7, fat: 0.4, unit: "100g"),
-            FoodItemUI(id: 4, name: "Salmon", calories: 208, protein: 20, carbs: 0, fat: 13, unit: "100g"),
-            FoodItemUI(id: 5, name: "Eggs", calories: 155, protein: 13, carbs: 1.1, fat: 11, unit: "100g"),
-            FoodItemUI(id: 6, name: "Oatmeal", calories: 68, protein: 2.4, carbs: 12, fat: 1.4, unit: "100g"),
-            FoodItemUI(id: 7, name: "Greek Yogurt", calories: 59, protein: 10, carbs: 3.6, fat: 0.7, unit: "100g"),
-            FoodItemUI(id: 8, name: "Banana", calories: 89, protein: 1.1, carbs: 23, fat: 0.3, unit: "1 medium"),
-        ]
     }
 }
 
@@ -425,6 +454,7 @@ struct IngredientRow: View {
 
 struct AddMealScreen_Previews: PreviewProvider {
     static var previews: some View {
-        AddMealScreen { _ in }
+        AddMealScreen(onSave: {})
+            .environmentObject(AppState())
     }
 }
