@@ -596,45 +596,169 @@ struct SettingsScreen: View {
 
 // MARK: - Profile Screen
 
+private let profileGreen = Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0)
+private let profileBg    = Color(red: 0xF0/255.0, green: 0xF9/255.0, blue: 0xF4/255.0)
+
 @MainActor
 class ProfileViewModel: ObservableObject {
     @Published var user: User?
-    @Published var isSaving = false
+    @Published var isLoading = false
+    @Published var isSaving  = false
+    @Published var saveSuccess = false
+    @Published var isClearingData = false
+    @Published var clearSuccess   = false
+    @Published var error: String?
 
-    private let repo = RepositoryProvider.shared.userRepository
+    private let repo        = RepositoryProvider.shared.userRepository
+    private let dietRepo    = RepositoryProvider.shared.dietRepository
+    private let groceryRepo = RepositoryProvider.shared.groceryRepository
+    private let healthRepo  = RepositoryProvider.shared.healthMetricRepository
 
     func load(userId: Int64) {
-        Task { user = try? await repo.getUserById(id: userId) }
+        isLoading = true
+        Task {
+            user = try? await repo.getUserById(id: userId)
+            isLoading = false
+        }
     }
 
     func save(_ user: User) async {
         isSaving = true
-        try? await repo.updateUser(user: user)
-        self.user = user
+        do {
+            try await repo.updateUser(user: user)
+            self.user = user
+            saveSuccess = true
+        } catch {
+            self.error = error.localizedDescription
+        }
         isSaving = false
+    }
+
+    func clearAllData(userId: Int64) async {
+        isClearingData = true
+        // Delete all diets
+        let diets = (try? await dietRepo.getDietSummariesSnapshot(userId: userId)) ?? []
+        for d in diets { try? await dietRepo.deleteDiet(id: d.id) }
+        // Delete all grocery lists
+        let lists = (try? await groceryRepo.getAllGroceryListsSnapshot(userId: userId)) ?? []
+        for l in lists { try? await groceryRepo.deleteGroceryList(id: l.id) }
+        // Delete all health metrics
+        let metrics = (try? await healthRepo.getAllHealthMetricsSnapshot(userId: userId)) ?? []
+        for m in metrics { try? await healthRepo.deleteHealthMetric(id: m.id) }
+        isClearingData = false
+        clearSuccess = true
     }
 }
 
+// ── Profile Section Card ──────────────────────────────────────────────────────
+private struct ProfileSectionCard<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.primary)
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+    }
+}
+
+// ── Chip row helper ───────────────────────────────────────────────────────────
+private struct ChipRow<T: Hashable>: View {
+    let options: [(label: String, value: T)]
+    @Binding var selection: T
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(options, id: \.value) { opt in
+                Button(action: { selection = opt.value }) {
+                    Text(opt.label)
+                        .font(.system(size: 13, weight: selection == opt.value ? .semibold : .regular))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(selection == opt.value ? profileGreen : Color(.systemGray6))
+                        .foregroundColor(selection == opt.value ? .white : .primary)
+                        .cornerRadius(20)
+                }
+            }
+            Spacer()
+        }
+    }
+}
+
+// ── Estimate mini-card ────────────────────────────────────────────────────────
+private struct EstimateTile: View {
+    let label: String; let value: String; let sub: String
+    var body: some View {
+        VStack(spacing: 3) {
+            Text(label).font(.caption2).foregroundColor(profileGreen.opacity(0.8))
+            Text(value).font(.system(size: 14, weight: .bold)).foregroundColor(profileGreen)
+            Text(sub).font(.caption2).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(profileGreen.opacity(0.08))
+        .cornerRadius(10)
+    }
+}
+
+// ── Profile Field ─────────────────────────────────────────────────────────────
+private struct ProfileField: View {
+    let label: String
+    let placeholder: String
+    @Binding var text: String
+    var keyboardType: UIKeyboardType = .default
+    var unit: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            HStack {
+                TextField(placeholder, text: $text)
+                    .keyboardType(keyboardType)
+                if let u = unit {
+                    Text(u).font(.caption).foregroundColor(.secondary)
+                }
+            }
+            .padding(10)
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+        }
+    }
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
 struct ProfileScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var vm = ProfileViewModel()
 
-    @State private var displayName = ""
-    @State private var weightStr = ""
-    @State private var heightStr = ""
-    @State private var ageStr = ""
-    @State private var selectedGender = "OTHER"
-    @State private var selectedActivity = "SEDENTARY"
-    @State private var selectedGoal = "MAINTAIN"
+    @State private var displayName       = ""
+    @State private var weightStr         = ""
+    @State private var heightStr         = ""
+    @State private var ageStr            = ""
+    @State private var selectedGender    = "OTHER"
+    @State private var selectedActivity  = "SEDENTARY"
+    @State private var selectedGoal      = "MAINTAIN"
     @State private var targetCaloriesStr = ""
-    @State private var showDangerZone = false
-    @State private var showDeleteConfirm = false
 
-    var weight: Double? { Double(weightStr) }
-    var height: Double? { Double(heightStr) }
-    var age: Int? { Int(ageStr) }
+    @State private var showClearDataAlert   = false
+    @State private var showDeleteAlert      = false
+    @State private var showSaveSuccessAlert = false
 
-    var bmr: Int? {
+    private var userId: Int64 { Int64(appState.currentUserId ?? 0) }
+    private var weight: Double? { Double(weightStr) }
+    private var height: Double? { Double(heightStr) }
+    private var age: Int?       { Int(ageStr) }
+
+    private var bmr: Int? {
         guard let w = weight, let h = height, let a = age else { return nil }
         let base = 10 * w + 6.25 * h - 5.0 * Double(a)
         switch selectedGender {
@@ -643,8 +767,7 @@ struct ProfileScreen: View {
         default:       return Int((base - 78).rounded())
         }
     }
-
-    var tdee: Int? {
+    private var tdee: Int? {
         guard let b = bmr else { return nil }
         let m: Double
         switch selectedActivity {
@@ -656,8 +779,7 @@ struct ProfileScreen: View {
         }
         return Int((Double(b) * m).rounded())
     }
-
-    var bodyFatPct: Double? {
+    private var bodyFatPct: Double? {
         guard let w = weight, let h = height, let a = age,
               selectedGender == "MALE" || selectedGender == "FEMALE" else { return nil }
         let hM = h / 100.0
@@ -668,79 +790,108 @@ struct ProfileScreen: View {
     }
 
     var body: some View {
-        Form {
-            // Avatar
-            Section {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 70))
-                            .foregroundColor(.green)
-                        if let email = vm.user?.email {
-                            Text(email)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+        ZStack {
+            profileBg.ignoresSafeArea()
+            if vm.isLoading {
+                ProgressView().tint(profileGreen)
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        avatarHeader
+                        personalInfoSection
+                        bodyMetricsSection
+                        lifestyleSection
+                        if bmr != nil { estimatesSection }
+                        nutritionGoalSection
+                        saveButton
+                        logoutButton
+                        dangerZone
+                        Spacer().frame(height: 32)
                     }
-                    Spacer()
-                }
-                .listRowBackground(Color.clear)
-            }
-
-            // Identity
-            Section("Profile") {
-                HStack {
-                    Text("Name")
-                    Spacer()
-                    TextField("Display name", text: $displayName)
-                        .multilineTextAlignment(.trailing)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
                 }
             }
-
-            // Body metrics
-            Section("Body Metrics") {
-                HStack {
-                    Text("Weight")
-                    Spacer()
-                    TextField("0.0", text: $weightStr)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 70)
-                    Text("kg").foregroundColor(.secondary)
-                }
-                HStack {
-                    Text("Height")
-                    Spacer()
-                    TextField("0", text: $heightStr)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 70)
-                    Text("cm").foregroundColor(.secondary)
-                }
-                HStack {
-                    Text("Age")
-                    Spacer()
-                    TextField("0", text: $ageStr)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 70)
-                    Text("yrs").foregroundColor(.secondary)
-                }
-                Picker("Gender", selection: $selectedGender) {
-                    Text("Male").tag("MALE")
-                    Text("Female").tag("FEMALE")
-                    Text("Other").tag("OTHER")
-                }
+        }
+        .navigationTitle("Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(profileGreen, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .onAppear { vm.load(userId: userId) }
+        .onChange(of: vm.user) { user in populateFields(from: user) }
+        .onChange(of: vm.saveSuccess) { if $0 { showSaveSuccessAlert = true; vm.saveSuccess = false } }
+        .onChange(of: vm.clearSuccess) { if $0 { vm.clearSuccess = false } }
+        .alert("Saved!", isPresented: $showSaveSuccessAlert) {
+            Button("OK", role: .cancel) {}
+        } message: { Text("Profile saved successfully.") }
+        .alert("Clear All Data?", isPresented: $showClearDataAlert) {
+            Button("Clear All", role: .destructive) {
+                Task { await vm.clearAllData(userId: userId) }
             }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Deletes all diets, grocery lists, and health readings. Your account stays active.")
+        }
+        .alert("Delete Account?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) { appState.logout() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Permanently removes your account and logs you out. Local data stays on device.")
+        }
+    }
 
-            // Goal & activity
-            Section("Goal & Activity") {
-                Picker("Goal", selection: $selectedGoal) {
-                    Text("Lose weight").tag("LOSE")
-                    Text("Maintain weight").tag("MAINTAIN")
-                    Text("Gain muscle").tag("GAIN")
-                }
+    // MARK: - Sections
+
+    private var avatarHeader: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(profileGreen.opacity(0.15))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "person.fill")
+                    .font(.system(size: 36))
+                    .foregroundColor(profileGreen)
+            }
+            if let email = vm.user?.email {
+                Text(email)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+    }
+
+    private var personalInfoSection: some View {
+        ProfileSectionCard(title: "Personal Info") {
+            ProfileField(label: "Name", placeholder: "Display name", text: $displayName)
+            ProfileField(label: "Age", placeholder: "e.g. 30", text: $ageStr, keyboardType: .numberPad, unit: "yrs")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Gender").font(.caption).foregroundColor(.secondary)
+                ChipRow(options: [
+                    ("Male", "MALE"), ("Female", "FEMALE"), ("Other", "OTHER")
+                ], selection: $selectedGender)
+            }
+        }
+    }
+
+    private var bodyMetricsSection: some View {
+        ProfileSectionCard(title: "Body Metrics") {
+            HStack(spacing: 10) {
+                ProfileField(label: "Weight", placeholder: "0.0", text: $weightStr, keyboardType: .decimalPad, unit: "kg")
+                ProfileField(label: "Height", placeholder: "0", text: $heightStr, keyboardType: .decimalPad, unit: "cm")
+            }
+        }
+    }
+
+    private var lifestyleSection: some View {
+        ProfileSectionCard(title: "Lifestyle") {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Activity Level").font(.caption).foregroundColor(.secondary)
                 Picker("Activity Level", selection: $selectedActivity) {
                     Text("Sedentary").tag("SEDENTARY")
                     Text("Lightly active").tag("LIGHT")
@@ -748,103 +899,132 @@ struct ProfileScreen: View {
                     Text("Very active").tag("VERY_ACTIVE")
                     Text("Athlete").tag("EXTRA_ACTIVE")
                 }
+                .pickerStyle(.menu)
+                .tint(profileGreen)
+                .padding(.vertical, 2)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Goal").font(.caption).foregroundColor(.secondary)
+                ChipRow(options: [
+                    ("Lose", "LOSE"), ("Maintain", "MAINTAIN"), ("Gain", "GAIN")
+                ], selection: $selectedGoal)
+            }
+        }
+    }
+
+    private var estimatesSection: some View {
+        ProfileSectionCard(title: "Health Estimates") {
+            HStack(spacing: 8) {
+                EstimateTile(label: "BMR",
+                             value: bmr.map { "\($0) kcal" } ?? "—",
+                             sub: "basal")
+                EstimateTile(label: "TDEE",
+                             value: tdee.map { "\($0) kcal" } ?? "—",
+                             sub: "maintenance")
+                EstimateTile(label: "Body Fat",
+                             value: bodyFatPct.map { String(format: "%.1f%%", $0) } ?? "—",
+                             sub: "estimate")
+            }
+            Text("* Estimates only. BMR via Mifflin-St Jeor; body fat via Deurenberg.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var nutritionGoalSection: some View {
+        ProfileSectionCard(title: "Nutrition Goal") {
+            ProfileField(label: "Daily Target Calories", placeholder: "e.g. 2000",
+                         text: $targetCaloriesStr, keyboardType: .numberPad, unit: "kcal")
+            if let t = tdee {
+                Text("Blank = use TDEE (~\(t) kcal)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private var saveButton: some View {
+        Button(action: saveProfile) {
+            HStack {
+                if vm.isSaving {
+                    ProgressView().tint(.white)
+                } else {
+                    Image(systemName: "checkmark")
+                    Text("Save Profile").fontWeight(.semibold)
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(vm.isSaving || vm.user == nil ? profileGreen.opacity(0.5) : profileGreen)
+            .cornerRadius(12)
+        }
+        .disabled(vm.isSaving || vm.user == nil)
+    }
+
+    private var logoutButton: some View {
+        Button(action: { appState.logout() }) {
+            HStack {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                Text("Logout").fontWeight(.semibold)
+            }
+            .foregroundColor(.red)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 1.5))
+        }
+    }
+
+    private var dangerZone: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider()
+            Text("Danger Zone")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.red)
+
+            Button(action: { showClearDataAlert = true }) {
                 HStack {
-                    Text("Target Calories")
-                    Spacer()
-                    TextField("2000", text: $targetCaloriesStr)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 70)
-                    Text("kcal").foregroundColor(.secondary)
+                    if vm.isClearingData {
+                        ProgressView().tint(.red)
+                    } else {
+                        Image(systemName: "trash.slash").font(.system(size: 14))
+                        Text("Clear All Data").fontWeight(.medium)
+                    }
                 }
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red, lineWidth: 1.5))
             }
+            .disabled(vm.isClearingData)
 
-            // Estimates (BMR / TDEE / BodyFat)
-            if bmr != nil || tdee != nil || bodyFatPct != nil {
-                Section("Estimates") {
-                    if let b = bmr {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("BMR").font(.subheadline)
-                                Text("Base metabolic rate").font(.caption).foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Text("\(b) kcal").foregroundColor(.secondary)
-                        }
-                    }
-                    if let t = tdee {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("TDEE").font(.subheadline)
-                                Text("Daily energy expenditure").font(.caption).foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Text("\(t) kcal").foregroundColor(.green).fontWeight(.semibold)
-                        }
-                    }
-                    if let bf = bodyFatPct {
-                        HStack {
-                            Text("Est. Body Fat")
-                            Spacer()
-                            Text(String(format: "%.1f%%", bf)).foregroundColor(.secondary)
-                        }
-                    }
+            Button(action: { showDeleteAlert = true }) {
+                HStack {
+                    Image(systemName: "person.fill.xmark").font(.system(size: 14))
+                    Text("Delete Account").fontWeight(.medium)
                 }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.red)
+                .cornerRadius(12)
             }
+            .disabled(vm.isClearingData)
+        }
+    }
 
-            // Save
-            Section {
-                Button(action: saveProfile) {
-                    HStack {
-                        Spacer()
-                        if vm.isSaving {
-                            ProgressView()
-                        } else {
-                            Text("Save Changes").fontWeight(.semibold)
-                        }
-                        Spacer()
-                    }
-                }
-                .foregroundColor(.green)
-                .disabled(vm.isSaving || vm.user == nil)
-            }
+    // MARK: - Helpers
 
-            // Danger zone
-            Section {
-                DisclosureGroup(isExpanded: $showDangerZone) {
-                    Button(role: .destructive) { appState.logout() } label: {
-                        Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
-                    }
-                    Button(role: .destructive) { showDeleteConfirm = true } label: {
-                        Label("Delete Account", systemImage: "trash")
-                    }
-                } label: {
-                    Text("Danger Zone").foregroundColor(.red)
-                }
-            }
-        }
-        .navigationTitle("Profile")
-        .navigationBarTitleDisplayMode(.inline)
-        .alert("Delete Account?", isPresented: $showDeleteConfirm) {
-            Button("Delete", role: .destructive) { appState.logout() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will log you out. All data is stored locally on this device.")
-        }
-        .onAppear {
-            if let userId = appState.currentUserId { vm.load(userId: userId) }
-        }
-        .onChange(of: vm.user) { user in
-            guard let user = user else { return }
-            displayName          = user.displayName ?? ""
-            weightStr            = user.weightKg.map { String(format: "%.1f", $0.doubleValue) } ?? ""
-            heightStr            = user.heightCm.map { String(format: "%.0f", $0.doubleValue) } ?? ""
-            ageStr               = user.age.map { String($0.intValue) } ?? ""
-            selectedGender       = user.gender ?? "OTHER"
-            selectedActivity     = user.activityLevel ?? "SEDENTARY"
-            selectedGoal         = user.goalType ?? "MAINTAIN"
-            targetCaloriesStr    = user.targetCalories.map { String($0.intValue) } ?? ""
-        }
+    private func populateFields(from user: User?) {
+        guard let user = user else { return }
+        displayName       = user.displayName ?? ""
+        weightStr         = user.weightKg.map { String(format: "%.1f", $0.doubleValue) } ?? ""
+        heightStr         = user.heightCm.map { String(format: "%.0f", $0.doubleValue) } ?? ""
+        ageStr            = user.age.map { String($0.intValue) } ?? ""
+        selectedGender    = user.gender ?? "OTHER"
+        selectedActivity  = user.activityLevel ?? "SEDENTARY"
+        selectedGoal      = user.goalType ?? "MAINTAIN"
+        targetCaloriesStr = user.targetCalories.map { String($0.intValue) } ?? ""
     }
 
     private func saveProfile() {
