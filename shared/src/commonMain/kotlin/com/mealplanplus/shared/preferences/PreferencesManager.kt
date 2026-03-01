@@ -19,6 +19,10 @@ interface PreferencesManager {
     suspend fun setDarkMode(enabled: Boolean)
     suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setFollowSystem(enabled: Boolean)
+
+    // Sync preferences
+    suspend fun getLastSyncTime(): Long
+    suspend fun setLastSyncTime(timestamp: Long)
 }
 
 /**

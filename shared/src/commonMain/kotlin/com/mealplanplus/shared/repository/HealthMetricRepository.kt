@@ -92,7 +92,8 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             value_ = metric.value,
             secondaryValue = metric.secondaryValue,
             subType = metric.subType,
-            notes = metric.notes
+            notes = metric.notes,
+            updatedAt = metric.updatedAt
         )
         return queries.lastInsertRowId().executeAsOne()
     }
@@ -107,8 +108,25 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             secondaryValue = metric.secondaryValue,
             subType = metric.subType,
             notes = metric.notes,
+            updatedAt = metric.updatedAt,
             id = metric.id
         )
+    }
+
+    suspend fun getUnsyncedHealthMetrics(userId: Long): List<HealthMetric> {
+        return queries.selectUnsyncedHealthMetrics(userId).executeAsList().map { it.toHealthMetric() }
+    }
+
+    suspend fun getHealthMetricByServerId(serverId: String): HealthMetric? {
+        return queries.selectHealthMetricByServerId(serverId).executeAsOneOrNull()?.toHealthMetric()
+    }
+
+    suspend fun updateHealthMetricSyncState(id: Long, serverId: String, syncedAt: Long) {
+        queries.updateHealthMetricSyncState(serverId = serverId, syncedAt = syncedAt, id = id)
+    }
+
+    suspend fun updateHealthMetricSyncedAt(id: Long, syncedAt: Long) {
+        queries.updateHealthMetricSyncedAt(syncedAt = syncedAt, id = id)
     }
 
     suspend fun deleteHealthMetric(id: Long) {
@@ -159,7 +177,10 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             value = value_,
             secondaryValue = secondaryValue,
             subType = subType,
-            notes = notes
+            notes = notes,
+            serverId = serverId,
+            updatedAt = updatedAt,
+            syncedAt = syncedAt
         )
     }
 }

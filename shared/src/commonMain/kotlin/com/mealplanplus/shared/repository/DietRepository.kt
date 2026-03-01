@@ -59,7 +59,8 @@ class DietRepository(
             name = diet.name,
             description = diet.description,
             createdAt = diet.createdAt,
-            isSystemDiet = if (diet.isSystemDiet) 1L else 0L
+            isSystemDiet = if (diet.isSystemDiet) 1L else 0L,
+            updatedAt = diet.updatedAt
         )
         return queries.lastInsertRowId().executeAsOne()
     }
@@ -68,8 +69,25 @@ class DietRepository(
         queries.updateDiet(
             name = diet.name,
             description = diet.description,
+            updatedAt = diet.updatedAt,
             id = diet.id
         )
+    }
+
+    suspend fun getUnsyncedDiets(userId: Long): List<Diet> {
+        return queries.selectUnsyncedDiets(userId).executeAsList().map { it.toDiet() }
+    }
+
+    suspend fun getDietByServerId(serverId: String): Diet? {
+        return queries.selectDietByServerId(serverId).executeAsOneOrNull()?.toDiet()
+    }
+
+    suspend fun updateDietSyncState(id: Long, serverId: String, syncedAt: Long) {
+        queries.updateDietSyncState(serverId = serverId, syncedAt = syncedAt, id = id)
+    }
+
+    suspend fun updateDietSyncedAt(id: Long, syncedAt: Long) {
+        queries.updateDietSyncedAt(syncedAt = syncedAt, id = id)
     }
 
     suspend fun deleteDiet(id: Long) {
@@ -176,7 +194,10 @@ class DietRepository(
             name = name,
             description = description,
             createdAt = createdAt,
-            isSystemDiet = isSystemDiet == 1L
+            isSystemDiet = isSystemDiet == 1L,
+            serverId = serverId,
+            updatedAt = updatedAt,
+            syncedAt = syncedAt
         )
     }
 

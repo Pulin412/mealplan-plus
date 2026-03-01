@@ -177,13 +177,17 @@ final class DataImporter {
 
             for seedDiet in seedData.diets {
                 // Create diet
+                let now = Int64(Date().timeIntervalSince1970 * 1000)
                 let diet = Diet(
                     id: 0,
                     userId: userId,
                     name: seedDiet.name,
                     description: seedDiet.description,
-                    createdAt: Int64(Date().timeIntervalSince1970 * 1000),
-                    isSystemDiet: false
+                    createdAt: now,
+                    isSystemDiet: false,
+                    serverId: nil,
+                    updatedAt: now,
+                    syncedAt: nil
                 )
 
                 do {
@@ -203,7 +207,10 @@ final class DataImporter {
                             description: nil,
                             slotType: slotType,
                             customSlotId: nil,
-                            createdAt: Int64(Date().timeIntervalSince1970 * 1000)
+                            createdAt: now,
+                            serverId: nil,
+                            updatedAt: now,
+                            syncedAt: nil
                         )
 
                         let mealId = try await mealRepo.insertMeal(meal: meal)

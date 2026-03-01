@@ -109,17 +109,21 @@ struct AddMetricScreen: View {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
 
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
         let metric = HealthMetric(
             id: 0,
             userId: userId,
             date: dateString,
-            timestamp: Int64(Date().timeIntervalSince1970 * 1000),
+            timestamp: now,
             metricType: selectedType,
             customTypeId: nil,
             value: doubleValue,
             secondaryValue: nil,
             subType: nil,
-            notes: notes.isEmpty ? nil : notes
+            notes: notes.isEmpty ? nil : notes,
+            serverId: nil,
+            updatedAt: now,
+            syncedAt: nil
         )
 
         Task {

@@ -6,6 +6,8 @@ CREATE TABLE grocery_lists (
     endDate TEXT,
     createdAt INTEGER NOT NULL,
     updatedAt INTEGER NOT NULL,
+    serverId TEXT,
+    syncedAt INTEGER,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -45,6 +47,18 @@ WHERE id = ?;
 
 deleteGroceryList:
 DELETE FROM grocery_lists WHERE id = ?;
+
+selectUnsyncedGroceryLists:
+SELECT * FROM grocery_lists WHERE userId = ? AND (syncedAt IS NULL OR updatedAt > syncedAt);
+
+selectGroceryListByServerId:
+SELECT * FROM grocery_lists WHERE serverId = ? LIMIT 1;
+
+updateGroceryListSyncState:
+UPDATE grocery_lists SET serverId = ?, syncedAt = ? WHERE id = ?;
+
+updateGroceryListSyncedAt:
+UPDATE grocery_lists SET syncedAt = ? WHERE id = ?;
 
 -- Grocery items queries
 selectGroceryItems:

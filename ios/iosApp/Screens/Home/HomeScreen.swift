@@ -16,6 +16,7 @@ private let weekRed      = Color(red: 0xD3/255.0, green: 0x2F/255.0, blue: 0x2F/
 struct HomeScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var syncVM = SyncViewModel()
     var onNavigateToLogWithDate: ((String) -> Void)?
 
     @State private var showQuickLog = false
@@ -33,6 +34,16 @@ struct HomeScreen: View {
 
                 // ── Content below header ─────────────────────
                 VStack(spacing: 12) {
+                    SyncStatusBanner(
+                        syncVM: syncVM,
+                        onSyncTap: {
+                            if let userId = appState.currentUserId {
+                                Task { await syncVM.sync(userId: userId) }
+                            }
+                        }
+                    )
+                    .padding(.horizontal, 16)
+
                     MacroRingsCard(
                         calories: viewModel.todayCalories,
                         protein: viewModel.todayProtein,
@@ -690,6 +701,57 @@ private struct TodayPlanSlotRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Sync Status Banner
+
+private struct SyncStatusBanner: View {
+    @ObservedObject var syncVM: SyncViewModel
+    let onSyncTap: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if syncVM.isSyncing {
+                ProgressView().scaleEffect(0.8)
+                Text("Syncing…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Image(systemName: syncVM.syncError != nil ? "exclamationmark.icloud" : "checkmark.icloud")
+                    .foregroundColor(syncVM.syncError != nil ? .orange : .green)
+                    .font(.caption)
+                VStack(alignment: .leading, spacing: 1) {
+                    if let err = syncVM.syncError {
+                        Text(err)
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                            .lineLimit(1)
+                    } else {
+                        Text("Last sync: \(syncVM.lastSyncDisplay)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            Spacer()
+            if !syncVM.isSyncing {
+                Button(action: onSyncTap) {
+                    Text("Sync")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.green)
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.white)
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.06), radius: 3)
     }
 }
 

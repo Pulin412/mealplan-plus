@@ -18,6 +18,9 @@ class IosPreferencesManager : PreferencesManager {
         private const val DARK_MODE = "dark_mode"
         private const val DYNAMIC_COLOR = "dynamic_color"
         private const val FOLLOW_SYSTEM = "follow_system"
+
+        // Sync keys
+        private const val LAST_SYNC_TIME = "last_sync_time"
     }
 
     // State flows to emit changes (NSUserDefaults doesn't have reactive API)
@@ -85,6 +88,16 @@ class IosPreferencesManager : PreferencesManager {
     override suspend fun setFollowSystem(enabled: Boolean) {
         userDefaults.setBool(enabled, FOLLOW_SYSTEM)
         _followSystem.value = enabled
+    }
+
+    // Sync
+    override suspend fun getLastSyncTime(): Long {
+        val value = userDefaults.objectForKey(LAST_SYNC_TIME)
+        return if (value != null) userDefaults.integerForKey(LAST_SYNC_TIME) else 0L
+    }
+
+    override suspend fun setLastSyncTime(timestamp: Long) {
+        userDefaults.setInteger(timestamp, LAST_SYNC_TIME)
     }
 }
 
