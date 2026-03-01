@@ -663,7 +663,7 @@ class HomeViewModel: ObservableObject {
     @Published var todayProtein: Double = 0
     @Published var todayCarbs: Double = 0
     @Published var todayFat: Double = 0
-    let calorieGoal: Double = 2000
+    @Published var calorieGoal: Double = 2000
 
     // Health metrics
     @Published var latestWeight: HealthMetric?
@@ -722,6 +722,9 @@ class HomeViewModel: ObservableObject {
                 }
                 self.userName = name.isEmpty ? "User" : name
                 self.userInitial = String(name.prefix(1)).uppercased()
+                if let cal = user.targetCalories {
+                    self.calorieGoal = Double(cal.intValue)
+                }
             }
 
             // Today's macros from logged foods

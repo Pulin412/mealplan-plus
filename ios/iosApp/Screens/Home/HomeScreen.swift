@@ -91,7 +91,9 @@ struct HomeScreen: View {
         .sheet(item: $mealDetailSlot) { slot in
             HomeMealDetailSheet(slot: slot)
         }
-        .sheet(isPresented: $showProfile) {
+        .sheet(isPresented: $showProfile, onDismiss: {
+            if let userId = appState.currentUserId { viewModel.load(userId: userId) }
+        }) {
             NavigationStack {
                 ProfileScreen()
             }

@@ -819,7 +819,7 @@ struct ProfileScreen: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear { vm.load(userId: userId) }
-        .onChange(of: vm.user) { user in populateFields(from: user) }
+        .onChange(of: vm.isLoading) { loading in if !loading { populateFields(from: vm.user) } }
         .onChange(of: vm.saveSuccess) { if $0 { showSaveSuccessAlert = true; vm.saveSuccess = false } }
         .onChange(of: vm.clearSuccess) { if $0 { vm.clearSuccess = false } }
         .alert("Saved!", isPresented: $showSaveSuccessAlert) {
