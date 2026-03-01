@@ -2,9 +2,16 @@ name: iOS CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+    paths:
+      - 'ios/**'
+      - 'shared/**'
+      - '.github/workflows/ios.yml'
   push:
-    branches: [main]
+    branches: [main, develop]
+    paths:
+      - 'ios/**'
+      - 'shared/**'
 
 jobs:
   build:
@@ -30,7 +37,7 @@ jobs:
           xcodebuild \
             -project ios/iosApp.xcodeproj \
             -scheme iosApp \
-            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             build
