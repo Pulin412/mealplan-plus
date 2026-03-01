@@ -83,7 +83,10 @@ private struct DietPickerRow: View {
                 name: summary.name,
                 description: summary.description_,
                 createdAt: summary.createdAt,
-                isSystemDiet: false
+                isSystemDiet: false,
+                serverId: nil,
+                updatedAt: summary.createdAt,
+                syncedAt: nil
             )
             onSelect(diet)
         }) {

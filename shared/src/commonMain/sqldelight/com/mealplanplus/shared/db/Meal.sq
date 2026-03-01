@@ -6,6 +6,9 @@ CREATE TABLE meals (
     slotType TEXT NOT NULL,
     customSlotId INTEGER,
     createdAt INTEGER NOT NULL,
+    serverId TEXT,
+    updatedAt INTEGER NOT NULL DEFAULT 0,
+    syncedAt INTEGER,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -46,12 +49,24 @@ selectMealsBySlot:
 SELECT * FROM meals WHERE userId = ? AND slotType = ? ORDER BY name;
 
 insertMeal:
-INSERT INTO meals(userId, name, description, slotType, customSlotId, createdAt)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO meals(userId, name, description, slotType, customSlotId, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 updateMeal:
-UPDATE meals SET name = ?, description = ?, slotType = ?, customSlotId = ?
+UPDATE meals SET name = ?, description = ?, slotType = ?, customSlotId = ?, updatedAt = ?
 WHERE id = ?;
+
+selectUnsyncedMeals:
+SELECT * FROM meals WHERE userId = ? AND (syncedAt IS NULL OR updatedAt > syncedAt);
+
+selectMealByServerId:
+SELECT * FROM meals WHERE serverId = ? LIMIT 1;
+
+updateMealSyncState:
+UPDATE meals SET serverId = ?, syncedAt = ? WHERE id = ?;
+
+updateMealSyncedAt:
+UPDATE meals SET syncedAt = ? WHERE id = ?;
 
 deleteMealById:
 DELETE FROM meals WHERE id = ?;

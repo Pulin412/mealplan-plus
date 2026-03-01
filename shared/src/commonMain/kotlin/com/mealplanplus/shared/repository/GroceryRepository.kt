@@ -86,6 +86,22 @@ class GroceryRepository(private val database: MealPlanDatabase) {
         queries.deleteGroceryList(id)
     }
 
+    suspend fun getUnsyncedGroceryLists(userId: Long): List<GroceryList> {
+        return queries.selectUnsyncedGroceryLists(userId).executeAsList().map { it.toGroceryList() }
+    }
+
+    suspend fun getGroceryListByServerId(serverId: String): GroceryList? {
+        return queries.selectGroceryListByServerId(serverId).executeAsOneOrNull()?.toGroceryList()
+    }
+
+    suspend fun updateGroceryListSyncState(id: Long, serverId: String, syncedAt: Long) {
+        queries.updateGroceryListSyncState(serverId = serverId, syncedAt = syncedAt, id = id)
+    }
+
+    suspend fun updateGroceryListSyncedAt(id: Long, syncedAt: Long) {
+        queries.updateGroceryListSyncedAt(syncedAt = syncedAt, id = id)
+    }
+
     // Grocery items
     suspend fun insertGroceryItem(item: GroceryItem): Long {
         queries.insertGroceryItem(
@@ -139,7 +155,9 @@ class GroceryRepository(private val database: MealPlanDatabase) {
             startDate = startDate,
             endDate = endDate,
             createdAt = createdAt,
-            updatedAt = updatedAt
+            updatedAt = updatedAt,
+            serverId = serverId,
+            syncedAt = syncedAt
         )
     }
 }

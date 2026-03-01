@@ -560,13 +560,17 @@ struct AddDietScreenNew: View {
 
     private func saveDiet() {
         Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
             let diet = Diet(
                 id: existingDiet?.id ?? 0,
                 userId: userId,
                 name: name,
                 description: description.isEmpty ? nil : description,
-                createdAt: existingDiet?.createdAt ?? Int64(Date().timeIntervalSince1970 * 1000),
-                isSystemDiet: false
+                createdAt: existingDiet?.createdAt ?? now,
+                isSystemDiet: false,
+                serverId: existingDiet?.serverId,
+                updatedAt: now,
+                syncedAt: nil
             )
 
             do {

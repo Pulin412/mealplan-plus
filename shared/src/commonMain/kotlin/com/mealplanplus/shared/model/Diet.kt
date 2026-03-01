@@ -9,7 +9,10 @@ data class Diet(
     val name: String,
     val description: String? = null,
     val createdAt: Long = currentTimeMillis(),
-    val isSystemDiet: Boolean = false
+    val isSystemDiet: Boolean = false,
+    val serverId: String? = null,
+    val updatedAt: Long = currentTimeMillis(),
+    val syncedAt: Long? = null
 )
 
 /**

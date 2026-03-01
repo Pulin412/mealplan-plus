@@ -43,6 +43,8 @@
 		2A1234560041 /* MealPlanScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570041 /* MealPlanScreen.swift */; };
 		2A1234560042 /* DietPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570042 /* DietPickerSheet.swift */; };
 		2A12345800T10 /* MealPlanViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T11 /* MealPlanViewModelTests.swift */; };
+		2A1234560050 /* FirebaseTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570050 /* FirebaseTokenProvider.swift */; };
+		2A1234560051 /* BackgroundSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570051 /* BackgroundSyncScheduler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -97,6 +99,8 @@
 		2A1234570041 /* MealPlanScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanScreen.swift; sourceTree = "<group>"; };
 		2A1234570042 /* DietPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietPickerSheet.swift; sourceTree = "<group>"; };
 		2A12345800T11 /* MealPlanViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanViewModelTests.swift; sourceTree = "<group>"; };
+		2A1234570050 /* FirebaseTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseTokenProvider.swift; sourceTree = "<group>"; };
+		2A1234570051 /* BackgroundSyncScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncScheduler.swift; sourceTree = "<group>"; };
 		2A12345800T3 /* iosAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iosAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -279,6 +283,8 @@
 				2A1234570039 /* DatabaseSeeder.swift */,
 				2A1234570043 /* SeedDataLoader.swift */,
 				2A1234570040 /* DataImporter.swift */,
+				2A1234570050 /* FirebaseTokenProvider.swift */,
+				2A1234570051 /* BackgroundSyncScheduler.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -466,6 +472,8 @@
 				2A1234560040 /* DataImporter.swift in Sources */,
 				2A1234560041 /* MealPlanScreen.swift in Sources */,
 				2A1234560042 /* DietPickerSheet.swift in Sources */,
+				2A1234560050 /* FirebaseTokenProvider.swift in Sources */,
+				2A1234560051 /* BackgroundSyncScheduler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

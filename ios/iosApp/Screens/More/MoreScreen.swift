@@ -253,7 +253,9 @@ struct CreateGroceryListScreen: View {
             startDate: nil,
             endDate: nil,
             createdAt: timestamp,
-            updatedAt: timestamp
+            updatedAt: timestamp,
+            serverId: nil,
+            syncedAt: nil
         )
 
         Task {

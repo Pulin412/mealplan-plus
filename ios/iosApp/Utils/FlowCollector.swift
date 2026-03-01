@@ -907,6 +907,54 @@ class HomeViewModel: ObservableObject {
     }
 }
 
+// MARK: - Sync ViewModel
+
+class SyncViewModel: ObservableObject {
+    @Published var isSyncing = false
+    @Published var lastSyncTime: Date? = nil
+    @Published var syncError: String? = nil
+    @Published var isAvailable = false  // false until Firebase token available
+
+    private let syncRepo = RepositoryProvider.shared.syncRepository
+
+    init() {
+        Task { await loadLastSyncTime() }
+    }
+
+    @MainActor
+    func loadLastSyncTime() async {
+        let ts = (try? await syncRepo.getLastSyncTime())?.int64Value ?? 0
+        if ts > 0 {
+            lastSyncTime = Date(timeIntervalSince1970: Double(ts) / 1000.0)
+        }
+        isAvailable = FirebaseTokenProvider.shared.currentFirebaseUid != nil
+    }
+
+    @MainActor
+    func sync(userId: Int64) async {
+        guard let firebaseUid = FirebaseTokenProvider.shared.currentFirebaseUid else {
+            syncError = "Sync requires Firebase sign-in"
+            return
+        }
+        isSyncing = true
+        syncError = nil
+        do {
+            let result = try await syncRepo.sync(firebaseUid: firebaseUid, userId: userId)
+            lastSyncTime = Date(timeIntervalSince1970: Double(result.timestamp) / 1000.0)
+        } catch {
+            syncError = error.localizedDescription
+        }
+        isSyncing = false
+    }
+
+    var lastSyncDisplay: String {
+        guard let ts = lastSyncTime else { return "Never" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: ts, relativeTo: Date())
+    }
+}
+
 // MARK: - Helper Extensions
 
 extension Int64 {

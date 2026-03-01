@@ -62,4 +62,27 @@ final class RepositoryProvider {
     lazy var usdaFoodApi: UsdaFoodApi = {
         UsdaFoodApi(client: httpClient)
     }()
+
+    // MARK: - Sync
+
+    lazy var mealPlanApiClient: MealPlanApiClient = {
+        MealPlanApiClient(
+            baseUrl: MealPlanApiClient.companion.DEFAULT_BASE_URL,
+            tokenProvider: {
+                // Return current Firebase ID token; nil if not signed in
+                FirebaseTokenProvider.shared.currentToken
+            }
+        )
+    }()
+
+    lazy var syncRepository: SyncRepository = {
+        SyncRepository(
+            mealRepo: mealRepository,
+            dietRepo: dietRepository,
+            healthMetricRepo: healthMetricRepository,
+            groceryRepo: groceryRepository,
+            preferences: preferencesManager,
+            apiClient: mealPlanApiClient
+        )
+    }()
 }
