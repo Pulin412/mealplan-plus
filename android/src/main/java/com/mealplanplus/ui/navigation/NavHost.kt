@@ -18,8 +18,10 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -161,7 +163,18 @@ fun MealPlanNavHost() {
         return
     }
 
-    val startDestination = if (isLoggedIn == true) Screen.Home.route else Screen.Login.route
+    // Freeze startDestination — NavHost only uses this on first composition.
+    // Changing it on recompose causes conflicts; use LaunchedEffect below instead.
+    val startDestination = remember { if (isLoggedIn == true) Screen.Home.route else Screen.Login.route }
+
+    // Reactively navigate to login after sign-out (DataStore emits false asynchronously)
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn == false && navController.currentDestination?.route != Screen.Login.route) {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -208,11 +221,7 @@ fun MealPlanNavHost() {
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onLogout = {
-                        navController.navigate(Screen.Login.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
+                    onLogout = { /* LaunchedEffect(isLoggedIn) handles nav after clearAuth emits */ }
                 )
             }
             composable(Screen.Home.route) { backStackEntry ->

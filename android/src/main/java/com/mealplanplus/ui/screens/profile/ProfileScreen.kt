@@ -245,7 +245,7 @@ fun ProfileScreen(
 
                 // ── Logout ───────────────────────────────────────────────────
                 OutlinedButton(
-                    onClick = { viewModel.logout(); onLogout() },
+                    onClick = { viewModel.logout() }, // nav handled by LaunchedEffect(isLoggedIn)
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
