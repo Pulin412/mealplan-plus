@@ -1015,15 +1015,22 @@ struct ProfileScreen: View {
 
     // MARK: - Helpers
 
+    private static let validGenders    = Set(["MALE", "FEMALE", "OTHER"])
+    private static let validActivities = Set(["SEDENTARY", "LIGHT", "MODERATE", "VERY_ACTIVE", "EXTRA_ACTIVE"])
+    private static let validGoals      = Set(["LOSE", "MAINTAIN", "GAIN"])
+
     private func populateFields(from user: User?) {
         guard let user = user else { return }
         displayName       = user.displayName ?? ""
         weightStr         = user.weightKg.map { String(format: "%.1f", $0.doubleValue) } ?? ""
         heightStr         = user.heightCm.map { String(format: "%.0f", $0.doubleValue) } ?? ""
         ageStr            = user.age.map { String($0.intValue) } ?? ""
-        selectedGender    = user.gender ?? "OTHER"
-        selectedActivity  = user.activityLevel ?? "SEDENTARY"
-        selectedGoal      = user.goalType ?? "MAINTAIN"
+        let g = user.gender ?? ""
+        selectedGender    = Self.validGenders.contains(g)    ? g : "OTHER"
+        let a = user.activityLevel ?? ""
+        selectedActivity  = Self.validActivities.contains(a) ? a : "SEDENTARY"
+        let gl = user.goalType ?? ""
+        selectedGoal      = Self.validGoals.contains(gl)     ? gl : "MAINTAIN"
         targetCaloriesStr = user.targetCalories.map { String($0.intValue) } ?? ""
     }
 
