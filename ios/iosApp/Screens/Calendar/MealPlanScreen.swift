@@ -74,7 +74,6 @@ private func isoDate(_ str: String) -> Date? {
 struct MealPlanScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var plansVM = PlansViewModel()
-    @StateObject private var dietsVM = DietsViewModel()
 
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
@@ -98,14 +97,11 @@ struct MealPlanScreen: View {
         }
         .ignoresSafeArea(edges: .top)
         .sheet(isPresented: $showDietPicker) {
-            DietPickerSheet(
-                diets: dietsVM.diets,
-                onSelect: { diet in
-                    plansVM.assignDiet(userId: userId, date: isoString(dietPickerDate), diet: diet)
-                    showDietPicker = false
-                },
-                onDismiss: { showDietPicker = false }
-            )
+            HomeDietPickerSheet { diet in
+                plansVM.assignDiet(userId: userId, date: isoString(dietPickerDate), diet: diet)
+                showDietPicker = false
+            }
+            .environmentObject(appState)
         }
         .onAppear { loadData() }
     }
@@ -353,9 +349,11 @@ struct MealPlanScreen: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
                 Spacer()
-                Button("View Log >") {}
-                    .font(.caption)
-                    .foregroundColor(darkGreen)
+                Button("View Log >") {
+                    NotificationCenter.default.post(name: .navigateToLog, object: isoString(selectedDate))
+                }
+                .font(.caption)
+                .foregroundColor(darkGreen)
             }
             dietInfoHeader
             if let dwm = plansVM.selectedDietWithMeals {
@@ -586,7 +584,6 @@ struct MealPlanScreen: View {
         let lastOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: firstOfMonth)!
 
         plansVM.loadPlans(userId: userId, startDate: isoString(firstOfMonth), endDate: isoString(lastOfMonth))
-        dietsVM.loadDiets(userId: userId)
         plansVM.selectDate(isoString(selectedDate), userId: userId)
     }
 

@@ -195,12 +195,20 @@ struct MainTabView: View {
                 .tag(5)
         }
         .accentColor(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0))
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToLog)) { notification in
+            if let isoDate = notification.object as? String {
+                selectedTab = 2
+                NotificationCenter.default.post(name: .navigateToDate, object: isoDate)
+            }
+        }
     }
 }
 
-// MARK: - Notification name for date-based log navigation
+// MARK: - Notification names for log navigation
 extension Notification.Name {
     static let navigateToDate = Notification.Name("navigateToDate")
+    /// Post with an ISO date String to switch to the Log tab and jump to that date.
+    static let navigateToLog  = Notification.Name("navigateToLog")
 }
 
 // Tab wrapper views
