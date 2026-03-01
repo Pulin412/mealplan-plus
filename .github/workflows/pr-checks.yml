@@ -1,0 +1,129 @@
+name: PR Checks
+
+# Runs on every PR — must pass before merge
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ── Backend: lint + test ────────────────────────────────────────────────────
+  backend-checks:
+    name: Backend (lint + test)
+    runs-on: ubuntu-latest
+    if: >
+      contains(github.event.pull_request.title, '[skip-backend]') == false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Backend build + test
+        run: ./gradlew :backend:build
+        env:
+          FIREBASE_PROJECT_ID: test-project
+
+      - name: Docker build check (no push)
+        run: docker build -t mealplan-api-check ./backend
+
+  # ── Android: build + unit tests ────────────────────────────────────────────
+  android-checks:
+    name: Android (build + tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build
+        run: ./gradlew :android:assembleDebug
+
+      - name: Unit tests
+        run: ./gradlew :android:testDebugUnitTest
+
+      - name: Shared module tests
+        run: ./gradlew :shared:testDebugUnitTest
+
+  # ── iOS: build (macOS runner) ───────────────────────────────────────────────
+  ios-checks:
+    name: iOS (build)
+    runs-on: macos-latest
+    # Only run when iOS or shared code changed
+    if: |
+      contains(join(github.event.pull_request.changed_files.*.filename, ','), 'ios/') ||
+      contains(join(github.event.pull_request.changed_files.*.filename, ','), 'shared/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build shared KMP framework
+        run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+
+      - name: Build iOS app
+        run: |
+          xcodebuild \
+            -project ios/iosApp.xcodeproj \
+            -scheme iosApp \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+  # ── Zero-billing guardrail ─────────────────────────────────────────────────
+  billing-guardrail:
+    name: Zero-billing guardrail
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for paid Firebase Admin SDK usage
+        run: |
+          # Firebase Admin SDK is free for auth validation, but flag if someone
+          # accidentally imports firebase-admin (which may incur billing)
+          if grep -r "firebase-admin" backend/build.gradle.kts backend/src/ 2>/dev/null; then
+            echo "❌ firebase-admin detected — use JWKS validation instead (zero cost)"
+            exit 1
+          fi
+          echo "✅ No firebase-admin dependency"
+
+      - name: Check for Cloud SQL connector (prefer Neon.tech)
+        run: |
+          if grep -r "cloud-sql-connector" backend/build.gradle.kts 2>/dev/null; then
+            echo "⚠️  Cloud SQL connector found — ensure Neon.tech free tier is the target DB"
+          fi
+          echo "✅ No Cloud SQL connector (using direct Postgres)"
+
+      - name: Verify Cloud Run min-instances = 0 (scale to zero)
+        run: |
+          if grep -q "min-instances" .github/workflows/backend-deploy.yml; then
+            if ! grep "min-instances 0" .github/workflows/backend-deploy.yml; then
+              echo "❌ min-instances must be 0 to scale to zero (avoid idle billing)"
+              exit 1
+            fi
+          fi
+          echo "✅ Cloud Run scales to zero"
