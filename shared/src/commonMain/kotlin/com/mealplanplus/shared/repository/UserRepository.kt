@@ -95,8 +95,8 @@ class UserRepository(private val database: MealPlanDatabase) {
             activityLevel = activityLevel,
             targetCalories = targetCalories?.toInt(),
             goalType = goalType,
-            createdAt = createdAt,
-            updatedAt = updatedAt
+            createdAt = createdAt ?: 0L,
+            updatedAt = updatedAt ?: 0L
         )
     }
 }

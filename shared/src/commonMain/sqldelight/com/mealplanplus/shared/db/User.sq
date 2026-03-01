@@ -12,8 +12,8 @@ CREATE TABLE users (
     activityLevel TEXT,
     targetCalories INTEGER,
     goalType TEXT,
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
+    createdAt INTEGER,
+    updatedAt INTEGER
 );
 
 CREATE INDEX users_email ON users(email);
