@@ -57,9 +57,12 @@ struct HealthMetricsScreen: View {
             }
             .padding(.top)
         }
-        .background(backgroundGradient)
+        .background(Color(red: 0xF0/255.0, green: 0xF9/255.0, blue: 0xF4/255.0).ignoresSafeArea())
         .navigationTitle("Health Metrics")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showAddMetric = true }) {

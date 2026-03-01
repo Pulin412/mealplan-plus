@@ -117,6 +117,9 @@ struct GroceryListsScreen: View {
         }
         .navigationTitle("Grocery Lists")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showCreateList = true }) {

@@ -16,10 +16,10 @@ private let weekRed      = Color(red: 0xD3/255.0, green: 0x2F/255.0, blue: 0x2F/
 struct HomeScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var viewModel = HomeViewModel()
-    @StateObject private var syncVM = SyncViewModel()
     var onNavigateToLogWithDate: ((String) -> Void)?
 
-    @State private var showQuickLog = false
+    @State private var showDietPicker = false
+    @State private var mealDetailSlot: TodayPlanSlot? = nil
 
     var body: some View {
         ScrollView {
@@ -34,16 +34,6 @@ struct HomeScreen: View {
 
                 // ── Content below header ─────────────────────
                 VStack(spacing: 12) {
-                    SyncStatusBanner(
-                        syncVM: syncVM,
-                        onSyncTap: {
-                            if let userId = appState.currentUserId {
-                                Task { await syncVM.sync(userId: userId) }
-                            }
-                        }
-                    )
-                    .padding(.horizontal, 16)
-
                     MacroRingsCard(
                         calories: viewModel.todayCalories,
                         protein: viewModel.todayProtein,
@@ -53,27 +43,20 @@ struct HomeScreen: View {
                     )
                     .padding(.horizontal, 16)
 
-                    QuickLogFoodButton(onTap: { showQuickLog = true })
-                        .padding(.horizontal, 16)
-
                     ThisWeekCard(
                         weekDays: viewModel.weekDays,
                         onDayTap: { isoDate in onNavigateToLogWithDate?(isoDate) }
                     )
                     .padding(.horizontal, 16)
 
-                    // Today's Plan ABOVE Blood Glucose
                     TodaysPlanCard(
                         slots: viewModel.todayPlanSlots,
                         onLogTodayTap: { onNavigateToLogWithDate?(isoToday()) },
-                        onSlotToggle: { slot in viewModel.toggleSlotLogged(slot: slot) }
-                    )
-                    .padding(.horizontal, 16)
-
-                    BloodGlucoseCard(
-                        latestSugar: viewModel.latestBloodSugar,
-                        glucoseHistory: viewModel.glucoseHistory,
-                        onDetailsTap: {}
+                        onSlotToggle: { slot in viewModel.toggleSlotLogged(slot: slot) },
+                        onPlanDietTap: { showDietPicker = true },
+                        onSlotTap: { slot in
+                            if slot.plannedMealId != nil { mealDetailSlot = slot }
+                        }
                     )
                     .padding(.horizontal, 16)
 
@@ -93,12 +76,18 @@ struct HomeScreen: View {
         .background(lightGreenBg)
         .ignoresSafeArea(edges: .top)
         .navigationBarHidden(true)
-        .sheet(isPresented: $showQuickLog, onDismiss: {
-            if let userId = appState.currentUserId {
-                viewModel.load(userId: userId)
-            }
+        .sheet(isPresented: $showDietPicker, onDismiss: {
+            if let userId = appState.currentUserId { viewModel.load(userId: userId) }
         }) {
-            DailyLogScreen()
+            HomeDietPickerSheet { diet in
+                if let userId = appState.currentUserId {
+                    viewModel.assignDietForToday(userId: userId, diet: diet)
+                }
+                showDietPicker = false
+            }
+        }
+        .sheet(item: $mealDetailSlot) { slot in
+            HomeMealDetailSheet(slot: slot)
         }
         .onAppear {
             if let userId = appState.currentUserId {
@@ -332,16 +321,31 @@ private struct ThisWeekCard: View {
                 ForEach(weekDays, id: \.isoDate) { info in
                     WeekDayCell(
                         info: info,
-                        onTap: info.state != .noData ? { onDayTap?(info.isoDate) } : nil
+                        onTap: { onDayTap?(info.isoDate) }
                     )
                     .frame(maxWidth: .infinity)
                 }
+            }
+
+            // Legend
+            HStack(spacing: 12) {
+                Spacer()
+                legendDot(color: primaryGreen, label: "Done")
+                legendDot(color: weekOrange, label: "Planned")
+                legendDot(color: weekRed, label: "Missed")
             }
         }
         .padding(16)
         .background(Color.white)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(label).font(.caption2).foregroundColor(.secondary)
+        }
     }
 }
 
@@ -594,6 +598,8 @@ private struct TodaysPlanCard: View {
     let slots: [TodayPlanSlot]
     let onLogTodayTap: () -> Void
     var onSlotToggle: ((TodayPlanSlot) -> Void)?
+    var onPlanDietTap: (() -> Void)?
+    var onSlotTap: ((TodayPlanSlot) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -601,9 +607,12 @@ private struct TodaysPlanCard: View {
                 Text("Today's Plan")
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
-                Button("Log Today >") { onLogTodayTap() }
-                    .font(.caption)
-                    .foregroundColor(primaryGreen)
+                Button(slots.isEmpty ? "Plan a Diet" : "Change Diet") {
+                    onPlanDietTap?()
+                }
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(primaryGreen)
             }
 
             if slots.isEmpty {
@@ -611,7 +620,7 @@ private struct TodaysPlanCard: View {
                     Image(systemName: "calendar.badge.plus")
                         .font(.system(size: 28))
                         .foregroundColor(.secondary)
-                    Text("No diet planned — tap Log Today to add meals")
+                    Text("No diet planned for today — tap Plan a Diet to add meals")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -620,7 +629,11 @@ private struct TodaysPlanCard: View {
                 .padding(.vertical, 16)
             } else {
                 ForEach(slots) { slot in
-                    TodayPlanSlotRow(slot: slot, onToggle: { onSlotToggle?(slot) })
+                    TodayPlanSlotRow(
+                        slot: slot,
+                        onToggle: { onSlotToggle?(slot) },
+                        onTap: slot.plannedMealId != nil ? { onSlotTap?(slot) } : nil
+                    )
                     if slot.id != slots.last?.id {
                         Divider()
                     }
@@ -637,6 +650,7 @@ private struct TodaysPlanCard: View {
 private struct TodayPlanSlotRow: View {
     let slot: TodayPlanSlot
     var onToggle: (() -> Void)?
+    var onTap: (() -> Void)?
 
     private var canToggle: Bool {
         slot.plannedMealId != nil || slot.isLogged
@@ -655,56 +669,220 @@ private struct TodayPlanSlotRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Emoji circle
-            ZStack {
-                Circle()
-                    .fill(emojiBgColor)
-                    .frame(width: 40, height: 40)
-                Text(slot.emoji)
-                    .font(.system(size: 18))
-            }
+        Button(action: { if onTap != nil { onTap?() } }) {
+            HStack(spacing: 12) {
+                // Emoji circle
+                ZStack {
+                    Circle()
+                        .fill(emojiBgColor)
+                        .frame(width: 40, height: 40)
+                    Text(slot.emoji)
+                        .font(.system(size: 18))
+                }
 
-            // Slot name + meal name
-            VStack(alignment: .leading, spacing: 2) {
-                Text(slot.slotDisplayName)
-                    .font(.system(size: 14, weight: .semibold))
-                if let mealName = slot.plannedMealName {
-                    Text(mealName)
+                // Slot name + meal name
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(slot.slotDisplayName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+                    if let mealName = slot.plannedMealName {
+                        Text(mealName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                // Chevron if tappable
+                if onTap != nil {
+                    Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .padding(.trailing, 4)
                 }
-            }
 
-            Spacer()
-
-            // Logged indicator: green check or grey circle (tappable if canToggle)
-            Group {
-                if slot.isLogged {
-                    ZStack {
+                // Logged indicator: green check or grey circle
+                Group {
+                    if slot.isLogged {
+                        ZStack {
+                            Circle()
+                                .fill(primaryGreen)
+                                .frame(width: 26, height: 26)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    } else {
                         Circle()
-                            .fill(primaryGreen)
+                            .stroke(Color.gray.opacity(0.4), lineWidth: 2)
                             .frame(width: 26, height: 26)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
                     }
-                } else {
-                    Circle()
-                        .stroke(Color.gray.opacity(0.4), lineWidth: 2)
-                        .frame(width: 26, height: 26)
+                }
+                .onTapGesture {
+                    if canToggle { onToggle?() }
                 }
             }
-            .onTapGesture {
-                if canToggle { onToggle?() }
-            }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
     }
 }
 
-// MARK: - Sync Status Banner
+// MARK: - Home Diet Picker Sheet
+
+struct HomeDietPickerSheet: View {
+    @EnvironmentObject var appState: AppState
+    @StateObject private var dietsVM = DietsViewModel()
+    @State private var searchText = ""
+    let onSelect: (Diet) -> Void
+
+    private var filtered: [DietSummary] {
+        searchText.isEmpty ? dietsVM.diets :
+        dietsVM.diets.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Search bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                    TextField("Search diets…", text: $searchText)
+                }
+                .padding(10)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+
+                if dietsVM.isLoading {
+                    ProgressView().padding(.top, 40)
+                } else if filtered.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "fork.knife").font(.system(size: 32)).foregroundColor(.secondary)
+                        Text("No diets found").foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(filtered, id: \.id) { summary in
+                        Button {
+                            let now = Int64(Date().timeIntervalSince1970 * 1000)
+                            let diet = Diet(
+                                id: summary.id,
+                                userId: summary.userId,
+                                name: summary.name,
+                                description: summary.description_,
+                                createdAt: now,
+                                isSystemDiet: false,
+                                serverId: nil,
+                                updatedAt: now,
+                                syncedAt: nil
+                            )
+                            onSelect(diet)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(summary.name).font(.system(size: 15, weight: .semibold))
+                                if let desc = summary.description_, !desc.isEmpty {
+                                    Text(desc).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                                }
+                                HStack(spacing: 12) {
+                                    Text("🔥 \(Int(summary.totalCalories)) kcal").font(.caption2)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle("Select a Diet")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .onAppear {
+            if let userId = appState.currentUserId { dietsVM.loadDiets(userId: userId) }
+        }
+    }
+}
+
+// MARK: - Home Meal Detail Sheet (read-only ingredient view)
+
+struct HomeMealDetailSheet: View {
+    let slot: TodayPlanSlot
+    @StateObject private var mealsVM = MealsViewModel()
+    @State private var mealWithFoods: MealWithFoods? = nil
+    @State private var isLoading = true
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let mwf = mealWithFoods {
+                    List {
+                        // Macro header
+                        Section {
+                            HStack {
+                                MacroMiniTile(label: "Calories", value: "\(Int(mwf.totalCalories))", unit: "kcal", color: primaryGreen)
+                                MacroMiniTile(label: "Protein",  value: "\(Int(mwf.totalProtein))g",  unit: "", color: .blue)
+                                MacroMiniTile(label: "Carbs",    value: "\(Int(mwf.totalCarbs))g",    unit: "", color: .orange)
+                                MacroMiniTile(label: "Fat",      value: "\(Int(mwf.totalFat))g",      unit: "", color: .pink)
+                            }
+                        }
+                        // Ingredients
+                        Section("Ingredients") {
+                            let items = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+                            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.food.name).font(.system(size: 14, weight: .medium))
+                                        Text("\(Int(item.mealFoodItem.quantity))g · \(Int(item.calculatedCalories)) kcal")
+                                            .font(.caption).foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("P \(Int(item.calculatedProtein))g").font(.caption2).foregroundColor(.blue)
+                                        Text("C \(Int(item.calculatedCarbs))g").font(.caption2).foregroundColor(.orange)
+                                        Text("F \(Int(item.calculatedFat))g").font(.caption2).foregroundColor(.pink)
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                } else {
+                    Text("No meal details available").foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .navigationTitle(slot.plannedMealName ?? slot.slotDisplayName)
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .onAppear {
+            guard let mealId = slot.plannedMealId else { isLoading = false; return }
+            Task {
+                mealWithFoods = try? await mealsVM.getMealWithFoods(mealId: mealId)
+                isLoading = false
+            }
+        }
+    }
+}
+
+private struct MacroMiniTile: View {
+    let label: String; let value: String; let unit: String; let color: Color
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value).font(.system(size: 13, weight: .bold)).foregroundColor(color)
+            if !unit.isEmpty { Text(unit).font(.caption2).foregroundColor(.secondary) }
+            Text(label).font(.caption2).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Sync Status Banner (kept for profile use)
 
 private struct SyncStatusBanner: View {
     @ObservedObject var syncVM: SyncViewModel

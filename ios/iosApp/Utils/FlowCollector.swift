@@ -198,6 +198,11 @@ class DailyLogViewModel: ObservableObject {
     // Planned meal food items per slot (from diet plan)
     @Published var plannedMealsBySlot: [String: [MealFoodItemWithDetails]] = [:]
 
+    // Current plan state
+    @Published var currentPlan: Plan? = nil
+    @Published var currentPlanDietId: Int64? = nil
+    @Published var isPlanCompleted: Bool = false
+
     // Current loaded date (iso yyyy-MM-dd)
     private(set) var currentDate: String = ""
     private(set) var currentUserId: Int64 = 0
@@ -206,7 +211,7 @@ class DailyLogViewModel: ObservableObject {
     private let planRepo = RepositoryProvider.shared.planRepository
     private let dietRepo = RepositoryProvider.shared.dietRepository
 
-    /// Load log for a given user + date. Populates loggedFoods, loggedFoodsBySlot, planned macros.
+    /// Load log for a given user + date. Populates loggedFoods, loggedFoodsBySlot, planned macros, plan state.
     func loadLog(userId: Int64, date: String) {
         currentUserId = userId
         currentDate = date
@@ -216,9 +221,12 @@ class DailyLogViewModel: ObservableObject {
             let foods = (try? await repository.getLoggedFoodsSnapshot(userId: userId, date: date)) ?? []
             self.loggedFoods = foods
             self.loggedFoodsBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
-            // Planned macros + meal items from diet plan
-            if let plan = try? await planRepo.getPlanByDate(userId: userId, date: date),
-               let dietId = plan.dietId?.int64Value,
+            // Load plan + planned macros + meal items from diet plan
+            let plan = try? await planRepo.getPlanByDate(userId: userId, date: date)
+            self.currentPlan = plan
+            self.currentPlanDietId = plan?.dietId?.int64Value
+            self.isPlanCompleted = plan?.isCompleted == true
+            if let dietId = plan?.dietId?.int64Value,
                let dwm = try? await dietRepo.getDietWithMeals(dietId: dietId) {
                 self.plannedCalories = dwm.totalCalories
                 self.plannedProtein  = dwm.totalProtein
@@ -243,6 +251,43 @@ class DailyLogViewModel: ObservableObject {
                 self.plannedMealsBySlot = [:]
             }
             self.isLoading = false
+        }
+    }
+
+    /// Assign a diet to the current date's plan and reload.
+    func assignDiet(userId: Int64, date: String, diet: Diet) {
+        Task {
+            let plan = Plan(userId: userId, date: date, dietId: diet.id.toKotlinLong(), notes: nil, isCompleted: false)
+            try? await planRepo.insertOrUpdatePlan(plan: plan)
+            loadLog(userId: userId, date: date)
+        }
+    }
+
+    /// Remove diet plan for the current date and reload.
+    func clearDiet(userId: Int64, date: String) {
+        Task {
+            try? await planRepo.deletePlan(userId: userId, date: date)
+            loadLog(userId: userId, date: date)
+        }
+    }
+
+    /// Mark the day as complete and reload.
+    func completeDay(userId: Int64, date: String) {
+        Task {
+            let existing = try? await planRepo.getPlanByDate(userId: userId, date: date)
+            let plan = Plan(userId: userId, date: date, dietId: existing?.dietId, notes: existing?.notes, isCompleted: true)
+            try? await planRepo.insertOrUpdatePlan(plan: plan)
+            loadLog(userId: userId, date: date)
+        }
+    }
+
+    /// Reopen a completed day and reload.
+    func reopenDay(userId: Int64, date: String) {
+        Task {
+            let existing = try? await planRepo.getPlanByDate(userId: userId, date: date)
+            let plan = Plan(userId: userId, date: date, dietId: existing?.dietId, notes: existing?.notes, isCompleted: false)
+            try? await planRepo.insertOrUpdatePlan(plan: plan)
+            loadLog(userId: userId, date: date)
         }
     }
 
@@ -904,6 +949,25 @@ class HomeViewModel: ObservableObject {
         let initials = words.prefix(2).map { String($0.prefix(1)) }.joined()
         let num = name.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
         return initials.uppercased() + num.prefix(2)
+    }
+
+    /// Assign a diet to today's plan and reload plan slots.
+    func assignDietForToday(userId: Int64, diet: Diet) {
+        let today = isoToday()
+        Task {
+            let plan = Plan(userId: userId, date: today, dietId: diet.id.toKotlinLong(), notes: nil, isCompleted: false)
+            try? await planRepo.insertOrUpdatePlan(plan: plan)
+            load(userId: userId)
+        }
+    }
+
+    /// Remove today's diet plan and reload.
+    func removeDietForToday(userId: Int64) {
+        let today = isoToday()
+        Task {
+            try? await planRepo.deletePlan(userId: userId, date: today)
+            load(userId: userId)
+        }
     }
 }
 

@@ -12,7 +12,9 @@ struct SlotEditRequest: Identifiable {
 
 struct DietDetailScreenNew: View {
     let dietId: Int64
+    var isReadOnly: Bool = false
     var onUpdate: (() -> Void)? = nil
+    var onViewLog: (() -> Void)? = nil
 
     @StateObject private var viewModel = DietsViewModel()
     @State private var dietWithMeals: DietWithMeals?
@@ -20,13 +22,14 @@ struct DietDetailScreenNew: View {
     @State private var selectedDay = 0
     @State private var showEditSheet = false
     @State private var slotEditRequest: SlotEditRequest? = nil
+    @State private var showDeleteConfirm = false
 
     var body: some View {
         ScrollView {
             contentView
         }
         .background(backgroundGradient)
-        .navigationTitle("Diet Details")
+        .navigationTitle(isReadOnly ? "Diet Details" : "Diet Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .sheet(isPresented: $showEditSheet) { editSheetContent }
@@ -35,6 +38,17 @@ struct DietDetailScreenNew: View {
                 slotEditRequest = nil
                 loadDietDetails()
             }
+        }
+        .alert("Delete Diet?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    try? await viewModel.deleteDiet(id: dietId)
+                    onUpdate?()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone.")
         }
         .onAppear { loadDietDetails() }
     }
@@ -192,20 +206,29 @@ struct DietDetailScreenNew: View {
             ForEach(slots, id: \.self) { slot in
                 let currentMeal = mealsMap[slot] ?? nil
                 let instructions = instructionsMap[slot] ?? nil
-                Button {
-                    slotEditRequest = SlotEditRequest(
-                        slot: slot, dietId: dietId,
-                        currentMeal: currentMeal,
-                        instructions: instructions
-                    )
-                } label: {
+                if isReadOnly {
+                    // Read-only: show card without edit interaction
                     if let mwf = currentMeal {
                         MealSlotCardNew(slot: slot, mealWithFoods: mwf, instructions: instructions)
                     } else {
                         EmptyMealSlotCard(slot: slot)
                     }
+                } else {
+                    Button {
+                        slotEditRequest = SlotEditRequest(
+                            slot: slot, dietId: dietId,
+                            currentMeal: currentMeal,
+                            instructions: instructions
+                        )
+                    } label: {
+                        if let mwf = currentMeal {
+                            MealSlotCardNew(slot: slot, mealWithFoods: mwf, instructions: instructions)
+                        } else {
+                            EmptyMealSlotCard(slot: slot)
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .buttonStyle(PlainButtonStyle())
             }
         }
         .padding(.horizontal)
@@ -213,24 +236,25 @@ struct DietDetailScreenNew: View {
 
     private var actionButtons: some View {
         HStack(spacing: 12) {
-            applyTodayButton
+            viewLogButton
             groceryButton
         }
         .padding(.horizontal)
     }
 
-    private var applyTodayButton: some View {
-        Button(action: {}) {
+    private var viewLogButton: some View {
+        Button(action: { onViewLog?() }) {
             HStack {
-                Image(systemName: "calendar.badge.plus")
-                Text("Apply to Today")
+                Image(systemName: "square.and.pencil")
+                Text("View Log")
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.green)
+            .background(onViewLog != nil ? Color.green : Color.gray)
             .foregroundColor(.white)
             .cornerRadius(10)
         }
+        .disabled(onViewLog == nil)
     }
 
     private var groceryButton: some View {
@@ -262,19 +286,18 @@ struct DietDetailScreenNew: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Menu {
-                Button(action: { showEditSheet = true }) {
-                    Label("Edit Diet", systemImage: "pencil")
+        if !isReadOnly {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button(action: { showEditSheet = true }) {
+                        Label("Edit Diet", systemImage: "pencil")
+                    }
+                    Button(role: .destructive, action: { showDeleteConfirm = true }) {
+                        Label("Delete", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
-                Button(action: {}) {
-                    Label("Duplicate", systemImage: "doc.on.doc")
-                }
-                Button(role: .destructive, action: {}) {
-                    Label("Delete", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
             }
         }
     }
