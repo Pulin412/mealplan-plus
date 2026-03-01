@@ -20,6 +20,7 @@ struct HomeScreen: View {
 
     @State private var showDietPicker = false
     @State private var mealDetailSlot: TodayPlanSlot? = nil
+    @State private var showProfile = false
 
     var body: some View {
         ScrollView {
@@ -29,7 +30,8 @@ struct HomeScreen: View {
                     userName: viewModel.userName,
                     userInitial: viewModel.userInitial,
                     caloriesConsumed: viewModel.todayCalories,
-                    calorieGoal: viewModel.calorieGoal
+                    calorieGoal: viewModel.calorieGoal,
+                    onAvatarTap: { showProfile = true }
                 )
 
                 // ── Content below header ─────────────────────
@@ -89,6 +91,12 @@ struct HomeScreen: View {
         .sheet(item: $mealDetailSlot) { slot in
             HomeMealDetailSheet(slot: slot)
         }
+        .sheet(isPresented: $showProfile) {
+            NavigationStack {
+                ProfileScreen()
+            }
+            .environmentObject(appState)
+        }
         .onAppear {
             if let userId = appState.currentUserId {
                 viewModel.load(userId: userId)
@@ -109,6 +117,7 @@ private struct HomeHeaderSection: View {
     let userInitial: String
     let caloriesConsumed: Double
     let calorieGoal: Double
+    var onAvatarTap: (() -> Void)? = nil
 
     private var isOver: Bool { caloriesConsumed > calorieGoal }
     private var progress: Double { min(caloriesConsumed / calorieGoal, 1.0) }
@@ -143,16 +152,18 @@ private struct HomeHeaderSection: View {
                             .font(.system(size: 20))
                             .foregroundColor(.white)
                     }
-                    // Avatar
-                    Circle()
-                        .fill(Color.white.opacity(0.25))
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Text(userInitial)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                        )
-                        .padding(.leading, 8)
+                    // Avatar — tap → profile
+                    Button(action: { onAvatarTap?() }) {
+                        Circle()
+                            .fill(Color.white.opacity(0.25))
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Text(userInitial)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                            )
+                    }
+                    .padding(.leading, 8)
                 }
                 .padding(.horizontal, 20)
 
