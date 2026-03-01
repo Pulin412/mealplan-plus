@@ -153,7 +153,7 @@ class RoomToSQLDelightMigration(
                 val createdAt = it.getLong(it.getColumnIndexOrThrow("createdAt"))
 
                 sqlDelightDb.mealQueries.insertMeal(
-                    userId, name, description, slotType, customSlotId, createdAt
+                    userId, name, description, slotType, customSlotId, createdAt, createdAt
                 )
             }
         }
@@ -190,7 +190,7 @@ class RoomToSQLDelightMigration(
                 val isSystemDiet = it.getLongOrNull(it.safeGetColumnIndex("isSystemDiet")) ?: 0L
 
                 sqlDelightDb.dietQueries.insertDiet(
-                    userId, name, description, createdAt, isSystemDiet
+                    userId, name, description, createdAt, isSystemDiet, createdAt
                 )
             }
         }
@@ -381,7 +381,7 @@ class RoomToSQLDelightMigration(
 
                 sqlDelightDb.healthMetricQueries.insertHealthMetric(
                     userId, date, timestamp, metricType, customTypeId, value,
-                    secondaryValue, subType, notes
+                    secondaryValue, subType, notes, timestamp ?: System.currentTimeMillis()
                 )
             }
         }

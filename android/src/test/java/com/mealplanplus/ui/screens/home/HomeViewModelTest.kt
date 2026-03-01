@@ -17,6 +17,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
+
 import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -53,7 +54,7 @@ class HomeViewModelTest {
         context = mockk(relaxed = true)
 
         // Stub shared flows to return empty by default
-        every { dailyLogRepo.getLogWithMeals(any()) } returns flowOf(null)
+        every { dailyLogRepo.getLogWithFoods(any()) } returns flowOf(null)
         every { healthRepo.getMetricsForDate(any()) } returns flowOf(emptyList())
         every { healthRepo.getMetricsByTypeInRange(any(), any(), any()) } returns flowOf(emptyList())
         every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(emptyList())
@@ -308,14 +309,15 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_dietAssignedWithSlots_slotsReturned() = runTest {
-        val fakePlan = Plan(
+        val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
             date = LocalDate.now().toString(),
             dietId = 42L,
             isCompleted = false,
-            notes = null
+            notes = null,
+            dietName = "Test Diet"
         )
-        coEvery { planRepo.getPlanForDate(any()) } returns fakePlan
+        every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(listOf(fakePlanWithDietName))
 
         val fakeDietWithMeals = mockk<DietWithMeals>(relaxed = true)
         val breakfastMeal = mockk<MealWithFoods>(relaxed = true)
@@ -335,29 +337,32 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_loggedSlot_isLoggedTrue() = runTest {
-        val fakePlan = Plan(
+        val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
             date = LocalDate.now().toString(),
             dietId = 99L,
             isCompleted = false,
-            notes = null
+            notes = null,
+            dietName = "Test Diet"
         )
-        coEvery { planRepo.getPlanForDate(any()) } returns fakePlan
+        every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(listOf(fakePlanWithDietName))
 
         val fakeDietWithMeals = mockk<DietWithMeals>(relaxed = true)
         every { fakeDietWithMeals.meals } returns mapOf("BREAKFAST" to null)
         coEvery { dietRepo.getDietWithMeals(99L) } returns fakeDietWithMeals
 
         // Simulate breakfast being logged
-        val loggedMealWithDetails = mockk<com.mealplanplus.data.model.LoggedMealWithDetails>(relaxed = true)
-        every { loggedMealWithDetails.loggedMeal.slotType } returns "BREAKFAST"
-        val logWithMeals = mockk<com.mealplanplus.data.model.DailyLogWithMeals>(relaxed = true)
-        every { logWithMeals.meals } returns listOf(loggedMealWithDetails)
-        every { logWithMeals.totalCalories } returns 400.0
-        every { logWithMeals.totalProtein } returns 20.0
-        every { logWithMeals.totalCarbs } returns 50.0
-        every { logWithMeals.totalFat } returns 10.0
-        every { dailyLogRepo.getLogWithMeals(any()) } returns flowOf(logWithMeals)
+        val loggedFoodWithDetails = mockk<com.mealplanplus.data.model.LoggedFoodWithDetails>(relaxed = true)
+        every { loggedFoodWithDetails.loggedFood.slotType } returns "BREAKFAST"
+        val logWithFoods = mockk<com.mealplanplus.data.model.DailyLogWithFoods>(relaxed = true)
+        every { logWithFoods.foods } returns listOf(loggedFoodWithDetails)
+        every { logWithFoods.foodsForSlot(any()) } returns emptyList()
+        every { logWithFoods.foodsForSlot("BREAKFAST") } returns listOf(loggedFoodWithDetails)
+        every { logWithFoods.totalCalories } returns 400.0
+        every { logWithFoods.totalProtein } returns 20.0
+        every { logWithFoods.totalCarbs } returns 50.0
+        every { logWithFoods.totalFat } returns 10.0
+        every { dailyLogRepo.getLogWithFoods(any()) } returns flowOf(logWithFoods)
 
         val vm = buildViewModel()
         val breakfast = vm.uiState.value.todayPlanSlots.find { it.slotType == "BREAKFAST" }
@@ -366,14 +371,15 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_unloggedSlot_isLoggedFalse() = runTest {
-        val fakePlan = Plan(
+        val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
             date = LocalDate.now().toString(),
             dietId = 88L,
             isCompleted = false,
-            notes = null
+            notes = null,
+            dietName = "Test Diet"
         )
-        coEvery { planRepo.getPlanForDate(any()) } returns fakePlan
+        every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(listOf(fakePlanWithDietName))
 
         val fakeDietWithMeals = mockk<DietWithMeals>(relaxed = true)
         every { fakeDietWithMeals.meals } returns mapOf("DINNER" to null)
@@ -386,8 +392,8 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_sortedBySlotOrder() = runTest {
-        val fakePlan = Plan(userId = 1L, date = LocalDate.now().toString(), dietId = 77L, isCompleted = false, notes = null)
-        coEvery { planRepo.getPlanForDate(any()) } returns fakePlan
+        val fakePlanWithDietName = PlanWithDietName(userId = 1L, date = LocalDate.now().toString(), dietId = 77L, isCompleted = false, notes = null, dietName = "Test Diet")
+        every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(listOf(fakePlanWithDietName))
 
         val fakeDietWithMeals = mockk<DietWithMeals>(relaxed = true)
         // DINNER (order 9) before BREAKFAST (order 1) — should be re-sorted

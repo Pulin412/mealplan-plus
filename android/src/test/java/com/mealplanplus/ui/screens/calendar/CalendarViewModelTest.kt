@@ -117,13 +117,13 @@ class CalendarViewModelTest {
 
     @Test
     fun `toggleView changes isWeekView flag`() = runTest {
-        assertFalse(viewModel.uiState.value.isWeekView)
-
-        viewModel.toggleView()
         assertTrue(viewModel.uiState.value.isWeekView)
 
         viewModel.toggleView()
         assertFalse(viewModel.uiState.value.isWeekView)
+
+        viewModel.toggleView()
+        assertTrue(viewModel.uiState.value.isWeekView)
     }
 
     @Test
