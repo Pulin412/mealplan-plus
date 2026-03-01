@@ -64,6 +64,8 @@ import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.grocery.GroceryListsScreen
 import com.mealplanplus.ui.screens.grocery.CreateGroceryListScreen
 import com.mealplanplus.ui.screens.grocery.GroceryDetailScreen
+import android.app.Activity
+import android.content.Intent
 import com.mealplanplus.util.AuthPreferences
 
 private val PrimaryGreen = Color(0xFF2E7D52)
@@ -163,16 +165,18 @@ fun MealPlanNavHost() {
         return
     }
 
-    // Freeze startDestination — NavHost only uses this on first composition.
-    // Changing it on recompose causes conflicts; use LaunchedEffect below instead.
     val startDestination = remember { if (isLoggedIn == true) Screen.Home.route else Screen.Login.route }
 
-    // Reactively navigate to login after sign-out (DataStore emits false asynchronously)
+    // On logout: restart the activity cleanly so NavHost, ViewModels, and back
+    // stack all reset to a fresh state. Avoids Compose Navigation back-stack bugs.
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn == false && navController.currentDestination?.route != Screen.Login.route) {
-            navController.navigate(Screen.Login.route) {
-                popUpTo(navController.graph.id) { inclusive = true }
+        if (isLoggedIn == false && startDestination == Screen.Home.route) {
+            val activity = context as? Activity ?: return@LaunchedEffect
+            val intent = Intent(activity, activity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             }
+            activity.startActivity(intent)
+            activity.finish()
         }
     }
 
