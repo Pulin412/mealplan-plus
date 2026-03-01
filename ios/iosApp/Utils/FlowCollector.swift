@@ -123,6 +123,10 @@ class DietsViewModel: ObservableObject {
     @Published var diets: [DietSummary] = []
     @Published var isLoading = false
     @Published var error: String?
+    /// Tags per diet, keyed by dietId — populated after loadDiets
+    @Published var dietTagsMap: [Int64: [Tag]] = [:]
+    /// Food names per diet, keyed by dietId — populated after loadDiets
+    @Published var dietFoodNamesMap: [Int64: [String]] = [:]
 
     private let repository = RepositoryProvider.shared.dietRepository
 
@@ -135,11 +139,35 @@ class DietsViewModel: ObservableObject {
                 let result = try await repository.getDietSummariesSnapshot(userId: userId)
                 self.diets = result
                 self.isLoading = false
+                // Load tags + food names for each diet (for filtering)
+                await loadDietDetailsAsync(diets: result)
             } catch {
                 self.error = error.localizedDescription
                 self.isLoading = false
             }
         }
+    }
+
+    private func loadDietDetailsAsync(diets: [DietSummary]) async {
+        var tagsMap: [Int64: [Tag]] = [:]
+        var foodNamesMap: [Int64: [String]] = [:]
+        for diet in diets {
+            tagsMap[diet.id] = (try? await repository.getTagsForDietSnapshot(dietId: diet.id)) ?? []
+            if let dwm = try? await repository.getDietWithMeals(dietId: diet.id) {
+                var names: [String] = []
+                if let nd = dwm.meals as? NSDictionary {
+                    for (_, v) in nd {
+                        if let mwf = v as? MealWithFoods {
+                            let items = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+                            names.append(contentsOf: items.map { $0.food.name })
+                        }
+                    }
+                }
+                foodNamesMap[diet.id] = names
+            }
+        }
+        self.dietTagsMap = tagsMap
+        self.dietFoodNamesMap = foodNamesMap
     }
 
     func getDietWithMeals(dietId: Int64) async throws -> DietWithMeals? {
@@ -311,6 +339,27 @@ class DailyLogViewModel: ObservableObject {
             if !currentDate.isEmpty {
                 loadLog(userId: userId, date: currentDate)
             }
+        }
+    }
+
+    /// Log multiple foods in one batch then reload once.
+    func batchLogFoods(userId: Int64, date: String, items: [(foodId: Int64, qty: Double, slotType: String)]) {
+        Task {
+            for item in items {
+                let lf = LoggedFood(id: 0, userId: userId, logDate: date, foodId: item.foodId,
+                                    quantity: item.qty, unit: FoodUnit.gram,
+                                    slotType: item.slotType, timestamp: nil, notes: nil)
+                _ = try? await repository.insertLoggedFood(loggedFood: lf)
+            }
+            loadLog(userId: userId, date: date)
+        }
+    }
+
+    /// Remove multiple logged foods by id then reload once.
+    func batchRemoveLoggedFoods(userId: Int64, ids: [Int64]) {
+        Task {
+            for id in ids { try? await repository.deleteLoggedFood(id: id) }
+            if !currentDate.isEmpty { loadLog(userId: userId, date: currentDate) }
         }
     }
 

@@ -12,7 +12,8 @@ struct DietsScreen: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var vm = DietsViewModel()
     @State private var searchText = ""
-    @State private var allTags: [Tag] = []
+    @State private var foodFilter = ""
+    @State private var showFoodFilter = false
     @State private var selectedTagId: Int64? = nil
     @State private var expandedDietId: Int64? = nil
     @State private var showAddDiet = false
@@ -20,56 +21,156 @@ struct DietsScreen: View {
     @State private var deleteDietId: Int64? = nil
     @State private var showDeleteAlert = false
 
-    private var filtered: [DietSummary] {
-        if searchText.isEmpty { return vm.diets }
-        return vm.diets.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
+    /// Set to receive a DietSummary when in picker mode (diet selection flow).
+    var onSelect: ((DietSummary) -> Void)? = nil
+    private var isPickerMode: Bool { onSelect != nil }
 
     private var userId: Int64 { Int64(appState.currentUserId ?? 1) }
+
+    // All unique tags derived from loaded dietTagsMap
+    private var allUniqueTags: [Tag] {
+        var seen = Set<Int64>()
+        var tags: [Tag] = []
+        for dietTags in vm.dietTagsMap.values {
+            for tag in dietTags {
+                if !seen.contains(tag.id) { seen.insert(tag.id); tags.append(tag) }
+            }
+        }
+        return tags.sorted { $0.name < $1.name }
+    }
+
+    // Count of diets per tag
+    private var tagCounts: [Int64: Int] {
+        var counts: [Int64: Int] = [:]
+        for (_, tags) in vm.dietTagsMap {
+            for tag in tags { counts[tag.id, default: 0] += 1 }
+        }
+        return counts
+    }
+
+    private var filtered: [DietSummary] {
+        var result = vm.diets
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        if let tagId = selectedTagId {
+            result = result.filter { vm.dietTagsMap[$0.id]?.contains { $0.id == tagId } ?? false }
+        }
+        if !foodFilter.isEmpty {
+            result = result.filter { diet in
+                vm.dietFoodNamesMap[diet.id]?.contains { $0.localizedCaseInsensitiveContains(foodFilter) } ?? false
+            }
+        }
+        return result
+    }
+
+    private var hasActiveFilter: Bool { selectedTagId != nil || !foodFilter.isEmpty }
+    private let green = Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0)
 
     var body: some View {
         ZStack {
             Color(red: 0xF0/255.0, green: 0xF9/255.0, blue: 0xF4/255.0).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Search bar
+                // Search bar + filter toggle
                 HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-                    TextField("Search diets…", text: $searchText)
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                        TextField("Search diets…", text: $searchText)
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                            }
                         }
                     }
+                    .padding(10)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .shadow(color: .black.opacity(0.05), radius: 3)
+
+                    Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showFoodFilter.toggle() } }) {
+                        Image(systemName: showFoodFilter || !foodFilter.isEmpty
+                              ? "line.3.horizontal.decrease.circle.fill"
+                              : "line.3.horizontal.decrease.circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(green)
+                    }
                 }
-                .padding(10)
-                .background(Color.white)
-                .cornerRadius(10)
-                .shadow(color: .black.opacity(0.05), radius: 3)
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
-                // Tag filter chips
-                if !allTags.isEmpty {
+                // Ingredient filter (collapsible)
+                if showFoodFilter {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "leaf").foregroundColor(.secondary)
+                            TextField("Filter by ingredient…", text: $foodFilter)
+                            if !foodFilter.isEmpty {
+                                Button(action: { foodFilter = "" }) {
+                                    Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding(10)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .shadow(color: .black.opacity(0.05), radius: 3)
+                        .padding(.horizontal, 16)
+
+                        if !foodFilter.isEmpty {
+                            HStack {
+                                Text("Diets containing '\(foodFilter)'")
+                                    .font(.caption).foregroundColor(.secondary)
+                                Spacer()
+                                Button("Clear") { foodFilter = "" }
+                                    .font(.caption).foregroundColor(.red)
+                            }
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                // Tag filter chips (only shown once tags are loaded)
+                if !allUniqueTags.isEmpty {
+                    let tc = tagCounts
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             TagFilterChip(label: "All \(vm.diets.count)", isSelected: selectedTagId == nil) {
                                 selectedTagId = nil
                             }
-                            ForEach(allTags, id: \.id) { tag in
-                                TagFilterChip(
-                                    label: tag.name,
-                                    isSelected: selectedTagId == tag.id,
-                                    color: Color(hex: tag.color ?? "#2E7D52")
-                                ) {
-                                    selectedTagId = selectedTagId == tag.id ? nil : tag.id
+                            ForEach(allUniqueTags, id: \.id) { tag in
+                                let count = tc[tag.id] ?? 0
+                                if count > 0 {
+                                    TagFilterChip(
+                                        label: "\(tag.name) (\(count))",
+                                        isSelected: selectedTagId == tag.id,
+                                        color: Color(hex: tag.color ?? "#2E7D52")
+                                    ) {
+                                        selectedTagId = selectedTagId == tag.id ? nil : tag.id
+                                    }
                                 }
                             }
                         }
                         .padding(.horizontal, 16)
                     }
                     .padding(.bottom, 8)
+                }
+
+                // Clear all filters button
+                if hasActiveFilter {
+                    HStack {
+                        Spacer()
+                        Button(action: { selectedTagId = nil; foodFilter = "" }) {
+                            Label("Clear all filters", systemImage: "xmark.circle")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                        .padding(.trailing, 16)
+                    }
+                    .padding(.bottom, 6)
                 }
 
                 if vm.isLoading {
@@ -79,9 +180,11 @@ struct DietsScreen: View {
                         Spacer()
                         Image(systemName: "fork.knife")
                             .font(.system(size: 48)).foregroundColor(.secondary)
-                        Text(searchText.isEmpty ? "No diets yet" : "No diets match '\(searchText)'")
+                        Text(searchText.isEmpty && !hasActiveFilter
+                             ? "No diets yet"
+                             : "No diets match filters")
                             .font(.headline).foregroundColor(.secondary)
-                        if searchText.isEmpty {
+                        if searchText.isEmpty && !hasActiveFilter {
                             Text("Tap + to create your first diet plan")
                                 .font(.subheadline).foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -94,10 +197,13 @@ struct DietsScreen: View {
                             ForEach(filtered, id: \.id) { summary in
                                 ExpandableDietCard(
                                     summary: summary,
+                                    tags: vm.dietTagsMap[summary.id] ?? [],
                                     isExpanded: expandedDietId == summary.id,
+                                    isPickerMode: isPickerMode,
                                     onToggleExpand: {
                                         expandedDietId = expandedDietId == summary.id ? nil : summary.id
                                     },
+                                    onSelect: { onSelect?(summary) },
                                     viewLink: DietIDWrapper(id: summary.id),
                                     onEdit: { editDietForId = DietIDWrapper(id: summary.id) },
                                     onDuplicate: { duplicateDiet(summary) },
@@ -114,15 +220,17 @@ struct DietsScreen: View {
                 }
             }
         }
-        .navigationTitle("My Diets")
+        .navigationTitle(isPickerMode ? "Select a Diet" : "My Diets")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showAddDiet = true }) {
-                    Image(systemName: "plus")
+            if !isPickerMode {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showAddDiet = true }) {
+                        Image(systemName: "plus")
+                    }
                 }
             }
         }
@@ -148,10 +256,7 @@ struct DietsScreen: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: { Text("This diet plan will be permanently removed.") }
-        .onAppear {
-            vm.loadDiets(userId: userId)
-            Task { allTags = (try? await vm.getAllTags(userId: userId)) ?? [] }
-        }
+        .onAppear { vm.loadDiets(userId: userId) }
     }
 
     private func duplicateDiet(_ summary: DietSummary) {
@@ -178,8 +283,11 @@ struct DietsScreen: View {
 
 private struct ExpandableDietCard: View {
     let summary: DietSummary
+    let tags: [Tag]
     let isExpanded: Bool
+    var isPickerMode: Bool = false
     let onToggleExpand: () -> Void
+    let onSelect: () -> Void
     let viewLink: DietIDWrapper
     let onEdit: () -> Void
     let onDuplicate: () -> Void
@@ -189,7 +297,7 @@ private struct ExpandableDietCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Button(action: onToggleExpand) {
+            Button(action: isPickerMode ? onSelect : onToggleExpand) {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(summary.name)
@@ -209,16 +317,34 @@ private struct ExpandableDietCard: View {
                                 .font(.caption2).foregroundColor(.secondary)
                         }
                         .padding(.top, 2)
+                        // Tag chips
+                        if !tags.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 4) {
+                                    ForEach(tags.prefix(3), id: \.id) { tag in
+                                        Text(tag.name)
+                                            .font(.system(size: 10, weight: .medium))
+                                            .padding(.horizontal, 7)
+                                            .padding(.vertical, 3)
+                                            .background(Color(hex: tag.color ?? "#2E7D52").opacity(0.15))
+                                            .foregroundColor(Color(hex: tag.color ?? "#2E7D52"))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
                     }
                     Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    Image(systemName: isPickerMode ? "chevron.right"
+                          : (isExpanded ? "chevron.up" : "chevron.down"))
                         .foregroundColor(.secondary).font(.system(size: 12))
                 }
                 .padding(14)
             }
             .buttonStyle(.plain)
 
-            if isExpanded {
+            if isExpanded && !isPickerMode {
                 Divider()
                 HStack(spacing: 0) {
                     NavigationLink(value: viewLink) {

@@ -291,7 +291,6 @@ struct DailyLogScreen: View {
                             // Tick: log food. Untick: remove matching logged food.
                             let date = isoDate(from: selectedDate)
                             if loggedFoodIds.contains(item.food.id) {
-                                // Find and remove
                                 if let lf = foods.first(where: { $0.loggedFood.foodId == item.food.id }) {
                                     vm.removeLoggedFood(userId: userId, id: lf.loggedFood.id)
                                 }
@@ -300,6 +299,23 @@ struct DailyLogScreen: View {
                                            foodId: item.food.id,
                                            quantity: item.mealFoodItem.quantity,
                                            slotType: key)
+                            }
+                        },
+                        onToggleAllPlannedFoods: {
+                            let date = isoDate(from: selectedDate)
+                            let allTicked = plannedItems.allSatisfy { loggedFoodIds.contains($0.food.id) }
+                            if allTicked {
+                                // Unlog all planned foods
+                                let ids = plannedItems.compactMap { item in
+                                    foods.first { $0.loggedFood.foodId == item.food.id }?.loggedFood.id
+                                }
+                                vm.batchRemoveLoggedFoods(userId: userId, ids: ids)
+                            } else {
+                                // Log all unticked planned foods
+                                let toLog = plannedItems
+                                    .filter { !loggedFoodIds.contains($0.food.id) }
+                                    .map { (foodId: $0.food.id, qty: $0.mealFoodItem.quantity, slotType: key) }
+                                vm.batchLogFoods(userId: userId, date: date, items: toLog)
                             }
                         }
                     )
@@ -406,7 +422,11 @@ private struct SlotCard: View {
     let onAddFood: () -> Void
     let onDeleteFood: (Int64) -> Void
     var onTogglePlannedFood: ((MealFoodItemWithDetails) -> Void)? = nil
+    var onToggleAllPlannedFoods: (() -> Void)? = nil
 
+    private var allPlannedTicked: Bool {
+        !plannedItems.isEmpty && plannedItems.allSatisfy { loggedFoodIds.contains($0.food.id) }
+    }
     private var loggedKcal: Int {
         Int(foods.reduce(0.0) { $0 + $1.food.calculateCalories(quantity: $1.loggedFood.quantity, unit: $1.loggedFood.unit) })
     }
@@ -424,31 +444,44 @@ private struct SlotCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            Button(action: onToggle) {
-                HStack(spacing: 10) {
+            // Header — emoji/name on left, tick-all + chevron on right
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(slotColor(slotKey).opacity(0.15))
+                        .frame(width: 36, height: 36)
+                    Text(slotEmoji(slotKey)).font(.system(size: 16))
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(slotDisplayName(slotKey))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                // Slot-level tick-all (only when planned items exist)
+                if !plannedItems.isEmpty {
                     ZStack {
                         Circle()
-                            .fill(slotColor(slotKey).opacity(0.15))
-                            .frame(width: 36, height: 36)
-                        Text(slotEmoji(slotKey)).font(.system(size: 16))
+                            .fill(allPlannedTicked ? caloriesColor : Color.gray.opacity(0.15))
+                            .frame(width: 24, height: 24)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(allPlannedTicked ? .white : Color.gray.opacity(0.4))
                     }
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(slotDisplayName(slotKey))
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.primary)
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 13))
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+                    .highPriorityGesture(TapGesture().onEnded { onToggleAllPlannedFoods?() })
                 }
-                .padding(12)
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 13))
             }
-            .buttonStyle(.plain)
+            .padding(12)
+            .contentShape(Rectangle())
+            .onTapGesture { onToggle() }
 
             if isExpanded {
                 Divider().padding(.horizontal, 0)

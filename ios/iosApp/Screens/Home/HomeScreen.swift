@@ -731,78 +731,31 @@ private struct TodayPlanSlotRow: View {
 }
 
 // MARK: - Home Diet Picker Sheet
+// Now wraps the full DietsScreen in picker mode so users can search, filter by tag/ingredient, and select.
 
 struct HomeDietPickerSheet: View {
     @EnvironmentObject var appState: AppState
-    @StateObject private var dietsVM = DietsViewModel()
-    @State private var searchText = ""
     let onSelect: (Diet) -> Void
-
-    private var filtered: [DietSummary] {
-        searchText.isEmpty ? dietsVM.diets :
-        dietsVM.diets.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Search bar
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-                    TextField("Search diets…", text: $searchText)
-                }
-                .padding(10)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-
-                if dietsVM.isLoading {
-                    ProgressView().padding(.top, 40)
-                } else if filtered.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "fork.knife").font(.system(size: 32)).foregroundColor(.secondary)
-                        Text("No diets found").foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List(filtered, id: \.id) { summary in
-                        Button {
-                            let now = Int64(Date().timeIntervalSince1970 * 1000)
-                            let diet = Diet(
-                                id: summary.id,
-                                userId: summary.userId,
-                                name: summary.name,
-                                description: summary.description_,
-                                createdAt: now,
-                                isSystemDiet: false,
-                                serverId: nil,
-                                updatedAt: now,
-                                syncedAt: nil
-                            )
-                            onSelect(diet)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(summary.name).font(.system(size: 15, weight: .semibold))
-                                if let desc = summary.description_, !desc.isEmpty {
-                                    Text(desc).font(.caption).foregroundColor(.secondary).lineLimit(1)
-                                }
-                                HStack(spacing: 12) {
-                                    Text("🔥 \(Int(summary.totalCalories)) kcal").font(.caption2)
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .listStyle(.plain)
-                }
-            }
-            .navigationTitle("Select a Diet")
-            .navigationBarTitleDisplayMode(.inline)
+            DietsScreen(onSelect: { summary in
+                let now = Int64(Date().timeIntervalSince1970 * 1000)
+                let diet = Diet(
+                    id: summary.id,
+                    userId: summary.userId,
+                    name: summary.name,
+                    description: summary.description_,
+                    createdAt: now,
+                    isSystemDiet: false,
+                    serverId: nil,
+                    updatedAt: now,
+                    syncedAt: nil
+                )
+                onSelect(diet)
+            })
         }
-        .onAppear {
-            if let userId = appState.currentUserId { dietsVM.loadDiets(userId: userId) }
-        }
+        .environmentObject(appState)
     }
 }
 
