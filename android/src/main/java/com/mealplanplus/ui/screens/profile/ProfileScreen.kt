@@ -26,6 +26,7 @@ import com.mealplanplus.data.model.GoalType
 fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onLogout: () -> Unit,
+    onSaveSuccess: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -33,8 +34,8 @@ fun ProfileScreen(
 
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
-            snackbarHostState.showSnackbar("Profile saved!")
             viewModel.clearSaveSuccess()
+            onSaveSuccess()
         }
     }
     LaunchedEffect(uiState.clearSuccess) {

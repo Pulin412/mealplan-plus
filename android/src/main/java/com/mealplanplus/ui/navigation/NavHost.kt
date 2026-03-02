@@ -225,7 +225,8 @@ fun MealPlanNavHost() {
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onLogout = { /* LaunchedEffect(isLoggedIn) handles nav after clearAuth emits */ }
+                    onLogout = { /* LaunchedEffect(isLoggedIn) handles nav after clearAuth emits */ },
+                    onSaveSuccess = { navController.popBackStack() }
                 )
             }
             composable(Screen.Home.route) { backStackEntry ->
