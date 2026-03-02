@@ -740,6 +740,7 @@ private struct ProfileField: View {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 struct ProfileScreen: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var appState: AppState
     @StateObject private var vm = ProfileViewModel()
 
@@ -821,16 +822,21 @@ struct ProfileScreen: View {
         .toolbarBackground(profileGreen, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .foregroundColor(.white)
+                }
+            }
+        }
         .onAppear { vm.load(userId: userId) }
         .onChange(of: vm.isLoading) { loading in if !loading { populateFields(from: vm.user) } }
-        .onChange(of: vm.saveSuccess) { if $0 { showSaveSuccessAlert = true; vm.saveSuccess = false } }
+        .onChange(of: vm.saveSuccess) { if $0 { vm.saveSuccess = false; dismiss() } }
         .onChange(of: vm.clearSuccess) { if $0 { vm.clearSuccess = false } }
         .alert("Save Failed", isPresented: Binding(get: { vm.error != nil }, set: { if !$0 { vm.error = nil } })) {
             Button("OK", role: .cancel) { vm.error = nil }
         } message: { Text(vm.error ?? "") }
-        .alert("Saved!", isPresented: $showSaveSuccessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: { Text("Profile saved successfully.") }
         .alert("Clear All Data?", isPresented: $showClearDataAlert) {
             Button("Clear All", role: .destructive) {
                 Task { await vm.clearAllData(userId: userId) }
