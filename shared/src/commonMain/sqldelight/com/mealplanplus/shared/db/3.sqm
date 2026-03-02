@@ -1,0 +1,33 @@
+-- Migration v3 → v4
+-- Fix users table column ordering: migration 1.sqm used ALTER TABLE ADD COLUMN
+-- which appended weightKg/heightCm/etc at the end. SQLDelight SELECT * mapper
+-- reads by position based on CREATE TABLE order, so columns were misread.
+-- Recreate users table with correct column order.
+
+CREATE TABLE users_fixed (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    passwordHash TEXT NOT NULL DEFAULT '',
+    displayName TEXT,
+    photoUrl TEXT,
+    age INTEGER,
+    contact TEXT,
+    weightKg REAL,
+    heightCm REAL,
+    gender TEXT,
+    activityLevel TEXT,
+    targetCalories INTEGER,
+    goalType TEXT,
+    createdAt INTEGER,
+    updatedAt INTEGER
+);
+
+INSERT INTO users_fixed
+SELECT id, email, passwordHash, displayName, photoUrl, age, contact,
+       weightKg, heightCm, gender, activityLevel, targetCalories, goalType,
+       createdAt, updatedAt
+FROM users;
+
+DROP TABLE users;
+ALTER TABLE users_fixed RENAME TO users;
+CREATE INDEX users_email ON users(email);
