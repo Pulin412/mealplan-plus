@@ -624,12 +624,15 @@ class ProfileViewModel: ObservableObject {
 
     func save(_ user: User) async {
         isSaving = true
+        print("ProfileVM.save: id=\(user.id) email=\(user.email) weight=\(String(describing: user.weightKg)) height=\(String(describing: user.heightCm)) calories=\(String(describing: user.targetCalories))")
         do {
             try await repo.updateUser(user: user)
             self.user = user
             saveSuccess = true
+            print("ProfileVM.save: SUCCESS")
         } catch {
             self.error = error.localizedDescription
+            print("ProfileVM.save: ERROR \(error)")
         }
         isSaving = false
     }
@@ -822,6 +825,9 @@ struct ProfileScreen: View {
         .onChange(of: vm.isLoading) { loading in if !loading { populateFields(from: vm.user) } }
         .onChange(of: vm.saveSuccess) { if $0 { showSaveSuccessAlert = true; vm.saveSuccess = false } }
         .onChange(of: vm.clearSuccess) { if $0 { vm.clearSuccess = false } }
+        .alert("Save Failed", isPresented: Binding(get: { vm.error != nil }, set: { if !$0 { vm.error = nil } })) {
+            Button("OK", role: .cancel) { vm.error = nil }
+        } message: { Text(vm.error ?? "") }
         .alert("Saved!", isPresented: $showSaveSuccessAlert) {
             Button("OK", role: .cancel) {}
         } message: { Text("Profile saved successfully.") }
@@ -1035,7 +1041,8 @@ struct ProfileScreen: View {
     }
 
     private func saveProfile() {
-        guard let user = vm.user else { return }
+        guard let user = vm.user else { print("saveProfile: vm.user is nil!"); return }
+        print("saveProfile: userId=\(user.id) weightStr='\(weightStr)' heightStr='\(heightStr)' targetCalories='\(targetCaloriesStr)'")
         let updated = User(
             id: user.id,
             email: user.email,
