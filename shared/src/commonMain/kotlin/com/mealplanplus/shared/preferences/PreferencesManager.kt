@@ -23,6 +23,10 @@ interface PreferencesManager {
     // Sync preferences
     suspend fun getLastSyncTime(): Long
     suspend fun setLastSyncTime(timestamp: Long)
+
+    // OAuth provider mapping: Firebase UID → local userId
+    suspend fun setProviderMapping(provider: String, subject: String, userId: Long)
+    suspend fun getProviderMapping(provider: String, subject: String): Long?
 }
 
 /**

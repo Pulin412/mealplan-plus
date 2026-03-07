@@ -1,5 +1,6 @@
 package com.mealplanplus.shared.preferences
 
+import com.mealplanplus.shared.model.sha256
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -98,6 +99,22 @@ class IosPreferencesManager : PreferencesManager {
 
     override suspend fun setLastSyncTime(timestamp: Long) {
         userDefaults.setInteger(timestamp, LAST_SYNC_TIME)
+    }
+
+    // OAuth provider mapping
+    override suspend fun setProviderMapping(provider: String, subject: String, userId: Long) {
+        userDefaults.setInteger(userId, providerMappingKey(provider, subject))
+    }
+
+    override suspend fun getProviderMapping(provider: String, subject: String): Long? {
+        val key = providerMappingKey(provider, subject)
+        val value = userDefaults.objectForKey(key) ?: return null
+        val id = userDefaults.integerForKey(key)
+        return if (id > 0L) id else null
+    }
+
+    private fun providerMappingKey(provider: String, subject: String): String {
+        return "oauth_${provider.lowercase()}_${sha256(subject)}"
     }
 }
 
