@@ -15,7 +15,6 @@
 		2A1234560010 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570010 /* AppNavigation.swift */; };
 		2A1234560011 /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570011 /* LoginScreen.swift */; };
 		2A1234560012 /* SignUpScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570012 /* SignUpScreen.swift */; };
-		2A123456009A /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A123457009A /* ForgotPasswordScreen.swift */; };
 		2A1234560013 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570013 /* HomeScreen.swift */; };
 		2A1234560014 /* FoodsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570014 /* FoodsScreen.swift */; };
 		2A1234560015 /* AddFoodScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570015 /* AddFoodScreen.swift */; };
@@ -36,16 +35,33 @@
 		2A1234560037 /* AddMetricScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570037 /* AddMetricScreen.swift */; };
 		2A1234560038 /* ChartsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570038 /* ChartsScreen.swift */; };
 		2A1234560039 /* DatabaseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570039 /* DatabaseSeeder.swift */; };
-		2A1234560043 /* SeedDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570043 /* SeedDataLoader.swift */; };
-		2A1234560044 /* AddDietScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570044 /* AddDietScreen.swift */; };
 		2A1234560040 /* DataImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570040 /* DataImporter.swift */; };
-		2A12345800T1 /* AuthValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T2 /* AuthValidationTests.swift */; };
 		2A1234560041 /* MealPlanScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570041 /* MealPlanScreen.swift */; };
 		2A1234560042 /* DietPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570042 /* DietPickerSheet.swift */; };
-		2A12345800T10 /* MealPlanViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T11 /* MealPlanViewModelTests.swift */; };
+		2A1234560043 /* SeedDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570043 /* SeedDataLoader.swift */; };
+		2A1234560044 /* AddDietScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570044 /* AddDietScreen.swift */; };
 		2A1234560050 /* FirebaseTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570050 /* FirebaseTokenProvider.swift */; };
 		2A1234560051 /* BackgroundSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570051 /* BackgroundSyncScheduler.swift */; };
+		2A1234560052 /* GoogleAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1234570052 /* GoogleAuthManager.swift */; };
+		2A123456009A /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A123457009A /* ForgotPasswordScreen.swift */; };
+		2A12345800T1 /* AuthValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T2 /* AuthValidationTests.swift */; };
+		2A12345800T10 /* MealPlanViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A12345800T11 /* MealPlanViewModelTests.swift */; };
+		3D31C7C92F5C735E00AA39BB /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 3D31C7C82F5C735E00AA39BB /* FirebaseAuth */; };
+		3D31C7CB2F5C735E00AA39BB /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3D31C7CA2F5C735E00AA39BB /* FirebaseCore */; };
+		3D31C7CE2F5C73A200AA39BB /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3D31C7CD2F5C73A200AA39BB /* GoogleSignIn */; };
+		3D31C7D02F5C73A200AA39BB /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 3D31C7CF2F5C73A200AA39BB /* GoogleSignInSwift */; };
+		3DBA4DC92F559B56009F3E3F /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3DBA4DC82F559B56009F3E3F /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2A12345800TB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2A12345F0001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2A12345B0001;
+			remoteInfo = iosApp;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		2A1234580001 /* Embed Frameworks */ = {
@@ -71,7 +87,6 @@
 		2A1234570010 /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
 		2A1234570011 /* LoginScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginScreen.swift; sourceTree = "<group>"; };
 		2A1234570012 /* SignUpScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpScreen.swift; sourceTree = "<group>"; };
-		2A123457009A /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
 		2A1234570013 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		2A1234570014 /* FoodsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodsScreen.swift; sourceTree = "<group>"; };
 		2A1234570015 /* AddFoodScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFoodScreen.swift; sourceTree = "<group>"; };
@@ -92,16 +107,19 @@
 		2A1234570037 /* AddMetricScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMetricScreen.swift; sourceTree = "<group>"; };
 		2A1234570038 /* ChartsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsScreen.swift; sourceTree = "<group>"; };
 		2A1234570039 /* DatabaseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseSeeder.swift; sourceTree = "<group>"; };
-		2A1234570043 /* SeedDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedDataLoader.swift; sourceTree = "<group>"; };
-		2A1234570044 /* AddDietScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDietScreen.swift; sourceTree = "<group>"; };
 		2A1234570040 /* DataImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataImporter.swift; sourceTree = "<group>"; };
-		2A12345800T2 /* AuthValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthValidationTests.swift; sourceTree = "<group>"; };
 		2A1234570041 /* MealPlanScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanScreen.swift; sourceTree = "<group>"; };
 		2A1234570042 /* DietPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietPickerSheet.swift; sourceTree = "<group>"; };
-		2A12345800T11 /* MealPlanViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanViewModelTests.swift; sourceTree = "<group>"; };
+		2A1234570043 /* SeedDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedDataLoader.swift; sourceTree = "<group>"; };
+		2A1234570044 /* AddDietScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDietScreen.swift; sourceTree = "<group>"; };
 		2A1234570050 /* FirebaseTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseTokenProvider.swift; sourceTree = "<group>"; };
 		2A1234570051 /* BackgroundSyncScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncScheduler.swift; sourceTree = "<group>"; };
+		2A1234570052 /* GoogleAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthManager.swift; sourceTree = "<group>"; };
+		2A123457009A /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
+		2A12345800T11 /* MealPlanViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanViewModelTests.swift; sourceTree = "<group>"; };
+		2A12345800T2 /* AuthValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthValidationTests.swift; sourceTree = "<group>"; };
 		2A12345800T3 /* iosAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iosAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3DBA4DC82F559B56009F3E3F /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,7 +127,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3D31C7CE2F5C73A200AA39BB /* GoogleSignIn in Frameworks */,
 				2A1234560003 /* shared.framework in Frameworks */,
+				3D31C7C92F5C735E00AA39BB /* FirebaseAuth in Frameworks */,
+				3D31C7D02F5C73A200AA39BB /* GoogleSignInSwift in Frameworks */,
+				3D31C7CB2F5C735E00AA39BB /* FirebaseCore in Frameworks */,
 				2A1234560005 /* libsqlite3.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -117,6 +139,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2A12345800T4 /* iosAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				2A12345800T2 /* AuthValidationTests.swift */,
+				2A12345800T11 /* MealPlanViewModelTests.swift */,
+			);
+			path = iosAppTests;
+			sourceTree = "<group>";
+		};
 		2A12345A0001 = {
 			isa = PBXGroup;
 			children = (
@@ -127,18 +158,10 @@
 			);
 			sourceTree = "<group>";
 		};
-		2A12345800T4 /* iosAppTests */ = {
-			isa = PBXGroup;
-			children = (
-				2A12345800T2 /* AuthValidationTests.swift */,
-				2A12345800T11 /* MealPlanViewModelTests.swift */,
-			);
-			path = iosAppTests;
-			sourceTree = "<group>";
-		};
 		2A12345A0002 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+				3DBA4DC82F559B56009F3E3F /* GoogleService-Info.plist */,
 				2A1234570001 /* MealPlanPlusApp.swift */,
 				2A1234570002 /* ContentView.swift */,
 				2A1234570004 /* Info.plist */,
@@ -193,15 +216,6 @@
 				2A12345A0025 /* Calendar */,
 			);
 			path = Screens;
-			sourceTree = "<group>";
-		};
-		2A12345A0025 /* Calendar */ = {
-			isa = PBXGroup;
-			children = (
-				2A1234570041 /* MealPlanScreen.swift */,
-				2A1234570042 /* DietPickerSheet.swift */,
-			);
-			path = Calendar;
 			sourceTree = "<group>";
 		};
 		2A12345A0012 /* Auth */ = {
@@ -285,6 +299,7 @@
 				2A1234570040 /* DataImporter.swift */,
 				2A1234570050 /* FirebaseTokenProvider.swift */,
 				2A1234570051 /* BackgroundSyncScheduler.swift */,
+				2A1234570052 /* GoogleAuthManager.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -323,27 +338,34 @@
 			path = Charts;
 			sourceTree = "<group>";
 		};
+		2A12345A0025 /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				2A1234570041 /* MealPlanScreen.swift */,
+				2A1234570042 /* DietPickerSheet.swift */,
+			);
+			path = Calendar;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
-/* Begin PBXContainerItemProxy section */
-		2A12345800TB /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 2A12345F0001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 2A12345B0001;
-			remoteInfo = iosApp;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXTargetDependency section */
-		2A12345800TA /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 2A12345B0001 /* iosApp */;
-			targetProxy = 2A12345800TB /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin PBXNativeTarget section */
+		2A12345800T5 /* iosAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2A12345800T9 /* Build configuration list for PBXNativeTarget "iosAppTests" */;
+			buildPhases = (
+				2A12345800T6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2A12345800TA /* PBXTargetDependency */,
+			);
+			name = iosAppTests;
+			productName = iosAppTests;
+			productReference = 2A12345800T3 /* iosAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		2A12345B0001 /* iosApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2A12345C0001 /* Build configuration list for PBXNativeTarget "iosApp" */;
@@ -363,22 +385,6 @@
 			productReference = 2A1234570005 /* iosApp.app */;
 			productType = "com.apple.product-type.application";
 		};
-		2A12345800T5 /* iosAppTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 2A12345800T9 /* Build configuration list for PBXNativeTarget "iosAppTests" */;
-			buildPhases = (
-				2A12345800T6 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				2A12345800TA /* PBXTargetDependency */,
-			);
-			name = iosAppTests;
-			productName = iosAppTests;
-			productReference = 2A12345800T3 /* iosAppTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -389,12 +395,12 @@
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
-					2A12345B0001 = {
-						CreatedOnToolsVersion = 15.0;
-					};
 					2A12345800T5 = {
 						CreatedOnToolsVersion = 15.0;
 						TestTargetID = 2A12345B0001;
+					};
+					2A12345B0001 = {
+						CreatedOnToolsVersion = 15.0;
 					};
 				};
 			};
@@ -407,6 +413,10 @@
 				Base,
 			);
 			mainGroup = 2A12345A0001;
+			packageReferences = (
+				3D31C7C72F5C735E00AA39BB /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				3D31C7CC2F5C73A200AA39BB /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			productRefGroup = 2A12345A0003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -416,6 +426,19 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2A12345E0002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A1234560031 /* ingredients.json in Resources */,
+				2A1234560032 /* seed_data.json in Resources */,
+				3DBA4DC92F559B56009F3E3F /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		2A12345D0001 /* Build Kotlin Framework */ = {
@@ -439,6 +462,15 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2A12345800T6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A12345800T1 /* AuthValidationTests.swift in Sources */,
+				2A12345800T10 /* MealPlanViewModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2A12345E0001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -474,33 +506,79 @@
 				2A1234560042 /* DietPickerSheet.swift in Sources */,
 				2A1234560050 /* FirebaseTokenProvider.swift in Sources */,
 				2A1234560051 /* BackgroundSyncScheduler.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		2A12345800T6 /* Sources (Tests) */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				2A12345800T1 /* AuthValidationTests.swift in Sources */,
-				2A12345800T10 /* MealPlanViewModelTests.swift in Sources */,
+				2A1234560052 /* GoogleAuthManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXResourcesBuildPhase section */
-		2A12345E0002 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				2A1234560031 /* ingredients.json in Resources */,
-				2A1234560032 /* seed_data.json in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
+/* Begin PBXTargetDependency section */
+		2A12345800TA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2A12345B0001 /* iosApp */;
+			targetProxy = 2A12345800TB /* PBXContainerItemProxy */;
 		};
-/* End PBXResourcesBuildPhase section */
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2A12345800T7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mealplanplus.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2A12345800T8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mealplanplus.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		2A1234610001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -690,67 +768,18 @@
 			};
 			name = Release;
 		};
-		2A12345800T7 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
-				);
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-framework",
-					shared,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.mealplanplus.ios.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		2A12345800T8 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
-				);
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-framework",
-					shared,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.mealplanplus.ios.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2A12345800T9 /* Build configuration list for PBXNativeTarget "iosAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2A12345800T7 /* Debug */,
+				2A12345800T8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		2A12345C0001 /* Build configuration list for PBXNativeTarget "iosApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -769,16 +798,49 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2A12345800T9 /* Build configuration list for PBXNativeTarget "iosAppTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				2A12345800T7 /* Debug */,
-				2A12345800T8 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3D31C7C72F5C735E00AA39BB /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+		3D31C7CC2F5C73A200AA39BB /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3D31C7C82F5C735E00AA39BB /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3D31C7C72F5C735E00AA39BB /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		3D31C7CA2F5C735E00AA39BB /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3D31C7C72F5C735E00AA39BB /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		3D31C7CD2F5C73A200AA39BB /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3D31C7CC2F5C73A200AA39BB /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		3D31C7CF2F5C73A200AA39BB /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3D31C7CC2F5C73A200AA39BB /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2A12345F0001 /* Project object */;
 }
