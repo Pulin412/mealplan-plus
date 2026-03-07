@@ -38,8 +38,7 @@
             <string>Editor</string>
             <key>CFBundleURLSchemes</key>
             <array>
-                <!-- Replace with REVERSED_CLIENT_ID from GoogleService-Info.plist -->
-                <string>REPLACE_WITH_REVERSED_CLIENT_ID</string>
+                <string>com.googleusercontent.apps.815506562788-3696eim2djlljtfrpegltdq2nak3bs2f</string>
             </array>
         </dict>
     </array>
