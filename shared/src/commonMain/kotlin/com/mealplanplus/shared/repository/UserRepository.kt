@@ -74,6 +74,33 @@ class UserRepository(private val database: MealPlanDatabase) {
         return queries.selectAll().executeAsList().map { it.toUser() }
     }
 
+    suspend fun findOrCreateOAuthUser(
+        email: String,
+        displayName: String?,
+        photoUrl: String?
+    ): Long {
+        val existing = getUserByEmail(email)
+        if (existing != null) return existing.id
+        val now = currentTimeMillis()
+        queries.insert(
+            email = email,
+            passwordHash = "",   // OAuth accounts have no local password
+            displayName = displayName,
+            photoUrl = photoUrl,
+            age = null,
+            contact = null,
+            weightKg = null,
+            heightCm = null,
+            gender = null,
+            activityLevel = null,
+            targetCalories = null,
+            goalType = null,
+            createdAt = now,
+            updatedAt = now
+        )
+        return queries.lastInsertRowId().executeAsOne()
+    }
+
     suspend fun verifyPassword(email: String, password: String): User? {
         val user = getUserByEmail(email) ?: return null
         val inputHash = sha256(password)

@@ -11,6 +11,8 @@ struct LoginScreen: View {
     @State private var showPassword = false
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @State private var isGoogleLoading = false
+    @State private var googleErrorMessage: String?
 
     var body: some View {
         ScrollView {
@@ -151,6 +153,43 @@ struct LoginScreen: View {
 
                 Spacer().frame(height: 20)
 
+                // Continue with Google
+                Button(action: signInWithGoogle) {
+                    HStack {
+                        if isGoogleLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                                .padding(.trailing, 4)
+                        } else {
+                            Image(systemName: "globe")
+                                .foregroundColor(.primary)
+                        }
+                        Text("Continue with Google")
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color(.systemGray3), lineWidth: 1.5)
+                    )
+                }
+                .disabled(isLoading || isGoogleLoading)
+                .padding(.horizontal, 24)
+
+                if let googleError = googleErrorMessage {
+                    Text(googleError)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 6)
+                }
+
+                Spacer().frame(height: 20)
+
                 // Sign Up — outlined green button
                 Button(action: { showSignUp = true }) {
                     Text("Sign Up")
@@ -178,6 +217,32 @@ struct LoginScreen: View {
         }
         .background(Color(.systemBackground))
         .navigationBarHidden(true)
+    }
+
+    private func signInWithGoogle() {
+        guard let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let rootVC = scene.windows.first?.rootViewController else {
+            googleErrorMessage = "Cannot present sign-in screen."
+            return
+        }
+
+        isGoogleLoading = true
+        googleErrorMessage = nil
+
+        Task {
+            do {
+                let userId = try await GoogleAuthManager.shared.signIn(presenting: rootVC)
+                await MainActor.run {
+                    isGoogleLoading = false
+                    appState.login(userId: userId)
+                }
+            } catch {
+                await MainActor.run {
+                    isGoogleLoading = false
+                    googleErrorMessage = error.localizedDescription
+                }
+            }
+        }
     }
 
     private func login() {

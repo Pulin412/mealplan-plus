@@ -1,6 +1,8 @@
 import SwiftUI
 import shared
 import UIKit
+import FirebaseCore
+import GoogleSignIn
 
 @main
 struct MealPlanPlusApp: App {
@@ -20,13 +22,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Register background sync task (must run before app finishes launching)
+        FirebaseApp.configure()
         BackgroundSyncScheduler.shared.registerTask()
         return true
     }
 
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        return GIDSignIn.sharedInstance.handle(url)
+    }
+
     func applicationDidEnterBackground(_ application: UIApplication) {
-        // Schedule next background sync when app goes to background
         BackgroundSyncScheduler.shared.scheduleIfNeeded()
     }
 }

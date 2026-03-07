@@ -31,6 +31,18 @@
         <key>UIApplicationSupportsMultipleScenes</key>
         <false/>
     </dict>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <!-- Replace with REVERSED_CLIENT_ID from GoogleService-Info.plist -->
+                <string>REPLACE_WITH_REVERSED_CLIENT_ID</string>
+            </array>
+        </dict>
+    </array>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UIRequiredDeviceCapabilities</key>
