@@ -10,7 +10,9 @@ data class GroceryList(
     val startDate: String? = null,  // yyyy-MM-dd or null if manual
     val endDate: String? = null,    // yyyy-MM-dd or null if manual
     val createdAt: Long = currentTimeMillis(),
-    val updatedAt: Long = currentTimeMillis()
+    val updatedAt: Long = currentTimeMillis(),
+    val serverId: String? = null,
+    val syncedAt: Long? = null
 ) {
     val dateRangeDisplay: String?
         get() = when {
@@ -32,7 +34,8 @@ data class GroceryItem(
     val quantity: Double,
     val unit: FoodUnit,
     val isChecked: Boolean = false,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val category: String? = null     // GroceryCategory constant for UI grouping
 )
 
 /**

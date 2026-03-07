@@ -1,0 +1,21 @@
+-- Migration v2 → v3
+-- Phase 4: iOS sync — add sync columns to syncable entities
+
+-- meals: cloud sync tracking
+ALTER TABLE meals ADD COLUMN serverId TEXT;
+ALTER TABLE meals ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE meals ADD COLUMN syncedAt INTEGER;
+
+-- diets: cloud sync tracking
+ALTER TABLE diets ADD COLUMN serverId TEXT;
+ALTER TABLE diets ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE diets ADD COLUMN syncedAt INTEGER;
+
+-- health_metrics: cloud sync tracking
+ALTER TABLE health_metrics ADD COLUMN serverId TEXT;
+ALTER TABLE health_metrics ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE health_metrics ADD COLUMN syncedAt INTEGER;
+
+-- grocery_lists: already has updatedAt, add cloud sync tracking
+ALTER TABLE grocery_lists ADD COLUMN serverId TEXT;
+ALTER TABLE grocery_lists ADD COLUMN syncedAt INTEGER;

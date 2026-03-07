@@ -10,7 +10,10 @@ data class Meal(
     val description: String? = null,
     val slotType: String,  // DefaultMealSlot name or "CUSTOM"
     val customSlotId: Long? = null,  // If slotType is CUSTOM
-    val createdAt: Long = currentTimeMillis()
+    val createdAt: Long = currentTimeMillis(),
+    val serverId: String? = null,
+    val updatedAt: Long = currentTimeMillis(),
+    val syncedAt: Long? = null
 ) {
     val isDefaultSlot: Boolean
         get() = slotType != "CUSTOM"

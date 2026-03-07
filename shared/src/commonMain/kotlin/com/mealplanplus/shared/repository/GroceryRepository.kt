@@ -31,7 +31,8 @@ class GroceryRepository(private val database: MealPlanDatabase) {
                     quantity = row.quantity,
                     unit = FoodUnit.fromString(row.unit),
                     isChecked = row.isChecked == 1L,
-                    sortOrder = row.sortOrder.toInt()
+                    sortOrder = row.sortOrder.toInt(),
+                    category = row.category
                 ),
                 food = row.id_?.let {
                     FoodItem(
@@ -85,6 +86,22 @@ class GroceryRepository(private val database: MealPlanDatabase) {
         queries.deleteGroceryList(id)
     }
 
+    suspend fun getUnsyncedGroceryLists(userId: Long): List<GroceryList> {
+        return queries.selectUnsyncedGroceryLists(userId).executeAsList().map { it.toGroceryList() }
+    }
+
+    suspend fun getGroceryListByServerId(serverId: String): GroceryList? {
+        return queries.selectGroceryListByServerId(serverId).executeAsOneOrNull()?.toGroceryList()
+    }
+
+    suspend fun updateGroceryListSyncState(id: Long, serverId: String, syncedAt: Long) {
+        queries.updateGroceryListSyncState(serverId = serverId, syncedAt = syncedAt, id = id)
+    }
+
+    suspend fun updateGroceryListSyncedAt(id: Long, syncedAt: Long) {
+        queries.updateGroceryListSyncedAt(syncedAt = syncedAt, id = id)
+    }
+
     // Grocery items
     suspend fun insertGroceryItem(item: GroceryItem): Long {
         queries.insertGroceryItem(
@@ -94,7 +111,8 @@ class GroceryRepository(private val database: MealPlanDatabase) {
             quantity = item.quantity,
             unit = item.unit.name,
             isChecked = if (item.isChecked) 1L else 0L,
-            sortOrder = item.sortOrder.toLong()
+            sortOrder = item.sortOrder.toLong(),
+            category = item.category
         )
         return queries.lastInsertRowId().executeAsOne()
     }
@@ -107,6 +125,7 @@ class GroceryRepository(private val database: MealPlanDatabase) {
             unit = item.unit.name,
             isChecked = if (item.isChecked) 1L else 0L,
             sortOrder = item.sortOrder.toLong(),
+            category = item.category,
             id = item.id
         )
     }
@@ -136,7 +155,9 @@ class GroceryRepository(private val database: MealPlanDatabase) {
             startDate = startDate,
             endDate = endDate,
             createdAt = createdAt,
-            updatedAt = updatedAt
+            updatedAt = updatedAt,
+            serverId = serverId,
+            syncedAt = syncedAt
         )
     }
 }

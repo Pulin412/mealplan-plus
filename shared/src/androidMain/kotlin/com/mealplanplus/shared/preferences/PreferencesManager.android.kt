@@ -7,7 +7,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.mealplanplus.shared.model.sha256
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mealplan_prefs")
@@ -23,6 +25,9 @@ class AndroidPreferencesManager(private val context: Context) : PreferencesManag
         private val DARK_MODE = booleanPreferencesKey("dark_mode")
         private val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         private val FOLLOW_SYSTEM = booleanPreferencesKey("follow_system")
+
+        // Sync keys
+        private val LAST_SYNC_TIME = longPreferencesKey("last_sync_time")
     }
 
     // Auth
@@ -71,6 +76,30 @@ class AndroidPreferencesManager(private val context: Context) : PreferencesManag
 
     override suspend fun setFollowSystem(enabled: Boolean) {
         context.dataStore.edit { it[FOLLOW_SYSTEM] = enabled }
+    }
+
+    // Sync
+    override suspend fun getLastSyncTime(): Long {
+        return context.dataStore.data.map { it[LAST_SYNC_TIME] ?: 0L }.firstOrNull() ?: 0L
+    }
+
+    override suspend fun setLastSyncTime(timestamp: Long) {
+        context.dataStore.edit { it[LAST_SYNC_TIME] = timestamp }
+    }
+
+    // OAuth provider mapping
+    override suspend fun setProviderMapping(provider: String, subject: String, userId: Long) {
+        val key = longPreferencesKey(providerMappingKey(provider, subject))
+        context.dataStore.edit { it[key] = userId }
+    }
+
+    override suspend fun getProviderMapping(provider: String, subject: String): Long? {
+        val key = longPreferencesKey(providerMappingKey(provider, subject))
+        return context.dataStore.data.map { it[key] }.firstOrNull()?.takeIf { it > 0L }
+    }
+
+    private fun providerMappingKey(provider: String, subject: String): String {
+        return "oauth_${provider.lowercase()}_${sha256(subject)}"
     }
 }
 

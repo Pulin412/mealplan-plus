@@ -81,7 +81,7 @@ mealplan-plus/
 │               ├── db/               # NativeSqliteDriver
 │               ├── network/          # Darwin engine
 │               └── preferences/      # NSUserDefaults
-├── app/                              # Android application
+├── android/                          # Android application (formerly app/)
 │   └── src/main/
 │       ├── java/com/mealplanplus/
 │       │   ├── data/                 # Room entities (legacy)
@@ -89,7 +89,7 @@ mealplan-plus/
 │       │   ├── ui/                   # Compose screens
 │       │   └── viewmodel/            # ViewModels
 │       └── res/                      # Resources
-└── iosApp/                           # iOS application
+└── ios/                              # iOS application (formerly iosApp/)
     └── iosApp/
         ├── Screens/                  # SwiftUI views
         ├── Data/                     # Data loaders

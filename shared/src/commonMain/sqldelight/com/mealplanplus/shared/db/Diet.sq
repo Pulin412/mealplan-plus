@@ -4,6 +4,10 @@ CREATE TABLE diets (
     name TEXT NOT NULL,
     description TEXT,
     createdAt INTEGER NOT NULL,
+    isSystemDiet INTEGER NOT NULL DEFAULT 0,
+    serverId TEXT,
+    updatedAt INTEGER NOT NULL DEFAULT 0,
+    syncedAt INTEGER,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -13,6 +17,7 @@ CREATE TABLE diet_meals (
     dietId INTEGER NOT NULL,
     slotType TEXT NOT NULL,
     mealId INTEGER,
+    instructions TEXT,
     PRIMARY KEY (dietId, slotType),
     FOREIGN KEY (dietId) REFERENCES diets(id) ON DELETE CASCADE,
     FOREIGN KEY (mealId) REFERENCES meals(id) ON DELETE SET NULL
@@ -51,11 +56,23 @@ selectDietById:
 SELECT * FROM diets WHERE id = ?;
 
 insertDiet:
-INSERT INTO diets(userId, name, description, createdAt)
-VALUES (?, ?, ?, ?);
+INSERT INTO diets(userId, name, description, createdAt, isSystemDiet, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?);
 
 updateDiet:
-UPDATE diets SET name = ?, description = ? WHERE id = ?;
+UPDATE diets SET name = ?, description = ?, updatedAt = ? WHERE id = ?;
+
+selectUnsyncedDiets:
+SELECT * FROM diets WHERE userId = ? AND (syncedAt IS NULL OR updatedAt > syncedAt);
+
+selectDietByServerId:
+SELECT * FROM diets WHERE serverId = ? LIMIT 1;
+
+updateDietSyncState:
+UPDATE diets SET serverId = ?, syncedAt = ? WHERE id = ?;
+
+updateDietSyncedAt:
+UPDATE diets SET syncedAt = ? WHERE id = ?;
 
 deleteDietById:
 DELETE FROM diets WHERE id = ?;
@@ -67,8 +84,8 @@ LEFT JOIN meals m ON dm.mealId = m.id
 WHERE dm.dietId = ?;
 
 insertDietMeal:
-INSERT OR REPLACE INTO diet_meals(dietId, slotType, mealId)
-VALUES (?, ?, ?);
+INSERT OR REPLACE INTO diet_meals(dietId, slotType, mealId, instructions)
+VALUES (?, ?, ?, ?);
 
 deleteDietMeal:
 DELETE FROM diet_meals WHERE dietId = ? AND slotType = ?;

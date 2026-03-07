@@ -35,6 +35,12 @@ class UserRepository(private val database: MealPlanDatabase) {
             photoUrl = null,
             age = null,
             contact = null,
+            weightKg = null,
+            heightCm = null,
+            gender = null,
+            activityLevel = null,
+            targetCalories = null,
+            goalType = null,
             createdAt = now,
             updatedAt = now
         )
@@ -49,6 +55,12 @@ class UserRepository(private val database: MealPlanDatabase) {
             photoUrl = user.photoUrl,
             age = user.age?.toLong(),
             contact = user.contact,
+            weightKg = user.weightKg,
+            heightCm = user.heightCm,
+            gender = user.gender,
+            activityLevel = user.activityLevel,
+            targetCalories = user.targetCalories?.toLong(),
+            goalType = user.goalType,
             updatedAt = currentTimeMillis(),
             id = user.id
         )
@@ -60,6 +72,33 @@ class UserRepository(private val database: MealPlanDatabase) {
 
     suspend fun getAllUsersSnapshot(): List<User> {
         return queries.selectAll().executeAsList().map { it.toUser() }
+    }
+
+    suspend fun findOrCreateOAuthUser(
+        email: String,
+        displayName: String?,
+        photoUrl: String?
+    ): Long {
+        val existing = getUserByEmail(email)
+        if (existing != null) return existing.id
+        val now = currentTimeMillis()
+        queries.insert(
+            email = email,
+            passwordHash = "",   // OAuth accounts have no local password
+            displayName = displayName,
+            photoUrl = photoUrl,
+            age = null,
+            contact = null,
+            weightKg = null,
+            heightCm = null,
+            gender = null,
+            activityLevel = null,
+            targetCalories = null,
+            goalType = null,
+            createdAt = now,
+            updatedAt = now
+        )
+        return queries.lastInsertRowId().executeAsOne()
     }
 
     suspend fun verifyPassword(email: String, password: String): User? {
@@ -77,8 +116,14 @@ class UserRepository(private val database: MealPlanDatabase) {
             photoUrl = photoUrl,
             age = age?.toInt(),
             contact = contact,
-            createdAt = createdAt,
-            updatedAt = updatedAt
+            weightKg = weightKg,
+            heightCm = heightCm,
+            gender = gender,
+            activityLevel = activityLevel,
+            targetCalories = targetCalories?.toInt(),
+            goalType = goalType,
+            createdAt = createdAt ?: 0L,
+            updatedAt = updatedAt ?: 0L
         )
     }
 }

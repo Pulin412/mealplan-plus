@@ -67,7 +67,8 @@ class MealRepository(private val database: MealPlanDatabase) {
             description = meal.description,
             slotType = meal.slotType,
             customSlotId = meal.customSlotId,
-            createdAt = meal.createdAt
+            createdAt = meal.createdAt,
+            updatedAt = meal.updatedAt
         )
         return queries.lastInsertRowId().executeAsOne()
     }
@@ -78,8 +79,25 @@ class MealRepository(private val database: MealPlanDatabase) {
             description = meal.description,
             slotType = meal.slotType,
             customSlotId = meal.customSlotId,
+            updatedAt = meal.updatedAt,
             id = meal.id
         )
+    }
+
+    suspend fun getUnsyncedMeals(userId: Long): List<Meal> {
+        return queries.selectUnsyncedMeals(userId).executeAsList().map { it.toMeal() }
+    }
+
+    suspend fun getMealByServerId(serverId: String): Meal? {
+        return queries.selectMealByServerId(serverId).executeAsOneOrNull()?.toMeal()
+    }
+
+    suspend fun updateMealSyncState(id: Long, serverId: String, syncedAt: Long) {
+        queries.updateMealSyncState(serverId = serverId, syncedAt = syncedAt, id = id)
+    }
+
+    suspend fun updateMealSyncedAt(id: Long, syncedAt: Long) {
+        queries.updateMealSyncedAt(syncedAt = syncedAt, id = id)
     }
 
     suspend fun deleteMeal(id: Long) {
@@ -127,7 +145,10 @@ class MealRepository(private val database: MealPlanDatabase) {
             description = description,
             slotType = slotType,
             customSlotId = customSlotId,
-            createdAt = createdAt
+            createdAt = createdAt,
+            serverId = serverId,
+            updatedAt = updatedAt,
+            syncedAt = syncedAt
         )
     }
 }

@@ -15,5 +15,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "MealPlanPlus"
-include(":app")
+include(":android")
 include(":shared")
+include(":backend")

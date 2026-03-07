@@ -5,6 +5,9 @@ package com.mealplanplus.shared.model
  */
 enum class MetricType(val displayName: String, val unit: String) {
     WEIGHT("Weight", "kg"),
+    BLOOD_GLUCOSE("Blood Glucose", "mg/dL"),
+    BLOOD_PRESSURE("Blood Pressure", "mmHg"),
+    // Legacy values kept for backward-compat with existing iOS data
     FASTING_SUGAR("Fasting Sugar", "mg/dL"),
     HBA1C("HbA1c", "%")
 }
@@ -33,7 +36,12 @@ data class HealthMetric(
     val metricType: String?,  // MetricType.name or null for custom
     val customTypeId: Long? = null,  // For custom metrics
     val value: Double,
-    val notes: String? = null
+    val secondaryValue: Double? = null,  // Diastolic for blood pressure
+    val subType: String? = null,         // GlucoseSubType.name for blood glucose
+    val notes: String? = null,
+    val serverId: String? = null,
+    val updatedAt: Long = currentTimeMillis(),
+    val syncedAt: Long? = null
 )
 
 /**
@@ -44,10 +52,10 @@ data class HealthMetricWithType(
     val customType: CustomMetricType? = null
 ) {
     val displayName: String
-        get() = metric.metricType?.let { MetricType.valueOf(it).displayName }
+        get() = metric.metricType?.let { runCatching { MetricType.valueOf(it).displayName }.getOrNull() }
             ?: customType?.name ?: "Unknown"
 
     val unit: String
-        get() = metric.metricType?.let { MetricType.valueOf(it).unit }
+        get() = metric.metricType?.let { runCatching { MetricType.valueOf(it).unit }.getOrNull() }
             ?: customType?.unit ?: ""
 }

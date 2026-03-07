@@ -90,7 +90,10 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             metricType = metric.metricType,
             customTypeId = metric.customTypeId,
             value_ = metric.value,
-            notes = metric.notes
+            secondaryValue = metric.secondaryValue,
+            subType = metric.subType,
+            notes = metric.notes,
+            updatedAt = metric.updatedAt
         )
         return queries.lastInsertRowId().executeAsOne()
     }
@@ -102,9 +105,28 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             metricType = metric.metricType,
             customTypeId = metric.customTypeId,
             value_ = metric.value,
+            secondaryValue = metric.secondaryValue,
+            subType = metric.subType,
             notes = metric.notes,
+            updatedAt = metric.updatedAt,
             id = metric.id
         )
+    }
+
+    suspend fun getUnsyncedHealthMetrics(userId: Long): List<HealthMetric> {
+        return queries.selectUnsyncedHealthMetrics(userId).executeAsList().map { it.toHealthMetric() }
+    }
+
+    suspend fun getHealthMetricByServerId(serverId: String): HealthMetric? {
+        return queries.selectHealthMetricByServerId(serverId).executeAsOneOrNull()?.toHealthMetric()
+    }
+
+    suspend fun updateHealthMetricSyncState(id: Long, serverId: String, syncedAt: Long) {
+        queries.updateHealthMetricSyncState(serverId = serverId, syncedAt = syncedAt, id = id)
+    }
+
+    suspend fun updateHealthMetricSyncedAt(id: Long, syncedAt: Long) {
+        queries.updateHealthMetricSyncedAt(syncedAt = syncedAt, id = id)
     }
 
     suspend fun deleteHealthMetric(id: Long) {
@@ -153,7 +175,12 @@ class HealthMetricRepository(private val database: MealPlanDatabase) {
             metricType = metricType,
             customTypeId = customTypeId,
             value = value_,
-            notes = notes
+            secondaryValue = secondaryValue,
+            subType = subType,
+            notes = notes,
+            serverId = serverId,
+            updatedAt = updatedAt,
+            syncedAt = syncedAt
         )
     }
 }
