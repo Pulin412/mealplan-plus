@@ -31,6 +31,7 @@ final class GoogleAuthManager {
     private init() {}
 
     /// Signs in with Google and returns the local userId.
+    @MainActor
     func signIn(presenting viewController: UIViewController) async throws -> Int64 {
         // 1. Configure GIDSignIn using Firebase client ID from GoogleService-Info.plist
         guard let clientID = FirebaseApp.app()?.options.clientID else {
