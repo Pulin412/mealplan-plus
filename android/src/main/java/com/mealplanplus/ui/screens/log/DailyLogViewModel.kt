@@ -93,6 +93,15 @@ class DailyLogViewModel @Inject constructor(
                 }
             }
         }
+        // Reactively load custom slots whenever the date changes (or on init for today)
+        viewModelScope.launch {
+            val userId = AuthPreferences.getUserId(context).first() ?: return@launch
+            _date.flatMapLatest { date ->
+                customMealSlotDao.getSlotsForDate(userId, date.toString())
+            }.collect { slots ->
+                _customSlots.value = slots
+            }
+        }
     }
 
     private fun buildComparison(planned: DietWithMeals?, actual: DailyLogWithFoods?): MacroComparison {
@@ -114,21 +123,9 @@ class DailyLogViewModel @Inject constructor(
     }
 
     fun setDateFromString(dateStr: String?) {
-        dateStr?.let {
-            try {
-                _date.value = logRepository.parseDate(it)
-                loadCustomSlotsForDate(_date.value)
-            } catch (_: Exception) {}
-        }
-    }
-
-    private fun loadCustomSlotsForDate(date: LocalDate) {
-        viewModelScope.launch {
-            val userId = AuthPreferences.getUserId(context).first() ?: return@launch
-            customMealSlotDao.getSlotsForDate(userId, date.toString()).collect { slots ->
-                _customSlots.value = slots
-            }
-        }
+        _date.value = dateStr?.let {
+            try { logRepository.parseDate(it) } catch (_: Exception) { LocalDate.now() }
+        } ?: LocalDate.now()
     }
 
     fun addCustomSlot(name: String) {

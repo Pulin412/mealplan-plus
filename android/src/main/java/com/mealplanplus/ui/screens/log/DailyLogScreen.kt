@@ -39,6 +39,16 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.min
 
+// ── Unified slot model (default + custom) for drag-to-reorder ────────────────
+sealed class LogSlot {
+    data class Default(val mealSlot: DefaultMealSlot) : LogSlot()
+    data class Custom(val customSlot: CustomMealSlot) : LogSlot()
+    val key: String get() = when (this) {
+        is Default -> "default_${mealSlot.name}"
+        is Custom  -> "custom_${customSlot.id}"
+    }
+}
+
 // ── Colours ─────────────────────────────────────────────────────────────────
 private val TopBarGreen = Color(0xFF2E7D52)
 private val CaloriesColor = Color(0xFF4CAF50)
@@ -392,58 +402,73 @@ fun DailyLogTab(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(slotsToShow) { slot ->
-            val slotFoods = logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
-            val plannedItems = plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
-            MealSlotCard(
-                slot = slot,
-                foods = slotFoods,
-                plannedItems = plannedItems,
-                isExpanded = slot.name in expandedSlots,
-                onToggleExpand = { onToggleSlot(slot) },
-                onAddFood = { onAddFood(slot) },
-                onDeleteFood = onDeleteFood,
-                onToggleSlotLogged = onToggleSlotLogged?.let { fn -> { fn(slot) } }
-            )
-        }
-        if (customSlots.isNotEmpty()) {
-            item(key = "custom_slots_section") {
-                val localSlots = remember(customSlots) { customSlots.toMutableStateList() }
-                var draggingId by remember { mutableStateOf<Long?>(null) }
-                var accY by remember { mutableFloatStateOf(0f) }
-                val cardHeightPx = with(LocalDensity.current) { 84.dp.toPx() } // card + spacing
+        item(key = "all_slots") {
+            // Merge default + custom into one unified list for drag-to-reorder
+            val unified = remember(slotsToShow, customSlots) {
+                (slotsToShow.map { LogSlot.Default(it) } +
+                        customSlots.map { LogSlot.Custom(it) }).toMutableStateList()
+            }
+            var draggingKey by remember { mutableStateOf<String?>(null) }
+            var accY by remember { mutableFloatStateOf(0f) }
+            val cardHeightPx = with(LocalDensity.current) { 84.dp.toPx() }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    localSlots.forEach { slot ->
-                        val isDragging = slot.id == draggingId
-                        CustomMealSlotCard(
-                            slot = slot,
-                            onDelete = { onDeleteCustomSlot(slot.id) },
-                            modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
-                            dragHandleModifier = Modifier.pointerInput(slot.id) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { draggingId = slot.id; accY = 0f },
-                                    onDrag = { change, delta ->
-                                        change.consume()
-                                        accY += delta.y
-                                        val idx = localSlots.indexOfFirst { it.id == draggingId }
-                                        if (idx < 0) return@detectDragGesturesAfterLongPress
-                                        if (accY > cardHeightPx / 2 && idx < localSlots.size - 1) {
-                                            localSlots.add(idx + 1, localSlots.removeAt(idx))
-                                            accY -= cardHeightPx
-                                        } else if (accY < -cardHeightPx / 2 && idx > 0) {
-                                            localSlots.add(idx - 1, localSlots.removeAt(idx))
-                                            accY += cardHeightPx
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        draggingId = null; accY = 0f
-                                        onReorderCustomSlots(localSlots.toList())
-                                    },
-                                    onDragCancel = { draggingId = null; accY = 0f }
-                                )
-                            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                unified.forEach { logSlot ->
+                    val slotKey = logSlot.key
+                    val isDragging = slotKey == draggingKey
+                    val dragMod = Modifier.pointerInput(slotKey) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { draggingKey = slotKey; accY = 0f },
+                            onDrag = { change, delta ->
+                                change.consume()
+                                accY += delta.y
+                                val idx = unified.indexOfFirst { it.key == draggingKey }
+                                if (idx < 0) return@detectDragGesturesAfterLongPress
+                                if (accY > cardHeightPx / 2 && idx < unified.size - 1) {
+                                    unified.add(idx + 1, unified.removeAt(idx))
+                                    accY -= cardHeightPx
+                                } else if (accY < -cardHeightPx / 2 && idx > 0) {
+                                    unified.add(idx - 1, unified.removeAt(idx))
+                                    accY += cardHeightPx
+                                }
+                            },
+                            onDragEnd = {
+                                draggingKey = null; accY = 0f
+                                val newCustomOrder = unified
+                                    .filterIsInstance<LogSlot.Custom>()
+                                    .map { it.customSlot }
+                                onReorderCustomSlots(newCustomOrder)
+                            },
+                            onDragCancel = { draggingKey = null; accY = 0f }
                         )
+                    }
+                    when (logSlot) {
+                        is LogSlot.Default -> {
+                            val slot = logSlot.mealSlot
+                            val slotFoods = logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
+                            val plannedItems = plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
+                            MealSlotCard(
+                                slot = slot,
+                                foods = slotFoods,
+                                plannedItems = plannedItems,
+                                isExpanded = slot.name in expandedSlots,
+                                onToggleExpand = { onToggleSlot(slot) },
+                                onAddFood = { onAddFood(slot) },
+                                onDeleteFood = onDeleteFood,
+                                onToggleSlotLogged = onToggleSlotLogged?.let { fn -> { fn(slot) } },
+                                modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
+                                dragHandleModifier = dragMod
+                            )
+                        }
+                        is LogSlot.Custom -> {
+                            val slot = logSlot.customSlot
+                            CustomMealSlotCard(
+                                slot = slot,
+                                onDelete = { onDeleteCustomSlot(slot.id) },
+                                modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
+                                dragHandleModifier = dragMod
+                            )
+                        }
                     }
                 }
             }
@@ -509,7 +534,9 @@ fun MealSlotCard(
     onToggleExpand: () -> Unit,
     onAddFood: () -> Unit,
     onDeleteFood: (Long) -> Unit,
-    onToggleSlotLogged: (() -> Unit)? = null
+    onToggleSlotLogged: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier
 ) {
     val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
     val plannedKcal = plannedItems.sumOf { it.calculatedCalories }.toInt()
@@ -522,7 +549,7 @@ fun MealSlotCard(
     val isSlotLogged = foods.isNotEmpty()
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -535,6 +562,15 @@ fun MealSlotCard(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Drag handle — long-press to reorder
+                Icon(
+                    Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    tint = Color(0xFFBBBBBB),
+                    modifier = dragHandleModifier
+                        .size(24.dp)
+                        .padding(end = 4.dp)
+                )
                 Box(
                     modifier = Modifier
                         .size(36.dp)
