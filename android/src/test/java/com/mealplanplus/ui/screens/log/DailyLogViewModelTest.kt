@@ -80,7 +80,10 @@ class DailyLogViewModelTest {
         coEvery { dietRepository.getDietWithMeals(1L) } returns dietWithMeals
         every { logRepository.parseDate(any()) } answers { LocalDate.parse(firstArg()) }
 
-        viewModel = DailyLogViewModel(logRepository, mealRepository, planRepository, dietRepository, foodRepository)
+        val customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true)
+        every { customMealSlotDao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
+        val context = mockk<android.content.Context>(relaxed = true)
+        viewModel = DailyLogViewModel(logRepository, mealRepository, planRepository, dietRepository, foodRepository, customMealSlotDao, context)
     }
 
     @After

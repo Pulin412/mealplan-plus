@@ -119,7 +119,7 @@ class MealRepository(private val database: MealPlanDatabase) {
     // Custom meal slots
     fun getCustomSlots(userId: Long): Flow<List<CustomMealSlot>> {
         return queries.selectCustomSlots(userId).asFlowList().map { list ->
-            list.map { CustomMealSlot(it.id, it.userId, it.name, it.orderNum.toInt()) }
+            list.map { CustomMealSlot(it.id, it.userId, null, it.name, it.orderNum.toInt()) }
         }
     }
 

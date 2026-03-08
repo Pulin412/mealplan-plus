@@ -1,13 +1,22 @@
 package com.mealplanplus.ui.screens.profile
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.ActivityLevel
+import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.model.Gender
 import com.mealplanplus.data.model.GoalType
+import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.User
 import com.mealplanplus.data.repository.AuthRepository
+import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.FoodRepository
+import com.mealplanplus.data.repository.MealRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -42,11 +51,18 @@ data class ProfileUiState(
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val dietRepository: DietRepository,
+    private val mealRepository: MealRepository,
+    private val foodRepository: FoodRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    private val _importResult = MutableStateFlow<String?>(null)
+    val importResult: StateFlow<String?> = _importResult.asStateFlow()
 
     init {
         loadProfile()
@@ -221,4 +237,91 @@ class ProfileViewModel @Inject constructor(
     fun clearSaveSuccess() = _uiState.update { it.copy(saveSuccess = false) }
     fun clearClearSuccess() = _uiState.update { it.copy(clearSuccess = false) }
     fun clearError() = _uiState.update { it.copy(error = null) }
+
+    // ─── Import ───────────────────────────────────────────────────────────────
+
+    fun importDietsFromJson(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val json = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()?.readText()
+                    ?: run { _importResult.value = "Failed to read file"; return@launch }
+
+                val root = org.json.JSONObject(json)
+                val diets = root.optJSONArray("diets") ?: run {
+                    _importResult.value = "Invalid format: missing 'diets' array"; return@launch
+                }
+
+                var imported = 0
+                var skipped = 0
+
+                for (i in 0 until diets.length()) {
+                    try {
+                        val dietJson = diets.getJSONObject(i)
+                        val dietName = dietJson.optString("name", "Imported Diet ${i + 1}")
+                        val dietDesc = dietJson.optString("description", null)
+
+                        val dietId = dietRepository.insertDiet(
+                            Diet(
+                                userId = 0, // overwritten by repository with current user
+                                name = dietName,
+                                description = dietDesc
+                            )
+                        )
+
+                        val mealsJson = dietJson.optJSONObject("meals")
+                        mealsJson?.keys()?.forEach { slotKey ->
+                            try {
+                                val mealJson = mealsJson.getJSONObject(slotKey)
+                                val instructions = mealJson.optString("instructions", null)
+
+                                val mealId = mealRepository.insertMeal(
+                                    Meal(
+                                        userId = 0, // overwritten by repository with current user
+                                        name = "$dietName - $slotKey",
+                                        slotType = slotKey
+                                    )
+                                )
+
+                                dietRepository.setMealForSlot(dietId, slotKey, mealId)
+                                if (!instructions.isNullOrBlank()) {
+                                    dietRepository.updateSlotInstructions(dietId, slotKey, instructions)
+                                }
+
+                                val itemsJson = mealJson.optJSONArray("items")
+                                if (itemsJson != null) {
+                                    for (j in 0 until itemsJson.length()) {
+                                        try {
+                                            val itemJson = itemsJson.getJSONObject(j)
+                                            val foodName = itemJson.optString("foodName", "")
+                                            val quantity = itemJson.optDouble("quantity", 100.0)
+                                            val unitStr = itemJson.optString("unit", "GRAM")
+                                            val unit = FoodUnit.fromString(unitStr)
+
+                                            if (foodName.isNotBlank()) {
+                                                // Search by name (first match); skip if not found
+                                                val food = foodRepository.searchFoods(foodName)
+                                                    .firstOrNull()
+                                                    ?.firstOrNull { it.name.equals(foodName, ignoreCase = true) }
+                                                if (food != null) {
+                                                    mealRepository.addFoodToMeal(mealId, food.id, quantity, unit)
+                                                }
+                                            }
+                                        } catch (_: Exception) { /* skip bad item */ }
+                                    }
+                                }
+                            } catch (_: Exception) { skipped++ }
+                        }
+                        imported++
+                    } catch (_: Exception) { skipped++ }
+                }
+
+                _importResult.value = "Imported $imported diet(s)${if (skipped > 0) ", $skipped skipped" else ""}"
+            } catch (e: Exception) {
+                _importResult.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    fun clearImportResult() { _importResult.value = null }
 }

@@ -23,10 +23,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
+import com.mealplanplus.data.model.CustomMealSlot
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.FoodItem
+import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.model.LoggedFoodWithDetails
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import java.time.LocalDate
@@ -56,6 +58,7 @@ fun DailyLogScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val allFoods by viewModel.allFoods.collectAsState()
+    val customSlots by viewModel.customSlots.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val expandedSlots = remember { mutableStateOf(setOf(DefaultMealSlot.BREAKFAST.name)) }
 
@@ -130,7 +133,10 @@ fun DailyLogScreen(
                         },
                         onAddFood = { slot -> viewModel.showFoodPickerFor(slot) },
                         onDeleteFood = { id -> viewModel.deleteLoggedFood(id) },
-                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) }
+                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) },
+                        customSlots = customSlots,
+                        onDeleteCustomSlot = { id -> viewModel.deleteCustomSlot(id) },
+                        onAddCustomSlot = { name -> viewModel.addCustomSlot(name) }
                     )
                     1 -> PlanVsActualTab(comparison = uiState.comparison)
                 }
@@ -358,7 +364,10 @@ fun DailyLogTab(
     onToggleSlot: (DefaultMealSlot) -> Unit,
     onAddFood: (DefaultMealSlot) -> Unit,
     onDeleteFood: (Long) -> Unit,
-    onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null
+    onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null,
+    customSlots: List<CustomMealSlot> = emptyList(),
+    onDeleteCustomSlot: (Long) -> Unit = {},
+    onAddCustomSlot: (String) -> Unit = {}
 ) {
     val mainSlots = setOf(
         DefaultMealSlot.BREAKFAST, DefaultMealSlot.LUNCH,
@@ -390,6 +399,58 @@ fun DailyLogTab(
                 onDeleteFood = onDeleteFood,
                 onToggleSlotLogged = onToggleSlotLogged?.let { fn -> { fn(slot) } }
             )
+        }
+        items(customSlots, key = { "custom_${it.id}" }) { slot ->
+            CustomMealSlotCard(
+                slot = slot,
+                onDelete = { onDeleteCustomSlot(slot.id) }
+            )
+        }
+        item {
+            var showAddSlotDialog by remember { mutableStateOf(false) }
+            var newSlotName by remember { mutableStateOf("") }
+
+            OutlinedButton(
+                onClick = { showAddSlotDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Add Meal Slot")
+            }
+
+            if (showAddSlotDialog) {
+                AlertDialog(
+                    onDismissRequest = { showAddSlotDialog = false; newSlotName = "" },
+                    title = { Text("New Meal Slot") },
+                    text = {
+                        OutlinedTextField(
+                            value = newSlotName,
+                            onValueChange = { newSlotName = it },
+                            label = { Text("Slot name") },
+                            singleLine = true
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (newSlotName.isNotBlank()) {
+                                    onAddCustomSlot(newSlotName)
+                                    showAddSlotDialog = false
+                                    newSlotName = ""
+                                }
+                            }
+                        ) { Text("Add") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showAddSlotDialog = false; newSlotName = "" }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
         item { Spacer(Modifier.height(80.dp)) }
     }
@@ -714,6 +775,51 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
     }
 }
 
+// ── Custom Meal Slot Card ─────────────────────────────────────────────────────
+
+@Composable
+fun CustomMealSlotCard(
+    slot: CustomMealSlot,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFB0BEC5).copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("✦", style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(slot.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text("Custom slot · Nothing logged", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Remove slot",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
 // ── Food Picker Sheet ─────────────────────────────────────────────────────────
 
 @Composable
@@ -726,6 +832,12 @@ fun FoodPickerSheetContent(
     var searchText by remember { mutableStateOf("") }
     var selectedFood by remember { mutableStateOf<FoodItem?>(null) }
     var quantityText by remember { mutableStateOf("100") }
+    val defaultUnit = remember(selectedFood) {
+        selectedFood?.preferredUnit?.let {
+            try { FoodUnit.valueOf(it) } catch (e: Exception) { null }
+        } ?: if (selectedFood?.gramsPerPiece != null) FoodUnit.PIECE else FoodUnit.GRAM
+    }
+    var selectedUnit by remember(selectedFood) { mutableStateOf(defaultUnit) }
 
     val filtered = remember(searchText, foods) {
         if (searchText.isEmpty()) foods
@@ -787,26 +899,56 @@ fun FoodPickerSheetContent(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            val qty = quantityText.toDoubleOrNull() ?: 100.0
+            val qty = quantityText.toDoubleOrNull() ?: 1.0
             val food = selectedFood!!
+            val grams = food.toGrams(qty, selectedUnit)
             Text(
-                "${(food.caloriesPer100 * qty / 100).toInt()} kcal · P:${(food.proteinPer100 * qty / 100).toInt()}g C:${(food.carbsPer100 * qty / 100).toInt()}g F:${(food.fatPer100 * qty / 100).toInt()}g",
+                "${(food.caloriesPer100 * grams / 100).toInt()} kcal · P:${(food.proteinPer100 * grams / 100).toInt()}g C:${(food.carbsPer100 * grams / 100).toInt()}g F:${(food.fatPer100 * grams / 100).toInt()}g",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = quantityText,
-                onValueChange = { quantityText = it },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Quantity (grams)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = quantityText,
+                    onValueChange = { quantityText = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("Quantity") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                var unitMenuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(
+                        onClick = { unitMenuExpanded = true },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(selectedUnit.shortLabel)
+                    }
+                    DropdownMenu(
+                        expanded = unitMenuExpanded,
+                        onDismissRequest = { unitMenuExpanded = false }
+                    ) {
+                        FoodUnit.entries.forEach { unit ->
+                            DropdownMenuItem(
+                                text = { Text(unit.label) },
+                                onClick = {
+                                    selectedUnit = unit
+                                    unitMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { onLogFood(food.id, qty) },
+                onClick = { onLogFood(food.id, grams) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = TopBarGreen)
             ) {

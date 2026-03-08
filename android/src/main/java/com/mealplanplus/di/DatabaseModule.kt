@@ -744,6 +744,22 @@ object DatabaseModule {
         }
     }
 
+    // Migration 19->20: add preferredUnit to food_items, create custom_meal_slots table
+    private val MIGRATION_19_20 = object : Migration(19, 20) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE food_items ADD COLUMN preferredUnit TEXT")
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS custom_meal_slots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId INTEGER NOT NULL,
+                    date TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    slotOrder INTEGER NOT NULL DEFAULT 99
+                )
+            """.trimIndent())
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -752,7 +768,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
             // Removed fallbackToDestructiveMigration() - this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()
@@ -784,4 +800,7 @@ object DatabaseModule {
 
     @Provides
     fun provideGroceryDao(database: AppDatabase): GroceryDao = database.groceryDao()
+
+    @Provides
+    fun provideCustomMealSlotDao(database: AppDatabase): CustomMealSlotDao = database.customMealSlotDao()
 }

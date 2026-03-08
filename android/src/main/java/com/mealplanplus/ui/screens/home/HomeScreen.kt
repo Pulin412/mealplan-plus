@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -64,6 +65,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val weekOffset by viewModel.weekOffset.collectAsState()
 
     // Observe diet selection result from DietPickerScreen
     val selectedDietId by (savedStateHandle
@@ -110,7 +112,10 @@ fun HomeScreen(
             // ── This Week mini-calendar ────────────────────────────
             ThisWeekCard(
                 weekDays = uiState.weekDays,
+                weekOffset = weekOffset,
                 onDayClick = { date -> onNavigateToLogWithDate(date.toString()) },
+                onPreviousWeek = viewModel::previousWeek,
+                onNextWeek = viewModel::nextWeek,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -356,16 +361,32 @@ fun QuickLogFoodButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 fun ThisWeekCard(
     weekDays: List<WeekDayInfo>,
+    weekOffset: Int = 0,
     onDayClick: (LocalDate) -> Unit = {},
+    onPreviousWeek: () -> Unit = {},
+    onNextWeek: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
-    val monthName = today.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
     // Fallback: if weekDays not yet loaded, build basic list
     val displayDays = if (weekDays.isEmpty()) {
         (6 downTo 0).map { WeekDayInfo(today.minusDays(it.toLong()), null, WeekDayState.NO_DATA) }
     } else weekDays
+
+    val weekLabel = if (displayDays.isNotEmpty()) {
+        val start = displayDays.first().date
+        val end = displayDays.last().date
+        val startMonth = start.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        val endMonth = end.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        if (start.month == end.month) {
+            "$startMonth ${start.year}"
+        } else {
+            "$startMonth – $endMonth ${end.year}"
+        }
+    } else {
+        today.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + " ${today.year}"
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -374,14 +395,26 @@ fun ThisWeekCard(
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Text("This Week", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A1A))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("This Week", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A1A))
-                    Text("$monthName ${today.year}", fontSize = 12.sp, color = Color(0xFF888888))
+                IconButton(onClick = onPreviousWeek) {
+                    Icon(Icons.Default.ChevronLeft, contentDescription = "Previous week")
+                }
+                Text(
+                    text = weekLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                IconButton(
+                    onClick = onNextWeek,
+                    enabled = weekOffset < 0
+                ) {
+                    Icon(Icons.Default.ChevronRight, contentDescription = "Next week")
                 }
             }
 

@@ -1,14 +1,18 @@
 package com.mealplanplus.ui.screens.log
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.local.CustomMealSlotDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.PlanRepository
+import com.mealplanplus.util.AuthPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -52,13 +56,18 @@ class DailyLogViewModel @Inject constructor(
     private val mealRepository: MealRepository,
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository,
-    private val foodRepository: FoodRepository
+    private val foodRepository: FoodRepository,
+    private val customMealSlotDao: CustomMealSlotDao,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _date = MutableStateFlow(LocalDate.now())
 
     private val _uiState = MutableStateFlow(DailyLogUiState())
     val uiState: StateFlow<DailyLogUiState> = _uiState.asStateFlow()
+
+    private val _customSlots = MutableStateFlow<List<CustomMealSlot>>(emptyList())
+    val customSlots: StateFlow<List<CustomMealSlot>> = _customSlots.asStateFlow()
 
     val allFoods: StateFlow<List<FoodItem>> = foodRepository.getAllFoods()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -106,7 +115,40 @@ class DailyLogViewModel @Inject constructor(
 
     fun setDateFromString(dateStr: String?) {
         dateStr?.let {
-            try { _date.value = logRepository.parseDate(it) } catch (_: Exception) {}
+            try {
+                _date.value = logRepository.parseDate(it)
+                loadCustomSlotsForDate(_date.value)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun loadCustomSlotsForDate(date: LocalDate) {
+        viewModelScope.launch {
+            val userId = AuthPreferences.getUserId(context).first() ?: return@launch
+            customMealSlotDao.getSlotsForDate(userId, date.toString()).collect { slots ->
+                _customSlots.value = slots
+            }
+        }
+    }
+
+    fun addCustomSlot(name: String) {
+        viewModelScope.launch {
+            val userId = AuthPreferences.getUserId(context).first() ?: return@launch
+            val date = _uiState.value.date
+            customMealSlotDao.insert(
+                CustomMealSlot(
+                    userId = userId,
+                    date = date.toString(),
+                    name = name.trim(),
+                    slotOrder = 99 + _customSlots.value.size
+                )
+            )
+        }
+    }
+
+    fun deleteCustomSlot(id: Long) {
+        viewModelScope.launch {
+            customMealSlotDao.deleteById(id)
         }
     }
 

@@ -99,13 +99,21 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _weekOffset = MutableStateFlow(0)
+    val weekOffset: StateFlow<Int> = _weekOffset.asStateFlow()
+
     init {
         loadUserName()
         loadTodayData()
         loadTodayPlanSlots()
-        loadWeekData()
         loadGlucoseHistory()
+        viewModelScope.launch {
+            _weekOffset.collect { loadWeekData() }
+        }
     }
+
+    fun previousWeek() { _weekOffset.update { it - 1 } }
+    fun nextWeek() { if (_weekOffset.value < 0) _weekOffset.update { it + 1 } }
 
     private fun loadUserName() {
         viewModelScope.launch {
@@ -268,15 +276,15 @@ class HomeViewModel @Inject constructor(
      */
     private fun loadWeekData() {
         val today = LocalDate.now()
-        val weekStart = today.minusDays(6)
-        val monthStart = today.withDayOfMonth(1).toString()
-        val monthEnd = YearMonth.from(today).atEndOfMonth().toString()
+        val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
+        val weekStart = monday.plusWeeks(_weekOffset.value.toLong())
+        val weekEnd = weekStart.plusDays(6)
 
         // Combine: macro summaries (to know which days have calories logged)
         //          + plans for the week (to know planned/completed state)
         combine(
-            dailyLogRepository.getCompletedDaysCalories(weekStart, today),
-            planRepository.getPlansWithDietNames(weekStart.toString(), today.toString())
+            dailyLogRepository.getCompletedDaysCalories(weekStart, weekEnd),
+            planRepository.getPlansWithDietNames(weekStart.toString(), weekEnd.toString())
         ) { calories, plans ->
             val loggedDates = calories.filter { it.calories > 0 }.map { it.date }.toSet()
             val streak = computeStreak(calories)
@@ -289,8 +297,8 @@ class HomeViewModel @Inject constructor(
             val weekPlansMap = plans.filter { it.dietId != null }
                 .associate { it.date to it.isCompleted }
 
-            val weekDays = (6 downTo 0).map { daysAgo ->
-                val date = today.minusDays(daysAgo.toLong())
+            val weekDays = (0..6).map { dayIndex ->
+                val date = weekStart.plusDays(dayIndex.toLong())
                 val dateStr = date.toString()
                 val isFuture = date.isAfter(today)
                 val isCompleted = weekPlansMap[dateStr] == true

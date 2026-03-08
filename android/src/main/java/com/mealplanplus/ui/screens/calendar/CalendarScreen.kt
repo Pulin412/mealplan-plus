@@ -155,10 +155,10 @@ private fun CalendarCard(
     onNextMonth: () -> Unit,
     onToggleView: () -> Unit
 ) {
-    // For week view, track which week's Sunday we're showing (start of week containing selectedDate)
+    // For week view, track which week's Monday we're showing (start of week containing selectedDate)
     val weekStart = remember(selectedDate) {
-        val dow = selectedDate.dayOfWeek.value % 7 // Sunday=0
-        selectedDate.minusDays(dow.toLong())
+        val dow = (selectedDate.dayOfWeek.value - 1).toLong() // Monday=0
+        selectedDate.minusDays(dow)
     }
     // Derive header label from week view context
     val headerText = if (isWeekView) {
@@ -245,7 +245,7 @@ private fun CalendarCard(
 
             // Day of week headers
             Row(modifier = Modifier.fillMaxWidth()) {
-                listOf("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa").forEach { day ->
+                listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su").forEach { day ->
                     Text(
                         text = day,
                         modifier = Modifier.weight(1f),
@@ -348,7 +348,7 @@ private fun MealPlanCalendarGrid(
     onDateSelected: (LocalDate) -> Unit
 ) {
     val firstDay = month.atDay(1)
-    val startOffset = (firstDay.dayOfWeek.value % 7) // Sunday = 0
+    val startOffset = firstDay.dayOfWeek.value - 1 // Monday = 0
     val daysInMonth = month.lengthOfMonth()
     val totalCells = startOffset + daysInMonth
     val rows = (totalCells + 6) / 7
