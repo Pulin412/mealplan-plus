@@ -10,8 +10,6 @@ on:
 env:
   GCP_REGION: us-central1
   SERVICE_NAME: mealplan-api
-  # Artifact Registry (GCR deprecated 2025)
-  IMAGE: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mealplan/mealplan-api
 
 jobs:
   deploy:
@@ -19,6 +17,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set IMAGE env
+        run: echo "IMAGE=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mealplan/mealplan-api" >> $GITHUB_ENV
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
