@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,8 +16,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -136,7 +140,8 @@ fun DailyLogScreen(
                         onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) },
                         customSlots = customSlots,
                         onDeleteCustomSlot = { id -> viewModel.deleteCustomSlot(id) },
-                        onAddCustomSlot = { name -> viewModel.addCustomSlot(name) }
+                        onAddCustomSlot = { name -> viewModel.addCustomSlot(name) },
+                        onReorderCustomSlots = { slots -> viewModel.reorderCustomSlots(slots) }
                     )
                     1 -> PlanVsActualTab(comparison = uiState.comparison)
                 }
@@ -367,7 +372,8 @@ fun DailyLogTab(
     onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null,
     customSlots: List<CustomMealSlot> = emptyList(),
     onDeleteCustomSlot: (Long) -> Unit = {},
-    onAddCustomSlot: (String) -> Unit = {}
+    onAddCustomSlot: (String) -> Unit = {},
+    onReorderCustomSlots: (List<CustomMealSlot>) -> Unit = {}
 ) {
     val mainSlots = setOf(
         DefaultMealSlot.BREAKFAST, DefaultMealSlot.LUNCH,
@@ -400,11 +406,47 @@ fun DailyLogTab(
                 onToggleSlotLogged = onToggleSlotLogged?.let { fn -> { fn(slot) } }
             )
         }
-        items(customSlots, key = { "custom_${it.id}" }) { slot ->
-            CustomMealSlotCard(
-                slot = slot,
-                onDelete = { onDeleteCustomSlot(slot.id) }
-            )
+        if (customSlots.isNotEmpty()) {
+            item(key = "custom_slots_section") {
+                val localSlots = remember(customSlots) { customSlots.toMutableStateList() }
+                var draggingId by remember { mutableStateOf<Long?>(null) }
+                var accY by remember { mutableFloatStateOf(0f) }
+                val cardHeightPx = with(LocalDensity.current) { 84.dp.toPx() } // card + spacing
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    localSlots.forEach { slot ->
+                        val isDragging = slot.id == draggingId
+                        CustomMealSlotCard(
+                            slot = slot,
+                            onDelete = { onDeleteCustomSlot(slot.id) },
+                            modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
+                            dragHandleModifier = Modifier.pointerInput(slot.id) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { draggingId = slot.id; accY = 0f },
+                                    onDrag = { change, delta ->
+                                        change.consume()
+                                        accY += delta.y
+                                        val idx = localSlots.indexOfFirst { it.id == draggingId }
+                                        if (idx < 0) return@detectDragGesturesAfterLongPress
+                                        if (accY > cardHeightPx / 2 && idx < localSlots.size - 1) {
+                                            localSlots.add(idx + 1, localSlots.removeAt(idx))
+                                            accY -= cardHeightPx
+                                        } else if (accY < -cardHeightPx / 2 && idx > 0) {
+                                            localSlots.add(idx - 1, localSlots.removeAt(idx))
+                                            accY += cardHeightPx
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        draggingId = null; accY = 0f
+                                        onReorderCustomSlots(localSlots.toList())
+                                    },
+                                    onDragCancel = { draggingId = null; accY = 0f }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
         }
         item {
             var showAddSlotDialog by remember { mutableStateOf(false) }
@@ -780,10 +822,12 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
 @Composable
 fun CustomMealSlotCard(
     slot: CustomMealSlot,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -794,6 +838,15 @@ fun CustomMealSlotCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Drag handle — long-press to reorder
+            Icon(
+                Icons.Default.DragHandle,
+                contentDescription = "Drag to reorder",
+                tint = Color(0xFFBBBBBB),
+                modifier = dragHandleModifier
+                    .size(24.dp)
+                    .padding(end = 4.dp)
+            )
             Box(
                 modifier = Modifier
                     .size(36.dp)

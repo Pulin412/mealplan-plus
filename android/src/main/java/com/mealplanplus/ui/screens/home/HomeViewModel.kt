@@ -17,6 +17,7 @@ import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.extractShortDietName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -101,6 +102,10 @@ class HomeViewModel @Inject constructor(
 
     private val _weekOffset = MutableStateFlow(0)
     val weekOffset: StateFlow<Int> = _weekOffset.asStateFlow()
+
+    // Tracks the combine job so we cancel it before re-launching on offset change.
+    // Without this, old jobs (different offset) keep emitting and overwrite weekDays.
+    private var weekDataJob: Job? = null
 
     init {
         loadUserName()
@@ -275,6 +280,10 @@ class HomeViewModel @Inject constructor(
      * plus weekly logged dates, streak, and month plans.
      */
     private fun loadWeekData() {
+        // Cancel any previous week data collection (different offset) to avoid
+        // stale flows overwriting weekDays when logged_foods changes
+        weekDataJob?.cancel()
+
         val today = LocalDate.now()
         val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
         val weekStart = monday.plusWeeks(_weekOffset.value.toLong())
@@ -282,7 +291,7 @@ class HomeViewModel @Inject constructor(
 
         // Combine: macro summaries (to know which days have calories logged)
         //          + plans for the week (to know planned/completed state)
-        combine(
+        weekDataJob = combine(
             dailyLogRepository.getCompletedDaysCalories(weekStart, weekEnd),
             planRepository.getPlansWithDietNames(weekStart.toString(), weekEnd.toString())
         ) { calories, plans ->

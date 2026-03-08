@@ -152,6 +152,16 @@ class DailyLogViewModel @Inject constructor(
         }
     }
 
+    fun reorderCustomSlots(reorderedList: List<CustomMealSlot>) {
+        viewModelScope.launch {
+            reorderedList.forEachIndexed { index, slot ->
+                if (slot.slotOrder != index) {
+                    customMealSlotDao.update(slot.copy(slotOrder = index))
+                }
+            }
+        }
+    }
+
     fun goToPreviousDay() { _date.value = _date.value.minusDays(1) }
     fun goToNextDay() { _date.value = _date.value.plusDays(1) }
     fun goToToday() { _date.value = LocalDate.now() }

@@ -12,6 +12,9 @@ interface CustomMealSlotDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(slot: CustomMealSlot): Long
 
+    @Update
+    suspend fun update(slot: CustomMealSlot)
+
     @Query("DELETE FROM custom_meal_slots WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
