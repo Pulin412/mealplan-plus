@@ -309,6 +309,7 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_dietAssignedWithSlots_slotsReturned() = runTest {
+        every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
         val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
             date = LocalDate.now().toString(),
@@ -337,6 +338,7 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_loggedSlot_isLoggedTrue() = runTest {
+        every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
         val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
             date = LocalDate.now().toString(),
@@ -371,6 +373,7 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_unloggedSlot_isLoggedFalse() = runTest {
+        every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
         val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
             date = LocalDate.now().toString(),
@@ -392,6 +395,7 @@ class HomeViewModelTest {
 
     @Test
     fun todayPlanSlots_sortedBySlotOrder() = runTest {
+        every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
         val fakePlanWithDietName = PlanWithDietName(userId = 1L, date = LocalDate.now().toString(), dietId = 77L, isCompleted = false, notes = null, dietName = "Test Diet")
         every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(listOf(fakePlanWithDietName))
 
@@ -414,6 +418,9 @@ class HomeViewModelTest {
         planRepository = planRepo,
         dietRepository = dietRepo,
         authRepository = authRepo,
+        customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true).also { dao ->
+            every { dao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
+        },
         context = context
     )
 }
