@@ -75,7 +75,7 @@ fun CalendarScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 16.dp)
         ) {
@@ -176,7 +176,7 @@ private fun CalendarCard(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -192,7 +192,7 @@ private fun CalendarCard(
                         onClick = { onDateSelected(selectedDate.minusWeeks(1)) },
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev week", tint = Color.Gray)
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Spacer(Modifier.width(32.dp))
@@ -211,7 +211,7 @@ private fun CalendarCard(
                             onClick = { onDateSelected(selectedDate.plusWeeks(1)) },
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next week", tint = Color.Gray)
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     // Toggle pill: label shows what you'll switch TO
@@ -251,7 +251,7 @@ private fun CalendarCard(
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -288,7 +288,7 @@ private fun CalendarCard(
                 LegendItem(color = CompletedGreen, label = "Completed")
                 LegendItem(color = Color(0xFFFFC107), label = "Planned")
                 LegendItem(color = DarkGreen, label = "Today", isOutline = true)
-                LegendItem(color = Color.LightGray, label = "No plan")
+                LegendItem(color = MaterialTheme.colorScheme.outlineVariant, label = "No plan")
             }
         }
     }
@@ -307,7 +307,7 @@ private fun LegendItem(color: Color, label: String, isOutline: Boolean = false) 
                 )
         )
         Spacer(Modifier.width(3.dp))
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -435,14 +435,14 @@ private fun SelectedDatePanel(
                     Text(
                         text = dateDisplay,
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = diet?.name ?: "No diet planned",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (diet != null) Color.Black else Color.Gray
+                        color = if (diet != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     // First tag chip
                     val firstTag = tags.firstOrNull()
@@ -524,7 +524,7 @@ private fun SelectedDatePanel(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(MaterialTheme.colorScheme.surface)
                             .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -532,13 +532,13 @@ private fun SelectedDatePanel(
                             Icons.Default.Restaurant,
                             contentDescription = null,
                             modifier = Modifier.size(52.dp),
-                            tint = Color.LightGray
+                            tint = MaterialTheme.colorScheme.outlineVariant
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
                             "No diet planned for this day yet.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                         if (isFuture || isToday) {
@@ -574,7 +574,7 @@ private fun DietDetailSection(diet: Diet, dietWithMeals: DietWithMeals) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
         // 4-stat macro tiles
@@ -614,7 +614,7 @@ private fun DietDetailSection(diet: Diet, dietWithMeals: DietWithMeals) {
             Text(
                 text = desc,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -661,7 +661,7 @@ private fun MacroTile(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 9.sp,
                 maxLines = 1
             )
@@ -693,12 +693,12 @@ private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?) {
             Text(
                 text = slot.displayName,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = mealName ?: "—",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (mealName != null) Color.Black else Color.LightGray,
+                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

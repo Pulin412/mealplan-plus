@@ -92,7 +92,7 @@ fun FoodsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F5F5))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             // Tag filter row
             TagFilterRow(
@@ -107,7 +107,7 @@ fun FoodsScreen(
             // Tab row
             TabRow(
                 selectedTabIndex = selectedTab.ordinal,
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = FoodGreen
             ) {
                 Tab(
@@ -290,7 +290,7 @@ fun FoodCard(
             .fillMaxWidth()
             .clickable { expanded = !expanded },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -354,7 +354,7 @@ fun FoodCard(
                     Icon(
                         if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color.Gray,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -405,7 +405,7 @@ fun FoodCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Tags", style = MaterialTheme.typography.labelMedium,
-                                color = Color.Gray)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                             TextButton(onClick = { showTagPicker = !showTagPicker }) {
                                 Text("+ Add tag", color = FoodGreen,
                                     style = MaterialTheme.typography.labelMedium)
@@ -493,7 +493,7 @@ fun FoodCard(
 fun MacroDetail(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = color)
-        Text(label, fontSize = 11.sp, color = Color.Gray)
+        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -512,7 +512,7 @@ fun FoodQuantityDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Serving: ${food.servingSize.toInt()} ${food.servingUnit}",
-                    style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     value = qty,
                     onValueChange = { qty = it },

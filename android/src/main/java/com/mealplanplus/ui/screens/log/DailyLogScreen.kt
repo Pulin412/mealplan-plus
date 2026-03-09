@@ -132,7 +132,7 @@ fun DailyLogScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF0F9F4))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             DateNavigatorPill(
                 date = uiState.date,
@@ -276,7 +276,7 @@ fun DateNavigatorPill(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -293,13 +293,13 @@ fun DateNavigatorPill(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF1B5E20)
+                color = MaterialTheme.colorScheme.onSurface
             )
             IconButton(onClick = onNext, enabled = !isToday) {
                 Icon(
                     Icons.Default.KeyboardArrowRight,
                     contentDescription = "Next day",
-                    tint = if (isToday) Color.LightGray else TopBarGreen
+                    tint = if (isToday) MaterialTheme.colorScheme.outlineVariant else TopBarGreen
                 )
             }
         }
@@ -319,7 +319,7 @@ fun MacroSummaryCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -338,7 +338,7 @@ fun MacroSummaryCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFF5F5F5))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 TabToggleButton("Daily Log", selectedTab == 0, Modifier.weight(1f)) { onTabSelected(0) }
                 TabToggleButton("Plan vs Actual", selectedTab == 1, Modifier.weight(1f)) { onTabSelected(1) }
@@ -361,7 +361,7 @@ private fun TabToggleButton(label: String, selected: Boolean, modifier: Modifier
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (selected) Color.White else Color.Gray,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -393,7 +393,7 @@ fun MacroTile(label: String, actual: Int, unit: String, planned: Int, color: Col
             )
         }
         Spacer(Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -598,7 +598,7 @@ fun MealSlotCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column {
@@ -630,7 +630,7 @@ fun MealSlotCard(
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(slot.displayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 // Slot-level tick toggle (only when diet is assigned for this slot)
                 if (onToggleSlotLogged != null && plannedItems.isNotEmpty()) {
@@ -639,7 +639,7 @@ fun MealSlotCard(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(if (isSlotLogged) CaloriesColor else Color(0xFFE0E0E0))
+                            .background(if (isSlotLogged) CaloriesColor else MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { onToggleSlotLogged() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -657,7 +657,7 @@ fun MealSlotCard(
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -668,7 +668,7 @@ fun MealSlotCard(
                         Text(
                             "No foods logged",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
                     }
@@ -736,7 +736,7 @@ fun FoodRow(food: LoggedFoodWithDetails, onDelete: () -> Unit) {
             Text(
                 "${food.loggedFood.quantity.toInt()}g · ${food.calculatedCarbs.toInt()}g carbs",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Text(
@@ -746,7 +746,7 @@ fun FoodRow(food: LoggedFoodWithDetails, onDelete: () -> Unit) {
         )
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp), tint = Color.Gray)
+            Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -763,10 +763,10 @@ fun PlannedFoodRow(item: MealFoodItemWithDetails) {
             modifier = Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(Color.Gray.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Circle, contentDescription = null, tint = Color.Gray.copy(alpha = 0.4f), modifier = Modifier.size(8.dp))
+            Icon(Icons.Default.Circle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(8.dp))
         }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -774,7 +774,7 @@ fun PlannedFoodRow(item: MealFoodItemWithDetails) {
                 Text(
                     item.food.name,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -787,13 +787,13 @@ fun PlannedFoodRow(item: MealFoodItemWithDetails) {
             Text(
                 "${item.mealFoodItem.quantity.toInt()}g · ${item.calculatedCarbs.toInt()}g carbs",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }
         Text(
             "${item.calculatedCalories.toInt()} kcal",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.width(36.dp)) // align with FoodRow delete button space
     }
@@ -830,12 +830,12 @@ fun PlanVsActualTab(comparison: MacroComparison) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        LegendItem(Color.Gray.copy(alpha = 0.4f), "Planned")
+                        LegendItem(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), "Planned")
                         LegendItem(CaloriesColor, "Actual")
                         LegendItem(OverColor, "Over target")
                     }
@@ -855,7 +855,7 @@ fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(color))
         Spacer(Modifier.width(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -869,7 +869,7 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
     Column(modifier = Modifier.padding(vertical = 6.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-            Text("Plan: $planned$unit", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text("Plan: $planned$unit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(8.dp))
             Text("$actual$unit", style = MaterialTheme.typography.labelSmall, color = barColor, fontWeight = FontWeight.SemiBold)
             if (planned > 0) {
@@ -887,7 +887,7 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(Color.Gray.copy(alpha = 0.15f))
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
         ) {
             Box(
                 modifier = Modifier
@@ -920,7 +920,7 @@ fun CustomMealSlotCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column {
@@ -952,7 +952,7 @@ fun CustomMealSlotCard(
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(slot.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                     Icon(
@@ -965,7 +965,7 @@ fun CustomMealSlotCard(
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -976,7 +976,7 @@ fun CustomMealSlotCard(
                         Text(
                             "No foods logged",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
                     }
@@ -1056,13 +1056,13 @@ fun FoodPickerSheetContent(
                             Text(
                                 "${food.caloriesPer100.toInt()} kcal/100g · P:${food.proteinPer100.toInt()}g C:${food.carbsPer100.toInt()}g",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         trailingContent = { food.glycemicIndex?.let { GiBadge(it) } },
                         modifier = Modifier.clickable { selectedFood = food }
                     )
-                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                 }
             }
         } else {
@@ -1086,7 +1086,7 @@ fun FoodPickerSheetContent(
             Text(
                 "${(food.caloriesPer100 * grams / 100).toInt()} kcal · P:${(food.proteinPer100 * grams / 100).toInt()}g C:${(food.carbsPer100 * grams / 100).toInt()}g F:${(food.fatPer100 * grams / 100).toInt()}g",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(12.dp))
             Row(

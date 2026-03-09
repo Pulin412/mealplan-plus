@@ -15,17 +15,21 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.HealthMetric
+import com.mealplanplus.util.ThemePreferences
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -79,6 +84,10 @@ fun HomeScreen(
     val weekOffset by viewModel.weekOffset.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val followSystem by ThemePreferences.isFollowSystem(context).collectAsState(initial = true)
+    val darkModePref by ThemePreferences.isDarkMode(context).collectAsState(initial = false)
+    val isDark = if (followSystem) isSystemInDarkTheme() else darkModePref
 
     // Observe diet selection result from DietPickerScreen
     val selectedDietId by (savedStateHandle
@@ -172,7 +181,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(LightGreenBg)
+                .background(MaterialTheme.colorScheme.background)
         ) {
             Column(
                 modifier = Modifier
@@ -187,7 +196,14 @@ fun HomeScreen(
                     caloriesConsumed = uiState.todaySummary.calories,
                     calorieGoal = uiState.calorieGoal,
                     onProfileClick = onNavigateToProfile,
-                    onMenuClick = { scope.launch { drawerState.open() } }
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    isDark = isDark,
+                    onThemeToggle = {
+                        scope.launch {
+                            ThemePreferences.setFollowSystem(context, false)
+                            ThemePreferences.setDarkMode(context, !isDark)
+                        }
+                    }
                 )
 
                 // ── Macro rings card ───────────────────────────────────
@@ -253,7 +269,9 @@ fun HomeHeaderSection(
     caloriesConsumed: Int,
     calorieGoal: Int,
     onProfileClick: () -> Unit,
-    onMenuClick: () -> Unit = {}
+    onMenuClick: () -> Unit = {},
+    isDark: Boolean = false,
+    onThemeToggle: () -> Unit = {}
 ) {
     val greeting = when (java.time.LocalTime.now().hour) {
         in 5..11 -> "Good morning"
@@ -309,6 +327,17 @@ fun HomeHeaderSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconButton(
+                        onClick = onThemeToggle,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = "Toggle theme",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -394,7 +423,7 @@ fun MacroRingsCard(calories: Int, calorieGoal: Int, protein: Int, carbs: Int, fa
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -431,12 +460,12 @@ fun MacroRingItem(value: Int, unit: String, label: String, percent: Int, color: 
                 strokeCap = StrokeCap.Round
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "$value", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A))
-                Text(text = unit, fontSize = 10.sp, color = Color(0xFF888888))
+                Text(text = "$value", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(text = unit, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Text(text = label, fontSize = 12.sp, color = Color(0xFF444444))
-        Text(text = "$percent%", fontSize = 11.sp, color = Color(0xFF888888))
+        Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = "$percent%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -502,11 +531,11 @@ fun ThisWeekCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("This Week", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A1A))
+            Text("This Week", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -541,7 +570,7 @@ fun ThisWeekCard(
                     Text(
                         text = letter,
                         fontSize = 12.sp,
-                        color = Color(0xFF999999),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center
                     )
@@ -563,7 +592,7 @@ fun ThisWeekCard(
                         else -> Color.Transparent
                     }
                     val textColor = when {
-                        bgColor == Color.Transparent -> Color(0xFFCCCCCC)
+                        bgColor == Color.Transparent -> MaterialTheme.colorScheme.outlineVariant
                         else -> Color.White
                     }
                     // Only allow tap on days that have data (completed, missed, or planned)
@@ -601,7 +630,7 @@ fun ThisWeekCard(
                                     WeekDayState.COMPLETED -> PrimaryGreen
                                     WeekDayState.PLANNED_FUTURE -> WeekOrange
                                     WeekDayState.MISSED -> WeekRed
-                                    else -> Color(0xFF888888)
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                                 textAlign = TextAlign.Center,
                                 maxLines = 1
@@ -629,7 +658,7 @@ fun ThisWeekCard(
 fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Text(text = label, fontSize = 11.sp, color = Color(0xFF666666))
+        Text(text = label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -649,7 +678,7 @@ fun TodaysPlanCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -658,7 +687,7 @@ fun TodaysPlanCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1A1A1A))
+                Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
                 TextButton(onClick = onPlanOrChangeDiet) {
                     Text("$actionLabel >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
@@ -670,7 +699,7 @@ fun TodaysPlanCard(
                     if (hasDietToday) "Loading plan…"
                     else "No diet planned for today.\nTap \"Plan a Diet\" to get started.",
                     fontSize = 13.sp,
-                    color = Color(0xFF888888),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             } else {
@@ -739,13 +768,13 @@ fun TodayPlanSlotRow(
                     slot.slotDisplayName,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
-                    color = Color(0xFF1A1A1A)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 when {
                     slot.plannedMealName != null -> Text(
                         slot.plannedMealName,
                         fontSize = 12.sp,
-                        color = Color(0xFF666666),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                     !expanded && hasLoggedFoods -> Text(
@@ -761,7 +790,7 @@ fun TodayPlanSlotRow(
                 Icon(
                     if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = Color(0xFFBBBBBB),
+                    tint = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -772,7 +801,7 @@ fun TodayPlanSlotRow(
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = "View meal details",
-                    tint = Color(0xFFBBBBBB),
+                    tint = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -800,7 +829,7 @@ fun TodayPlanSlotRow(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE0E0E0))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
                     contentAlignment = Alignment.Center
                 ) {
@@ -829,14 +858,14 @@ fun TodayPlanSlotRow(
                         Text(
                             text = loggedFood.food.name,
                             fontSize = 12.sp,
-                            color = Color(0xFF444444),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                             maxLines = 1
                         )
                         Text(
                             text = "${loggedFood.calculatedCalories.toInt()} kcal",
                             fontSize = 12.sp,
-                            color = Color(0xFF888888)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -857,7 +886,7 @@ fun BloodGlucoseCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -876,7 +905,7 @@ fun BloodGlucoseCard(
                     ) {
                         Text("🔥", fontSize = 14.sp)
                     }
-                    Text("Blood Glucose", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A1A))
+                    Text("Blood Glucose", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                 }
                 TextButton(onClick = onDetailsClick) {
                     Text("Details >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -887,8 +916,8 @@ fun BloodGlucoseCard(
 
             if (latestSugar != null) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(latestSugar.value.toInt().toString(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A))
-                    Text("mg/dL", fontSize = 14.sp, color = Color(0xFF888888), modifier = Modifier.padding(bottom = 6.dp))
+                    Text(latestSugar.value.toInt().toString(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("mg/dL", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
                 }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -906,8 +935,8 @@ fun BloodGlucoseCard(
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("Target Range", fontSize = 11.sp, color = Color(0xFF888888))
-                        Text("80–130", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF444444))
+                        Text("Target Range", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("80–130", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -919,7 +948,7 @@ fun BloodGlucoseCard(
                 Text(
                     "No glucose reading today.\nLog a reading in Health.",
                     fontSize = 14.sp,
-                    color = Color(0xFF888888),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
@@ -995,7 +1024,7 @@ fun StatCard(
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -1009,8 +1038,8 @@ fun StatCard(
             ) {
                 Text(emoji, fontSize = 16.sp)
             }
-            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A), maxLines = 1)
-            Text(text = label, fontSize = 10.sp, color = Color(0xFF888888))
+            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+            Text(text = label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
