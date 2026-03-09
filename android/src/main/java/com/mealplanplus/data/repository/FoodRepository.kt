@@ -1,14 +1,18 @@
 package com.mealplanplus.data.repository
 
 import com.mealplanplus.data.local.FoodDao
+import com.mealplanplus.data.local.TagDao
 import com.mealplanplus.data.model.FoodItem
+import com.mealplanplus.data.model.FoodTagCrossRef
+import com.mealplanplus.data.model.Tag
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class FoodRepository @Inject constructor(
-    private val foodDao: FoodDao
+    private val foodDao: FoodDao,
+    private val tagDao: TagDao
 ) {
     fun getAllFoods(): Flow<List<FoodItem>> = foodDao.getAllFoods()
 
@@ -33,4 +37,14 @@ class FoodRepository @Inject constructor(
     suspend fun deleteFood(food: FoodItem) = foodDao.deleteFood(food)
 
     suspend fun deleteFoodById(id: Long) = foodDao.deleteFoodById(id)
+
+    fun getTagsForFood(foodId: Long): Flow<List<Tag>> = tagDao.getTagsForFood(foodId)
+
+    fun getFoodIdsForTag(tagId: Long): Flow<List<Long>> = tagDao.getFoodIdsForTag(tagId)
+
+    suspend fun addTagToFood(foodId: Long, tagId: Long) = tagDao.insertFoodTag(FoodTagCrossRef(foodId, tagId))
+
+    suspend fun removeTagFromFood(foodId: Long, tagId: Long) = tagDao.removeFoodTag(foodId, tagId)
+
+    suspend fun clearFoodTags(foodId: Long) = tagDao.clearFoodTags(foodId)
 }

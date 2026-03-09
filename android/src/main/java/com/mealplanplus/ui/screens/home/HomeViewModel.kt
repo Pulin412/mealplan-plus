@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.HealthMetric
+import com.mealplanplus.data.model.LoggedFoodWithDetails
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import com.mealplanplus.data.model.MetricType
+import com.mealplanplus.data.local.CustomMealSlotDao
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
@@ -41,7 +43,8 @@ data class TodayPlanSlot(
     val plannedMealId: Long?,      // meal id from diet
     val plannedFoods: List<MealFoodItemWithDetails> = emptyList(), // foods in planned meal (for logging)
     val isLogged: Boolean,         // true if at least one food was logged for this slot today
-    val dietId: Long? = null       // dietId for navigating to MealDetailScreen
+    val dietId: Long? = null,      // dietId for navigating to MealDetailScreen
+    val loggedFoods: List<LoggedFoodWithDetails> = emptyList() // actual logged foods (for custom slots)
 )
 
 // Legacy – kept for any screen still referencing it
@@ -94,6 +97,7 @@ class HomeViewModel @Inject constructor(
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository,
     private val authRepository: AuthRepository,
+    private val customMealSlotDao: CustomMealSlotDao,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -180,67 +184,96 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Loads Today's Plan slots from today's assigned diet.
-     * Combines getLogWithFoods + plan flow so the same logged_foods table drives
-     * both HomeScreen ticks and DailyLogScreen — keeping them in sync.
+     * Loads Today's Plan slots from today's assigned diet + any custom slots.
+     * Combines log, plan, and custom-slot flows so home screen stays in sync
+     * with DailyLogScreen.
      */
     private fun loadTodayPlanSlots() {
         val todayStr = LocalDate.now().toString()
-        combine(
-            dailyLogRepository.getLogWithFoods(LocalDate.now()),
-            planRepository.getPlansWithDietNames(todayStr, todayStr)
-        ) { logWithFoods, plans -> logWithFoods to plans }
-            .onEach { (logWithFoods, plans) ->
-                val dietId = plans.firstOrNull { it.dietId != null }?.dietId
-
-                val slots: List<TodayPlanSlot> = if (dietId != null) {
-                    val dietWithMeals = dietRepository.getDietWithMeals(dietId)
-                    dietWithMeals?.meals
-                        ?.entries
-                        ?.sortedBy { (slotType, _) ->
-                            DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
-                        }
-                        ?.map { (slotType, mealWithFoods) ->
-                            val slotFoods = logWithFoods?.foodsForSlot(slotType) ?: emptyList()
-                            TodayPlanSlot(
-                                slotType = slotType,
-                                slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
-                                    ?: slotType.replace("_", " ").lowercase()
-                                        .replaceFirstChar { it.uppercaseChar() },
-                                emoji = slotEmoji(slotType),
-                                plannedMealName = mealWithFoods?.meal?.name,
-                                plannedMealId = mealWithFoods?.meal?.id,
-                                plannedFoods = mealWithFoods?.items ?: emptyList(),
-                                isLogged = slotFoods.isNotEmpty(),
-                                dietId = dietId
-                            )
-                        } ?: emptyList()
-                } else {
-                    // No diet assigned — show slots that have logged foods
-                    (logWithFoods?.foods ?: emptyList())
-                        .groupBy { it.loggedFood.slotType.uppercase() }
-                        .entries
-                        .sortedBy { (slotType, _) ->
-                            DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
-                        }
-                        .map { (slotType, _) ->
-                            TodayPlanSlot(
-                                slotType = slotType,
-                                slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
-                                    ?: slotType.replace("_", " ").lowercase()
-                                        .replaceFirstChar { it.uppercaseChar() },
-                                emoji = slotEmoji(slotType),
-                                plannedMealName = null,
-                                plannedMealId = null,
-                                plannedFoods = emptyList(),
-                                isLogged = true
-                            )
-                        }
-                }
-
-                _uiState.update { it.copy(todayPlanSlots = slots, hasDietToday = dietId != null) }
+        viewModelScope.launch {
+            val userId = AuthPreferences.getUserId(context).first() ?: return@launch
+            combine(
+                dailyLogRepository.getLogWithFoods(LocalDate.now()),
+                planRepository.getPlansWithDietNames(todayStr, todayStr),
+                customMealSlotDao.getSlotsForDate(userId, todayStr)
+            ) { logWithFoods, plans, customSlots ->
+                Triple(logWithFoods, plans, customSlots)
             }
-            .launchIn(viewModelScope)
+                .onEach { (logWithFoods, plans, customSlots) ->
+                    val dietId = plans.firstOrNull { it.dietId != null }?.dietId
+
+                    val dietSlots: List<TodayPlanSlot> = if (dietId != null) {
+                        val dietWithMeals = dietRepository.getDietWithMeals(dietId)
+                        dietWithMeals?.meals
+                            ?.entries
+                            ?.sortedBy { (slotType, _) ->
+                                DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
+                            }
+                            ?.map { (slotType, mealWithFoods) ->
+                                val slotFoods = logWithFoods?.foodsForSlot(slotType) ?: emptyList()
+                                TodayPlanSlot(
+                                    slotType = slotType,
+                                    slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
+                                        ?: slotType.replace("_", " ").lowercase()
+                                            .replaceFirstChar { it.uppercaseChar() },
+                                    emoji = slotEmoji(slotType),
+                                    plannedMealName = mealWithFoods?.meal?.name,
+                                    plannedMealId = mealWithFoods?.meal?.id,
+                                    plannedFoods = mealWithFoods?.items ?: emptyList(),
+                                    isLogged = slotFoods.isNotEmpty(),
+                                    dietId = dietId
+                                )
+                            } ?: emptyList()
+                    } else {
+                        // No diet assigned — show default slots that have logged foods
+                        (logWithFoods?.foods ?: emptyList())
+                            .filter { !it.loggedFood.slotType.startsWith("CUSTOM_") }
+                            .groupBy { it.loggedFood.slotType.uppercase() }
+                            .entries
+                            .sortedBy { (slotType, _) ->
+                                DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
+                            }
+                            .map { (slotType, _) ->
+                                TodayPlanSlot(
+                                    slotType = slotType,
+                                    slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
+                                        ?: slotType.replace("_", " ").lowercase()
+                                            .replaceFirstChar { it.uppercaseChar() },
+                                    emoji = slotEmoji(slotType),
+                                    plannedMealName = null,
+                                    plannedMealId = null,
+                                    plannedFoods = emptyList(),
+                                    isLogged = true
+                                )
+                            }
+                    }
+
+                    // Append custom slots (always shown, logged or not)
+                    val customTodaySlots = customSlots.map { slot ->
+                        val slotType = "CUSTOM_${slot.id}"
+                        val isLogged = logWithFoods?.foodsForSlot(slotType)?.isNotEmpty() == true
+                        TodayPlanSlot(
+                            slotType = slotType,
+                            slotDisplayName = slot.name,
+                            emoji = "✦",
+                            plannedMealName = null,
+                            plannedMealId = null,
+                            plannedFoods = emptyList(),
+                            isLogged = isLogged,
+                            dietId = null,
+                            loggedFoods = logWithFoods?.foodsForSlot(slotType) ?: emptyList()
+                        )
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            todayPlanSlots = dietSlots + customTodaySlots,
+                            hasDietToday = dietId != null
+                        )
+                    }
+                }
+                .launchIn(viewModelScope)
+        }
     }
 
     /** Plan a diet for today (called when user picks a diet from DietPickerScreen via HomeScreen). */

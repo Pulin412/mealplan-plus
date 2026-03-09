@@ -66,6 +66,7 @@ fun DailyLogScreen(
     onNavigateBack: () -> Unit,
     onNavigateToMealPicker: (String, String) -> Unit = { _, _ -> }, // kept for NavHost compat
     onNavigateToDietPicker: (String) -> Unit = { _ -> },
+    onNavigateToFoodPickerForCustomSlot: () -> Unit = {},
     onNavigateHome: () -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: DailyLogViewModel = hiltViewModel()
@@ -73,6 +74,7 @@ fun DailyLogScreen(
     val uiState by viewModel.uiState.collectAsState()
     val allFoods by viewModel.allFoods.collectAsState()
     val customSlots by viewModel.customSlots.collectAsState()
+    val savedSlotOrder by viewModel.savedSlotOrder.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val expandedSlots = remember { mutableStateOf(setOf(DefaultMealSlot.BREAKFAST.name)) }
 
@@ -96,6 +98,19 @@ fun DailyLogScreen(
             viewModel.applyDietById(dietId, selectedDate)
             savedStateHandle.remove<Long>("selected_diet_id")
             savedStateHandle.remove<String>("selected_date")
+        }
+    }
+
+    // Handle food returned from FoodPickerForCustomSlot nav screen
+    val customFoodId by (savedStateHandle
+        ?.getStateFlow("custom_food_id", -1L)
+        ?.collectAsState() ?: remember { mutableStateOf(-1L) })
+    LaunchedEffect(customFoodId) {
+        if (customFoodId != -1L) {
+            val qty = savedStateHandle?.get<Double>("custom_food_qty") ?: 100.0
+            viewModel.logFood(customFoodId, qty)
+            savedStateHandle?.set("custom_food_id", -1L)
+            savedStateHandle?.set("custom_food_qty", -1.0)
         }
     }
 
@@ -139,19 +154,30 @@ fun DailyLogScreen(
                         logWithFoods = uiState.logWithFoods,
                         plannedDiet = uiState.plannedDiet,
                         expandedSlots = expandedSlots.value,
+                        savedSlotOrder = savedSlotOrder,
                         onToggleSlot = { slot ->
                             expandedSlots.value = if (slot.name in expandedSlots.value)
                                 expandedSlots.value - slot.name
                             else
                                 expandedSlots.value + slot.name
                         },
+                        onToggleCustomSlot = { key ->
+                            expandedSlots.value = if (key in expandedSlots.value)
+                                expandedSlots.value - key
+                            else
+                                expandedSlots.value + key
+                        },
                         onAddFood = { slot -> viewModel.showFoodPickerFor(slot) },
+                        onAddFoodToCustomSlot = { slot ->
+                            viewModel.setPendingCustomSlot(slot)
+                            onNavigateToFoodPickerForCustomSlot()
+                        },
                         onDeleteFood = { id -> viewModel.deleteLoggedFood(id) },
                         onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) },
                         customSlots = customSlots,
                         onDeleteCustomSlot = { id -> viewModel.deleteCustomSlot(id) },
                         onAddCustomSlot = { name -> viewModel.addCustomSlot(name) },
-                        onReorderCustomSlots = { slots -> viewModel.reorderCustomSlots(slots) }
+                        onReorderSlots = { keys, customs -> viewModel.reorderSlots(keys, customs) }
                     )
                     1 -> PlanVsActualTab(comparison = uiState.comparison)
                 }
@@ -164,7 +190,9 @@ fun DailyLogScreen(
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ) {
                 FoodPickerSheetContent(
-                    slot = uiState.selectedSlot ?: DefaultMealSlot.BREAKFAST,
+                    slotName = uiState.selectedSlot?.displayName
+                        ?: uiState.selectedCustomSlot?.name
+                        ?: "Meal Slot",
                     foods = allFoods,
                     onLogFood = { foodId, qty -> viewModel.logFood(foodId, qty) },
                     onDismiss = { viewModel.hideFoodPicker() }
@@ -376,14 +404,17 @@ fun DailyLogTab(
     logWithFoods: DailyLogWithFoods?,
     plannedDiet: DietWithMeals? = null,
     expandedSlots: Set<String>,
+    savedSlotOrder: List<String> = emptyList(),
     onToggleSlot: (DefaultMealSlot) -> Unit,
+    onToggleCustomSlot: (String) -> Unit = {},
     onAddFood: (DefaultMealSlot) -> Unit,
+    onAddFoodToCustomSlot: (CustomMealSlot) -> Unit = {},
     onDeleteFood: (Long) -> Unit,
     onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null,
     customSlots: List<CustomMealSlot> = emptyList(),
     onDeleteCustomSlot: (Long) -> Unit = {},
     onAddCustomSlot: (String) -> Unit = {},
-    onReorderCustomSlots: (List<CustomMealSlot>) -> Unit = {}
+    onReorderSlots: (List<String>, List<CustomMealSlot>) -> Unit = { _, _ -> }
 ) {
     val mainSlots = setOf(
         DefaultMealSlot.BREAKFAST, DefaultMealSlot.LUNCH,
@@ -403,10 +434,18 @@ fun DailyLogTab(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "all_slots") {
-            // Merge default + custom into one unified list for drag-to-reorder
-            val unified = remember(slotsToShow, customSlots) {
-                (slotsToShow.map { LogSlot.Default(it) } +
-                        customSlots.map { LogSlot.Custom(it) }).toMutableStateList()
+            // Merge default + custom, restoring saved order if available
+            val unified = remember(slotsToShow, customSlots, savedSlotOrder) {
+                val all = slotsToShow.map { LogSlot.Default(it) } +
+                        customSlots.map { LogSlot.Custom(it) }
+                if (savedSlotOrder.isNotEmpty()) {
+                    val byKey = all.associateBy { it.key }
+                    val ordered = savedSlotOrder.mapNotNull { byKey[it] }
+                    val remaining = all.filter { it.key !in savedSlotOrder }
+                    (ordered + remaining).toMutableStateList()
+                } else {
+                    all.toMutableStateList()
+                }
             }
             var draggingKey by remember { mutableStateOf<String?>(null) }
             var accY by remember { mutableFloatStateOf(0f) }
@@ -434,10 +473,11 @@ fun DailyLogTab(
                             },
                             onDragEnd = {
                                 draggingKey = null; accY = 0f
+                                val allKeys = unified.map { it.key }
                                 val newCustomOrder = unified
                                     .filterIsInstance<LogSlot.Custom>()
                                     .map { it.customSlot }
-                                onReorderCustomSlots(newCustomOrder)
+                                onReorderSlots(allKeys, newCustomOrder)
                             },
                             onDragCancel = { draggingKey = null; accY = 0f }
                         )
@@ -462,9 +502,16 @@ fun DailyLogTab(
                         }
                         is LogSlot.Custom -> {
                             val slot = logSlot.customSlot
+                            val customKey = "CUSTOM_${slot.id}"
+                            val customFoods = logWithFoods?.foodsForSlot(customKey) ?: emptyList()
                             CustomMealSlotCard(
                                 slot = slot,
+                                foods = customFoods,
+                                isExpanded = customKey in expandedSlots,
+                                onToggleExpand = { onToggleCustomSlot(customKey) },
                                 onDelete = { onDeleteCustomSlot(slot.id) },
+                                onAddFood = { onAddFoodToCustomSlot(slot) },
+                                onDeleteFood = onDeleteFood,
                                 modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
                                 dragHandleModifier = dragMod
                             )
@@ -858,52 +905,97 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
 @Composable
 fun CustomMealSlotCard(
     slot: CustomMealSlot,
+    foods: List<LoggedFoodWithDetails> = emptyList(),
+    isExpanded: Boolean = false,
+    onToggleExpand: () -> Unit = {},
     onDelete: () -> Unit,
+    onAddFood: () -> Unit = {},
+    onDeleteFood: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier
 ) {
+    val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
+    val subtitle = if (foods.isNotEmpty()) "${foods.size} logged · $loggedKcal kcal" else "Nothing logged"
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Drag handle — long-press to reorder
-            Icon(
-                Icons.Default.DragHandle,
-                contentDescription = "Drag to reorder",
-                tint = Color(0xFFBBBBBB),
-                modifier = dragHandleModifier
-                    .size(24.dp)
-                    .padding(end = 4.dp)
-            )
-            Box(
+        Column {
+            Row(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFB0BEC5).copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggleExpand)
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("✦", style = MaterialTheme.typography.titleSmall)
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(slot.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                Text("Custom slot · Nothing logged", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-            }
-            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                // Drag handle — long-press to reorder
                 Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Remove slot",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.error
+                    Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    tint = Color(0xFFBBBBBB),
+                    modifier = dragHandleModifier
+                        .size(24.dp)
+                        .padding(end = 4.dp)
                 )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFB0BEC5).copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✦", style = MaterialTheme.typography.titleSmall)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(slot.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Remove slot",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color.Gray
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                    if (foods.isEmpty()) {
+                        Text(
+                            "No foods logged",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                        )
+                    }
+                    foods.forEach { food ->
+                        FoodRow(food = food, onDelete = { onDeleteFood(food.loggedFood.id) })
+                        HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        TextButton(onClick = onAddFood) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = TopBarGreen)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Add Food", color = TopBarGreen, style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                }
             }
         }
     }
@@ -913,7 +1005,7 @@ fun CustomMealSlotCard(
 
 @Composable
 fun FoodPickerSheetContent(
-    slot: DefaultMealSlot,
+    slotName: String,
     foods: List<FoodItem>,
     onLogFood: (foodId: Long, quantity: Double) -> Unit,
     onDismiss: () -> Unit
@@ -941,7 +1033,7 @@ fun FoodPickerSheetContent(
     ) {
         if (selectedFood == null) {
             Text(
-                "Add Food to ${slot.displayName}",
+                "Add Food to $slotName",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(vertical = 8.dp)

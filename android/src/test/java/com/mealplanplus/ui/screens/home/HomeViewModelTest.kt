@@ -188,7 +188,10 @@ class HomeViewModelTest {
 
     @Test
     fun weekDays_pastDayNoPlanNoCalories_isMissed() = runTest {
-        val yesterday = LocalDate.now().minusDays(1)
+        val today = LocalDate.now()
+        // Skip on Monday — no past days exist in the current Mon-Sun week
+        org.junit.Assume.assumeTrue(today.dayOfWeek != java.time.DayOfWeek.MONDAY)
+        val yesterday = today.minusDays(1)
         every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(emptyList())
         every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(emptyList())
 
@@ -211,7 +214,10 @@ class HomeViewModelTest {
 
     @Test
     fun weekDays_pastDayWithPlanButNoCalories_isMissed() = runTest {
-        val twoDaysAgo = LocalDate.now().minusDays(2)
+        val today = LocalDate.now()
+        // Skip on Monday/Tuesday — twoDaysAgo would be in the previous week
+        org.junit.Assume.assumeTrue(today.dayOfWeek.value > 2)
+        val twoDaysAgo = today.minusDays(2)
         val plans = listOf(
             PlanWithDietName(
                 userId = 1L,
@@ -232,11 +238,13 @@ class HomeViewModelTest {
 
     @Test
     fun weekDays_completedPlan_isCompleted() = runTest {
-        val yesterday = LocalDate.now().minusDays(1)
+        val today = LocalDate.now()
+        // Use weekStart (Mon) — always in current week regardless of day-of-week
+        val weekStart = today.minusDays((today.dayOfWeek.value - 1).toLong())
         val plans = listOf(
             PlanWithDietName(
                 userId = 1L,
-                date = yesterday.toString(),
+                date = weekStart.toString(),
                 dietId = 5L,
                 isCompleted = true,
                 notes = null,
@@ -246,7 +254,7 @@ class HomeViewModelTest {
         every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(plans)
 
         val vm = buildViewModel()
-        val info = vm.uiState.value.weekDays.find { it.date == yesterday }
+        val info = vm.uiState.value.weekDays.find { it.date == weekStart }
         assertEquals(WeekDayState.COMPLETED, info?.state)
     }
 

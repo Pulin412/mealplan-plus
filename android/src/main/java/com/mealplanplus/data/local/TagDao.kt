@@ -2,6 +2,7 @@ package com.mealplanplus.data.local
 
 import androidx.room.*
 import com.mealplanplus.data.model.DietTagCrossRef
+import com.mealplanplus.data.model.FoodTagCrossRef
 import com.mealplanplus.data.model.Tag
 import kotlinx.coroutines.flow.Flow
 
@@ -54,4 +55,24 @@ interface TagDao {
 
     @Query("SELECT COUNT(*) FROM diet_tags WHERE tagId = :tagId")
     suspend fun getDietCountForTag(tagId: Long): Int
+
+    // Food-Tag junction operations
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFoodTag(crossRef: FoodTagCrossRef)
+
+    @Query("DELETE FROM food_tag_cross_refs WHERE foodId = :foodId AND tagId = :tagId")
+    suspend fun removeFoodTag(foodId: Long, tagId: Long)
+
+    @Query("""
+        SELECT t.* FROM tags t
+        INNER JOIN food_tag_cross_refs ft ON t.id = ft.tagId
+        WHERE ft.foodId = :foodId
+    """)
+    fun getTagsForFood(foodId: Long): Flow<List<Tag>>
+
+    @Query("SELECT foodId FROM food_tag_cross_refs WHERE tagId = :tagId")
+    fun getFoodIdsForTag(tagId: Long): Flow<List<Long>>
+
+    @Query("DELETE FROM food_tag_cross_refs WHERE foodId = :foodId")
+    suspend fun clearFoodTags(foodId: Long)
 }

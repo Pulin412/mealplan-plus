@@ -20,11 +20,12 @@ import com.mealplanplus.data.model.*
         User::class,
         Tag::class,
         DietTagCrossRef::class,
+        FoodTagCrossRef::class,
         GroceryList::class,
         GroceryItem::class,
         CustomMealSlot::class
     ],
-    version = 20,
+    version = 21,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

@@ -121,6 +121,7 @@ sealed class Screen(val route: String) {
     object GroceryDetail : Screen("grocery_detail/{listId}") {
         fun createRoute(listId: Long) = "grocery_detail/$listId"
     }
+    object FoodPickerForCustomSlot : Screen("food_picker_custom_slot")
 }
 
 // Bottom nav tab definitions
@@ -247,6 +248,10 @@ fun MealPlanNavHost() {
                     onNavigateToMealDetail = { dietId, slotType ->
                         navController.navigate(Screen.MealDetail.createRoute(dietId, slotType))
                     },
+                    onNavigateToFoods = { navController.navigate(Screen.Foods.route) },
+                    onNavigateToMeals = { navController.navigate(Screen.Meals.route) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToDiets = { navController.navigate(Screen.Diets.route) },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
@@ -458,6 +463,9 @@ fun MealPlanNavHost() {
                     onNavigateToDietPicker = { date ->
                         navController.navigate(Screen.DietPicker.createRoute(date))
                     },
+                    onNavigateToFoodPickerForCustomSlot = {
+                        navController.navigate(Screen.FoodPickerForCustomSlot.route)
+                    },
                     onNavigateHome = {
                         navController.popBackStack(Screen.Home.route, inclusive = false)
                     },
@@ -478,6 +486,9 @@ fun MealPlanNavHost() {
                     },
                     onNavigateToDietPicker = { dateStr ->
                         navController.navigate(Screen.DietPicker.createRoute(dateStr))
+                    },
+                    onNavigateToFoodPickerForCustomSlot = {
+                        navController.navigate(Screen.FoodPickerForCustomSlot.route)
                     },
                     onNavigateHome = {
                         navController.popBackStack(Screen.Home.route, inclusive = false)
@@ -593,6 +604,19 @@ fun MealPlanNavHost() {
             ) {
                 GroceryDetailScreen(
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.FoodPickerForCustomSlot.route) {
+                com.mealplanplus.ui.screens.foods.FoodsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    pickerMode = true,
+                    onFoodSelected = { food, qty ->
+                        navController.previousBackStackEntry?.savedStateHandle?.apply {
+                            set("custom_food_id", food.id)
+                            set("custom_food_qty", qty)
+                        }
+                        navController.popBackStack()
+                    }
                 )
             }
         }
