@@ -276,7 +276,7 @@ fun TagFilterRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -332,7 +332,7 @@ fun AdvancedFilterSection(
     onSlotToggle: (String) -> Unit,
     onClearAll: () -> Unit
 ) {
-    Surface(color = Color(0xFFF0F7F3)) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             // Food filter
             OutlinedTextField(
@@ -404,7 +404,7 @@ fun DietCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -434,12 +434,12 @@ fun DietCard(
                         if (item.diet.isSystemDiet) {
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFFE0E0E0)
+                                color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Text(
                                     "Built-in",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF616161),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }

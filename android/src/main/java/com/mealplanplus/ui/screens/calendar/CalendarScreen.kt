@@ -405,7 +405,7 @@ private fun SelectedDatePanel(
     val isPast = date.isBefore(today)
     val isFuture = date.isAfter(today)
 
-    val panelBg = if (isToday || isPast) LightGreenBg else YellowBg
+    val panelBg = MaterialTheme.colorScheme.surfaceVariant
     val dateLabel = when {
         isToday -> "Today"
         isPast -> "Past"
@@ -467,8 +467,8 @@ private fun SelectedDatePanel(
                 // Action button (right side)
                 when {
                     isToday && diet != null -> TextButton(onClick = onViewLog) {
-                        Text("View Log", color = DarkGreen, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = DarkGreen, modifier = Modifier.size(18.dp))
+                        Text("View Log", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                     isFuture && diet != null -> Button(
                         onClick = onChangeDiet,
@@ -487,8 +487,8 @@ private fun SelectedDatePanel(
                         Text("+ Plan", style = MaterialTheme.typography.labelMedium)
                     }
                     isPast && diet != null -> TextButton(onClick = onViewLog) {
-                        Text("View Log", color = DarkGreen, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = DarkGreen, modifier = Modifier.size(18.dp))
+                        Text("View Log", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
