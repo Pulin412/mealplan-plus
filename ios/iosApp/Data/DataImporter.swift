@@ -131,6 +131,7 @@ final class DataImporter {
                     gramsPerTbsp: nil,
                     gramsPerTsp: nil,
                     glycemicIndex: nil,
+                    preferredUnit: nil,
                     isFavorite: false,
                     lastUsed: nil,
                     createdAt: Int64(Date().timeIntervalSince1970 * 1000),
