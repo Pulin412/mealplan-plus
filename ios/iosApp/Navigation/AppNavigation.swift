@@ -205,9 +205,14 @@ struct MainTabView: View {
         }
         .accentColor(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0))
         .onReceive(NotificationCenter.default.publisher(for: .navigateToLog)) { notification in
+            selectedTab = 2
             if let isoDate = notification.object as? String {
-                selectedTab = 2
                 NotificationCenter.default.post(name: .navigateToDate, object: isoDate)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToTab)) { notification in
+            if let tab = notification.object as? Int {
+                selectedTab = tab
             }
         }
     }
@@ -215,9 +220,14 @@ struct MainTabView: View {
 
 // MARK: - Notification names for log navigation
 extension Notification.Name {
-    static let navigateToDate = Notification.Name("navigateToDate")
+    static let navigateToDate    = Notification.Name("navigateToDate")
     /// Post with an ISO date String to switch to the Log tab and jump to that date.
-    static let navigateToLog  = Notification.Name("navigateToLog")
+    static let navigateToLog     = Notification.Name("navigateToLog")
+    /// Post with an Int as object to switch to that tab index.
+    static let navigateToTab     = Notification.Name("navigateToTab")
+    static let navigateToFoods   = Notification.Name("navigateToFoods")
+    static let navigateToMeals   = Notification.Name("navigateToMeals")
+    static let navigateToSettings = Notification.Name("navigateToSettings")
 }
 
 // Tab wrapper views

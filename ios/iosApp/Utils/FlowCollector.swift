@@ -702,6 +702,14 @@ class HomeViewModel: ObservableObject {
         isLoading = true
         let today = isoToday()
         let sevenDaysAgo = isoDate(daysAgo: 6)
+        // Compute Mon-Sun range for current week
+        let cal = Calendar.current
+        let weekdayNow = cal.component(.weekday, from: Date()) // 1=Sun … 7=Sat
+        let daysFromMonday = (weekdayNow - 2 + 7) % 7
+        let monday = cal.date(byAdding: .day, value: -daysFromMonday, to: Date()) ?? Date()
+        let sunday = cal.date(byAdding: .day, value: 6, to: monday) ?? Date()
+        let weekStart = isoDate(from: monday)
+        let weekEnd = isoDate(from: sunday)
 
         // Set safe defaults before async block
         self.userName = "User"
@@ -761,12 +769,12 @@ class HomeViewModel: ObservableObject {
                 self.dayStreak = computeStreak(summaries: summaries)
             }
 
-            // Week plans for colours
-            if let weekPlans = try? await planRepo.getPlansWithDietNameSnapshot(userId: userId, startDate: sevenDaysAgo, endDate: today) {
+            // Week plans for colours (Mon-Sun of current week)
+            if let weekPlans = try? await planRepo.getPlansWithDietNameSnapshot(userId: userId, startDate: weekStart, endDate: weekEnd) {
                 let plansByDate = Dictionary(grouping: weekPlans) { $0.date }.mapValues { $0.first }
-                self.weekDays = buildWeekDays(plansByDate: plansByDate)
+                self.weekDays = buildWeekDays(plansByDate: plansByDate, monday: monday)
             } else {
-                self.weekDays = buildWeekDays(plansByDate: [:])
+                self.weekDays = buildWeekDays(plansByDate: [:], monday: monday)
             }
 
             self.isLoading = false
@@ -832,12 +840,12 @@ class HomeViewModel: ObservableObject {
         }
     }
 
-    private func buildWeekDays(plansByDate: [String: PlanWithDietName?]) -> [WeekDayInfo] {
+    private func buildWeekDays(plansByDate: [String: PlanWithDietName?], monday: Date) -> [WeekDayInfo] {
         let cal = Calendar.current
-        let todayDate = Date()
         let todayIso = isoToday()
-        return (0...6).reversed().compactMap { daysAgo -> WeekDayInfo? in
-            guard let date = cal.date(byAdding: .day, value: -daysAgo, to: todayDate) else { return nil }
+        // Show Mon(0) … Sun(6)
+        return (0...6).compactMap { dayOffset -> WeekDayInfo? in
+            guard let date = cal.date(byAdding: .day, value: dayOffset, to: monday) else { return nil }
             let iso = isoDate(from: date)
             let isFuture = iso > todayIso
             let plan = plansByDate[iso] ?? nil

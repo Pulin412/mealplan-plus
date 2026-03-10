@@ -47,6 +47,25 @@ private func slotColor(_ key: String) -> Color {
     }
 }
 
+// ── Custom slot persistence ────────────────────────────────────────────────────
+private struct CustomSlotDef: Codable, Equatable {
+    let id: Int
+    let name: String
+}
+private func customSlotsKey(userId: Int64, date: String) -> String {
+    "custom_slots_\(userId)_\(date)"
+}
+private func loadCustomSlots(userId: Int64, date: String) -> [CustomSlotDef] {
+    guard let data = UserDefaults.standard.data(forKey: customSlotsKey(userId: userId, date: date)),
+          let defs = try? JSONDecoder().decode([CustomSlotDef].self, from: data) else { return [] }
+    return defs
+}
+private func saveCustomSlots(_ slots: [CustomSlotDef], userId: Int64, date: String) {
+    if let data = try? JSONEncoder().encode(slots) {
+        UserDefaults.standard.set(data, forKey: customSlotsKey(userId: userId, date: date))
+    }
+}
+
 // ── isoDate helpers ───────────────────────────────────────────────────────────
 private func isoDate(from date: Date) -> String {
     let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"; return fmt.string(from: date)
@@ -69,6 +88,9 @@ struct DailyLogScreen: View {
     @State private var addFoodSlot: String = "BREAKFAST"
     @State private var showDietPicker: Bool = false
     @State private var showClearPlanAlert: Bool = false
+    @State private var customSlots: [CustomSlotDef] = []
+    @State private var showAddSlotAlert: Bool = false
+    @State private var newSlotName: String = ""
 
     private var userId: Int64 { Int64(appState.currentUserId ?? 0) }
     private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
@@ -166,7 +188,26 @@ struct DailyLogScreen: View {
     }
 
     private func reload() {
-        vm.loadLog(userId: userId, date: isoDate(from: selectedDate))
+        let dateStr = isoDate(from: selectedDate)
+        vm.loadLog(userId: userId, date: dateStr)
+        customSlots = loadCustomSlots(userId: userId, date: dateStr)
+    }
+
+    private func addCustomSlot() {
+        let name = newSlotName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { newSlotName = ""; return }
+        let nextId = (customSlots.map { $0.id }.max() ?? 0) + 1
+        let def = CustomSlotDef(id: nextId, name: name)
+        customSlots.append(def)
+        saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
+        expandedSlots.insert("CUSTOM_\(nextId)")
+        newSlotName = ""
+    }
+
+    private func deleteCustomSlot(key: String) {
+        customSlots.removeAll { "CUSTOM_\($0.id)" == key }
+        saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
+        expandedSlots.remove(key)
     }
 
     // ── Date Navigator Pill ──────────────────────────────────────────────────
@@ -261,7 +302,9 @@ struct DailyLogScreen: View {
     private var dailyLogTab: some View {
         let foodSlotKeys = Set(vm.loggedFoods.map { $0.loggedFood.slotType.uppercased() })
         let plannedSlotKeys = Set(vm.plannedMealsBySlot.keys)
-        let allKeys = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys)
+        let customSlotKeys = Set(customSlots.map { "CUSTOM_\($0.id)" })
+        let customSlotNames = Dictionary(uniqueKeysWithValues: customSlots.map { ("CUSTOM_\($0.id)", $0.name) })
+        let allKeys = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys).union(customSlotKeys)
             .sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
 
         return ScrollView {
@@ -270,8 +313,10 @@ struct DailyLogScreen: View {
                     let foods = vm.loggedFoodsBySlot[key] ?? []
                     let plannedItems = vm.plannedMealsBySlot[key] ?? []
                     let loggedFoodIds = Set(foods.map { $0.loggedFood.foodId })
+                    let isCustom = key.hasPrefix("CUSTOM_")
                     SlotCard(
                         slotKey: key,
+                        titleOverride: customSlotNames[key],
                         foods: foods,
                         plannedItems: plannedItems,
                         loggedFoodIds: loggedFoodIds,
@@ -287,6 +332,7 @@ struct DailyLogScreen: View {
                         onDeleteFood: { id in
                             vm.removeLoggedFood(userId: userId, id: id)
                         },
+                        onDeleteSlot: isCustom ? { deleteCustomSlot(key: key) } : nil,
                         onTogglePlannedFood: { item in
                             // Tick: log food. Untick: remove matching logged food.
                             let date = isoDate(from: selectedDate)
@@ -320,10 +366,32 @@ struct DailyLogScreen: View {
                         }
                     )
                 }
+                // Add Meal Slot button
+                Button(action: { showAddSlotAlert = true }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 14))
+                        Text("Add Meal Slot")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color(.systemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+                }
                 Spacer().frame(height: 80)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
+        }
+        .alert("New Meal Slot", isPresented: $showAddSlotAlert) {
+            TextField("Slot name (e.g. Pre-Bed Snack)", text: $newSlotName)
+            Button("Add") { addCustomSlot() }
+            Button("Cancel", role: .cancel) { newSlotName = "" }
+        } message: {
+            Text("Enter a name for the new meal slot")
         }
     }
 
@@ -414,6 +482,7 @@ private struct MacroTileView: View {
 // ── Slot Card ─────────────────────────────────────────────────────────────────
 private struct SlotCard: View {
     let slotKey: String
+    var titleOverride: String? = nil
     let foods: [LoggedFoodWithDetails]
     let plannedItems: [MealFoodItemWithDetails]
     let loggedFoodIds: Set<Int64>
@@ -421,6 +490,7 @@ private struct SlotCard: View {
     let onToggle: () -> Void
     let onAddFood: () -> Void
     let onDeleteFood: (Int64) -> Void
+    var onDeleteSlot: (() -> Void)? = nil
     var onTogglePlannedFood: ((MealFoodItemWithDetails) -> Void)? = nil
     var onToggleAllPlannedFoods: (() -> Void)? = nil
 
@@ -453,7 +523,7 @@ private struct SlotCard: View {
                     Text(slotEmoji(slotKey)).font(.system(size: 16))
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(slotDisplayName(slotKey))
+                    Text(titleOverride ?? slotDisplayName(slotKey))
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.primary)
                     Text(subtitle)
@@ -509,7 +579,7 @@ private struct SlotCard: View {
                     LogFoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
                     Divider().padding(.horizontal, 12).opacity(0.4)
                 }
-                // Add Food button
+                // Add Food + Delete Slot buttons
                 HStack(spacing: 16) {
                     Button(action: onAddFood) {
                         HStack(spacing: 4) {
@@ -519,6 +589,15 @@ private struct SlotCard: View {
                         .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
                     }
                     Spacer()
+                    if let onDeleteSlot = onDeleteSlot {
+                        Button(action: onDeleteSlot) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "trash").font(.system(size: 12))
+                                Text("Delete Slot").font(.system(size: 12))
+                            }
+                            .foregroundColor(.red)
+                        }
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)

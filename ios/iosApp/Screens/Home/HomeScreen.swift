@@ -22,6 +22,10 @@ struct HomeScreen: View {
     @State private var mealDetailSlot: TodayPlanSlot? = nil
     @State private var showProfile = false
     @State private var showNavMenu = false
+    @State private var showFoodsFromMenu = false
+    @State private var showMealsFromMenu = false
+    @State private var showSettingsFromMenu = false
+    @State private var menuPendingAction: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -103,14 +107,41 @@ struct HomeScreen: View {
             }
             .environmentObject(appState)
         }
-        .sheet(isPresented: $showNavMenu) {
-            HomeNavMenuSheet()
+        .sheet(isPresented: $showNavMenu, onDismiss: {
+            menuPendingAction?()
+            menuPendingAction = nil
+        }) {
+            HomeNavMenuSheet(onAction: { action in
+                menuPendingAction = action
+                showNavMenu = false
+            })
+            .environmentObject(appState)
+        }
+        .sheet(isPresented: $showFoodsFromMenu) {
+            NavigationStack { FoodsScreen() }
+                .environmentObject(appState)
+        }
+        .sheet(isPresented: $showMealsFromMenu) {
+            NavigationStack { MealsScreen() }
+                .environmentObject(appState)
+        }
+        .sheet(isPresented: $showSettingsFromMenu) {
+            NavigationStack { SettingsScreen() }
                 .environmentObject(appState)
         }
         .onAppear {
             if let userId = appState.currentUserId {
                 viewModel.load(userId: userId)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToFoods)) { _ in
+            showFoodsFromMenu = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToMeals)) { _ in
+            showMealsFromMenu = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToSettings)) { _ in
+            showSettingsFromMenu = true
         }
     }
 
@@ -390,8 +421,9 @@ private struct WeekDayCell: View {
     var onTap: (() -> Void)?
 
     private var dayLetter: String {
+        // Show first letter of day name (locale-aware)
         let cal = Calendar.current
-        let weekday = cal.component(.weekday, from: info.date)
+        let weekday = cal.component(.weekday, from: info.date) // 1=Sun…7=Sat
         return cal.shortWeekdaySymbols[weekday - 1].prefix(1).uppercased()
     }
 
@@ -927,6 +959,16 @@ private struct SyncStatusBanner: View {
 struct HomeNavMenuSheet: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
+    var onAction: ((@escaping () -> Void) -> Void)?
+
+    private func go(_ action: @escaping () -> Void) {
+        if let onAction = onAction {
+            onAction(action)
+        } else {
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { action() }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -936,25 +978,38 @@ struct HomeNavMenuSheet: View {
                         .onTapGesture { dismiss() }
                     Label("Foods", systemImage: "leaf.fill")
                         .onTapGesture {
-                            dismiss()
+                            go { NotificationCenter.default.post(name: .navigateToFoods, object: nil) }
                         }
                     Label("Meals", systemImage: "fork.knife")
-                        .onTapGesture { dismiss() }
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToMeals, object: nil) }
+                        }
                     Label("Diets", systemImage: "list.clipboard")
-                        .onTapGesture { dismiss() }
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 3) }
+                        }
                     Label("Log Today", systemImage: "square.and.pencil")
                         .onTapGesture {
-                            dismiss()
-                            NotificationCenter.default.post(name: .navigateToLog, object: nil)
+                            go { NotificationCenter.default.post(name: .navigateToLog, object: nil) }
                         }
                     Label("Health", systemImage: "heart.fill")
-                        .onTapGesture { dismiss() }
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 4) }
+                        }
                     Label("Grocery Lists", systemImage: "cart.fill")
-                        .onTapGesture { dismiss() }
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 5) }
+                        }
+                    Label("Meal Plan", systemImage: "calendar")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 1) }
+                        }
                 }
                 Section {
                     Label("Settings", systemImage: "gearshape.fill")
-                        .onTapGesture { dismiss() }
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToSettings, object: nil) }
+                        }
                     Label("Profile", systemImage: "person.circle.fill")
                         .onTapGesture { dismiss() }
                     Label("Logout", systemImage: "rectangle.portrait.and.arrow.right")
