@@ -338,7 +338,7 @@ struct GroceryDetailScreen: View {
                     CircularProgress(progress: Double(checkedCount) / Double(max(totalCount, 1)))
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(.systemBackground))
             }
 
             // Tab selector
@@ -349,7 +349,7 @@ struct GroceryDetailScreen: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color.white)
+            .background(Color(.systemBackground))
 
             if viewModel.currentList == nil {
                 Spacer()
@@ -422,12 +422,7 @@ struct GroceryDetailScreen: View {
             }
         }
         .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
         )
         .navigationTitle(listName)
         .navigationBarTitleDisplayMode(.inline)
@@ -512,7 +507,6 @@ struct GroceryItemRow: View {
 struct SettingsScreen: View {
     @EnvironmentObject var appState: AppState
     @State private var calorieGoal = "2000"
-    @State private var darkMode = false
     @State private var notifications = true
     @State private var isImporting = false
     @State private var importMessage: String?
@@ -533,7 +527,7 @@ struct SettingsScreen: View {
             }
 
             Section("Appearance") {
-                Toggle("Dark Mode", isOn: $darkMode)
+                Toggle("Dark Mode", isOn: Binding(get: { appState.isDarkMode }, set: { appState.setDarkMode($0) }))
             }
 
             Section("Notifications") {
@@ -666,7 +660,7 @@ private struct ProfileSectionCard<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
     }
@@ -873,7 +867,7 @@ struct ProfileScreen: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
     }

@@ -48,10 +48,18 @@ class AppState: ObservableObject {
 
     private let isLoggedInKey = "is_logged_in"
     private let userIdKey = "user_id"
+    private let darkModeKey = "dark_mode_enabled"
+    @Published var isDarkMode: Bool
 
     init() {
+        self.isDarkMode = UserDefaults.standard.bool(forKey: "dark_mode_enabled")
         // Start async initialization - don't block main thread
         Task { await initializeApp() }
+    }
+
+    func setDarkMode(_ enabled: Bool) {
+        isDarkMode = enabled
+        userDefaults.set(enabled, forKey: darkModeKey)
     }
 
     private func initializeApp() async {
@@ -128,6 +136,7 @@ struct AppNavigation: View {
             }
         }
         .environmentObject(appState)
+        .preferredColorScheme(appState.isDarkMode ? .dark : .light)
     }
 }
 

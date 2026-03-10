@@ -125,7 +125,7 @@ struct HealthMetricsScreen: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 3)
     }
@@ -183,7 +183,7 @@ struct HealthMetricsScreen: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 3)
         .padding(.horizontal)
@@ -263,7 +263,7 @@ struct HealthMetricsScreen: View {
                     }
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(10)
                 .padding(.horizontal)
             }
@@ -271,12 +271,7 @@ struct HealthMetricsScreen: View {
     }
 
     private var backgroundGradient: some View {
-        LinearGradient(
-            gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        Color(.systemGroupedBackground).ignoresSafeArea()
     }
 
     private func loadMetrics() {

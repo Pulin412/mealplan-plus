@@ -21,6 +21,7 @@ struct HomeScreen: View {
     @State private var showDietPicker = false
     @State private var mealDetailSlot: TodayPlanSlot? = nil
     @State private var showProfile = false
+    @State private var showNavMenu = false
 
     var body: some View {
         ScrollView {
@@ -31,7 +32,10 @@ struct HomeScreen: View {
                     userInitial: viewModel.userInitial,
                     caloriesConsumed: viewModel.todayCalories,
                     calorieGoal: viewModel.calorieGoal,
-                    onAvatarTap: { showProfile = true }
+                    onAvatarTap: { showProfile = true },
+                    onMenuTap: { showNavMenu = true },
+                    isDark: appState.isDarkMode,
+                    onThemeToggle: { appState.setDarkMode(!appState.isDarkMode) }
                 )
 
                 // ── Content below header ─────────────────────
@@ -72,10 +76,10 @@ struct HomeScreen: View {
                     Spacer().frame(height: 20)
                 }
                 .padding(.top, 16)
-                .background(lightGreenBg)
+                .background(Color(.systemGroupedBackground))
             }
         }
-        .background(lightGreenBg)
+        .background(Color(.systemGroupedBackground))
         .ignoresSafeArea(edges: .top)
         .navigationBarHidden(true)
         .sheet(isPresented: $showDietPicker, onDismiss: {
@@ -99,6 +103,10 @@ struct HomeScreen: View {
             }
             .environmentObject(appState)
         }
+        .sheet(isPresented: $showNavMenu) {
+            HomeNavMenuSheet()
+                .environmentObject(appState)
+        }
         .onAppear {
             if let userId = appState.currentUserId {
                 viewModel.load(userId: userId)
@@ -120,6 +128,9 @@ private struct HomeHeaderSection: View {
     let caloriesConsumed: Double
     let calorieGoal: Double
     var onAvatarTap: (() -> Void)? = nil
+    var onMenuTap: (() -> Void)? = nil
+    var isDark: Bool = false
+    var onThemeToggle: (() -> Void)? = nil
 
     private var isOver: Bool { caloriesConsumed > calorieGoal }
     private var progress: Double { min(caloriesConsumed / calorieGoal, 1.0) }
@@ -143,11 +154,23 @@ private struct HomeHeaderSection: View {
 
                 // Greeting row
                 HStack {
+                    Button(action: { onMenuTap?() }) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.trailing, 8)
                     Text("\(greeting), \(userName.isEmpty ? "there" : userName) 👋")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                     Spacer()
+                    // Theme toggle
+                    Button(action: { onThemeToggle?() }) {
+                        Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                    }
                     // Bell
                     Button(action: {}) {
                         Image(systemName: "bell")
@@ -239,7 +262,7 @@ private struct MacroRingsCard: View {
             MacroRingItem(label: "Calories", value: Int(calories), goal: Int(calorieGoal), unit: "kcal", color: primaryGreen)
         }
         .padding(.vertical, 16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -349,7 +372,7 @@ private struct ThisWeekCard: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -496,7 +519,7 @@ private struct BloodGlucoseCard: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -597,7 +620,7 @@ private struct StatCard: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
         }
@@ -654,7 +677,7 @@ private struct TodaysPlanCard: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -893,9 +916,63 @@ private struct SyncStatusBanner: View {
             }
         }
         .padding(10)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(10)
         .shadow(color: .black.opacity(0.06), radius: 3)
+    }
+}
+
+// MARK: - Nav Menu Sheet
+
+struct HomeNavMenuSheet: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Label("Home", systemImage: "house.fill")
+                        .onTapGesture { dismiss() }
+                    Label("Foods", systemImage: "leaf.fill")
+                        .onTapGesture {
+                            dismiss()
+                        }
+                    Label("Meals", systemImage: "fork.knife")
+                        .onTapGesture { dismiss() }
+                    Label("Diets", systemImage: "list.clipboard")
+                        .onTapGesture { dismiss() }
+                    Label("Log Today", systemImage: "square.and.pencil")
+                        .onTapGesture {
+                            dismiss()
+                            NotificationCenter.default.post(name: .navigateToLog, object: nil)
+                        }
+                    Label("Health", systemImage: "heart.fill")
+                        .onTapGesture { dismiss() }
+                    Label("Grocery Lists", systemImage: "cart.fill")
+                        .onTapGesture { dismiss() }
+                }
+                Section {
+                    Label("Settings", systemImage: "gearshape.fill")
+                        .onTapGesture { dismiss() }
+                    Label("Profile", systemImage: "person.circle.fill")
+                        .onTapGesture { dismiss() }
+                    Label("Logout", systemImage: "rectangle.portrait.and.arrow.right")
+                        .foregroundColor(.red)
+                        .onTapGesture {
+                            dismiss()
+                            appState.logout()
+                        }
+                }
+            }
+            .navigationTitle("MealPlan+")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 

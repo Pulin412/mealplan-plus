@@ -17,12 +17,7 @@ struct FoodsScreen: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Search bar
@@ -38,7 +33,7 @@ struct FoodsScreen: View {
                     }
                 }
                 .padding(12)
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(10)
                 .padding()
 

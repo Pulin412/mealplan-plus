@@ -199,7 +199,7 @@ struct DailyLogScreen: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         .padding(.horizontal, 16)
@@ -236,7 +236,7 @@ struct DailyLogScreen: View {
             .clipShape(RoundedRectangle(cornerRadius: 20))
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         .padding(.horizontal, 16)
@@ -355,7 +355,7 @@ struct DailyLogScreen: View {
                 MacroCompRowView(label: "Fat",      actual: Int(totalFat_), planned: Int(vm.plannedFat),      color: fatColor,      unit: "g")
             }
             .padding(16)
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.05), radius: 3)
             .padding(.horizontal, 16)
@@ -524,7 +524,7 @@ private struct SlotCard: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
     }

@@ -99,7 +99,7 @@ struct DietDetailScreenNew: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 5)
         .padding(.horizontal)
@@ -142,7 +142,7 @@ struct DietDetailScreenNew: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 5)
         .padding(.horizontal)
@@ -163,7 +163,7 @@ struct DietDetailScreenNew: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 5)
         .padding(.horizontal)
@@ -265,7 +265,7 @@ struct DietDetailScreenNew: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .foregroundColor(.green)
             .cornerRadius(10)
             .overlay(
@@ -276,12 +276,7 @@ struct DietDetailScreenNew: View {
     }
 
     private var backgroundGradient: some View {
-        LinearGradient(
-            gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        Color(.systemGroupedBackground).ignoresSafeArea()
     }
 
     @ToolbarContentBuilder
@@ -400,7 +395,7 @@ struct MealSlotCardNew: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(10)
         .shadow(color: .black.opacity(0.05), radius: 2)
     }
@@ -439,7 +434,7 @@ struct EmptyMealSlotCard: View {
                 .foregroundColor(.green)
         }
         .padding()
-        .background(Color.white.opacity(0.7))
+        .background(Color(.systemBackground).opacity(0.7))
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -848,7 +843,7 @@ struct DietMealPickerSheet: View {
                                 Text(f.rawValue)
                                     .font(.subheadline)
                                     .padding(.horizontal, 14).padding(.vertical, 7)
-                                    .background(slotFilter == f ? Color.green : Color.white)
+                                    .background(slotFilter == f ? Color.green : Color(.systemBackground))
                                     .foregroundColor(slotFilter == f ? .white : .primary)
                                     .cornerRadius(16)
                                     .overlay(RoundedRectangle(cornerRadius: 16)

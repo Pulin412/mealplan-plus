@@ -297,7 +297,7 @@ struct MealPlanScreen: View {
                 .padding(.bottom, 8)
             }
         }
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
         .padding(.horizontal)
@@ -477,7 +477,7 @@ struct MealPlanScreen: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .padding(.horizontal)
     }
@@ -541,7 +541,7 @@ struct MealPlanScreen: View {
                     }
                 }
             }
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .cornerRadius(10)
         }
     }
@@ -710,7 +710,7 @@ struct MacroTile: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
     }
