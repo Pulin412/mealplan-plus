@@ -228,6 +228,7 @@ extension Notification.Name {
     static let navigateToFoods   = Notification.Name("navigateToFoods")
     static let navigateToMeals   = Notification.Name("navigateToMeals")
     static let navigateToSettings = Notification.Name("navigateToSettings")
+    static let navigateToProfile  = Notification.Name("navigateToProfile")
 }
 
 // Tab wrapper views

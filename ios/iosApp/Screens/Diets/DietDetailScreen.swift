@@ -1,6 +1,41 @@
 import SwiftUI
 import shared
 
+// ── Slot helpers (shared by DietDetailScreenNew and DietMealSlotSheet) ─────────
+private let dietSlotOrder = [
+    "EARLY_MORNING", "BREAKFAST", "MID_MORNING", "NOON", "LUNCH",
+    "PRE_WORKOUT", "EVENING", "EVENING_SNACK", "POST_WORKOUT", "DINNER", "POST_DINNER"
+]
+
+private func dietSlotDisplayName(_ key: String) -> String {
+    switch key.uppercased() {
+    case "BREAKFAST":    return "Breakfast"
+    case "LUNCH":        return "Lunch"
+    case "DINNER":       return "Dinner"
+    case "SNACK":        return "Snack"
+    case "PRE_WORKOUT":  return "Pre-Workout"
+    case "POST_WORKOUT": return "Post-Workout"
+    case "EVENING_SNACK":return "Evening Snack"
+    case "EARLY_MORNING":return "Early Morning"
+    case "NOON":         return "Noon"
+    case "MID_MORNING":  return "Mid Morning"
+    case "EVENING":      return "Evening"
+    case "POST_DINNER":  return "Post Dinner"
+    default: return key.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+    }
+}
+
+private func dietSlotIcon(_ key: String) -> String {
+    switch key.uppercased() {
+    case "BREAKFAST", "EARLY_MORNING", "MID_MORNING": return "sunrise.fill"
+    case "LUNCH", "NOON":                              return "sun.max.fill"
+    case "DINNER", "POST_DINNER":                      return "moon.fill"
+    case "PRE_WORKOUT":                                return "bolt.fill"
+    case "POST_WORKOUT":                               return "drop.fill"
+    default:                                           return "leaf.fill"
+    }
+}
+
 // Wrapper for sheet(item:) presentation
 struct SlotEditRequest: Identifiable {
     let id = UUID()
@@ -187,44 +222,53 @@ struct DietDetailScreenNew: View {
     }
 
     private func mealSlotsSection(_ dwm: DietWithMeals) -> some View {
-        let slots = ["Breakfast", "Lunch", "Dinner", "Snack"]
-        // KMP Map<String, MealWithFoods?> bridges as NSDictionary
-        var mealsMap: [String: MealWithFoods?] = [:]
+        // Build uppercase-keyed maps (KMP returns uppercase slot keys e.g. "BREAKFAST")
+        var mealsMap: [String: MealWithFoods] = [:]
         if let nd = dwm.meals as? NSDictionary {
             for (k, v) in nd {
-                if let key = k as? String { mealsMap[key] = v as? MealWithFoods }
+                if let key = k as? String, let mwf = v as? MealWithFoods {
+                    mealsMap[key.uppercased()] = mwf
+                }
             }
         }
-        // KMP Map<String, String?> (instructions) also bridges as NSDictionary
-        var instructionsMap: [String: String?] = [:]
+        var instructionsMap: [String: String] = [:]
         if let nd = dwm.instructions as? NSDictionary {
             for (k, v) in nd {
-                if let key = k as? String { instructionsMap[key] = v as? String }
+                if let key = k as? String, let str = v as? String {
+                    instructionsMap[key.uppercased()] = str
+                }
             }
         }
+        // Show all slots that have a meal assigned + the 3 main slots always, in standard order
+        let assignedKeys = Set(mealsMap.keys)
+        let alwaysShow: Set<String> = ["BREAKFAST", "LUNCH", "DINNER"]
+        let slotsToShow = (dietSlotOrder + Array(assignedKeys.subtracting(Set(dietSlotOrder))))
+            .filter { alwaysShow.contains($0) || assignedKeys.contains($0) }
+
         return VStack(alignment: .leading, spacing: 12) {
-            ForEach(slots, id: \.self) { slot in
-                let currentMeal = mealsMap[slot] ?? nil
-                let instructions = instructionsMap[slot] ?? nil
+            ForEach(slotsToShow, id: \.self) { slotKey in
+                let currentMeal = mealsMap[slotKey]
+                let instructions = instructionsMap[slotKey]
+                let displayName = dietSlotDisplayName(slotKey)
                 if isReadOnly {
-                    // Read-only: show card without edit interaction
                     if let mwf = currentMeal {
-                        MealSlotCardNew(slot: slot, mealWithFoods: mwf, instructions: instructions)
+                        MealSlotCardNew(slot: displayName, mealWithFoods: mwf, instructions: instructions)
                     } else {
-                        EmptyMealSlotCard(slot: slot)
+                        EmptyMealSlotCard(slot: displayName)
                     }
                 } else {
                     Button {
                         slotEditRequest = SlotEditRequest(
-                            slot: slot, dietId: dietId,
+                            slot: slotKey,  // uppercase key for DB operations
+                            dietId: dietId,
                             currentMeal: currentMeal,
                             instructions: instructions
                         )
                     } label: {
                         if let mwf = currentMeal {
-                            MealSlotCardNew(slot: slot, mealWithFoods: mwf, instructions: instructions)
+                            MealSlotCardNew(slot: displayName, mealWithFoods: mwf, instructions: instructions)
                         } else {
-                            EmptyMealSlotCard(slot: slot)
+                            EmptyMealSlotCard(slot: displayName)
                         }
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -345,42 +389,54 @@ struct MealSlotCardNew: View {
     let mealWithFoods: MealWithFoods
     var instructions: String? = nil
 
-    var slotIcon: String {
-        switch slot {
-        case "Breakfast": return "sunrise.fill"
-        case "Lunch": return "sun.max.fill"
-        case "Dinner": return "moon.fill"
-        default: return "leaf.fill"
-        }
+    @State private var isExpanded = false
+
+    private var items: [MealFoodItemWithDetails] {
+        (mealWithFoods.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: slotIcon)
-                    .foregroundColor(.green)
-                    .frame(width: 30)
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } }) {
+                HStack {
+                    Image(systemName: dietSlotIcon(slot))
+                        .foregroundColor(.green)
+                        .frame(width: 30)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(slot)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(slot)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(mealWithFoods.meal.name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("\(Int(mealWithFoods.totalCalories)) kcal")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.green)
+                        Text("P:\(Int(mealWithFoods.totalProtein))g C:\(Int(mealWithFoods.totalCarbs))g F:\(Int(mealWithFoods.totalFat))g")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(mealWithFoods.meal.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .padding(.leading, 4)
                 }
-
-                Spacer()
-
-                Text("\(Int(mealWithFoods.totalCalories)) kcal")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                .padding()
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
+            // Instructions
             if let note = instructions, !note.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "note.text")
@@ -391,10 +447,42 @@ struct MealSlotCardNew: View {
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                 }
+                .padding(.horizontal)
+                .padding(.bottom, isExpanded ? 4 : 12)
                 .padding(.leading, 36)
             }
+
+            // Expanded: ingredient list
+            if isExpanded && !items.isEmpty {
+                Divider().padding(.horizontal)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(Color.green.opacity(0.25))
+                                .frame(width: 6, height: 6)
+                            Text(item.food.name)
+                                .font(.system(size: 13))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(Int(item.mealFoodItem.quantity))g")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                            Text("· \(Int(item.food.calculateCalories(quantity: item.mealFoodItem.quantity, unit: item.mealFoodItem.unit))) kcal")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 6)
+                        if idx < items.count - 1 {
+                            Divider().padding(.horizontal).opacity(0.4)
+                        }
+                    }
+                }
+                .padding(.bottom, 8)
+            }
         }
-        .padding()
         .background(Color(.systemBackground))
         .cornerRadius(10)
         .shadow(color: .black.opacity(0.05), radius: 2)
@@ -404,18 +492,9 @@ struct MealSlotCardNew: View {
 struct EmptyMealSlotCard: View {
     let slot: String
 
-    var slotIcon: String {
-        switch slot {
-        case "Breakfast": return "sunrise.fill"
-        case "Lunch": return "sun.max.fill"
-        case "Dinner": return "moon.fill"
-        default: return "leaf.fill"
-        }
-    }
-
     var body: some View {
         HStack {
-            Image(systemName: slotIcon)
+            Image(systemName: dietSlotIcon(slot))
                 .foregroundColor(.gray)
                 .frame(width: 30)
 
@@ -685,8 +764,8 @@ struct DietMealSlotSheet: View {
             Form {
                 Section("Slot") {
                     HStack {
-                        Image(systemName: slotIcon(request.slot)).foregroundColor(.green)
-                        Text(request.slot).font(.headline)
+                        Image(systemName: dietSlotIcon(request.slot)).foregroundColor(.green)
+                        Text(dietSlotDisplayName(request.slot)).font(.headline)
                     }
                 }
 
@@ -744,15 +823,6 @@ struct DietMealSlotSheet: View {
             .onAppear {
                 instructions = request.instructions ?? ""
             }
-        }
-    }
-
-    private func slotIcon(_ slot: String) -> String {
-        switch slot {
-        case "Breakfast": return "sunrise.fill"
-        case "Lunch":     return "sun.max.fill"
-        case "Dinner":    return "moon.fill"
-        default:          return "leaf.fill"
         }
     }
 
