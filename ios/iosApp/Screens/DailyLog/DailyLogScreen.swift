@@ -115,8 +115,6 @@ struct DailyLogScreen: View {
     @State private var showClearPlanAlert: Bool = false
     @State private var customSlots: [CustomSlotDef] = []
     @State private var customSlotDoneKeys: Set<String> = []
-    @State private var draggingKey: String? = nil
-    @State private var lastSwapTranslation: CGFloat = 0
     @State private var showAddSlotAlert: Bool = false
     @State private var newSlotName: String = ""
 
@@ -368,24 +366,6 @@ struct DailyLogScreen: View {
                 toggleCustomSlotDone(key, userId: userId, date: dateStr)
                 customSlotDoneKeys = loadCustomSlotDone(userId: userId, date: dateStr)
             } : nil,
-            isDraggable: isCustom,
-            onDragChanged: isCustom ? { height in
-                if draggingKey != key { draggingKey = key; lastSwapTranslation = 0 }
-                let diff = height - lastSwapTranslation
-                let threshold: CGFloat = 68
-                guard abs(diff) >= threshold,
-                      let idx = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == key }) else { return }
-                let dir = diff > 0 ? 1 : -1
-                let newIdx = idx + dir
-                guard newIdx >= 0, newIdx < customSlots.count else { return }
-                withAnimation(.easeInOut(duration: 0.15)) { customSlots.swapAt(idx, newIdx) }
-                lastSwapTranslation += CGFloat(dir) * threshold
-            } : nil,
-            onDragEnded: isCustom ? {
-                draggingKey = nil
-                lastSwapTranslation = 0
-                saveCustomSlots(customSlots, userId: userId, date: dateStr)
-            } : nil,
             onTogglePlannedFood: { item in
                 if loggedFoodIds.contains(item.food.id) {
                     if let lf = foods.first(where: { $0.loggedFood.foodId == item.food.id }) {
@@ -416,42 +396,49 @@ struct DailyLogScreen: View {
     private var dailyLogTab: some View {
         let foodSlotKeys = Set(vm.loggedFoods.map { $0.loggedFood.slotType.uppercased() })
         let plannedSlotKeys = Set(vm.plannedMealsBySlot.keys)
-        let customSlotKeys = Set(customSlots.map { "CUSTOM_\($0.id)" })
         let customSlotNames = Dictionary(uniqueKeysWithValues: customSlots.map { ("CUSTOM_\($0.id)", $0.name) })
-        let allKeys = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys).union(customSlotKeys)
-            .sorted { a, b in
-                let oa = slotOrder[a] ?? 99, ob = slotOrder[b] ?? 99
-                if oa != ob { return oa < ob }
-                let ia = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == a }) ?? Int.max
-                let ib = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == b }) ?? Int.max
-                return ia < ib
-            }
+        let dateStr = isoDate(from: selectedDate)
+        let standardKeys = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys)
+            .filter { !$0.hasPrefix("CUSTOM_") }
+            .sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
 
-        return ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(allKeys, id: \.self) { key in
-                    slotCardView(key: key, customSlotNames: customSlotNames)
-                }
-                // Add Meal Slot button
-                Button(action: { showAddSlotAlert = true }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 14))
-                        Text("Add Meal Slot")
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                    .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
-                }
-                Spacer().frame(height: 80)
+        return List {
+            // Standard slots (fixed order, not movable)
+            ForEach(standardKeys, id: \.self) { key in
+                slotCardView(key: key, customSlotNames: customSlotNames)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(logBg)
+                    .listRowSeparator(.hidden)
+                    .moveDisabled(true)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            // Custom slots (draggable via native List reorder)
+            ForEach(customSlots, id: \.id) { def in
+                slotCardView(key: "CUSTOM_\(def.id)", customSlotNames: customSlotNames)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(logBg)
+                    .listRowSeparator(.hidden)
+            }
+            .onMove { from, to in
+                customSlots.move(fromOffsets: from, toOffset: to)
+                saveCustomSlots(customSlots, userId: userId, date: dateStr)
+            }
+            // Add Meal Slot button
+            Button(action: { showAddSlotAlert = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle.fill").font(.system(size: 14))
+                    Text("Add Meal Slot").font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+            .listRowBackground(logBg)
+            .listRowSeparator(.hidden)
+            .moveDisabled(true)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .environment(\.editMode, .constant(.active))
         .alert("New Meal Slot", isPresented: $showAddSlotAlert) {
             TextField("Slot name (e.g. Pre-Bed Snack)", text: $newSlotName)
             Button("Add") { addCustomSlot() }
@@ -547,8 +534,6 @@ private struct MacroTileView: View {
 
 // ── Slot Card ─────────────────────────────────────────────────────────────────
 private struct SlotCard: View {
-    @GestureState private var isPressingHandle: Bool = false
-    @State private var isDraggingHandle: Bool = false
     let slotKey: String
     var titleOverride: String? = nil
     let foods: [LoggedFoodWithDetails]
@@ -561,9 +546,6 @@ private struct SlotCard: View {
     var onDeleteSlot: (() -> Void)? = nil
     var isCustomDone: Bool = false               // custom slot: completion flag (from UserDefaults)
     var onToggleDone: (() -> Void)? = nil        // custom slots: toggle done state
-    var isDraggable: Bool = false                // custom slots: show drag handle
-    var onDragChanged: ((CGFloat) -> Void)? = nil
-    var onDragEnded: (() -> Void)? = nil
     var onTogglePlannedFood: ((MealFoodItemWithDetails) -> Void)? = nil
     var onToggleAllPlannedFoods: (() -> Void)? = nil
 
@@ -631,34 +613,6 @@ private struct SlotCard: View {
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
                     .highPriorityGesture(TapGesture().onEnded { onToggleDone?() })
-                }
-                // Drag handle for reorderable custom slots
-                // LongPressGesture (0.15s) prevents ScrollView from intercepting;
-                // once activated, DragGesture takes over for reordering.
-                if isDraggable {
-                    let handleActive = isPressingHandle || isDraggingHandle
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 16))
-                        .foregroundColor(handleActive ? caloriesColor : Color.gray.opacity(0.5))
-                        .scaleEffect(handleActive ? 1.25 : 1.0)
-                        .animation(.easeInOut(duration: 0.1), value: handleActive)
-                        .frame(width: 36, height: 36)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            LongPressGesture(minimumDuration: 0.15)
-                                .updating($isPressingHandle) { v, state, _ in state = v }
-                                .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-                                .onChanged { value in
-                                    if case .second(true, let drag) = value, let drag = drag {
-                                        isDraggingHandle = true
-                                        onDragChanged?(drag.translation.height)
-                                    }
-                                }
-                                .onEnded { _ in
-                                    isDraggingHandle = false
-                                    onDragEnded?()
-                                }
-                        )
                 }
                 Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
                     .foregroundColor(.secondary)
