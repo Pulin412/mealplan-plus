@@ -858,13 +858,7 @@ class HomeViewModel: ObservableObject {
     }
 
     private func customSlotsForHome(userId: Int64, date: String, loggedBySlot: [String: [LoggedFoodWithDetails]]) -> [TodayPlanSlot] {
-        let key = "custom_slots_\(userId)_\(date)"
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let defs = try? JSONDecoder().decode([[String: Int]].self, from: data) else {
-            // Try as [{id:Int, name:String}]
-            return loadCustomSlotsForHome(userId: userId, date: date, loggedBySlot: loggedBySlot)
-        }
-        return []
+        return loadCustomSlotsForHome(userId: userId, date: date, loggedBySlot: loggedBySlot)
     }
 
     // MARK: - Custom slot done-flag helpers (UserDefaults, separate from food presence)
