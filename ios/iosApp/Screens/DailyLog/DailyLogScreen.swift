@@ -251,12 +251,14 @@ struct DailyLogScreen: View {
         saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
         expandedSlots.insert("CUSTOM_\(nextId)")
         newSlotName = ""
+        NotificationCenter.default.post(name: .homeNeedsRefresh, object: nil)
     }
 
     private func deleteCustomSlot(key: String) {
         customSlots.removeAll { "CUSTOM_\($0.id)" == key }
         saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
         expandedSlots.remove(key)
+        NotificationCenter.default.post(name: .homeNeedsRefresh, object: nil)
     }
 
     // ── Date Navigator Pill ──────────────────────────────────────────────────

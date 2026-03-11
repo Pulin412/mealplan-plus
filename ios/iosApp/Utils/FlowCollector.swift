@@ -699,6 +699,29 @@ class HomeViewModel: ObservableObject {
     private let mealRepo = RepositoryProvider.shared.mealRepository
 
     private var currentUserId: Int64?
+    private var refreshObserver: NSObjectProtocol?
+
+    init() {
+        refreshObserver = NotificationCenter.default.addObserver(
+            forName: .homeNeedsRefresh, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self, let uid = self.currentUserId else { return }
+            Task { @MainActor in self.reloadCustomSlots(userId: uid) }
+        }
+    }
+
+    deinit {
+        if let obs = refreshObserver { NotificationCenter.default.removeObserver(obs) }
+    }
+
+    private func reloadCustomSlots(userId: Int64) {
+        let today = isoToday()
+        Task {
+            let foods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+            let loggedBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
+            await loadTodayPlanSlots(userId: userId, date: today, loggedBySlot: loggedBySlot)
+        }
+    }
 
     func previousWeek() { weekOffset -= 1; if let uid = currentUserId { load(userId: uid) } }
     func nextWeek()     { guard weekOffset < 0 else { return }; weekOffset += 1; if let uid = currentUserId { load(userId: uid) } }
