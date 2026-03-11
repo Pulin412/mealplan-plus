@@ -547,6 +547,7 @@ private struct MacroTileView: View {
 
 // ── Slot Card ─────────────────────────────────────────────────────────────────
 private struct SlotCard: View {
+    @GestureState private var isPressingHandle: Bool = false
     let slotKey: String
     var titleOverride: String? = nil
     let foods: [LoggedFoodWithDetails]
@@ -631,16 +632,25 @@ private struct SlotCard: View {
                     .highPriorityGesture(TapGesture().onEnded { onToggleDone?() })
                 }
                 // Drag handle for reorderable custom slots
+                // LongPressGesture (0.15s) prevents ScrollView from intercepting;
+                // once activated, DragGesture takes over for reordering.
                 if isDraggable {
                     Image(systemName: "line.3.horizontal")
                         .font(.system(size: 16))
-                        .foregroundColor(Color.gray.opacity(0.5))
+                        .foregroundColor(isPressingHandle ? caloriesColor : Color.gray.opacity(0.5))
+                        .scaleEffect(isPressingHandle ? 1.25 : 1.0)
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                         .gesture(
-                            DragGesture(minimumDistance: 5, coordinateSpace: .global)
-                                .onChanged { v in onDragChanged?(v.translation.height) }
-                                .onEnded   { _ in onDragEnded?() }
+                            LongPressGesture(minimumDuration: 0.15)
+                                .updating($isPressingHandle) { v, state, _ in state = v }
+                                .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+                                .onChanged { value in
+                                    if case .second(true, let drag) = value {
+                                        onDragChanged?(drag?.translation.height ?? 0)
+                                    }
+                                }
+                                .onEnded { _ in onDragEnded?() }
                         )
                 }
                 Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
