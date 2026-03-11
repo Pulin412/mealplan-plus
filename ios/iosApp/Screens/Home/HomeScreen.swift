@@ -149,6 +149,9 @@ struct HomeScreen: View {
         .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
             showProfile = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .homeNeedsRefresh)) { _ in
+            if let userId = appState.currentUserId { viewModel.load(userId: userId) }
+        }
     }
 
     private func isoToday() -> String {

@@ -215,6 +215,11 @@ struct MainTabView: View {
                 selectedTab = tab
             }
         }
+        .onChange(of: selectedTab) { newTab in
+            if newTab == 0 {
+                NotificationCenter.default.post(name: .homeNeedsRefresh, object: nil)
+            }
+        }
     }
 }
 
@@ -229,6 +234,7 @@ extension Notification.Name {
     static let navigateToMeals   = Notification.Name("navigateToMeals")
     static let navigateToSettings = Notification.Name("navigateToSettings")
     static let navigateToProfile  = Notification.Name("navigateToProfile")
+    static let homeNeedsRefresh  = Notification.Name("homeNeedsRefresh")
 }
 
 // Tab wrapper views
