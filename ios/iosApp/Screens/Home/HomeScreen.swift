@@ -55,7 +55,10 @@ struct HomeScreen: View {
 
                     ThisWeekCard(
                         weekDays: viewModel.weekDays,
-                        onDayTap: { isoDate in onNavigateToLogWithDate?(isoDate) }
+                        weekOffset: viewModel.weekOffset,
+                        onDayTap: { isoDate in onNavigateToLogWithDate?(isoDate) },
+                        onPreviousWeek: { viewModel.previousWeek() },
+                        onNextWeek: { viewModel.nextWeek() }
                     )
                     .padding(.horizontal, 16)
 
@@ -142,6 +145,9 @@ struct HomeScreen: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToSettings)) { _ in
             showSettingsFromMenu = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
+            showProfile = true
         }
     }
 
@@ -366,22 +372,50 @@ private struct QuickLogFoodButton: View {
 
 private struct ThisWeekCard: View {
     let weekDays: [WeekDayInfo]
+    var weekOffset: Int = 0
     var onDayTap: ((String) -> Void)?
+    var onPreviousWeek: (() -> Void)?
+    var onNextWeek: (() -> Void)?
+
+    private var weekLabel: String {
+        if weekOffset == 0 { return "This Week" }
+        if weekOffset == -1 { return "Last Week" }
+        return "\(-weekOffset) weeks ago"
+    }
 
     private var monthYear: String {
-        let f = DateFormatter(); f.dateFormat = "MMMM yyyy"
-        return f.string(from: Date())
+        guard let firstDay = weekDays.first?.date else {
+            let f = DateFormatter(); f.dateFormat = "MMMM yyyy"; return f.string(from: Date())
+        }
+        let f = DateFormatter(); f.dateFormat = "MMMM yyyy"; return f.string(from: firstDay)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("This Week")
-                    .font(.system(size: 15, weight: .semibold))
-                Text(monthYear)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Prev week arrow
+                Button(action: { onPreviousWeek?() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(primaryGreen)
+                        .frame(width: 28, height: 28)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(weekLabel)
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(monthYear)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 Spacer()
+                // Next week arrow (disabled at current week)
+                Button(action: { onNextWeek?() }) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(weekOffset >= 0 ? Color.gray.opacity(0.3) : primaryGreen)
+                        .frame(width: 28, height: 28)
+                }
+                .disabled(weekOffset >= 0)
             }
 
             HStack(spacing: 0) {
@@ -719,12 +753,13 @@ private struct TodayPlanSlotRow: View {
     let slot: TodayPlanSlot
     var onToggle: (() -> Void)?
     var onTap: (() -> Void)?
+    @State private var isExpanded: Bool = false
 
-    private var canToggle: Bool {
-        slot.plannedMealId != nil || slot.isLogged
-    }
+    private var canToggle: Bool { slot.plannedMealId != nil || slot.isLogged || slot.isCustom }
+    private var hasLoggedFoods: Bool { !slot.loggedFoods.isEmpty }
 
     private var emojiBgColor: Color {
+        if slot.isCustom { return primaryGreen.opacity(0.10) }
         switch slot.slotType.uppercased() {
         case "BREAKFAST":    return Color.orange.opacity(0.15)
         case "LUNCH":        return Color.yellow.opacity(0.15)
@@ -737,7 +772,8 @@ private struct TodayPlanSlotRow: View {
     }
 
     var body: some View {
-        Button(action: { if onTap != nil { onTap?() } }) {
+        VStack(spacing: 0) {
+            // Row header
             HStack(spacing: 12) {
                 // Emoji circle
                 ZStack {
@@ -748,7 +784,7 @@ private struct TodayPlanSlotRow: View {
                         .font(.system(size: 18))
                 }
 
-                // Slot name + meal name
+                // Slot name + subtitle
                 VStack(alignment: .leading, spacing: 2) {
                     Text(slot.slotDisplayName)
                         .font(.system(size: 14, weight: .semibold))
@@ -758,26 +794,31 @@ private struct TodayPlanSlotRow: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
+                    } else if hasLoggedFoods && !isExpanded {
+                        Text("\(slot.loggedFoods.count) logged")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
 
                 Spacer()
 
-                // Chevron if tappable
-                if onTap != nil {
+                // Expand/collapse chevron for slots with logged foods
+                if hasLoggedFoods {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else if onTap != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.trailing, 4)
                 }
 
-                // Logged indicator: green check or grey circle
+                // Logged indicator
                 Group {
                     if slot.isLogged {
                         ZStack {
-                            Circle()
-                                .fill(primaryGreen)
-                                .frame(width: 26, height: 26)
+                            Circle().fill(primaryGreen).frame(width: 26, height: 26)
                             Image(systemName: "checkmark")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(.white)
@@ -788,13 +829,39 @@ private struct TodayPlanSlotRow: View {
                             .frame(width: 26, height: 26)
                     }
                 }
-                .onTapGesture {
-                    if canToggle { onToggle?() }
-                }
+                .onTapGesture { if canToggle { onToggle?() } }
             }
             .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if hasLoggedFoods {
+                    withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
+                } else {
+                    onTap?()
+                }
+            }
+
+            // Expanded logged foods list
+            if isExpanded && hasLoggedFoods {
+                Divider().padding(.leading, 52)
+                ForEach(slot.loggedFoods, id: \.loggedFood.id) { lf in
+                    HStack(spacing: 8) {
+                        Circle().fill(primaryGreen).frame(width: 6, height: 6)
+                            .padding(.leading, 52)
+                        Text(lf.food.name)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(Int(lf.food.calculateCalories(quantity: lf.loggedFood.quantity, unit: lf.loggedFood.unit))) kcal")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 3)
+                    .padding(.trailing, 4)
+                }
+            }
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -1011,7 +1078,9 @@ struct HomeNavMenuSheet: View {
                             go { NotificationCenter.default.post(name: .navigateToSettings, object: nil) }
                         }
                     Label("Profile", systemImage: "person.circle.fill")
-                        .onTapGesture { dismiss() }
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToProfile, object: nil) }
+                        }
                     Label("Logout", systemImage: "rectangle.portrait.and.arrow.right")
                         .foregroundColor(.red)
                         .onTapGesture {

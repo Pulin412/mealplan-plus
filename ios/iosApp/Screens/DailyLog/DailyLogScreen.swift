@@ -116,6 +116,7 @@ struct DailyLogScreen: View {
     @State private var customSlots: [CustomSlotDef] = []
     @State private var customSlotDoneKeys: Set<String> = []
     @State private var draggingKey: String? = nil
+    @State private var lastSwapTranslation: CGFloat = 0
     @State private var showAddSlotAlert: Bool = false
     @State private var newSlotName: String = ""
 
@@ -368,6 +369,23 @@ struct DailyLogScreen: View {
                 customSlotDoneKeys = loadCustomSlotDone(userId: userId, date: dateStr)
             } : nil,
             isDraggable: isCustom,
+            onDragChanged: isCustom ? { height in
+                if draggingKey != key { draggingKey = key; lastSwapTranslation = 0 }
+                let diff = height - lastSwapTranslation
+                let threshold: CGFloat = 68
+                guard abs(diff) >= threshold,
+                      let idx = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == key }) else { return }
+                let dir = diff > 0 ? 1 : -1
+                let newIdx = idx + dir
+                guard newIdx >= 0, newIdx < customSlots.count else { return }
+                withAnimation(.easeInOut(duration: 0.15)) { customSlots.swapAt(idx, newIdx) }
+                lastSwapTranslation += CGFloat(dir) * threshold
+            } : nil,
+            onDragEnded: isCustom ? {
+                draggingKey = nil
+                lastSwapTranslation = 0
+                saveCustomSlots(customSlots, userId: userId, date: dateStr)
+            } : nil,
             onTogglePlannedFood: { item in
                 if loggedFoodIds.contains(item.food.id) {
                     if let lf = foods.first(where: { $0.loggedFood.foodId == item.food.id }) {
@@ -394,29 +412,6 @@ struct DailyLogScreen: View {
         )
     }
 
-    // ── Drag-enabled slot card (custom slots only) ───────────────────────────
-    @ViewBuilder
-    private func draggableSlotCard(key: String, customSlotNames: [String: String]) -> some View {
-        let isCustom = key.hasPrefix("CUSTOM_")
-        let dateStr = isoDate(from: selectedDate)
-        if isCustom {
-            slotCardView(key: key, customSlotNames: customSlotNames)
-                .onDrag {
-                    draggingKey = key
-                    return NSItemProvider(object: key as NSString)
-                }
-                .onDrop(of: ["public.plain-text"],
-                        delegate: CustomSlotDropDelegate(
-                            targetKey: key,
-                            customSlots: $customSlots,
-                            draggingKey: $draggingKey,
-                            userId: userId,
-                            date: dateStr))
-        } else {
-            slotCardView(key: key, customSlotNames: customSlotNames)
-        }
-    }
-
     // ── Daily Log Tab ────────────────────────────────────────────────────────
     private var dailyLogTab: some View {
         let foodSlotKeys = Set(vm.loggedFoods.map { $0.loggedFood.slotType.uppercased() })
@@ -435,7 +430,7 @@ struct DailyLogScreen: View {
         return ScrollView {
             LazyVStack(spacing: 8) {
                 ForEach(allKeys, id: \.self) { key in
-                    draggableSlotCard(key: key, customSlotNames: customSlotNames)
+                    slotCardView(key: key, customSlotNames: customSlotNames)
                 }
                 // Add Meal Slot button
                 Button(action: { showAddSlotAlert = true }) {
@@ -510,31 +505,6 @@ struct DailyLogScreen: View {
     }
 }
 
-// ── Drag-to-reorder drop delegate ─────────────────────────────────────────────
-private struct CustomSlotDropDelegate: DropDelegate {
-    let targetKey: String
-    @Binding var customSlots: [CustomSlotDef]
-    @Binding var draggingKey: String?
-    let userId: Int64
-    let date: String
-
-    func dropEntered(info: DropInfo) {
-        guard let src = draggingKey, src != targetKey,
-              let fromIdx = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == src }),
-              let toIdx   = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == targetKey }) else { return }
-        withAnimation {
-            customSlots.move(fromOffsets: IndexSet(integer: fromIdx),
-                             toOffset: toIdx > fromIdx ? toIdx + 1 : toIdx)
-        }
-    }
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
-    func performDrop(info: DropInfo) -> Bool {
-        saveCustomSlots(customSlots, userId: userId, date: date)
-        draggingKey = nil
-        return true
-    }
-}
-
 // ── Macro Tile ────────────────────────────────────────────────────────────────
 private struct MacroTileView: View {
     let label: String
@@ -590,6 +560,8 @@ private struct SlotCard: View {
     var isCustomDone: Bool = false               // custom slot: completion flag (from UserDefaults)
     var onToggleDone: (() -> Void)? = nil        // custom slots: toggle done state
     var isDraggable: Bool = false                // custom slots: show drag handle
+    var onDragChanged: ((CGFloat) -> Void)? = nil
+    var onDragEnded: (() -> Void)? = nil
     var onTogglePlannedFood: ((MealFoodItemWithDetails) -> Void)? = nil
     var onToggleAllPlannedFoods: (() -> Void)? = nil
 
@@ -661,9 +633,15 @@ private struct SlotCard: View {
                 // Drag handle for reorderable custom slots
                 if isDraggable {
                     Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 14))
+                        .font(.system(size: 16))
                         .foregroundColor(Color.gray.opacity(0.5))
-                        .frame(width: 24)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 5, coordinateSpace: .global)
+                                .onChanged { v in onDragChanged?(v.translation.height) }
+                                .onEnded   { _ in onDragEnded?() }
+                        )
                 }
                 Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
                     .foregroundColor(.secondary)
