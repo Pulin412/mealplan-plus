@@ -50,6 +50,8 @@ class AppState: ObservableObject {
     private let userIdKey = "user_id"
     private let darkModeKey = "dark_mode_enabled"
     @Published var isDarkMode: Bool
+    /// Incremented whenever custom meal slots change — HomeScreen observes this to refresh.
+    @Published var customSlotsVersion: Int = 0
 
     init() {
         self.isDarkMode = UserDefaults.standard.bool(forKey: "dark_mode_enabled")

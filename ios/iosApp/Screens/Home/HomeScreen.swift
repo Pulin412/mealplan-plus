@@ -149,7 +149,7 @@ struct HomeScreen: View {
         .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
             showProfile = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: .homeNeedsRefresh)) { _ in
+        .onChange(of: appState.customSlotsVersion) { _ in
             if let userId = appState.currentUserId { viewModel.load(userId: userId) }
         }
     }

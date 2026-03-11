@@ -251,14 +251,14 @@ struct DailyLogScreen: View {
         saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
         expandedSlots.insert("CUSTOM_\(nextId)")
         newSlotName = ""
-        NotificationCenter.default.post(name: .homeNeedsRefresh, object: nil)
+        appState.customSlotsVersion += 1
     }
 
     private func deleteCustomSlot(key: String) {
         customSlots.removeAll { "CUSTOM_\($0.id)" == key }
         saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
         expandedSlots.remove(key)
-        NotificationCenter.default.post(name: .homeNeedsRefresh, object: nil)
+        appState.customSlotsVersion += 1
     }
 
     // ── Date Navigator Pill ──────────────────────────────────────────────────
@@ -368,10 +368,7 @@ struct DailyLogScreen: View {
                 if expandedSlots.contains(key) { expandedSlots.remove(key) }
                 else { expandedSlots.insert(key) }
             },
-            onAddFood: {
-                if isCustom { activeSheet = .customFoodPicker(slotKey: key) }
-                else { activeSheet = .addFood(slotKey: key) }
-            },
+            onAddFood: { activeSheet = .addFood(slotKey: key) },
             onDeleteFood: { id in vm.removeLoggedFood(userId: userId, id: id) },
             onDeleteSlot: isCustom ? { deleteCustomSlot(key: key) } : nil,
             isCustomDone: isCustom && customSlotDoneKeys.contains(key),
