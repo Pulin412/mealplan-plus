@@ -79,6 +79,15 @@ private func toggleCustomSlotDone(_ slotKey: String, userId: Int64, date: String
     UserDefaults.standard.set(Array(s), forKey: key)
 }
 
+// ── Full slot order persistence ───────────────────────────────────────────────
+private func slotOrderPersistKey(userId: Int64, date: String) -> String { "slot_order_\(userId)_\(date)" }
+private func loadSlotOrder(userId: Int64, date: String) -> [String] {
+    UserDefaults.standard.stringArray(forKey: slotOrderPersistKey(userId: userId, date: date)) ?? []
+}
+private func saveSlotOrder(_ keys: [String], userId: Int64, date: String) {
+    UserDefaults.standard.set(keys, forKey: slotOrderPersistKey(userId: userId, date: date))
+}
+
 // ── isoDate helpers ───────────────────────────────────────────────────────────
 private func isoDate(from date: Date) -> String {
     let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"; return fmt.string(from: date)
@@ -115,6 +124,7 @@ struct DailyLogScreen: View {
     @State private var showClearPlanAlert: Bool = false
     @State private var customSlots: [CustomSlotDef] = []
     @State private var customSlotDoneKeys: Set<String> = []
+    @State private var savedSlotOrder: [String] = []
     @State private var showAddSlotAlert: Bool = false
     @State private var newSlotName: String = ""
 
@@ -229,6 +239,7 @@ struct DailyLogScreen: View {
         vm.loadLog(userId: userId, date: dateStr)
         customSlots = loadCustomSlots(userId: userId, date: dateStr)
         customSlotDoneKeys = loadCustomSlotDone(userId: userId, date: dateStr)
+        savedSlotOrder = loadSlotOrder(userId: userId, date: dateStr)
     }
 
     private func addCustomSlot() {
@@ -366,6 +377,7 @@ struct DailyLogScreen: View {
                 toggleCustomSlotDone(key, userId: userId, date: dateStr)
                 customSlotDoneKeys = loadCustomSlotDone(userId: userId, date: dateStr)
             } : nil,
+            isDraggable: true,
             onTogglePlannedFood: { item in
                 if loggedFoodIds.contains(item.food.id) {
                     if let lf = foods.first(where: { $0.loggedFood.foodId == item.food.id }) {
@@ -398,31 +410,41 @@ struct DailyLogScreen: View {
         let plannedSlotKeys = Set(vm.plannedMealsBySlot.keys)
         let customSlotNames = Dictionary(uniqueKeysWithValues: customSlots.map { ("CUSTOM_\($0.id)", $0.name) })
         let dateStr = isoDate(from: selectedDate)
-        let standardKeys = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys)
-            .filter { !$0.hasPrefix("CUSTOM_") }
-            .sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
+
+        // All available keys
+        let available = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys)
+            .union(Set(customSlots.map { "CUSTOM_\($0.id)" }))
+        // Merge with saved order: keep saved order for known keys, append new keys in default order
+        var ordered = savedSlotOrder.filter { available.contains($0) }
+        let inOrder = Set(ordered)
+        let defaultSorted = available.subtracting(inOrder).sorted { a, b in
+            let oa = slotOrder[a] ?? 99, ob = slotOrder[b] ?? 99
+            if oa != ob { return oa < ob }
+            let ia = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == a }) ?? Int.max
+            let ib = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == b }) ?? Int.max
+            return ia < ib
+        }
+        ordered.append(contentsOf: defaultSorted)
 
         return List {
-            // Standard slots (fixed order, not movable)
-            ForEach(standardKeys, id: \.self) { key in
+            ForEach(ordered, id: \.self) { key in
                 slotCardView(key: key, customSlotNames: customSlotNames)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                    .listRowBackground(logBg)
-                    .listRowSeparator(.hidden)
-                    .moveDisabled(true)
-            }
-            // Custom slots (draggable via native List reorder)
-            ForEach(customSlots, id: \.id) { def in
-                slotCardView(key: "CUSTOM_\(def.id)", customSlotNames: customSlotNames)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(logBg)
                     .listRowSeparator(.hidden)
             }
             .onMove { from, to in
-                customSlots.move(fromOffsets: from, toOffset: to)
-                saveCustomSlots(customSlots, userId: userId, date: dateStr)
+                var newOrder = ordered
+                newOrder.move(fromOffsets: from, toOffset: to)
+                savedSlotOrder = newOrder
+                saveSlotOrder(newOrder, userId: userId, date: dateStr)
+                // Sync customSlots array order to match
+                let newCustom = newOrder.compactMap { key in customSlots.first(where: { "CUSTOM_\($0.id)" == key }) }
+                if newCustom.count == customSlots.count {
+                    customSlots = newCustom
+                    saveCustomSlots(customSlots, userId: userId, date: dateStr)
+                }
             }
-            // Add Meal Slot button
             Button(action: { showAddSlotAlert = true }) {
                 HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill").font(.system(size: 14))
@@ -544,8 +566,9 @@ private struct SlotCard: View {
     let onAddFood: () -> Void
     let onDeleteFood: (Int64) -> Void
     var onDeleteSlot: (() -> Void)? = nil
-    var isCustomDone: Bool = false               // custom slot: completion flag (from UserDefaults)
-    var onToggleDone: (() -> Void)? = nil        // custom slots: toggle done state
+    var isCustomDone: Bool = false
+    var onToggleDone: (() -> Void)? = nil
+    var isDraggable: Bool = false
     var onTogglePlannedFood: ((MealFoodItemWithDetails) -> Void)? = nil
     var onToggleAllPlannedFoods: (() -> Void)? = nil
 
@@ -571,6 +594,13 @@ private struct SlotCard: View {
         VStack(spacing: 0) {
             // Header — emoji/name on left, tick-all + chevron on right
             HStack(spacing: 10) {
+                // Left drag handle — visual affordance for the native List reorder gesture
+                if isDraggable {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.gray.opacity(0.45))
+                        .frame(width: 18)
+                }
                 ZStack {
                     Circle()
                         .fill(slotColor(slotKey).opacity(0.15))
