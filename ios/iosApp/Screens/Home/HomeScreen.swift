@@ -18,7 +18,6 @@ struct HomeScreen: View {
     @StateObject private var viewModel = HomeViewModel()
     var onNavigateToLogWithDate: ((String) -> Void)?
 
-    @State private var localCustomSlots: [TodayPlanSlot] = []
     @State private var showDietPicker = false
     @State private var mealDetailSlot: TodayPlanSlot? = nil
     @State private var showProfile = false
@@ -134,7 +133,6 @@ struct HomeScreen: View {
                 .environmentObject(appState)
         }
         .onAppear {
-            syncLocalCustomSlots()
             if let userId = appState.currentUserId {
                 viewModel.load(userId: userId)
             }
@@ -152,46 +150,34 @@ struct HomeScreen: View {
             showProfile = true
         }
         .onChange(of: appState.customSlotsVersion) { _ in
-            syncLocalCustomSlots()
             if let userId = appState.currentUserId { viewModel.load(userId: userId) }
-        }
-    }
-
-    // Slots to display: ViewModel slots + any custom slots not already included
-    private var mergedSlots: [TodayPlanSlot] {
-        let vmKeys = Set(viewModel.todayPlanSlots.map { $0.slotType })
-        let extra = localCustomSlots.filter { !vmKeys.contains($0.slotType) }
-        return viewModel.todayPlanSlots + extra
-    }
-
-    // Read custom slots synchronously from UserDefaults — no async, always fresh
-    private func syncLocalCustomSlots() {
-        guard let userId = appState.currentUserId else { return }
-        struct SlotDef: Codable { let id: Int; let name: String }
-        let key = "custom_slots_\(userId)_\(isoToday())"
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let defs = try? JSONDecoder().decode([SlotDef].self, from: data) else {
-            localCustomSlots = []
-            return
-        }
-        localCustomSlots = defs.map { def in
-            TodayPlanSlot(
-                slotType: "CUSTOM_\(def.id)",
-                slotDisplayName: def.name,
-                emoji: "✦",
-                plannedMealName: nil,
-                plannedMealId: nil,
-                loggedMealId: nil,
-                isLogged: false,
-                loggedFoods: [],
-                isCustom: true
-            )
         }
     }
 
     private func isoToday() -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         return f.string(from: Date())
+    }
+
+    // Slots to display: ViewModel slots + custom slots from AppState (always live, no polling needed)
+    private var mergedSlots: [TodayPlanSlot] {
+        let vmKeys = Set(viewModel.todayPlanSlots.map { $0.slotType })
+        let extra = appState.todayCustomSlots
+            .map { def in
+                TodayPlanSlot(
+                    slotType: "CUSTOM_\(def.id)",
+                    slotDisplayName: def.name,
+                    emoji: "✦",
+                    plannedMealName: nil,
+                    plannedMealId: nil,
+                    loggedMealId: nil,
+                    isLogged: false,
+                    loggedFoods: [],
+                    isCustom: true
+                )
+            }
+            .filter { !vmKeys.contains($0.slotType) }
+        return viewModel.todayPlanSlots + extra
     }
 }
 

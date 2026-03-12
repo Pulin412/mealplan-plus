@@ -52,6 +52,8 @@ class AppState: ObservableObject {
     @Published var isDarkMode: Bool
     /// Incremented whenever custom meal slots change — HomeScreen observes this to refresh.
     @Published var customSlotsVersion: Int = 0
+    /// Today's custom slot defs — read directly in HomeScreen.mergedSlots (no onChange needed)
+    @Published var todayCustomSlots: [(id: Int, name: String)] = []
 
     init() {
         self.isDarkMode = UserDefaults.standard.bool(forKey: "dark_mode_enabled")
@@ -77,8 +79,22 @@ class AppState: ObservableObject {
         // Check auth state (uses UserDefaults, fast)
         checkAuthState()
 
+        // Load today's custom slots for HomeScreen
+        loadTodayCustomSlots()
+
         // Done loading
         isLoading = false
+    }
+
+    private func loadTodayCustomSlots() {
+        guard let userId = currentUserId else { return }
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        let today = fmt.string(from: Date())
+        let key = "custom_slots_\(userId)_\(today)"
+        struct SlotDef: Codable { let id: Int; let name: String }
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let defs = try? JSONDecoder().decode([SlotDef].self, from: data) else { return }
+        todayCustomSlots = defs.map { ($0.id, $0.name) }
     }
 
     private func checkAuthState() {

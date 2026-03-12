@@ -251,6 +251,7 @@ struct DailyLogScreen: View {
         saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
         expandedSlots.insert("CUSTOM_\(nextId)")
         newSlotName = ""
+        if isToday { appState.todayCustomSlots = customSlots.map { ($0.id, $0.name) } }
         appState.customSlotsVersion += 1
     }
 
@@ -258,6 +259,7 @@ struct DailyLogScreen: View {
         customSlots.removeAll { "CUSTOM_\($0.id)" == key }
         saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
         expandedSlots.remove(key)
+        if isToday { appState.todayCustomSlots = customSlots.map { ($0.id, $0.name) } }
         appState.customSlotsVersion += 1
     }
 
