@@ -101,14 +101,14 @@ private func displayDate(_ date: Date) -> String {
 
 // ── Sheet enum ────────────────────────────────────────────────────────────────
 private enum LogSheet: Identifiable {
-    case addFood(slotKey: String)
+    case addFood(slotKey: String, slotName: String)
     case customFoodPicker(slotKey: String)
     case dietPicker
-    var id: Int {
+    var id: String {
         switch self {
-        case .addFood:            return 1
-        case .customFoodPicker:   return 2
-        case .dietPicker:         return 3
+        case .addFood(let slotKey, _):          return "addFood_\(slotKey)"
+        case .customFoodPicker(let slotKey):    return "customFood_\(slotKey)"
+        case .dietPicker:                       return "dietPicker"
         }
     }
 }
@@ -158,9 +158,10 @@ struct DailyLogScreen: View {
             .toolbar { logToolbar }
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
-                case .addFood(let slotKey):
+                case .addFood(let slotKey, let slotName):
                     FoodPickerSheet(
                         slotKey: slotKey,
+                        slotName: slotName,
                         userId: userId,
                         date: isoDate(from: selectedDate),
                         onLogged: { activeSheet = nil; reload() }
@@ -370,7 +371,7 @@ struct DailyLogScreen: View {
                 if expandedSlots.contains(key) { expandedSlots.remove(key) }
                 else { expandedSlots.insert(key) }
             },
-            onAddFood: { activeSheet = .addFood(slotKey: key) },
+            onAddFood: { activeSheet = .addFood(slotKey: key, slotName: customSlotNames[key] ?? slotDisplayName(key)) },
             onDeleteFood: { id in vm.removeLoggedFood(userId: userId, id: id) },
             onDeleteSlot: isCustom ? { deleteCustomSlot(key: key) } : nil,
             isCustomDone: isCustom && customSlotDoneKeys.contains(key),
@@ -885,6 +886,7 @@ private struct MacroCompRowView: View {
 struct FoodPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let slotKey: String
+    let slotName: String
     let userId: Int64
     let date: String
     let onLogged: () -> Void
@@ -910,7 +912,7 @@ struct FoodPickerSheet: View {
                     quantityPicker
                 }
             }
-            .navigationTitle("Add Food to \(slotDisplayName(slotKey))")
+            .navigationTitle("Add Food to \(slotName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -1001,8 +1003,7 @@ struct FoodPickerSheet: View {
             )
             _ = try? await logRepo.insertLoggedFood(loggedFood: lf)
             await MainActor.run {
-                onLogged()
-                dismiss()
+                onLogged()  // sets activeSheet = nil → sheet dismissed automatically
             }
         }
     }
