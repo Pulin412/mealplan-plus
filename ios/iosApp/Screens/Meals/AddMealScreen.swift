@@ -99,15 +99,42 @@ struct AddMealScreen: View {
         selectedSlot = slotDisplayName(mwf.meal.slotType)
         let items = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
         selectedFoods = items.map { item in
-            FoodItemUI(
+            let qty = item.mealFoodItem.quantity
+            let unitName = item.mealFoodItem.unit.name
+            let formatted = qty == floor(qty) ? "\(Int(qty))" : String(format: "%.1f", qty)
+            let unitDisplay: String
+            switch unitName {
+            case "GRAM":    unitDisplay = "\(formatted)g"
+            case "ML":      unitDisplay = "\(formatted)ml"
+            case "SERVING": unitDisplay = "\(formatted) srv"
+            case "PIECE":   unitDisplay = "\(formatted) pcs"
+            default:        unitDisplay = "\(formatted) \(unitName.lowercased())"
+            }
+            return FoodItemUI(
                 id: item.food.id,
                 name: item.food.name,
                 calories: Int(item.calculatedCalories),
                 protein: item.calculatedProtein,
                 carbs: item.calculatedCarbs,
                 fat: item.calculatedFat,
-                unit: "\(Int(item.mealFoodItem.quantity))g"
+                unit: unitDisplay,
+                quantity: qty,
+                unitKmpName: unitName
             )
+        }
+    }
+
+    private func foodUnitFromKmpName(_ name: String) -> FoodUnit {
+        switch name {
+        case "ML":      return .ml
+        case "SERVING": return .serving
+        case "PIECE":   return .piece
+        case "CUP":     return .cup
+        case "TBSP":    return .tbsp
+        case "TSP":     return .tsp
+        case "SLICE":   return .slice
+        case "SCOOP":   return .scoop
+        default:        return .gram
         }
     }
 
@@ -158,7 +185,7 @@ struct AddMealScreen: View {
                     try? await mealsVM.removeFoodFromMeal(mealId: mealId, foodId: item.food.id)
                 }
                 for food in selectedFoods {
-                    try? await mealsVM.addFoodToMeal(mealId: mealId, foodId: food.id, quantity: 100.0, unit: .gram, notes: nil)
+                    try? await mealsVM.addFoodToMeal(mealId: mealId, foodId: food.id, quantity: food.quantity, unit: foodUnitFromKmpName(food.unitKmpName), notes: nil)
                 }
             } else {
                 let meal = Meal(
@@ -169,7 +196,7 @@ struct AddMealScreen: View {
                 let mealId = try? await mealsVM.insertMeal(meal)
                 if let id = mealId {
                     for food in selectedFoods {
-                        try? await mealsVM.addFoodToMeal(mealId: id, foodId: food.id, quantity: 100.0, unit: .gram, notes: nil)
+                        try? await mealsVM.addFoodToMeal(mealId: id, foodId: food.id, quantity: food.quantity, unit: foodUnitFromKmpName(food.unitKmpName), notes: nil)
                     }
                 }
             }
@@ -182,6 +209,35 @@ struct AddMealScreen: View {
     }
 }
 
+// MARK: - Meal Food Unit (iOS-side enum, maps to KMP FoodUnit)
+
+enum MealFoodUnit: String, CaseIterable {
+    case gram    = "GRAM"
+    case ml      = "ML"
+    case serving = "SERVING"
+    case piece   = "PIECE"
+
+    var displayName: String {
+        switch self {
+        case .gram:    return "Grams"
+        case .ml:      return "ml"
+        case .serving: return "Servings"
+        case .piece:   return "Pieces"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .gram:    return "g"
+        case .ml:      return "ml"
+        case .serving: return "srv"
+        case .piece:   return "pcs"
+        }
+    }
+
+    var kmpName: String { rawValue }
+}
+
 // MARK: - Food Picker (uses real KMP database)
 struct FoodPickerScreen: View {
     @Environment(\.dismiss) var dismiss
@@ -189,6 +245,7 @@ struct FoodPickerScreen: View {
 
     @StateObject private var foodsVM = FoodsViewModel()
     @State private var searchText = ""
+    @State private var pendingFood: FoodItem? = nil
 
     var filteredFoods: [FoodItem] {
         if searchText.isEmpty { return foodsVM.foods }
@@ -219,18 +276,7 @@ struct FoodPickerScreen: View {
                     Spacer()
                 } else {
                     List(filteredFoods, id: \.id) { food in
-                        Button(action: {
-                            onSelect(FoodItemUI(
-                                id: food.id,
-                                name: food.name,
-                                calories: Int(food.caloriesPer100),
-                                protein: food.proteinPer100,
-                                carbs: food.carbsPer100,
-                                fat: food.fatPer100,
-                                unit: "100g"
-                            ))
-                            dismiss()
-                        }) {
+                        Button(action: { pendingFood = food }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(food.name).font(.headline).foregroundColor(.primary)
@@ -250,8 +296,178 @@ struct FoodPickerScreen: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
             }
+            .sheet(isPresented: Binding(
+                get: { pendingFood != nil },
+                set: { if !$0 { pendingFood = nil } }
+            )) {
+                if let food = pendingFood {
+                    FoodQuantitySheetView(food: food) { foodUI in
+                        onSelect(foodUI)
+                        pendingFood = nil
+                        dismiss()
+                    }
+                }
+            }
             .onAppear { foodsVM.loadFoods() }
         }
+    }
+}
+
+// MARK: - Food Quantity + Unit Picker Sheet
+
+private struct FoodQuantitySheetView: View {
+    @Environment(\.dismiss) var dismiss
+    let food: FoodItem
+    var onConfirm: (FoodItemUI) -> Void
+
+    @State private var quantity: Double = 100.0
+    @State private var quantityText: String = "100"
+    @State private var selectedUnit: MealFoodUnit = .gram
+
+    private var gramsPerPiece: Double { food.gramsPerPiece ?? 100.0 }
+
+    private var multiplier: Double {
+        switch selectedUnit {
+        case .gram:    return quantity / 100.0
+        case .ml:      return quantity / 100.0
+        case .serving: return quantity
+        case .piece:   return quantity * gramsPerPiece / 100.0
+        }
+    }
+
+    private var calcCalories: Double { multiplier * food.caloriesPer100 }
+    private var calcProtein:  Double { multiplier * food.proteinPer100 }
+    private var calcCarbs:    Double { multiplier * food.carbsPer100 }
+    private var calcFat:      Double { multiplier * food.fatPer100 }
+
+    private var quickValues: [Double] {
+        switch selectedUnit {
+        case .gram:    return [50, 100, 150, 200]
+        case .ml:      return [50, 100, 200, 250]
+        case .serving: return [0.5, 1, 1.5, 2]
+        case .piece:   return [1, 2, 3, 4]
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(food.name).font(.headline)
+                    Text("\(Int(food.caloriesPer100)) kcal / 100g · P:\(Int(food.proteinPer100))g C:\(Int(food.carbsPer100))g F:\(Int(food.fatPer100))g")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+
+                Section("Unit") {
+                    Picker("Unit", selection: $selectedUnit) {
+                        ForEach(MealFoodUnit.allCases, id: \.self) { u in
+                            Text(u.displayName).tag(u)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: selectedUnit) { _ in
+                        switch selectedUnit {
+                        case .gram:    setQty(100)
+                        case .ml:      setQty(100)
+                        case .serving: setQty(1)
+                        case .piece:   setQty(1)
+                        }
+                    }
+                }
+
+                Section("Quantity") {
+                    HStack {
+                        TextField("Amount", text: $quantityText)
+                            .keyboardType(.decimalPad)
+                            .onChange(of: quantityText) { val in
+                                if let d = Double(val), d > 0 { quantity = d }
+                            }
+                        Text(selectedUnit.shortLabel).foregroundColor(.secondary)
+                    }
+                    if selectedUnit == .piece {
+                        Text("1 piece ≈ \(Int(gramsPerPiece))g")
+                            .font(.caption).foregroundColor(.secondary)
+                    }
+                    // Quick-select chips
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(quickValues, id: \.self) { val in
+                                Button(action: { setQty(val) }) {
+                                    let lbl = val == floor(val) ? "\(Int(val))" : String(format: "%.1f", val)
+                                    Text(lbl)
+                                        .font(.caption)
+                                        .padding(.horizontal, 12).padding(.vertical, 6)
+                                        .background(quantity == val ? Color.green : Color(.systemGray5))
+                                        .foregroundColor(quantity == val ? .white : .primary)
+                                        .cornerRadius(14)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+
+                Section("Nutrition Preview") {
+                    HStack {
+                        FoodQtyMacroTile(label: "Calories", value: "\(Int(calcCalories))", unit: "kcal", color: .green)
+                        FoodQtyMacroTile(label: "Protein",  value: "\(Int(calcProtein))",  unit: "g",    color: .blue)
+                        FoodQtyMacroTile(label: "Carbs",    value: "\(Int(calcCarbs))",    unit: "g",    color: .orange)
+                        FoodQtyMacroTile(label: "Fat",      value: "\(Int(calcFat))",      unit: "g",    color: .pink)
+                    }
+                }
+
+                Section {
+                    Button(action: confirm) {
+                        HStack {
+                            Spacer()
+                            Text("Add to Meal").fontWeight(.semibold)
+                            Spacer()
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Add Food")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
+            }
+        }
+    }
+
+    private func setQty(_ val: Double) {
+        quantity = val
+        quantityText = val == floor(val) ? "\(Int(val))" : String(format: "%.1f", val)
+    }
+
+    private func confirm() {
+        let qStr = quantity == floor(quantity) ? "\(Int(quantity))" : String(format: "%.1f", quantity)
+        let displayUnit: String
+        switch selectedUnit {
+        case .gram:    displayUnit = "\(qStr)g"
+        case .ml:      displayUnit = "\(qStr)ml"
+        case .serving: displayUnit = "\(qStr) srv"
+        case .piece:   displayUnit = "\(qStr) pcs"
+        }
+        let foodUI = FoodItemUI(
+            id: food.id, name: food.name,
+            calories: Int(calcCalories), protein: calcProtein, carbs: calcCarbs, fat: calcFat,
+            unit: displayUnit, quantity: quantity, unitKmpName: selectedUnit.kmpName
+        )
+        onConfirm(foodUI)
+        dismiss()
+    }
+}
+
+private struct FoodQtyMacroTile: View {
+    let label: String; let value: String; let unit: String; let color: Color
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value).font(.subheadline).fontWeight(.bold).foregroundColor(color)
+            Text(unit).font(.caption2).foregroundColor(.secondary)
+            Text(label).font(.caption2).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -368,15 +584,16 @@ struct MealDetailScreen: View {
 
     private func unitDisplay(_ unit: FoodUnit) -> String {
         switch unit.name {
-        case "GRAM":  return "g"
-        case "ML":    return "ml"
-        case "PIECE": return "pc"
-        case "CUP":   return "cup"
-        case "TBSP":  return "tbsp"
-        case "TSP":   return "tsp"
-        case "SLICE": return "slice"
-        case "SCOOP": return "scoop"
-        default:      return unit.name.lowercased()
+        case "GRAM":    return "g"
+        case "ML":      return "ml"
+        case "SERVING": return "srv"
+        case "PIECE":   return "pcs"
+        case "CUP":     return "cup"
+        case "TBSP":    return "tbsp"
+        case "TSP":     return "tsp"
+        case "SLICE":   return "slice"
+        case "SCOOP":   return "scoop"
+        default:        return unit.name.lowercased()
         }
     }
 }

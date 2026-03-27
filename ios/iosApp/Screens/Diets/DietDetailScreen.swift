@@ -8,6 +8,15 @@ private let dietSlotOrder = [
 ]
 
 private func dietSlotDisplayName(_ key: String) -> String {
+    // Handle custom slot prefix "CUSTOM:<name>"
+    if key.uppercased().hasPrefix("CUSTOM:") {
+        let rawName = String(key.dropFirst("CUSTOM:".count))
+        return rawName
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.isEmpty ? "" : $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+            .joined(separator: " ")
+    }
     switch key.uppercased() {
     case "BREAKFAST":    return "Breakfast"
     case "LUNCH":        return "Lunch"
@@ -26,6 +35,7 @@ private func dietSlotDisplayName(_ key: String) -> String {
 }
 
 private func dietSlotIcon(_ key: String) -> String {
+    if key.uppercased().hasPrefix("CUSTOM:") { return "star.fill" }
     switch key.uppercased() {
     case "BREAKFAST", "EARLY_MORNING", "MID_MORNING": return "sunrise.fill"
     case "LUNCH", "NOON":                              return "sun.max.fill"
@@ -58,6 +68,8 @@ struct DietDetailScreenNew: View {
     @State private var showEditSheet = false
     @State private var slotEditRequest: SlotEditRequest? = nil
     @State private var showDeleteConfirm = false
+    @State private var showCustomSlotDialog = false
+    @State private var customSlotName = ""
 
     var body: some View {
         ScrollView {
@@ -73,6 +85,24 @@ struct DietDetailScreenNew: View {
                 slotEditRequest = nil
                 loadDietDetails()
             }
+        }
+        .alert("Add Custom Meal Slot", isPresented: $showCustomSlotDialog) {
+            TextField("e.g. Pre-Sleep", text: $customSlotName)
+            Button("Add") {
+                let trimmed = customSlotName.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty {
+                    slotEditRequest = SlotEditRequest(
+                        slot: "CUSTOM:\(trimmed)",
+                        dietId: dietId,
+                        currentMeal: nil,
+                        instructions: nil
+                    )
+                    customSlotName = ""
+                }
+            }
+            Button("Cancel", role: .cancel) { customSlotName = "" }
+        } message: {
+            Text("Enter a name for the custom meal slot")
         }
         .alert("Delete Diet?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
@@ -240,39 +270,63 @@ struct DietDetailScreenNew: View {
             }
         }
         // Show all slots that have a meal assigned + the 3 main slots always, in standard order
+        // Also include custom slots (CUSTOM: prefix) from assigned keys
         let assignedKeys = Set(mealsMap.keys)
         let alwaysShow: Set<String> = ["BREAKFAST", "LUNCH", "DINNER"]
-        let slotsToShow = (dietSlotOrder + Array(assignedKeys.subtracting(Set(dietSlotOrder))))
+        let customKeys = assignedKeys.filter { $0.uppercased().hasPrefix("CUSTOM:") }
+        let standardSlotsToShow = (dietSlotOrder + Array(assignedKeys.subtracting(Set(dietSlotOrder)).filter { !$0.uppercased().hasPrefix("CUSTOM:") }))
             .filter { alwaysShow.contains($0) || assignedKeys.contains($0) }
+        let slotsToShow = standardSlotsToShow + customKeys.sorted()
 
         return VStack(alignment: .leading, spacing: 12) {
             ForEach(slotsToShow, id: \.self) { slotKey in
                 let currentMeal = mealsMap[slotKey]
                 let instructions = instructionsMap[slotKey]
                 let displayName = dietSlotDisplayName(slotKey)
+                let isCustom = slotKey.uppercased().hasPrefix("CUSTOM:")
                 if isReadOnly {
                     if let mwf = currentMeal {
-                        MealSlotCardNew(slot: displayName, mealWithFoods: mwf, instructions: instructions)
+                        MealSlotCardNew(slot: displayName, mealWithFoods: mwf, instructions: instructions, isCustom: isCustom)
                     } else {
-                        EmptyMealSlotCard(slot: displayName)
+                        EmptyMealSlotCard(slot: displayName, isCustom: isCustom)
                     }
                 } else {
                     Button {
                         slotEditRequest = SlotEditRequest(
-                            slot: slotKey,  // uppercase key for DB operations
+                            slot: slotKey,  // original key for DB operations
                             dietId: dietId,
                             currentMeal: currentMeal,
                             instructions: instructions
                         )
                     } label: {
                         if let mwf = currentMeal {
-                            MealSlotCardNew(slot: displayName, mealWithFoods: mwf, instructions: instructions)
+                            MealSlotCardNew(slot: displayName, mealWithFoods: mwf, instructions: instructions, isCustom: isCustom)
                         } else {
-                            EmptyMealSlotCard(slot: displayName)
+                            EmptyMealSlotCard(slot: displayName, isCustom: isCustom)
                         }
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
+            }
+            // Add Custom Slot button (edit mode only)
+            if !isReadOnly {
+                Button(action: { showCustomSlotDialog = true }) {
+                    HStack {
+                        Image(systemName: "plus.circle")
+                            .foregroundColor(.purple)
+                        Text("Add Custom Meal Slot")
+                            .foregroundColor(.purple)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color.purple.opacity(0.07))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.purple.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
             }
         }
         .padding(.horizontal)
@@ -388,6 +442,7 @@ struct MealSlotCardNew: View {
     let slot: String
     let mealWithFoods: MealWithFoods
     var instructions: String? = nil
+    var isCustom: Bool = false
 
     @State private var isExpanded = false
 
@@ -405,9 +460,19 @@ struct MealSlotCardNew: View {
                         .frame(width: 30)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(slot)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Text(slot)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if isCustom {
+                                Text("custom")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(Color.purple.opacity(0.15))
+                                    .foregroundColor(.purple)
+                                    .cornerRadius(4)
+                            }
+                        }
                         Text(mealWithFoods.meal.name)
                             .font(.subheadline)
                             .fontWeight(.medium)
@@ -491,6 +556,7 @@ struct MealSlotCardNew: View {
 
 struct EmptyMealSlotCard: View {
     let slot: String
+    var isCustom: Bool = false
 
     var body: some View {
         HStack {
@@ -499,9 +565,19 @@ struct EmptyMealSlotCard: View {
                 .frame(width: 30)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(slot)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 4) {
+                    Text(slot)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if isCustom {
+                        Text("custom")
+                            .font(.system(size: 9, weight: .semibold))
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.purple.opacity(0.15))
+                            .foregroundColor(.purple)
+                            .cornerRadius(4)
+                    }
+                }
                 Text("No meal assigned")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
