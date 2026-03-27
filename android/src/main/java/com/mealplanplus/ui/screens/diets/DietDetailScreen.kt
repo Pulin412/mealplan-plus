@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
+import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.repository.UsdaFoodResult
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,10 +41,12 @@ fun DietDetailScreen(
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.let { handle ->
             handle.get<Long>("selected_food_id")?.let { foodId ->
-                val quantity = handle.get<Double>("selected_quantity") ?: 100.0
-                viewModel.addFoodById(foodId, quantity)
+                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
+                val unit = handle.get<String>("selected_unit")?.let { runCatching { FoodUnit.valueOf(it) }.getOrNull() } ?: FoodUnit.GRAM
+                viewModel.addFoodById(foodId, quantity, unit)
                 handle.remove<Long>("selected_food_id")
                 handle.remove<Double>("selected_quantity")
+                handle.remove<String>("selected_unit")
             }
             handle.get<String>("usda_food_name")?.let { name ->
                 val usdaFood = UsdaFoodResult(
@@ -57,8 +60,9 @@ fun DietDetailScreen(
                     servingSize = handle.get<Double>("usda_food_serving_size") ?: 100.0,
                     servingUnit = handle.get<String>("usda_food_serving_unit") ?: "g"
                 )
-                val quantity = handle.get<Double>("selected_quantity") ?: 100.0
-                viewModel.addUsdaFood(usdaFood, quantity)
+                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
+                val unit = handle.get<String>("selected_unit")?.let { runCatching { FoodUnit.valueOf(it) }.getOrNull() } ?: FoodUnit.GRAM
+                viewModel.addUsdaFood(usdaFood, quantity, unit)
                 handle.remove<String>("usda_food_name")
                 handle.remove<String>("usda_food_brand")
                 handle.remove<Double>("usda_food_calories")
@@ -68,6 +72,7 @@ fun DietDetailScreen(
                 handle.remove<Double>("usda_food_serving_size")
                 handle.remove<String>("usda_food_serving_unit")
                 handle.remove<Double>("selected_quantity")
+                handle.remove<String>("selected_unit")
             }
         }
     }
@@ -87,13 +92,13 @@ fun DietDetailScreen(
         }
     }
 
-    // Build slot food items map from dietWithMeals
     val dwm = uiState.dietWithMeals
     val slotFoodItems = DefaultMealSlot.entries.associateWith { slot ->
         dwm?.meals?.get(slot.name)?.items ?: emptyList()
     }
-
+    val customSlotTypes = uiState.customSlotTypes
     val isEditing = uiState.isEditing
+    var showAddSlotDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -178,7 +183,7 @@ fun DietDetailScreen(
                 EstimatedTotalsCard(totalCal, totalPro, totalCarb, totalFat)
             }
 
-            // Slot sections
+            // Default slot sections
             val slots = slotsToShow(slotFoodItems)
             items(slots.size) { index ->
                 val slot = slots[index]
@@ -211,6 +216,58 @@ fun DietDetailScreen(
                         { -> onNavigateToMealDetail(dietId, slot.name) } else null
                 )
             }
+
+            // Custom slot sections
+            items(customSlotTypes.size) { index ->
+                val slotType = customSlotTypes[index]
+                val displayName = slotType.removePrefix("CUSTOM:")
+                val foods = dwm?.meals?.get(slotType)?.items ?: emptyList()
+                val dietId = uiState.diet?.id ?: 0L
+                CustomDietSlotSection(
+                    slotType = slotType,
+                    displayName = displayName,
+                    foods = foods,
+                    isEditing = isEditing,
+                    instructions = if (isEditing)
+                        uiState.editSlotInstructions[slotType] ?: ""
+                    else
+                        uiState.dietWithMeals?.instructions?.get(slotType) ?: "",
+                    onAddFood = {
+                        viewModel.setPickingSlotType(slotType)
+                        onNavigateToFoodPicker()
+                    },
+                    onRemoveFood = { idx ->
+                        if (idx in foods.indices) viewModel.removeFoodFromSlot(slotType, foods[idx])
+                    },
+                    onIncrement = { idx ->
+                        if (idx in foods.indices) viewModel.incrementQtyInSlot(slotType, foods[idx])
+                    },
+                    onDecrement = { idx ->
+                        if (idx in foods.indices) viewModel.decrementQtyInSlot(slotType, foods[idx])
+                    },
+                    onInstructionsChange = if (isEditing)
+                        { text -> viewModel.updateSlotInstructionsForType(slotType, text) } else null,
+                    onRemoveSlot = if (isEditing)
+                        { -> viewModel.removeCustomSlot(slotType) } else null,
+                    onViewDetails = if (!isEditing && foods.isNotEmpty())
+                        { -> onNavigateToMealDetail(dietId, slotType) } else null
+                )
+            }
+
+            // Add custom slot button (edit mode)
+            if (isEditing) {
+                item {
+                    OutlinedButton(
+                        onClick = { showAddSlotDialog = true },
+                        modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = androidx.compose.ui.Modifier.size(18.dp))
+                        Spacer(androidx.compose.ui.Modifier.width(8.dp))
+                        Text("Add Custom Meal Slot")
+                    }
+                }
+            }
         }
     }
 
@@ -230,6 +287,40 @@ fun DietDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Add custom slot dialog
+    if (showAddSlotDialog) {
+        var newSlotName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddSlotDialog = false; newSlotName = "" },
+            title = { Text("Add Custom Meal Slot") },
+            text = {
+                OutlinedTextField(
+                    value = newSlotName,
+                    onValueChange = { newSlotName = it },
+                    label = { Text("Slot name") },
+                    placeholder = { Text("e.g. Pre-Sleep, Evening Tea") },
+                    singleLine = true,
+                    modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.addCustomSlot(newSlotName)
+                        showAddSlotDialog = false
+                        newSlotName = ""
+                    },
+                    enabled = newSlotName.isNotBlank()
+                ) { Text("Add") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddSlotDialog = false; newSlotName = "" }) {
+                    Text("Cancel")
+                }
             }
         )
     }

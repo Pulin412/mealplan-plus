@@ -38,9 +38,11 @@ fun AddMealScreen(
             // Local food selected
             handle.get<Long>("selected_food_id")?.let { foodId ->
                 val quantity = handle.get<Double>("selected_quantity") ?: 1.0
-                viewModel.addFoodById(foodId, quantity)
+                val unit = handle.get<String>("selected_unit")?.let { runCatching { com.mealplanplus.data.model.FoodUnit.valueOf(it) }.getOrNull() } ?: com.mealplanplus.data.model.FoodUnit.GRAM
+                viewModel.addFoodById(foodId, quantity, unit)
                 handle.remove<Long>("selected_food_id")
                 handle.remove<Double>("selected_quantity")
+                handle.remove<String>("selected_unit")
             }
 
             // USDA food selected
@@ -69,6 +71,7 @@ fun AddMealScreen(
                 handle.remove<Double>("usda_food_serving_size")
                 handle.remove<String>("usda_food_serving_unit")
                 handle.remove<Double>("selected_quantity")
+                handle.remove<String>("selected_unit")
             }
         }
     }

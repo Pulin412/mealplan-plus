@@ -1,0 +1,121 @@
+# Android Improvements
+
+Tracks UI/UX and feature improvements made to the Android app.
+Each entry notes what changed and the file(s) affected.
+iOS parity to be reviewed separately at a later stage.
+
+---
+
+## 2026-03-27 (3)
+
+### Meal Plan calendar — dots missing on future weeks / cross-month navigation
+**File:** `CalendarViewModel.kt`
+
+**Root cause:** `loadPlansForMonth()` queried only `month.atDay(1)` → `month.atEndOfMonth()`. Week navigation calls only `selectDate()`, never updating `currentMonth` or reloading plans — so navigating into April while `currentMonth` was still March returned no plans for April, leaving all dots blank.
+
+**Fixes:**
+1. `selectDate()` now checks `YearMonth.from(date) != currentMonth`; when the selected week crosses into a new month it updates `currentMonth` and triggers a reload
+2. `loadPlansForMonth()` range extended to `month.atDay(1).minusDays(6)` → `month.atEndOfMonth().plusDays(6)` — covers weeks that straddle two months (e.g. March 29–April 4 all get dots even when currentMonth = April)
+
+---
+
+## 2026-03-27 (2)
+
+### Food picker — Pieces unit + correct unit display everywhere
+**Files:** `FoodUnit.kt`, `FoodItem.kt`, `FoodPickerScreen.kt`, `NavHost.kt`, `DietDetailScreen.kt`, `DietMealSlotScreen.kt`, `AddMealScreen.kt`, `EditMealScreen.kt`, `DietDetailViewModel.kt`, `DietMealSlotViewModel.kt`, `AddMealViewModel.kt`, `EditMealViewModel.kt`
+
+**What changed:**
+
+**New unit — Pieces:**
+- Added `PIECE("Pieces")` to the `MeasureUnit` dropdown in the food picker bottom sheet
+- Quick-select chips for Pieces: 1 / 2 / 3 / 4
+- Hint text shows "1 piece ≈ Xg" when `gramsPerPiece` is set on the food, or "1 piece ≈ ~100g" as fallback
+- `gramsPerPiece` is now passed from `FoodPickerScreen` into `FoodDetailBottomSheet` so the macro preview is accurate
+
+**New unit — Servings (stored correctly):**
+- Added `SERVING("Servings", "srv")` to `FoodUnit` enum (was missing; existed only in the UI `MeasureUnit` but was never persisted)
+- `FoodItem.toGrams` now handles `FoodUnit.SERVING → quantity × 100.0` (servingSize is always 100g)
+
+**Root-cause fix — unit was always stored as GRAM:**
+- `FoodDetailBottomSheet.onConfirm` was `(Double)` — only passed a multiplier, losing the selected unit
+- Changed to `onConfirm: (Double, FoodUnit)` — passes the actual quantity and the correct `FoodUnit`
+- The "Add to Meal" button maps `MeasureUnit → FoodUnit` and calls `onConfirm(quantity, foodUnit)`
+- Previously, "2 servings of eggs" was stored as `quantity=2, unit=GRAM` → displayed as "2g"
+- Now stored as `quantity=2, unit=SERVING` → displays as "2 srv"; "2 pieces" → "2 pcs"
+
+**Macro preview fix:**
+- Old multiplier formula for SERVING was `quantity × 1` (treating servings as raw 100g-based multiplier)
+- New formula: `quantity × servingSize / 100` — all units now compute correct gram-equivalent for the preview
+
+**Plumbing changes:**
+- `FoodPickerScreen.onFoodSelected` / `onUsdaFoodSelected` now include `FoodUnit` as third param
+- NavHost saves `"selected_unit"` (enum name string) into `savedStateHandle` for all 3 `FoodPickerScreen` routes
+- All savedStateHandle consumers read `"selected_unit"` back and pass it to their ViewModels
+- All ViewModel `addFoodById` / `addUsdaFood` methods now accept `unit: FoodUnit = FoodUnit.GRAM`
+
+---
+
+## 2026-03-27
+
+### Meal Detail Screen — checklist, sorting, proper sizing
+**Files:** `MealDetailScreen.kt`, `MealDetailViewModel.kt`
+
+**What changed:**
+- Ingredient rows now have a **Checkbox** — tap a row or the checkbox to mark it as prepared
+- Checked items get a strikethrough name and dimmed colour to visually distinguish done vs pending
+- **Sort chips** (A–Z / Qty) at the top of the ingredients card let the user reorder the list alphabetically or by quantity descending
+- **Progress bar** below the sort chips shows "X of N prepared" with a "Clear all" shortcut
+- All text sizes bumped up: food name uses `bodyLarge`, quantity uses `bodyMedium`, macro totals use `titleMedium` — previously everything was `bodySmall`/`labelSmall`
+- Section headers ("Instructions", "Ingredients", "Totals") use `titleMedium` instead of `titleSmall`
+- Macro values per ingredient are displayed inline on the right side of each row (kcal prominent, P/C/F as small pills) rather than in a dense table with columns
+- Totals icons use `headlineSmall` for better visual weight
+
+**ViewModel additions:**
+- `IngredientSortOrder` enum (`ALPHABETICAL`, `QUANTITY`)
+- `checkedFoodIds: Set<Long>` in `UiState`
+- `toggleChecked(foodId)` and `setSortOrder(order)` actions
+- `sortedFoods` derived list kept in state (sorted on load + on sort change)
+
+---
+
+### Meal Plan screen — tappable meal slots with read-only ingredient view
+**Files:** `CalendarScreen.kt`, `MealDetailScreen.kt`, `NavHost.kt`
+
+**What changed:**
+- Meal slot rows in the Meal Plan (Calendar) screen are now tappable when the slot has ingredients — shows a chevron `>` on the right
+- Tapping navigates to the same `MealDetailScreen` with `readOnly = true` — no checkboxes, no progress bar, ingredients are display-only with sorting still available
+- Slots with no meal or empty ingredients remain non-interactive (no chevron)
+- `MealSlotRow` got minor size bumps: 36dp icon circle, `labelMedium` slot label, `FontWeight.Medium` for meal name
+
+**Route change:**
+- `Screen.MealDetail` now accepts an optional `?readOnly=true/false` query param
+- Home screen navigates with `readOnly = false` (checklist behaviour unchanged)
+- Calendar screen navigates with `readOnly = true`
+
+---
+
+### Create Diet flow — simplified form + custom meal slots
+**Files:** `AddDietScreen.kt`, `AddDietViewModel.kt`, `DietDetailScreen.kt`, `DietDetailViewModel.kt`, `DietFormComponents.kt`, `CalendarScreen.kt`, `HomeViewModel.kt`, `NavHost.kt`
+
+**What changed:**
+
+**Create Diet screen (AddDiet):**
+- Removed the broken "Estimated Totals" card and all pre-populated slot sections — the form now only shows diet name, description, and tags
+- On Save, instead of going back to the list, the app navigates directly to the Diet Detail screen in edit mode so the user can immediately add foods to each slot
+
+**Custom meal slots:**
+- In Diet Detail edit mode, a new "Add Custom Meal Slot" button appears below all default slots
+- Tapping it opens a dialog to enter any name (e.g. "Pre-Sleep", "Evening Tea")
+- Custom slots are stored as `DietMeal` rows with `slotType = "CUSTOM:<name>"` — no new table or migration required
+- Custom slots show an `⭐` icon and a "custom" badge to distinguish them from default slots
+- Each custom slot supports: adding foods, instructions, remove-slot (in edit mode), and tap-to-view-ingredients (in view mode)
+- Custom slots appear everywhere the diet is shown:
+  - **Diet Detail screen** — view and edit mode
+  - **Home screen Today's Plan** — display name extracted from `"CUSTOM:"` prefix (was showing garbled `"custom:pre-sleep"` before)
+  - **Meal Plan (Calendar) screen** — new `CustomMealSlotRow` composable renders them with a purple "custom" badge; tappable if they have ingredients
+
+**ViewModel changes:**
+- `AddDietViewModel` now only handles name/description/tags; removed all food/slot state
+- `DietDetailViewModel.currentPickingSlot: DefaultMealSlot?` replaced with `currentPickingSlotType: String?` (unified for default and custom slots)
+- New actions: `addCustomSlot(name)`, `removeCustomSlot(slotType)`, `setPickingSlotType(slotType)`, `removeFoodFromSlot(slotType, item)`, `incrementQtyInSlot`, `decrementQtyInSlot`, `updateSlotInstructionsForType`
+- `loadDiet()` now also extracts `customSlotTypes: List<String>` from `dietWithMeals.meals` keys

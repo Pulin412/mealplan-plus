@@ -47,6 +47,7 @@ fun CalendarScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLog: (String) -> Unit,
     onNavigateToDietPicker: (String) -> Unit = {},
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
     savedStateHandle: SavedStateHandle? = null,
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
@@ -103,7 +104,8 @@ fun CalendarScreen(
                 onAssignDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
                 onChangeDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
                 onRemoveDiet = { viewModel.clearPlan() },
-                onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) }
+                onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
+                onNavigateToMealDetail = onNavigateToMealDetail
             )
         }
     }
@@ -398,7 +400,8 @@ private fun SelectedDatePanel(
     onAssignDiet: () -> Unit,
     onChangeDiet: () -> Unit,
     onRemoveDiet: () -> Unit,
-    onViewLog: () -> Unit
+    onViewLog: () -> Unit,
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
 ) {
     val today = LocalDate.now()
     val isToday = date == today
@@ -497,7 +500,8 @@ private fun SelectedDatePanel(
                 // Macros + meals section
                 DietDetailSection(
                     diet = diet,
-                    dietWithMeals = dietWithMeals
+                    dietWithMeals = dietWithMeals,
+                    onNavigateToMealDetail = onNavigateToMealDetail
                 )
 
                 // Remove diet option (future only)
@@ -570,7 +574,11 @@ private fun SelectedDatePanel(
 }
 
 @Composable
-private fun DietDetailSection(diet: Diet, dietWithMeals: DietWithMeals) {
+private fun DietDetailSection(
+    diet: Diet,
+    dietWithMeals: DietWithMeals,
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -622,15 +630,32 @@ private fun DietDetailSection(diet: Diet, dietWithMeals: DietWithMeals) {
         HorizontalDivider()
         Spacer(Modifier.height(8.dp))
 
-        // All meal slots (always show all)
-        val allSlots = DefaultMealSlot.entries
-        allSlots.forEach { slot ->
+        // Default meal slots
+        DefaultMealSlot.entries.forEach { slot ->
             val mealWithFoods = dietWithMeals.meals[slot.name]
             MealSlotRow(
                 slot = slot,
-                mealName = mealWithFoods?.meal?.name
+                mealName = mealWithFoods?.meal?.name,
+                onTap = if (mealWithFoods != null && mealWithFoods.items.isNotEmpty())
+                    { -> onNavigateToMealDetail(diet.id, slot.name) }
+                else null
             )
         }
+
+        // Custom diet slots
+        dietWithMeals.meals.entries
+            .filter { it.key.startsWith("CUSTOM:") }
+            .sortedBy { it.key }
+            .forEach { (slotType, mealWithFoods) ->
+                val displayName = slotType.removePrefix("CUSTOM:")
+                CustomMealSlotRow(
+                    displayName = displayName,
+                    mealName = mealWithFoods?.meal?.name,
+                    onTap = if (mealWithFoods != null && mealWithFoods.items.isNotEmpty())
+                        { -> onNavigateToMealDetail(diet.id, slotType) }
+                    else null
+                )
+            }
     }
 }
 
@@ -670,37 +695,104 @@ private fun MacroTile(
 }
 
 @Composable
-private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?) {
+private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?, onTap: (() -> Unit)? = null) {
     val (emoji, tint) = slotEmojiAndColor(slot)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Emoji in colored circle
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(tint.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = emoji, fontSize = 16.sp)
+            Text(text = emoji, fontSize = 18.sp)
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = slot.displayName,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = mealName ?: "—",
                 style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
                 color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onTap != null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "View ingredients",
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomMealSlotRow(displayName: String, mealName: String?, onTap: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF7B1FA2).copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("⭐", fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFF7B1FA2).copy(alpha = 0.10f)
+                ) {
+                    Text(
+                        "custom",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF7B1FA2),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                }
+            }
+            Text(
+                text = mealName ?: "—",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
+                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onTap != null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "View ingredients",
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
             )
         }
     }

@@ -6,7 +6,8 @@ package com.mealplanplus.data.model
 enum class FoodUnit(val label: String, val shortLabel: String) {
     GRAM("Grams", "g"),
     ML("Milliliters", "ml"),
-    PIECE("Piece", "pc"),
+    SERVING("Servings", "srv"),
+    PIECE("Pieces", "pcs"),
     CUP("Cup", "cup"),
     TBSP("Tablespoon", "tbsp"),
     TSP("Teaspoon", "tsp"),

@@ -214,8 +214,8 @@ class HomeViewModel @Inject constructor(
                                 TodayPlanSlot(
                                     slotType = slotType,
                                     slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
-                                        ?: slotType.replace("_", " ").lowercase()
-                                            .replaceFirstChar { it.uppercaseChar() },
+                                        ?: if (slotType.startsWith("CUSTOM:")) slotType.removePrefix("CUSTOM:")
+                                        else slotType.replace("_", " ").lowercase().replaceFirstChar { it.uppercaseChar() },
                                     emoji = slotEmoji(slotType),
                                     plannedMealName = mealWithFoods?.meal?.name,
                                     plannedMealId = mealWithFoods?.meal?.id,

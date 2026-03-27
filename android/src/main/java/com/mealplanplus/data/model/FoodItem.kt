@@ -38,6 +38,7 @@ data class FoodItem(
         return when (unit) {
             FoodUnit.GRAM -> quantity
             FoodUnit.ML -> quantity  // 1:1 for water-like liquids
+            FoodUnit.SERVING -> quantity * 100.0  // 1 serving = 100g (servingSize is always 100g)
             FoodUnit.PIECE -> quantity * (gramsPerPiece ?: 100.0)
             FoodUnit.SLICE -> quantity * (gramsPerPiece ?: 30.0)
             FoodUnit.SCOOP -> quantity * (gramsPerPiece ?: 30.0)

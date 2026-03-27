@@ -465,6 +465,148 @@ fun slotEmoji(slot: DefaultMealSlot): String = when (slot) {
     DefaultMealSlot.POST_DINNER -> "🌙"
 }
 
+// ─── Custom Diet Slot Section ─────────────────────────────────────────────────
+
+@Composable
+fun CustomDietSlotSection(
+    slotType: String,
+    displayName: String,
+    foods: List<MealFoodItemWithDetails>,
+    isEditing: Boolean,
+    instructions: String = "",
+    onAddFood: () -> Unit,
+    onRemoveFood: (Int) -> Unit,
+    onIncrement: (Int) -> Unit,
+    onDecrement: (Int) -> Unit,
+    onInstructionsChange: ((String) -> Unit)? = null,
+    onRemoveSlot: (() -> Unit)? = null,
+    onViewDetails: (() -> Unit)? = null
+) {
+    val context = LocalContext.current
+    val totalKcal = foods.sumOf { it.calculatedCalories }.toInt()
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("⭐", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = FormGreen.copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            "custom",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = FormGreen,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = if (foods.isEmpty()) "0 foods" else "${foods.size} foods · ${totalKcal} kcal",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!isEditing && foods.isNotEmpty() && onViewDetails != null) {
+                        IconButton(onClick = onViewDetails, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "View details", tint = FormGreen, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    if (isEditing && onRemoveSlot != null) {
+                        IconButton(onClick = onRemoveSlot, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Remove slot", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+
+            if (foods.isNotEmpty()) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                foods.forEachIndexed { index, item ->
+                    DietFoodItemRow(
+                        item = item,
+                        onRemove = { onRemoveFood(index) },
+                        onIncrement = { onIncrement(index) },
+                        onDecrement = { onDecrement(index) }
+                    )
+                    if (index < foods.size - 1) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF5F5F5))
+                    }
+                }
+            }
+
+            if (isEditing && onInstructionsChange != null) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                OutlinedTextField(
+                    value = instructions,
+                    onValueChange = onInstructionsChange,
+                    label = { Text("Preparation instructions (optional)") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                    minLines = 2,
+                    maxLines = 5
+                )
+            } else if (!isEditing && instructions.isNotBlank()) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = FormGreen, modifier = Modifier.size(16.dp).padding(top = 2.dp))
+                    Text(
+                        text = instructions,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (isEditing) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(onClick = onAddFood, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = FormGreen)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add Food", color = FormGreen)
+                    }
+                    TextButton(
+                        onClick = { Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("📷 Scan", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Slots to always show + those with content */
 fun slotsToShow(slotFoodItems: Map<DefaultMealSlot, List<MealFoodItemWithDetails>>): List<DefaultMealSlot> {
     val alwaysShow = setOf(
