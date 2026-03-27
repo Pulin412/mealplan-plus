@@ -324,7 +324,7 @@ private struct FoodQuantitySheetView: View {
     @State private var quantityText: String = "100"
     @State private var selectedUnit: MealFoodUnit = .gram
 
-    private var gramsPerPiece: Double { food.gramsPerPiece ?? 100.0 }
+    private var gramsPerPiece: Double { food.gramsPerPiece?.doubleValue ?? 100.0 }
 
     private var multiplier: Double {
         switch selectedUnit {
