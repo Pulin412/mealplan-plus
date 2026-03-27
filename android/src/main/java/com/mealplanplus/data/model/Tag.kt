@@ -94,3 +94,30 @@ data class DietTagCrossRef(
     val dietId: Long,
     val tagId: Long
 )
+
+/**
+ * Junction table: Food can have multiple tags
+ */
+@Entity(
+    tableName = "food_tag_cross_refs",
+    primaryKeys = ["foodId", "tagId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = FoodItem::class,
+            parentColumns = ["id"],
+            childColumns = ["foodId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Tag::class,
+            parentColumns = ["id"],
+            childColumns = ["tagId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("foodId"), Index("tagId")]
+)
+data class FoodTagCrossRef(
+    val foodId: Long,
+    val tagId: Long
+)

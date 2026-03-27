@@ -278,12 +278,7 @@ struct MealDetailScreen: View {
             .padding(.top)
         }
         .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
         )
         .navigationTitle("Meal Details")
         .navigationBarTitleDisplayMode(.inline)
@@ -304,7 +299,7 @@ struct MealDetailScreen: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 5)
         .padding(.horizontal)
@@ -321,7 +316,7 @@ struct MealDetailScreen: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 5)
         .padding(.horizontal)
@@ -337,7 +332,7 @@ struct MealDetailScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 5)
         .padding(.horizontal)

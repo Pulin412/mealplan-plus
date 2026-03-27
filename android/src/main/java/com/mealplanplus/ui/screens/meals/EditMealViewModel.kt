@@ -78,7 +78,7 @@ class EditMealViewModel @Inject constructor(
         _uiState.update { it.copy(selectedSlot = slot) }
     }
 
-    fun addFoodById(foodId: Long, quantity: Double) {
+    fun addFoodById(foodId: Long, quantity: Double, unit: com.mealplanplus.data.model.FoodUnit = com.mealplanplus.data.model.FoodUnit.GRAM) {
         viewModelScope.launch {
             foodRepository.getFoodById(foodId)?.let { food ->
                 val current = _uiState.value.selectedFoods
@@ -86,7 +86,7 @@ class EditMealViewModel @Inject constructor(
                 if (existing != null) {
                     updateFoodQuantity(food.id, quantity)
                 } else {
-                    _uiState.update { it.copy(selectedFoods = current + SelectedFood(food, quantity)) }
+                    _uiState.update { it.copy(selectedFoods = current + SelectedFood(food, quantity, unit)) }
                 }
             }
         }
@@ -139,7 +139,7 @@ class EditMealViewModel @Inject constructor(
         }
     }
 
-    fun addUsdaFood(usdaFood: UsdaFoodResult, quantity: Double) {
+    fun addUsdaFood(usdaFood: UsdaFoodResult, quantity: Double, unit: com.mealplanplus.data.model.FoodUnit = com.mealplanplus.data.model.FoodUnit.GRAM) {
         viewModelScope.launch {
             val foodItem = usdaFood.toFoodItem()
             val id = foodRepository.insertFood(foodItem)
@@ -150,7 +150,7 @@ class EditMealViewModel @Inject constructor(
             if (existing != null) {
                 updateFoodQuantity(id, quantity)
             } else {
-                _uiState.update { it.copy(selectedFoods = current + SelectedFood(savedFood, quantity)) }
+                _uiState.update { it.copy(selectedFoods = current + SelectedFood(savedFood, quantity, unit)) }
             }
         }
     }

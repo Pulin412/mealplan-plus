@@ -157,7 +157,9 @@
     "caloriesPer100": 156,
     "proteinPer100": 12.6,
     "carbsPer100": 1.2,
-    "fatPer100": 10.6
+    "fatPer100": 10.6,
+    "gramsPerPiece": 50,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Egg White",
@@ -165,7 +167,9 @@
     "caloriesPer100": 51.5,
     "proteinPer100": 10.9,
     "carbsPer100": 0.6,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "gramsPerPiece": 35,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Egg Omelette",
@@ -434,7 +438,9 @@
     "caloriesPer100": 52,
     "proteinPer100": 0.3,
     "carbsPer100": 14,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "gramsPerPiece": 182,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Banana",
@@ -442,7 +448,9 @@
     "caloriesPer100": 89.2,
     "proteinPer100": 1.1,
     "carbsPer100": 22.5,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "gramsPerPiece": 118,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Orange",
@@ -450,7 +458,9 @@
     "caloriesPer100": 46.7,
     "proteinPer100": 0.9,
     "carbsPer100": 12,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "gramsPerPiece": 131,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Mango",
@@ -458,7 +468,9 @@
     "caloriesPer100": 66,
     "proteinPer100": 0.9,
     "carbsPer100": 16.7,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "gramsPerPiece": 200,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Papaya",
@@ -466,7 +478,9 @@
     "caloriesPer100": 39.3,
     "proteinPer100": 0.5,
     "carbsPer100": 10,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "gramsPerPiece": 300,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Watermelon",
@@ -490,7 +504,9 @@
     "caloriesPer100": 83,
     "proteinPer100": 1.7,
     "carbsPer100": 19,
-    "fatPer100": 1.2
+    "fatPer100": 1.2,
+    "gramsPerPiece": 175,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Guava",
@@ -498,7 +514,9 @@
     "caloriesPer100": 68,
     "proteinPer100": 2.6,
     "carbsPer100": 14,
-    "fatPer100": 1
+    "fatPer100": 1,
+    "gramsPerPiece": 100,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Pineapple",
@@ -1232,7 +1250,9 @@
     "caloriesPer100": 156,
     "proteinPer100": 12.6,
     "carbsPer100": 1.2,
-    "fatPer100": 10.6
+    "fatPer100": 10.6,
+    "gramsPerPiece": 50,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "BB Toast",
@@ -1424,7 +1444,9 @@
     "caloriesPer100": 57,
     "proteinPer100": 0.4,
     "carbsPer100": 15.2,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "gramsPerPiece": 178,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Kiwi",
@@ -1432,7 +1454,9 @@
     "caloriesPer100": 61,
     "proteinPer100": 1.1,
     "carbsPer100": 14.7,
-    "fatPer100": 0.5
+    "fatPer100": 0.5,
+    "gramsPerPiece": 70,
+    "preferredUnit": "PIECE"
   },
   {
     "name": "Yellow Moong Dal",

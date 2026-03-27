@@ -653,6 +653,8 @@ struct TodayPlanSlot: Identifiable {
     let plannedMealId: Int64?   // meal id from diet (for quick-log)
     let loggedMealId: Int64?    // LoggedMeal row id if already logged
     let isLogged: Bool
+    let loggedFoods: [LoggedFoodWithDetails]
+    let isCustom: Bool          // custom slot (user-created)
 }
 
 /// ViewModel for Home screen - aggregates today's data, health metrics, week stats
@@ -687,6 +689,7 @@ class HomeViewModel: ObservableObject {
     @Published var userInitial: String = "?"
 
     @Published var isLoading = false
+    private(set) var weekOffset: Int = 0   // 0 = current week, -1 = last week, etc.
 
     private let logRepo = RepositoryProvider.shared.dailyLogRepository
     private let healthRepo = RepositoryProvider.shared.healthMetricRepository
@@ -696,12 +699,47 @@ class HomeViewModel: ObservableObject {
     private let mealRepo = RepositoryProvider.shared.mealRepository
 
     private var currentUserId: Int64?
+    private var refreshObserver: NSObjectProtocol?
+
+    init() {
+        refreshObserver = NotificationCenter.default.addObserver(
+            forName: .homeNeedsRefresh, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self, let uid = self.currentUserId else { return }
+            Task { @MainActor in self.reloadCustomSlots(userId: uid) }
+        }
+    }
+
+    deinit {
+        if let obs = refreshObserver { NotificationCenter.default.removeObserver(obs) }
+    }
+
+    private func reloadCustomSlots(userId: Int64) {
+        let today = isoToday()
+        Task {
+            let foods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+            let loggedBySlot = Dictionary(grouping: foods) { $0.loggedFood.slotType.uppercased() }
+            await loadTodayPlanSlots(userId: userId, date: today, loggedBySlot: loggedBySlot)
+        }
+    }
+
+    func previousWeek() { weekOffset -= 1; if let uid = currentUserId { load(userId: uid) } }
+    func nextWeek()     { guard weekOffset < 0 else { return }; weekOffset += 1; if let uid = currentUserId { load(userId: uid) } }
 
     func load(userId: Int64) {
         currentUserId = userId
         isLoading = true
         let today = isoToday()
         let sevenDaysAgo = isoDate(daysAgo: 6)
+        // Compute Mon-Sun range for the offset week
+        let cal = Calendar.current
+        let weekdayNow = cal.component(.weekday, from: Date()) // 1=Sun … 7=Sat
+        let daysFromMonday = (weekdayNow - 2 + 7) % 7
+        let thisMonday = cal.date(byAdding: .day, value: -daysFromMonday, to: Date()) ?? Date()
+        let monday = cal.date(byAdding: .weekOfYear, value: weekOffset, to: thisMonday) ?? thisMonday
+        let sunday = cal.date(byAdding: .day, value: 6, to: monday) ?? Date()
+        let weekStart = isoDate(from: monday)
+        let weekEnd = isoDate(from: sunday)
 
         // Set safe defaults before async block
         self.userName = "User"
@@ -761,12 +799,12 @@ class HomeViewModel: ObservableObject {
                 self.dayStreak = computeStreak(summaries: summaries)
             }
 
-            // Week plans for colours
-            if let weekPlans = try? await planRepo.getPlansWithDietNameSnapshot(userId: userId, startDate: sevenDaysAgo, endDate: today) {
+            // Week plans for colours (Mon-Sun of current week)
+            if let weekPlans = try? await planRepo.getPlansWithDietNameSnapshot(userId: userId, startDate: weekStart, endDate: weekEnd) {
                 let plansByDate = Dictionary(grouping: weekPlans) { $0.date }.mapValues { $0.first }
-                self.weekDays = buildWeekDays(plansByDate: plansByDate)
+                self.weekDays = buildWeekDays(plansByDate: plansByDate, monday: monday)
             } else {
-                self.weekDays = buildWeekDays(plansByDate: [:])
+                self.weekDays = buildWeekDays(plansByDate: [:], monday: monday)
             }
 
             self.isLoading = false
@@ -781,8 +819,10 @@ class HomeViewModel: ObservableObject {
 
         let plan = try? await planRepo.getPlanByDate(userId: userId, date: date)
         guard let dietId = plan?.dietId?.int64Value else {
-            // No diet: show only logged slots
-            self.todayPlanSlots = loggedBySlot.keys.sorted().map { slotType in
+            // No diet: show only logged slots + custom slots
+            var slots = loggedBySlot.keys
+                .filter { !$0.hasPrefix("CUSTOM_") }
+                .sorted().map { slotType in
                 TodayPlanSlot(
                     slotType: slotType,
                     slotDisplayName: displayName(for: slotType),
@@ -790,9 +830,13 @@ class HomeViewModel: ObservableObject {
                     plannedMealName: nil,
                     plannedMealId: nil,
                     loggedMealId: loggedMealBySlot[slotType.uppercased()] ?? nil,
-                    isLogged: true
+                    isLogged: true,
+                    loggedFoods: loggedBySlot[slotType.uppercased()] ?? [],
+                    isCustom: false
                 )
             }
+            slots += customSlotsForHome(userId: userId, date: date, loggedBySlot: loggedBySlot)
+            self.todayPlanSlots = slots
             return
         }
 
@@ -818,7 +862,7 @@ class HomeViewModel: ObservableObject {
         }
         .sorted { slotOrder($0.0) < slotOrder($1.0) }
 
-        self.todayPlanSlots = mealEntries.map { (slotType, mealName, mealId) in
+        var slots = mealEntries.map { (slotType, mealName, mealId) in
             let upperSlot = slotType.uppercased()
             return TodayPlanSlot(
                 slotType: slotType,
@@ -827,17 +871,62 @@ class HomeViewModel: ObservableObject {
                 plannedMealName: mealName,
                 plannedMealId: mealId,
                 loggedMealId: loggedMealBySlot[upperSlot] ?? nil,
-                isLogged: loggedBySlot[upperSlot] != nil || loggedMealBySlot[upperSlot] != nil
+                isLogged: loggedBySlot[upperSlot] != nil || loggedMealBySlot[upperSlot] != nil,
+                loggedFoods: loggedBySlot[upperSlot] ?? [],
+                isCustom: false
+            )
+        }
+        slots += customSlotsForHome(userId: userId, date: date, loggedBySlot: loggedBySlot)
+        self.todayPlanSlots = slots
+    }
+
+    private func customSlotsForHome(userId: Int64, date: String, loggedBySlot: [String: [LoggedFoodWithDetails]]) -> [TodayPlanSlot] {
+        return loadCustomSlotsForHome(userId: userId, date: date, loggedBySlot: loggedBySlot)
+    }
+
+    // MARK: - Custom slot done-flag helpers (UserDefaults, separate from food presence)
+    private func customSlotDoneUDKey(_ userId: Int64, _ date: String) -> String {
+        "custom_slot_done_\(userId)_\(date)"
+    }
+    private func isCustomSlotDone(_ slotKey: String, userId: Int64, date: String) -> Bool {
+        let arr = UserDefaults.standard.stringArray(forKey: customSlotDoneUDKey(userId, date)) ?? []
+        return arr.contains(slotKey)
+    }
+    func toggleCustomSlotDone(_ slotKey: String, userId: Int64, date: String) {
+        let key = customSlotDoneUDKey(userId, date)
+        var set = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        if set.contains(slotKey) { set.remove(slotKey) } else { set.insert(slotKey) }
+        UserDefaults.standard.set(Array(set), forKey: key)
+    }
+
+    private func loadCustomSlotsForHome(userId: Int64, date: String, loggedBySlot: [String: [LoggedFoodWithDetails]]) -> [TodayPlanSlot] {
+        struct SlotDef: Codable { let id: Int; let name: String }
+        let key = "custom_slots_\(userId)_\(date)"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let defs = try? JSONDecoder().decode([SlotDef].self, from: data) else { return [] }
+        return defs.map { def in
+            let slotKey = "CUSTOM_\(def.id)"
+            let foods = loggedBySlot[slotKey] ?? []
+            return TodayPlanSlot(
+                slotType: slotKey,
+                slotDisplayName: def.name,
+                emoji: "✦",
+                plannedMealName: nil,
+                plannedMealId: nil,
+                loggedMealId: nil,
+                isLogged: isCustomSlotDone(slotKey, userId: userId, date: date),
+                loggedFoods: foods,
+                isCustom: true
             )
         }
     }
 
-    private func buildWeekDays(plansByDate: [String: PlanWithDietName?]) -> [WeekDayInfo] {
+    private func buildWeekDays(plansByDate: [String: PlanWithDietName?], monday: Date) -> [WeekDayInfo] {
         let cal = Calendar.current
-        let todayDate = Date()
         let todayIso = isoToday()
-        return (0...6).reversed().compactMap { daysAgo -> WeekDayInfo? in
-            guard let date = cal.date(byAdding: .day, value: -daysAgo, to: todayDate) else { return nil }
+        // Show Mon(0) … Sun(6)
+        return (0...6).compactMap { dayOffset -> WeekDayInfo? in
+            guard let date = cal.date(byAdding: .day, value: dayOffset, to: monday) else { return nil }
             let iso = isoDate(from: date)
             let isFuture = iso > todayIso
             let plan = plansByDate[iso] ?? nil
@@ -937,6 +1026,18 @@ class HomeViewModel: ObservableObject {
 
     /// Toggle a slot: log/unlog the planned meal AND its constituent foods so macros update.
     func toggleSlotLogged(slot: TodayPlanSlot) {
+        // Custom slots: toggle done flag only — never delete logged foods
+        if slot.isCustom {
+            guard let userId = currentUserId else { return }
+            let today = isoToday()
+            toggleCustomSlotDone(slot.slotType, userId: userId, date: today)
+            Task {
+                let freshFoods = (try? await logRepo.getLoggedFoodsSnapshot(userId: userId, date: today)) ?? []
+                let loggedBySlot = Dictionary(grouping: freshFoods) { $0.loggedFood.slotType.uppercased() }
+                await loadTodayPlanSlots(userId: userId, date: today, loggedBySlot: loggedBySlot)
+            }
+            return
+        }
         guard let userId = currentUserId else { return }
         let today = isoToday()
         Task {

@@ -47,6 +47,47 @@ private func slotColor(_ key: String) -> Color {
     }
 }
 
+// ── Custom slot persistence ────────────────────────────────────────────────────
+private struct CustomSlotDef: Codable, Equatable {
+    let id: Int
+    let name: String
+}
+private func customSlotsKey(userId: Int64, date: String) -> String {
+    "custom_slots_\(userId)_\(date)"
+}
+private func loadCustomSlots(userId: Int64, date: String) -> [CustomSlotDef] {
+    guard let data = UserDefaults.standard.data(forKey: customSlotsKey(userId: userId, date: date)),
+          let defs = try? JSONDecoder().decode([CustomSlotDef].self, from: data) else { return [] }
+    return defs
+}
+private func saveCustomSlots(_ slots: [CustomSlotDef], userId: Int64, date: String) {
+    if let data = try? JSONEncoder().encode(slots) {
+        UserDefaults.standard.set(data, forKey: customSlotsKey(userId: userId, date: date))
+    }
+}
+// ── Custom slot done-flag (independent of food presence) ──────────────────────
+private func customSlotDoneKey(userId: Int64, date: String) -> String {
+    "custom_slot_done_\(userId)_\(date)"
+}
+private func loadCustomSlotDone(userId: Int64, date: String) -> Set<String> {
+    Set(UserDefaults.standard.stringArray(forKey: customSlotDoneKey(userId: userId, date: date)) ?? [])
+}
+private func toggleCustomSlotDone(_ slotKey: String, userId: Int64, date: String) {
+    let key = customSlotDoneKey(userId: userId, date: date)
+    var s = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    if s.contains(slotKey) { s.remove(slotKey) } else { s.insert(slotKey) }
+    UserDefaults.standard.set(Array(s), forKey: key)
+}
+
+// ── Full slot order persistence ───────────────────────────────────────────────
+private func slotOrderPersistKey(userId: Int64, date: String) -> String { "slot_order_\(userId)_\(date)" }
+private func loadSlotOrder(userId: Int64, date: String) -> [String] {
+    UserDefaults.standard.stringArray(forKey: slotOrderPersistKey(userId: userId, date: date)) ?? []
+}
+private func saveSlotOrder(_ keys: [String], userId: Int64, date: String) {
+    UserDefaults.standard.set(keys, forKey: slotOrderPersistKey(userId: userId, date: date))
+}
+
 // ── isoDate helpers ───────────────────────────────────────────────────────────
 private func isoDate(from date: Date) -> String {
     let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"; return fmt.string(from: date)
@@ -58,6 +99,20 @@ private func displayDate(_ date: Date) -> String {
     let fmt = DateFormatter(); fmt.dateFormat = "MMMM d, yyyy"; return fmt.string(from: date)
 }
 
+// ── Sheet enum ────────────────────────────────────────────────────────────────
+private enum LogSheet: Identifiable {
+    case addFood(slotKey: String, slotName: String)
+    case customFoodPicker(slotKey: String)
+    case dietPicker
+    var id: String {
+        switch self {
+        case .addFood(let slotKey, _):          return "addFood_\(slotKey)"
+        case .customFoodPicker(let slotKey):    return "customFood_\(slotKey)"
+        case .dietPicker:                       return "dietPicker"
+        }
+    }
+}
+
 // ── Main Screen ───────────────────────────────────────────────────────────────
 struct DailyLogScreen: View {
     @EnvironmentObject var appState: AppState
@@ -65,10 +120,13 @@ struct DailyLogScreen: View {
     @State private var selectedDate: Date = Date()
     @State private var selectedTab: Int = 0
     @State private var expandedSlots: Set<String> = ["BREAKFAST"]
-    @State private var showAddFood: Bool = false
-    @State private var addFoodSlot: String = "BREAKFAST"
-    @State private var showDietPicker: Bool = false
+    @State private var activeSheet: LogSheet? = nil
     @State private var showClearPlanAlert: Bool = false
+    @State private var customSlots: [CustomSlotDef] = []
+    @State private var customSlotDoneKeys: Set<String> = []
+    @State private var savedSlotOrder: [String] = []
+    @State private var showAddSlotAlert: Bool = false
+    @State private var newSlotName: String = ""
 
     private var userId: Int64 { Int64(appState.currentUserId ?? 0) }
     private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
@@ -98,20 +156,32 @@ struct DailyLogScreen: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar { logToolbar }
-            .sheet(isPresented: $showAddFood) {
-                FoodPickerSheet(
-                    slotKey: addFoodSlot,
-                    userId: userId,
-                    date: isoDate(from: selectedDate),
-                    onLogged: { reload() }
-                )
-            }
-            .sheet(isPresented: $showDietPicker, onDismiss: { reload() }) {
-                HomeDietPickerSheet { diet in
-                    vm.assignDiet(userId: userId, date: isoDate(from: selectedDate), diet: diet)
-                    showDietPicker = false
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .addFood(let slotKey, let slotName):
+                    FoodPickerSheet(
+                        slotKey: slotKey,
+                        slotName: slotName,
+                        userId: userId,
+                        date: isoDate(from: selectedDate),
+                        onLogged: { activeSheet = nil; reload() }
+                    )
+                case .customFoodPicker(let slotKey):
+                    FoodsScreen(pickerMode: true, onFoodSelected: { food, qty in
+                        vm.logFood(userId: userId, date: isoDate(from: selectedDate),
+                                   foodId: food.id, quantity: qty, slotType: slotKey)
+                        activeSheet = nil
+                        reload()
+                    })
+                    .environmentObject(appState)
+                case .dietPicker:
+                    HomeDietPickerSheet { diet in
+                        vm.assignDiet(userId: userId, date: isoDate(from: selectedDate), diet: diet)
+                        activeSheet = nil
+                        reload()
+                    }
+                    .environmentObject(appState)
                 }
-                .environmentObject(appState)
             }
             .alert("Clear Plan?", isPresented: $showClearPlanAlert) {
                 Button("Clear", role: .destructive) {
@@ -141,7 +211,7 @@ struct DailyLogScreen: View {
         }
         ToolbarItemGroup(placement: .navigationBarTrailing) {
             // Select Diet
-            Button(action: { showDietPicker = true }) {
+            Button(action: { activeSheet = .dietPicker }) {
                 Image(systemName: "fork.knife.circle")
             }
             // Clear Plan (only when plan exists and not completed)
@@ -166,7 +236,32 @@ struct DailyLogScreen: View {
     }
 
     private func reload() {
-        vm.loadLog(userId: userId, date: isoDate(from: selectedDate))
+        let dateStr = isoDate(from: selectedDate)
+        vm.loadLog(userId: userId, date: dateStr)
+        customSlots = loadCustomSlots(userId: userId, date: dateStr)
+        customSlotDoneKeys = loadCustomSlotDone(userId: userId, date: dateStr)
+        savedSlotOrder = loadSlotOrder(userId: userId, date: dateStr)
+    }
+
+    private func addCustomSlot() {
+        let name = newSlotName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { newSlotName = ""; return }
+        let nextId = (customSlots.map { $0.id }.max() ?? 0) + 1
+        let def = CustomSlotDef(id: nextId, name: name)
+        customSlots.append(def)
+        saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
+        expandedSlots.insert("CUSTOM_\(nextId)")
+        newSlotName = ""
+        if isToday { appState.todayCustomSlots = customSlots.map { ($0.id, $0.name) } }
+        appState.customSlotsVersion += 1
+    }
+
+    private func deleteCustomSlot(key: String) {
+        customSlots.removeAll { "CUSTOM_\($0.id)" == key }
+        saveCustomSlots(customSlots, userId: userId, date: isoDate(from: selectedDate))
+        expandedSlots.remove(key)
+        if isToday { appState.todayCustomSlots = customSlots.map { ($0.id, $0.name) } }
+        appState.customSlotsVersion += 1
     }
 
     // ── Date Navigator Pill ──────────────────────────────────────────────────
@@ -199,7 +294,7 @@ struct DailyLogScreen: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         .padding(.horizontal, 16)
@@ -236,7 +331,7 @@ struct DailyLogScreen: View {
             .clipShape(RoundedRectangle(cornerRadius: 20))
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         .padding(.horizontal, 16)
@@ -257,73 +352,123 @@ struct DailyLogScreen: View {
             .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { selectedTab = index } }
     }
 
+    // ── Slot card builder (extracted to help type-checker) ───────────────────
+    @ViewBuilder
+    private func slotCardView(key: String, customSlotNames: [String: String]) -> some View {
+        let foods = vm.loggedFoodsBySlot[key] ?? []
+        let plannedItems = vm.plannedMealsBySlot[key] ?? []
+        let loggedFoodIds = Set(foods.map { $0.loggedFood.foodId })
+        let isCustom = key.hasPrefix("CUSTOM_")
+        let dateStr = isoDate(from: selectedDate)
+        SlotCard(
+            slotKey: key,
+            titleOverride: customSlotNames[key],
+            foods: foods,
+            plannedItems: plannedItems,
+            loggedFoodIds: loggedFoodIds,
+            isExpanded: expandedSlots.contains(key),
+            onToggle: {
+                if expandedSlots.contains(key) { expandedSlots.remove(key) }
+                else { expandedSlots.insert(key) }
+            },
+            onAddFood: { activeSheet = .addFood(slotKey: key, slotName: customSlotNames[key] ?? slotDisplayName(key)) },
+            onDeleteFood: { id in vm.removeLoggedFood(userId: userId, id: id) },
+            onDeleteSlot: isCustom ? { deleteCustomSlot(key: key) } : nil,
+            isCustomDone: isCustom && customSlotDoneKeys.contains(key),
+            onToggleDone: isCustom ? {
+                toggleCustomSlotDone(key, userId: userId, date: dateStr)
+                customSlotDoneKeys = loadCustomSlotDone(userId: userId, date: dateStr)
+            } : nil,
+            isDraggable: true,
+            onTogglePlannedFood: { item in
+                if loggedFoodIds.contains(item.food.id) {
+                    if let lf = foods.first(where: { $0.loggedFood.foodId == item.food.id }) {
+                        vm.removeLoggedFood(userId: userId, id: lf.loggedFood.id)
+                    }
+                } else {
+                    vm.logFood(userId: userId, date: dateStr,
+                               foodId: item.food.id, quantity: item.mealFoodItem.quantity, slotType: key)
+                }
+            },
+            onToggleAllPlannedFoods: {
+                let allTicked = plannedItems.allSatisfy { loggedFoodIds.contains($0.food.id) }
+                if allTicked {
+                    let ids = plannedItems.compactMap { item in
+                        foods.first { $0.loggedFood.foodId == item.food.id }?.loggedFood.id
+                    }
+                    vm.batchRemoveLoggedFoods(userId: userId, ids: ids)
+                } else {
+                    let toLog = plannedItems.filter { !loggedFoodIds.contains($0.food.id) }
+                        .map { (foodId: $0.food.id, qty: $0.mealFoodItem.quantity, slotType: key) }
+                    vm.batchLogFoods(userId: userId, date: dateStr, items: toLog)
+                }
+            }
+        )
+    }
+
     // ── Daily Log Tab ────────────────────────────────────────────────────────
     private var dailyLogTab: some View {
         let foodSlotKeys = Set(vm.loggedFoods.map { $0.loggedFood.slotType.uppercased() })
         let plannedSlotKeys = Set(vm.plannedMealsBySlot.keys)
-        let allKeys = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys)
-            .sorted { (slotOrder[$0] ?? 99) < (slotOrder[$1] ?? 99) }
+        let customSlotNames = Dictionary(uniqueKeysWithValues: customSlots.map { ("CUSTOM_\($0.id)", $0.name) })
+        let dateStr = isoDate(from: selectedDate)
 
-        return ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(allKeys, id: \.self) { key in
-                    let foods = vm.loggedFoodsBySlot[key] ?? []
-                    let plannedItems = vm.plannedMealsBySlot[key] ?? []
-                    let loggedFoodIds = Set(foods.map { $0.loggedFood.foodId })
-                    SlotCard(
-                        slotKey: key,
-                        foods: foods,
-                        plannedItems: plannedItems,
-                        loggedFoodIds: loggedFoodIds,
-                        isExpanded: expandedSlots.contains(key),
-                        onToggle: {
-                            if expandedSlots.contains(key) { expandedSlots.remove(key) }
-                            else { expandedSlots.insert(key) }
-                        },
-                        onAddFood: {
-                            addFoodSlot = key
-                            showAddFood = true
-                        },
-                        onDeleteFood: { id in
-                            vm.removeLoggedFood(userId: userId, id: id)
-                        },
-                        onTogglePlannedFood: { item in
-                            // Tick: log food. Untick: remove matching logged food.
-                            let date = isoDate(from: selectedDate)
-                            if loggedFoodIds.contains(item.food.id) {
-                                if let lf = foods.first(where: { $0.loggedFood.foodId == item.food.id }) {
-                                    vm.removeLoggedFood(userId: userId, id: lf.loggedFood.id)
-                                }
-                            } else {
-                                vm.logFood(userId: userId, date: date,
-                                           foodId: item.food.id,
-                                           quantity: item.mealFoodItem.quantity,
-                                           slotType: key)
-                            }
-                        },
-                        onToggleAllPlannedFoods: {
-                            let date = isoDate(from: selectedDate)
-                            let allTicked = plannedItems.allSatisfy { loggedFoodIds.contains($0.food.id) }
-                            if allTicked {
-                                // Unlog all planned foods
-                                let ids = plannedItems.compactMap { item in
-                                    foods.first { $0.loggedFood.foodId == item.food.id }?.loggedFood.id
-                                }
-                                vm.batchRemoveLoggedFoods(userId: userId, ids: ids)
-                            } else {
-                                // Log all unticked planned foods
-                                let toLog = plannedItems
-                                    .filter { !loggedFoodIds.contains($0.food.id) }
-                                    .map { (foodId: $0.food.id, qty: $0.mealFoodItem.quantity, slotType: key) }
-                                vm.batchLogFoods(userId: userId, date: date, items: toLog)
-                            }
-                        }
-                    )
-                }
-                Spacer().frame(height: 80)
+        // All available keys
+        let available = Set(mainSlots).union(foodSlotKeys).union(plannedSlotKeys)
+            .union(Set(customSlots.map { "CUSTOM_\($0.id)" }))
+        // Merge with saved order: keep saved order for known keys, append new keys in default order
+        var ordered = savedSlotOrder.filter { available.contains($0) }
+        let inOrder = Set(ordered)
+        let defaultSorted = available.subtracting(inOrder).sorted { a, b in
+            let oa = slotOrder[a] ?? 99, ob = slotOrder[b] ?? 99
+            if oa != ob { return oa < ob }
+            let ia = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == a }) ?? Int.max
+            let ib = customSlots.firstIndex(where: { "CUSTOM_\($0.id)" == b }) ?? Int.max
+            return ia < ib
+        }
+        ordered.append(contentsOf: defaultSorted)
+
+        return List {
+            ForEach(ordered, id: \.self) { key in
+                slotCardView(key: key, customSlotNames: customSlotNames)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(logBg)
+                    .listRowSeparator(.hidden)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .onMove { from, to in
+                var newOrder = ordered
+                newOrder.move(fromOffsets: from, toOffset: to)
+                savedSlotOrder = newOrder
+                saveSlotOrder(newOrder, userId: userId, date: dateStr)
+                // Sync customSlots array order to match
+                let newCustom = newOrder.compactMap { key in customSlots.first(where: { "CUSTOM_\($0.id)" == key }) }
+                if newCustom.count == customSlots.count {
+                    customSlots = newCustom
+                    saveCustomSlots(customSlots, userId: userId, date: dateStr)
+                }
+            }
+            Button(action: { showAddSlotAlert = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle.fill").font(.system(size: 14))
+                    Text("Add Meal Slot").font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+            .listRowBackground(logBg)
+            .listRowSeparator(.hidden)
+            .moveDisabled(true)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .environment(\.editMode, .constant(.active))
+        .alert("New Meal Slot", isPresented: $showAddSlotAlert) {
+            TextField("Slot name (e.g. Pre-Bed Snack)", text: $newSlotName)
+            Button("Add") { addCustomSlot() }
+            Button("Cancel", role: .cancel) { newSlotName = "" }
+        } message: {
+            Text("Enter a name for the new meal slot")
         }
     }
 
@@ -355,7 +500,7 @@ struct DailyLogScreen: View {
                 MacroCompRowView(label: "Fat",      actual: Int(totalFat_), planned: Int(vm.plannedFat),      color: fatColor,      unit: "g")
             }
             .padding(16)
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.05), radius: 3)
             .padding(.horizontal, 16)
@@ -414,6 +559,7 @@ private struct MacroTileView: View {
 // ── Slot Card ─────────────────────────────────────────────────────────────────
 private struct SlotCard: View {
     let slotKey: String
+    var titleOverride: String? = nil
     let foods: [LoggedFoodWithDetails]
     let plannedItems: [MealFoodItemWithDetails]
     let loggedFoodIds: Set<Int64>
@@ -421,6 +567,10 @@ private struct SlotCard: View {
     let onToggle: () -> Void
     let onAddFood: () -> Void
     let onDeleteFood: (Int64) -> Void
+    var onDeleteSlot: (() -> Void)? = nil
+    var isCustomDone: Bool = false
+    var onToggleDone: (() -> Void)? = nil
+    var isDraggable: Bool = false
     var onTogglePlannedFood: ((MealFoodItemWithDetails) -> Void)? = nil
     var onToggleAllPlannedFoods: (() -> Void)? = nil
 
@@ -446,6 +596,13 @@ private struct SlotCard: View {
         VStack(spacing: 0) {
             // Header — emoji/name on left, tick-all + chevron on right
             HStack(spacing: 10) {
+                // Left drag handle — visual affordance for the native List reorder gesture
+                if isDraggable {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.gray.opacity(0.45))
+                        .frame(width: 18)
+                }
                 ZStack {
                     Circle()
                         .fill(slotColor(slotKey).opacity(0.15))
@@ -453,7 +610,7 @@ private struct SlotCard: View {
                     Text(slotEmoji(slotKey)).font(.system(size: 16))
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(slotDisplayName(slotKey))
+                    Text(titleOverride ?? slotDisplayName(slotKey))
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.primary)
                     Text(subtitle)
@@ -461,7 +618,7 @@ private struct SlotCard: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                // Slot-level tick-all (only when planned items exist)
+                // Slot-level tick-all (planned slots)
                 if !plannedItems.isEmpty {
                     ZStack {
                         Circle()
@@ -474,6 +631,20 @@ private struct SlotCard: View {
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
                     .highPriorityGesture(TapGesture().onEnded { onToggleAllPlannedFoods?() })
+                }
+                // Custom slot: independent done tick (not food-presence based)
+                if onToggleDone != nil {
+                    ZStack {
+                        Circle()
+                            .fill(isCustomDone ? caloriesColor : Color.gray.opacity(0.15))
+                            .frame(width: 24, height: 24)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(isCustomDone ? .white : Color.gray.opacity(0.4))
+                    }
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+                    .highPriorityGesture(TapGesture().onEnded { onToggleDone?() })
                 }
                 Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
                     .foregroundColor(.secondary)
@@ -509,7 +680,7 @@ private struct SlotCard: View {
                     LogFoodRowView(food: lf, onDelete: { onDeleteFood(lf.loggedFood.id) })
                     Divider().padding(.horizontal, 12).opacity(0.4)
                 }
-                // Add Food button
+                // Add Food + Delete Slot buttons
                 HStack(spacing: 16) {
                     Button(action: onAddFood) {
                         HStack(spacing: 4) {
@@ -519,12 +690,21 @@ private struct SlotCard: View {
                         .foregroundColor(Color(red: 0.18, green: 0.49, blue: 0.32))
                     }
                     Spacer()
+                    if let onDeleteSlot = onDeleteSlot {
+                        Button(action: onDeleteSlot) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "trash").font(.system(size: 12))
+                                Text("Delete Slot").font(.system(size: 12))
+                            }
+                            .foregroundColor(.red)
+                        }
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
         }
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
     }
@@ -706,6 +886,7 @@ private struct MacroCompRowView: View {
 struct FoodPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let slotKey: String
+    let slotName: String
     let userId: Int64
     let date: String
     let onLogged: () -> Void
@@ -731,7 +912,7 @@ struct FoodPickerSheet: View {
                     quantityPicker
                 }
             }
-            .navigationTitle("Add Food to \(slotDisplayName(slotKey))")
+            .navigationTitle("Add Food to \(slotName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -822,8 +1003,7 @@ struct FoodPickerSheet: View {
             )
             _ = try? await logRepo.insertLoggedFood(loggedFood: lf)
             await MainActor.run {
-                onLogged()
-                dismiss()
+                onLogged()  // sets activeSheet = nil → sheet dismissed automatically
             }
         }
     }

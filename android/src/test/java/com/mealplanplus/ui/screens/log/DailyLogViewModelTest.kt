@@ -6,10 +6,13 @@ import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.PlanRepository
+import com.mealplanplus.util.AuthPreferences
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -80,11 +83,20 @@ class DailyLogViewModelTest {
         coEvery { dietRepository.getDietWithMeals(1L) } returns dietWithMeals
         every { logRepository.parseDate(any()) } answers { LocalDate.parse(firstArg()) }
 
-        viewModel = DailyLogViewModel(logRepository, mealRepository, planRepository, dietRepository, foodRepository)
+        val customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true)
+        every { customMealSlotDao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
+        val context = mockk<android.content.Context>(relaxed = true)
+
+        // AuthPreferences is called in init for reactive custom slot loading
+        mockkObject(AuthPreferences)
+        every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
+
+        viewModel = DailyLogViewModel(logRepository, mealRepository, planRepository, dietRepository, foodRepository, customMealSlotDao, context)
     }
 
     @After
     fun tearDown() {
+        unmockkObject(AuthPreferences)
         Dispatchers.resetMain()
     }
 

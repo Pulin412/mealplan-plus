@@ -102,7 +102,7 @@ class DietMealSlotViewModel @Inject constructor(
         }
     }
 
-    fun addFoodById(foodId: Long, quantity: Double) {
+    fun addFoodById(foodId: Long, quantity: Double, unit: com.mealplanplus.data.model.FoodUnit = com.mealplanplus.data.model.FoodUnit.GRAM) {
         val currentMeal = _uiState.value.currentMeal ?: return
         viewModelScope.launch {
             try {
@@ -115,11 +115,11 @@ class DietMealSlotViewModel @Inject constructor(
                 if (existing != null) {
                     // Update quantity
                     mealRepository.updateMealFoodItem(
-                        MealFoodItem(currentMeal.id, foodId, quantity, existing.unit)
+                        MealFoodItem(currentMeal.id, foodId, quantity, unit)
                     )
                 } else {
                     // Add new
-                    mealRepository.addFoodToMeal(currentMeal.id, foodId, quantity)
+                    mealRepository.addFoodToMeal(currentMeal.id, foodId, quantity, unit)
                 }
                 loadSlotData()
             } catch (e: Exception) {
@@ -156,13 +156,13 @@ class DietMealSlotViewModel @Inject constructor(
         }
     }
 
-    fun addUsdaFood(usdaFood: UsdaFoodResult, quantity: Double) {
+    fun addUsdaFood(usdaFood: UsdaFoodResult, quantity: Double, unit: com.mealplanplus.data.model.FoodUnit = com.mealplanplus.data.model.FoodUnit.GRAM) {
         val currentMeal = _uiState.value.currentMeal ?: return
         viewModelScope.launch {
             try {
                 val foodItem = usdaFood.toFoodItem()
                 val id = foodRepository.insertFood(foodItem)
-                mealRepository.addFoodToMeal(currentMeal.id, id, quantity)
+                mealRepository.addFoodToMeal(currentMeal.id, id, quantity, unit)
                 loadSlotData()
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message) }

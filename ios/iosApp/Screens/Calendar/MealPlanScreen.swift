@@ -145,12 +145,13 @@ struct MealPlanScreen: View {
 
     // MARK: - Calendar Card
 
-    /// Sunday of the week containing selectedDate
+    /// Monday of the week containing selectedDate
     private var weekStart: Date {
         let cal = Calendar.current
-        // weekday: 1=Sun … 7=Sat; offset back to Sunday
+        // weekday: 1=Sun, 2=Mon … 7=Sat; offset back to Monday
         let weekday = cal.component(.weekday, from: selectedDate)
-        return cal.date(byAdding: .day, value: -(weekday - 1), to: selectedDate)!
+        let daysFromMonday = (weekday - 2 + 7) % 7
+        return cal.date(byAdding: .day, value: -daysFromMonday, to: selectedDate)!
     }
 
     /// 7 days of the current week
@@ -233,9 +234,9 @@ struct MealPlanScreen: View {
             .padding(.top, 12)
             .padding(.bottom, 8)
 
-            // Weekday headers
+            // Weekday headers (Mon–Sun)
             HStack(spacing: 0) {
-                ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { d in
+                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, d in
                     Text(d)
                         .font(.caption2)
                         .fontWeight(.semibold)
@@ -297,7 +298,7 @@ struct MealPlanScreen: View {
                 .padding(.bottom, 8)
             }
         }
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
         .padding(.horizontal)
@@ -477,7 +478,7 @@ struct MealPlanScreen: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .padding(.horizontal)
     }
@@ -541,7 +542,7 @@ struct MealPlanScreen: View {
                     }
                 }
             }
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .cornerRadius(10)
         }
     }
@@ -567,9 +568,11 @@ struct MealPlanScreen: View {
         let calendar = Calendar.current
         let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
         let range = calendar.range(of: .day, in: .month, for: firstOfMonth)!
-        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth) // 1=Sun … 7=Sat
+        // Offset for Mon-first grid: Mon=0, Tue=1, …, Sun=6
+        let offset = (firstWeekday - 2 + 7) % 7
 
-        var days: [Date?] = Array(repeating: nil, count: firstWeekday - 1)
+        var days: [Date?] = Array(repeating: nil, count: offset)
         for day in range {
             if let d = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) {
                 days.append(d)
@@ -710,7 +713,7 @@ struct MacroTile: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
     }

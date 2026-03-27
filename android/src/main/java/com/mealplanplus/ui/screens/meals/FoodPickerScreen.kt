@@ -21,15 +21,16 @@ import com.mealplanplus.data.repository.UsdaFoodResult
 enum class MeasureUnit(val label: String) {
     SERVING("Servings"),
     GRAM("Grams (g)"),
-    ML("Milliliters (ml)")
+    ML("Milliliters (ml)"),
+    PIECE("Pieces")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodPickerScreen(
     onNavigateBack: () -> Unit,
-    onFoodSelected: (FoodItem, Double) -> Unit,
-    onUsdaFoodSelected: (UsdaFoodResult, Double) -> Unit,
+    onFoodSelected: (FoodItem, Double, com.mealplanplus.data.model.FoodUnit) -> Unit,
+    onUsdaFoodSelected: (UsdaFoodResult, Double, com.mealplanplus.data.model.FoodUnit) -> Unit,
     viewModel: FoodPickerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -257,8 +258,9 @@ fun FoodPickerScreen(
             fat = selectedLocalFood!!.fat,
             servingSize = selectedLocalFood!!.servingSize,
             servingUnit = selectedLocalFood!!.servingUnit,
-            onConfirm = { quantity ->
-                onFoodSelected(selectedLocalFood!!, quantity)
+            gramsPerPiece = selectedLocalFood!!.gramsPerPiece,
+            onConfirm = { quantity, unit ->
+                onFoodSelected(selectedLocalFood!!, quantity, unit)
                 selectedLocalFood = null
             },
             onDismiss = { selectedLocalFood = null }
@@ -275,8 +277,9 @@ fun FoodPickerScreen(
             fat = selectedUsdaFood!!.fat,
             servingSize = selectedUsdaFood!!.servingSize,
             servingUnit = selectedUsdaFood!!.servingUnit,
-            onConfirm = { quantity ->
-                onUsdaFoodSelected(selectedUsdaFood!!, quantity)
+            gramsPerPiece = null,
+            onConfirm = { quantity, unit ->
+                onUsdaFoodSelected(selectedUsdaFood!!, quantity, unit)
                 selectedUsdaFood = null
             },
             onDismiss = { selectedUsdaFood = null }
@@ -392,7 +395,8 @@ fun FoodDetailBottomSheet(
     fat: Double,
     servingSize: Double,
     servingUnit: String,
-    onConfirm: (Double) -> Unit,
+    gramsPerPiece: Double? = null,
+    onConfirm: (Double, com.mealplanplus.data.model.FoodUnit) -> Unit,
     onDismiss: () -> Unit
 ) {
     var quantityText by remember { mutableStateOf("1") }
@@ -401,14 +405,16 @@ fun FoodDetailBottomSheet(
 
     val quantity = quantityText.toDoubleOrNull() ?: 1.0
 
-    // Calculate multiplier based on unit
-    // If SERVING: multiplier = quantity (1 serving = 1x)
-    // If GRAM: multiplier = quantity / servingSize (e.g., 50g of 100g serving = 0.5x)
-    // If ML: multiplier = quantity / servingSize
+    // Calculate multiplier for live macro preview only
+    // SERVING: 1 serving = servingSize g → multiplier = quantity * servingSize / 100
+    // GRAM: multiplier = quantity / 100
+    // ML: multiplier = quantity / 100
+    // PIECE: multiplier = quantity * (gramsPerPiece ?: 100) / 100
     val multiplier = when (selectedUnit) {
-        MeasureUnit.SERVING -> quantity
-        MeasureUnit.GRAM -> quantity / servingSize
-        MeasureUnit.ML -> quantity / servingSize
+        MeasureUnit.SERVING -> quantity * servingSize / 100.0
+        MeasureUnit.GRAM -> quantity / 100.0
+        MeasureUnit.ML -> quantity / 100.0
+        MeasureUnit.PIECE -> quantity * (gramsPerPiece ?: 100.0) / 100.0
     }
 
     val adjustedCalories = calories * multiplier
@@ -478,6 +484,7 @@ fun FoodDetailBottomSheet(
                                         MeasureUnit.SERVING -> "1"
                                         MeasureUnit.GRAM -> servingSize.toInt().toString()
                                         MeasureUnit.ML -> servingSize.toInt().toString()
+                                        MeasureUnit.PIECE -> "1"
                                     }
                                     unitDropdownExpanded = false
                                 }
@@ -496,6 +503,7 @@ fun FoodDetailBottomSheet(
                     MeasureUnit.SERVING -> listOf(0.5, 1.0, 1.5, 2.0)
                     MeasureUnit.GRAM -> listOf(25.0, 50.0, 100.0, 150.0)
                     MeasureUnit.ML -> listOf(50.0, 100.0, 150.0, 200.0)
+                    MeasureUnit.PIECE -> listOf(1.0, 2.0, 3.0, 4.0)
                 }
                 quickValues.forEach { q ->
                     FilterChip(
@@ -506,8 +514,12 @@ fun FoodDetailBottomSheet(
                 }
             }
 
+            val hintText = when (selectedUnit) {
+                MeasureUnit.PIECE -> if (gramsPerPiece != null) "1 piece ≈ ${gramsPerPiece.toInt()}g" else "1 piece ≈ ~100g"
+                else -> "1 serving = ${servingSize.toInt()} $servingUnit"
+            }
             Text(
-                "1 serving = ${servingSize.toInt()} $servingUnit",
+                hintText,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
@@ -557,7 +569,15 @@ fun FoodDetailBottomSheet(
             Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = { onConfirm(multiplier) },
+                onClick = {
+                    val foodUnit = when (selectedUnit) {
+                        MeasureUnit.SERVING -> com.mealplanplus.data.model.FoodUnit.SERVING
+                        MeasureUnit.GRAM -> com.mealplanplus.data.model.FoodUnit.GRAM
+                        MeasureUnit.ML -> com.mealplanplus.data.model.FoodUnit.ML
+                        MeasureUnit.PIECE -> com.mealplanplus.data.model.FoodUnit.PIECE
+                    }
+                    onConfirm(quantity, foodUnit)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = quantity > 0
             ) {

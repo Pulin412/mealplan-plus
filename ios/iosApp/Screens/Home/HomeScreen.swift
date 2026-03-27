@@ -21,6 +21,11 @@ struct HomeScreen: View {
     @State private var showDietPicker = false
     @State private var mealDetailSlot: TodayPlanSlot? = nil
     @State private var showProfile = false
+    @State private var showNavMenu = false
+    @State private var showFoodsFromMenu = false
+    @State private var showMealsFromMenu = false
+    @State private var showSettingsFromMenu = false
+    @State private var menuPendingAction: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -31,7 +36,10 @@ struct HomeScreen: View {
                     userInitial: viewModel.userInitial,
                     caloriesConsumed: viewModel.todayCalories,
                     calorieGoal: viewModel.calorieGoal,
-                    onAvatarTap: { showProfile = true }
+                    onAvatarTap: { showProfile = true },
+                    onMenuTap: { showNavMenu = true },
+                    isDark: appState.isDarkMode,
+                    onThemeToggle: { appState.setDarkMode(!appState.isDarkMode) }
                 )
 
                 // ── Content below header ─────────────────────
@@ -47,12 +55,15 @@ struct HomeScreen: View {
 
                     ThisWeekCard(
                         weekDays: viewModel.weekDays,
-                        onDayTap: { isoDate in onNavigateToLogWithDate?(isoDate) }
+                        weekOffset: viewModel.weekOffset,
+                        onDayTap: { isoDate in onNavigateToLogWithDate?(isoDate) },
+                        onPreviousWeek: { viewModel.previousWeek() },
+                        onNextWeek: { viewModel.nextWeek() }
                     )
                     .padding(.horizontal, 16)
 
                     TodaysPlanCard(
-                        slots: viewModel.todayPlanSlots,
+                        slots: mergedSlots,
                         onLogTodayTap: { onNavigateToLogWithDate?(isoToday()) },
                         onSlotToggle: { slot in viewModel.toggleSlotLogged(slot: slot) },
                         onPlanDietTap: { showDietPicker = true },
@@ -72,10 +83,10 @@ struct HomeScreen: View {
                     Spacer().frame(height: 20)
                 }
                 .padding(.top, 16)
-                .background(lightGreenBg)
+                .background(Color(.systemGroupedBackground))
             }
         }
-        .background(lightGreenBg)
+        .background(Color(.systemGroupedBackground))
         .ignoresSafeArea(edges: .top)
         .navigationBarHidden(true)
         .sheet(isPresented: $showDietPicker, onDismiss: {
@@ -99,16 +110,74 @@ struct HomeScreen: View {
             }
             .environmentObject(appState)
         }
+        .sheet(isPresented: $showNavMenu, onDismiss: {
+            menuPendingAction?()
+            menuPendingAction = nil
+        }) {
+            HomeNavMenuSheet(onAction: { action in
+                menuPendingAction = action
+                showNavMenu = false
+            })
+            .environmentObject(appState)
+        }
+        .sheet(isPresented: $showFoodsFromMenu) {
+            NavigationStack { FoodsScreen() }
+                .environmentObject(appState)
+        }
+        .sheet(isPresented: $showMealsFromMenu) {
+            NavigationStack { MealsScreen() }
+                .environmentObject(appState)
+        }
+        .sheet(isPresented: $showSettingsFromMenu) {
+            NavigationStack { SettingsScreen() }
+                .environmentObject(appState)
+        }
         .onAppear {
             if let userId = appState.currentUserId {
                 viewModel.load(userId: userId)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToFoods)) { _ in
+            showFoodsFromMenu = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToMeals)) { _ in
+            showMealsFromMenu = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToSettings)) { _ in
+            showSettingsFromMenu = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
+            showProfile = true
+        }
+        .onChange(of: appState.customSlotsVersion) { _ in
+            if let userId = appState.currentUserId { viewModel.load(userId: userId) }
         }
     }
 
     private func isoToday() -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         return f.string(from: Date())
+    }
+
+    // Slots to display: ViewModel slots + custom slots from AppState (always live, no polling needed)
+    private var mergedSlots: [TodayPlanSlot] {
+        let vmKeys = Set(viewModel.todayPlanSlots.map { $0.slotType })
+        let extra = appState.todayCustomSlots
+            .map { def in
+                TodayPlanSlot(
+                    slotType: "CUSTOM_\(def.id)",
+                    slotDisplayName: def.name,
+                    emoji: "✦",
+                    plannedMealName: nil,
+                    plannedMealId: nil,
+                    loggedMealId: nil,
+                    isLogged: false,
+                    loggedFoods: [],
+                    isCustom: true
+                )
+            }
+            .filter { !vmKeys.contains($0.slotType) }
+        return viewModel.todayPlanSlots + extra
     }
 }
 
@@ -120,6 +189,9 @@ private struct HomeHeaderSection: View {
     let caloriesConsumed: Double
     let calorieGoal: Double
     var onAvatarTap: (() -> Void)? = nil
+    var onMenuTap: (() -> Void)? = nil
+    var isDark: Bool = false
+    var onThemeToggle: (() -> Void)? = nil
 
     private var isOver: Bool { caloriesConsumed > calorieGoal }
     private var progress: Double { min(caloriesConsumed / calorieGoal, 1.0) }
@@ -143,11 +215,23 @@ private struct HomeHeaderSection: View {
 
                 // Greeting row
                 HStack {
+                    Button(action: { onMenuTap?() }) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.trailing, 8)
                     Text("\(greeting), \(userName.isEmpty ? "there" : userName) 👋")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                     Spacer()
+                    // Theme toggle
+                    Button(action: { onThemeToggle?() }) {
+                        Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                    }
                     // Bell
                     Button(action: {}) {
                         Image(systemName: "bell")
@@ -239,7 +323,7 @@ private struct MacroRingsCard: View {
             MacroRingItem(label: "Calories", value: Int(calories), goal: Int(calorieGoal), unit: "kcal", color: primaryGreen)
         }
         .padding(.vertical, 16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -312,22 +396,50 @@ private struct QuickLogFoodButton: View {
 
 private struct ThisWeekCard: View {
     let weekDays: [WeekDayInfo]
+    var weekOffset: Int = 0
     var onDayTap: ((String) -> Void)?
+    var onPreviousWeek: (() -> Void)?
+    var onNextWeek: (() -> Void)?
+
+    private var weekLabel: String {
+        if weekOffset == 0 { return "This Week" }
+        if weekOffset == -1 { return "Last Week" }
+        return "\(-weekOffset) weeks ago"
+    }
 
     private var monthYear: String {
-        let f = DateFormatter(); f.dateFormat = "MMMM yyyy"
-        return f.string(from: Date())
+        guard let firstDay = weekDays.first?.date else {
+            let f = DateFormatter(); f.dateFormat = "MMMM yyyy"; return f.string(from: Date())
+        }
+        let f = DateFormatter(); f.dateFormat = "MMMM yyyy"; return f.string(from: firstDay)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("This Week")
-                    .font(.system(size: 15, weight: .semibold))
-                Text(monthYear)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Prev week arrow
+                Button(action: { onPreviousWeek?() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(primaryGreen)
+                        .frame(width: 28, height: 28)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(weekLabel)
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(monthYear)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 Spacer()
+                // Next week arrow (disabled at current week)
+                Button(action: { onNextWeek?() }) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(weekOffset >= 0 ? Color.gray.opacity(0.3) : primaryGreen)
+                        .frame(width: 28, height: 28)
+                }
+                .disabled(weekOffset >= 0)
             }
 
             HStack(spacing: 0) {
@@ -349,7 +461,7 @@ private struct ThisWeekCard: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -367,8 +479,9 @@ private struct WeekDayCell: View {
     var onTap: (() -> Void)?
 
     private var dayLetter: String {
+        // Show first letter of day name (locale-aware)
         let cal = Calendar.current
-        let weekday = cal.component(.weekday, from: info.date)
+        let weekday = cal.component(.weekday, from: info.date) // 1=Sun…7=Sat
         return cal.shortWeekdaySymbols[weekday - 1].prefix(1).uppercased()
     }
 
@@ -496,7 +609,7 @@ private struct BloodGlucoseCard: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -597,7 +710,7 @@ private struct StatCard: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
         }
@@ -654,7 +767,7 @@ private struct TodaysPlanCard: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -664,12 +777,13 @@ private struct TodayPlanSlotRow: View {
     let slot: TodayPlanSlot
     var onToggle: (() -> Void)?
     var onTap: (() -> Void)?
+    @State private var isExpanded: Bool = false
 
-    private var canToggle: Bool {
-        slot.plannedMealId != nil || slot.isLogged
-    }
+    private var canToggle: Bool { slot.plannedMealId != nil || slot.isLogged || slot.isCustom }
+    private var hasLoggedFoods: Bool { !slot.loggedFoods.isEmpty }
 
     private var emojiBgColor: Color {
+        if slot.isCustom { return primaryGreen.opacity(0.10) }
         switch slot.slotType.uppercased() {
         case "BREAKFAST":    return Color.orange.opacity(0.15)
         case "LUNCH":        return Color.yellow.opacity(0.15)
@@ -682,7 +796,8 @@ private struct TodayPlanSlotRow: View {
     }
 
     var body: some View {
-        Button(action: { if onTap != nil { onTap?() } }) {
+        VStack(spacing: 0) {
+            // Row header
             HStack(spacing: 12) {
                 // Emoji circle
                 ZStack {
@@ -693,7 +808,7 @@ private struct TodayPlanSlotRow: View {
                         .font(.system(size: 18))
                 }
 
-                // Slot name + meal name
+                // Slot name + subtitle
                 VStack(alignment: .leading, spacing: 2) {
                     Text(slot.slotDisplayName)
                         .font(.system(size: 14, weight: .semibold))
@@ -703,26 +818,31 @@ private struct TodayPlanSlotRow: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
+                    } else if hasLoggedFoods && !isExpanded {
+                        Text("\(slot.loggedFoods.count) logged")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
 
                 Spacer()
 
-                // Chevron if tappable
-                if onTap != nil {
+                // Expand/collapse chevron for slots with logged foods
+                if hasLoggedFoods {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else if onTap != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.trailing, 4)
                 }
 
-                // Logged indicator: green check or grey circle
+                // Logged indicator
                 Group {
                     if slot.isLogged {
                         ZStack {
-                            Circle()
-                                .fill(primaryGreen)
-                                .frame(width: 26, height: 26)
+                            Circle().fill(primaryGreen).frame(width: 26, height: 26)
                             Image(systemName: "checkmark")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(.white)
@@ -733,13 +853,39 @@ private struct TodayPlanSlotRow: View {
                             .frame(width: 26, height: 26)
                     }
                 }
-                .onTapGesture {
-                    if canToggle { onToggle?() }
-                }
+                .onTapGesture { if canToggle { onToggle?() } }
             }
             .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if hasLoggedFoods {
+                    withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
+                } else {
+                    onTap?()
+                }
+            }
+
+            // Expanded logged foods list
+            if isExpanded && hasLoggedFoods {
+                Divider().padding(.leading, 52)
+                ForEach(slot.loggedFoods, id: \.loggedFood.id) { lf in
+                    HStack(spacing: 8) {
+                        Circle().fill(primaryGreen).frame(width: 6, height: 6)
+                            .padding(.leading, 52)
+                        Text(lf.food.name)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(Int(lf.food.calculateCalories(quantity: lf.loggedFood.quantity, unit: lf.loggedFood.unit))) kcal")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 3)
+                    .padding(.trailing, 4)
+                }
+            }
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -893,9 +1039,88 @@ private struct SyncStatusBanner: View {
             }
         }
         .padding(10)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(10)
         .shadow(color: .black.opacity(0.06), radius: 3)
+    }
+}
+
+// MARK: - Nav Menu Sheet
+
+struct HomeNavMenuSheet: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    var onAction: ((@escaping () -> Void) -> Void)?
+
+    private func go(_ action: @escaping () -> Void) {
+        if let onAction = onAction {
+            onAction(action)
+        } else {
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { action() }
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Label("Home", systemImage: "house.fill")
+                        .onTapGesture { dismiss() }
+                    Label("Foods", systemImage: "leaf.fill")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToFoods, object: nil) }
+                        }
+                    Label("Meals", systemImage: "fork.knife")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToMeals, object: nil) }
+                        }
+                    Label("Diets", systemImage: "list.clipboard")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 3) }
+                        }
+                    Label("Log Today", systemImage: "square.and.pencil")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToLog, object: nil) }
+                        }
+                    Label("Health", systemImage: "heart.fill")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 4) }
+                        }
+                    Label("Grocery Lists", systemImage: "cart.fill")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 5) }
+                        }
+                    Label("Meal Plan", systemImage: "calendar")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToTab, object: 1) }
+                        }
+                }
+                Section {
+                    Label("Settings", systemImage: "gearshape.fill")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToSettings, object: nil) }
+                        }
+                    Label("Profile", systemImage: "person.circle.fill")
+                        .onTapGesture {
+                            go { NotificationCenter.default.post(name: .navigateToProfile, object: nil) }
+                        }
+                    Label("Logout", systemImage: "rectangle.portrait.and.arrow.right")
+                        .foregroundColor(.red)
+                        .onTapGesture {
+                            dismiss()
+                            appState.logout()
+                        }
+                }
+            }
+            .navigationTitle("MealPlan+")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 

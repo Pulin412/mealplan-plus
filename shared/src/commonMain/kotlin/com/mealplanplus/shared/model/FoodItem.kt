@@ -19,6 +19,7 @@ data class FoodItem(
     val gramsPerTbsp: Double? = null,    // e.g., oil = 14g, honey = 21g
     val gramsPerTsp: Double? = null,     // e.g., sugar = 4g
     val glycemicIndex: Int? = null,      // Optional GI value (0-100)
+    val preferredUnit: String? = null,   // e.g. "PIECE" for eggs/fruits; null = GRAM default
     val isFavorite: Boolean = false,
     val lastUsed: Long? = null,
     val createdAt: Long = currentTimeMillis(),

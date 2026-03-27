@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class IngredientSortOrder { ALPHABETICAL, QUANTITY }
+
 @HiltViewModel
 class MealDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -26,7 +28,10 @@ class MealDetailViewModel @Inject constructor(
     data class UiState(
         val slotLabel: String = "",
         val instructions: String = "",
-        val foods: List<MealFoodItemWithDetails> = emptyList(),
+        val allFoods: List<MealFoodItemWithDetails> = emptyList(),
+        val sortedFoods: List<MealFoodItemWithDetails> = emptyList(),
+        val checkedFoodIds: Set<Long> = emptySet(),
+        val sortOrder: IngredientSortOrder = IngredientSortOrder.ALPHABETICAL,
         val totalCalories: Double = 0.0,
         val totalProtein: Double = 0.0,
         val totalCarbs: Double = 0.0,
@@ -42,6 +47,25 @@ class MealDetailViewModel @Inject constructor(
         loadData()
     }
 
+    fun toggleChecked(foodId: Long) {
+        _uiState.update { state ->
+            val updated = if (foodId in state.checkedFoodIds)
+                state.checkedFoodIds - foodId
+            else
+                state.checkedFoodIds + foodId
+            state.copy(checkedFoodIds = updated)
+        }
+    }
+
+    fun setSortOrder(order: IngredientSortOrder) {
+        _uiState.update { state ->
+            state.copy(
+                sortOrder = order,
+                sortedFoods = state.allFoods.sorted(order)
+            )
+        }
+    }
+
     private fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -55,7 +79,8 @@ class MealDetailViewModel @Inject constructor(
                     it.copy(
                         slotLabel = slot?.displayName ?: slotType,
                         instructions = instructions,
-                        foods = foods,
+                        allFoods = foods,
+                        sortedFoods = foods.sorted(IngredientSortOrder.ALPHABETICAL),
                         totalCalories = foods.sumOf { f -> f.calculatedCalories },
                         totalProtein = foods.sumOf { f -> f.calculatedProtein },
                         totalCarbs = foods.sumOf { f -> f.calculatedCarbs },
@@ -67,5 +92,10 @@ class MealDetailViewModel @Inject constructor(
                 _uiState.update { it.copy(error = e.message, isLoading = false) }
             }
         }
+    }
+
+    private fun List<MealFoodItemWithDetails>.sorted(order: IngredientSortOrder) = when (order) {
+        IngredientSortOrder.ALPHABETICAL -> sortedBy { it.food.name.lowercase() }
+        IngredientSortOrder.QUANTITY -> sortedByDescending { it.mealFoodItem.quantity }
     }
 }

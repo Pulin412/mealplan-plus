@@ -21,6 +21,7 @@ data class FoodItem(
     val gramsPerTbsp: Double? = null,    // e.g., oil = 14g, honey = 21g
     val gramsPerTsp: Double? = null,     // e.g., sugar = 4g
     val glycemicIndex: Int? = null,      // Optional GI value (0-100)
+    val preferredUnit: String? = null,
     val isFavorite: Boolean = false,
     val lastUsed: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
@@ -37,6 +38,7 @@ data class FoodItem(
         return when (unit) {
             FoodUnit.GRAM -> quantity
             FoodUnit.ML -> quantity  // 1:1 for water-like liquids
+            FoodUnit.SERVING -> quantity * 100.0  // 1 serving = 100g (servingSize is always 100g)
             FoodUnit.PIECE -> quantity * (gramsPerPiece ?: 100.0)
             FoodUnit.SLICE -> quantity * (gramsPerPiece ?: 30.0)
             FoodUnit.SCOOP -> quantity * (gramsPerPiece ?: 30.0)

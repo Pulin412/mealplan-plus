@@ -47,10 +47,12 @@ fun DietMealSlotScreen(
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.let { handle ->
             handle.get<Long>("selected_food_id")?.let { foodId ->
-                val quantity = handle.get<Double>("selected_quantity") ?: 100.0
-                viewModel.addFoodById(foodId, quantity)
+                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
+                val unit = handle.get<String>("selected_unit")?.let { runCatching { com.mealplanplus.data.model.FoodUnit.valueOf(it) }.getOrNull() } ?: com.mealplanplus.data.model.FoodUnit.GRAM
+                viewModel.addFoodById(foodId, quantity, unit)
                 handle.remove<Long>("selected_food_id")
                 handle.remove<Double>("selected_quantity")
+                handle.remove<String>("selected_unit")
             }
 
             handle.get<String>("usda_food_name")?.let { name ->
@@ -65,8 +67,9 @@ fun DietMealSlotScreen(
                     servingSize = handle.get<Double>("usda_food_serving_size") ?: 100.0,
                     servingUnit = handle.get<String>("usda_food_serving_unit") ?: "g"
                 )
-                val quantity = handle.get<Double>("selected_quantity") ?: 100.0
-                viewModel.addUsdaFood(usdaFood, quantity)
+                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
+                val unit = handle.get<String>("selected_unit")?.let { runCatching { com.mealplanplus.data.model.FoodUnit.valueOf(it) }.getOrNull() } ?: com.mealplanplus.data.model.FoodUnit.GRAM
+                viewModel.addUsdaFood(usdaFood, quantity, unit)
 
                 handle.remove<String>("usda_food_name")
                 handle.remove<String>("usda_food_brand")
@@ -77,6 +80,7 @@ fun DietMealSlotScreen(
                 handle.remove<Double>("usda_food_serving_size")
                 handle.remove<String>("usda_food_serving_unit")
                 handle.remove<Double>("selected_quantity")
+                handle.remove<String>("selected_unit")
             }
         }
     }

@@ -81,10 +81,10 @@ class AddMealViewModel @Inject constructor(
         }
     }
 
-    fun addFoodById(foodId: Long, quantity: Double) {
+    fun addFoodById(foodId: Long, quantity: Double, unit: FoodUnit = FoodUnit.GRAM) {
         viewModelScope.launch {
             foodRepository.getFoodById(foodId)?.let { food ->
-                addFoodWithQuantity(food, quantity)
+                addFoodWithQuantity(food, quantity, unit)
             }
         }
     }

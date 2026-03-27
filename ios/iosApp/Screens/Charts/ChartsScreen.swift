@@ -69,12 +69,7 @@ struct ChartsScreen: View {
             }
         }
         .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
         )
         .navigationTitle("Analytics")
         .navigationBarTitleDisplayMode(.inline)
@@ -119,7 +114,7 @@ struct ChartsScreen: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 3)
     }
@@ -168,7 +163,7 @@ struct ChartsScreen: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 3)
     }
@@ -256,7 +251,7 @@ struct ChartsScreen: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 3)
     }

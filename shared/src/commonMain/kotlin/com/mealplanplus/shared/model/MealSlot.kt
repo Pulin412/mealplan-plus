@@ -28,6 +28,7 @@ enum class DefaultMealSlot(val displayName: String, val order: Int) {
 data class CustomMealSlot(
     val id: Long = 0,
     val userId: Long,
+    val date: String? = null,  // null = global; "yyyy-MM-dd" = per-date
     val name: String,
     val order: Int = 99  // Custom slots appear after defaults
 )

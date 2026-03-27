@@ -45,8 +45,9 @@ class CalendarViewModel @Inject constructor(
 
     private fun loadPlansForMonth() {
         val month = _uiState.value.currentMonth
-        val startDate = month.atDay(1).toString()
-        val endDate = month.atEndOfMonth().toString()
+        // Extend ±6 days so weeks that straddle a month boundary are fully covered
+        val startDate = month.atDay(1).minusDays(6).toString()
+        val endDate = month.atEndOfMonth().plusDays(6).toString()
 
         viewModelScope.launch {
             planRepository.getPlansWithDietNames(startDate, endDate).collect { plansWithNames ->
@@ -71,6 +72,12 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun selectDate(date: LocalDate) {
+        // If week navigation crosses into a new month, reload plans for that month
+        val newMonth = YearMonth.from(date)
+        if (newMonth != _uiState.value.currentMonth) {
+            _uiState.update { it.copy(currentMonth = newMonth) }
+            loadPlansForMonth()
+        }
         viewModelScope.launch {
             val dateStr = date.toString()
             _uiState.update { it.copy(selectedDate = date) }

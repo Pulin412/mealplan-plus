@@ -17,11 +17,12 @@ import javax.inject.Inject
 data class DietDetailUiState(
     val diet: Diet? = null,
     val dietWithMeals: DietWithMeals? = null,
+    val customSlotTypes: List<String> = emptyList(), // "CUSTOM:<name>" entries for this diet
     val availableMeals: List<Meal> = emptyList(),
     val allTags: List<Tag> = emptyList(),
     val dietTagIds: Set<Long> = emptySet(),
     val selectedTagIds: Set<Long> = emptySet(),
-    val currentPickingSlot: DefaultMealSlot? = null,
+    val currentPickingSlotType: String? = null, // unified: DefaultMealSlot.name OR "CUSTOM:<name>"
     val isLoading: Boolean = true,
     val isEditing: Boolean = false,
     val editName: String = "",
@@ -58,10 +59,14 @@ class DietDetailViewModel @Inject constructor(
                 val dietWithMeals = dietRepository.getDietWithMeals(dietId)
                 val dietTags = dietRepository.getTagsForDiet(dietId)
                 val tagIds = dietTags.map { it.id }.toSet()
+                val customSlotTypes = dietWithMeals?.meals?.keys
+                    ?.filter { it.startsWith("CUSTOM:") }
+                    ?.sorted() ?: emptyList()
                 _uiState.update {
                     it.copy(
                         diet = dietWithMeals?.diet,
                         dietWithMeals = dietWithMeals,
+                        customSlotTypes = customSlotTypes,
                         editName = dietWithMeals?.diet?.name ?: "",
                         editDescription = dietWithMeals?.diet?.description ?: "",
                         dietTagIds = tagIds,
@@ -83,21 +88,22 @@ class DietDetailViewModel @Inject constructor(
         }
     }
 
-    fun setPickingSlot(slot: DefaultMealSlot) {
-        _uiState.update { it.copy(currentPickingSlot = slot) }
+    /** Works for both DefaultMealSlot names and "CUSTOM:<name>" slot types */
+    fun setPickingSlot(slot: DefaultMealSlot) = setPickingSlotType(slot.name)
+    fun setPickingSlotType(slotType: String) {
+        _uiState.update { it.copy(currentPickingSlotType = slotType) }
     }
 
-    /** Called when food picker returns with a local food id */
-    fun addFoodById(foodId: Long, quantity: Double) {
-        val slot = _uiState.value.currentPickingSlot ?: return
+    fun addFoodById(foodId: Long, quantity: Double, unit: FoodUnit = FoodUnit.GRAM) {
+        val slotType = _uiState.value.currentPickingSlotType ?: return
         viewModelScope.launch {
             try {
-                val mealId = getOrCreateMealForSlot(slot)
+                val mealId = getOrCreateMealForSlotType(slotType)
                 val existing = mealRepository.getMealFoodItems(mealId).find { it.foodId == foodId }
                 if (existing != null) {
-                    mealRepository.updateMealFoodItem(MealFoodItem(mealId, foodId, quantity, existing.unit))
+                    mealRepository.updateMealFoodItem(MealFoodItem(mealId, foodId, quantity, unit))
                 } else {
-                    mealRepository.addFoodToMeal(mealId, foodId, quantity)
+                    mealRepository.addFoodToMeal(mealId, foodId, quantity, unit)
                 }
                 loadDiet()
             } catch (e: Exception) {
@@ -106,15 +112,14 @@ class DietDetailViewModel @Inject constructor(
         }
     }
 
-    /** Called when food picker returns with a USDA food */
-    fun addUsdaFood(usdaFood: UsdaFoodResult, quantity: Double) {
-        val slot = _uiState.value.currentPickingSlot ?: return
+    fun addUsdaFood(usdaFood: UsdaFoodResult, quantity: Double, unit: FoodUnit = FoodUnit.GRAM) {
+        val slotType = _uiState.value.currentPickingSlotType ?: return
         viewModelScope.launch {
             try {
                 val foodItem = usdaFood.toFoodItem()
                 val id = foodRepository.insertFood(foodItem)
-                val mealId = getOrCreateMealForSlot(slot)
-                mealRepository.addFoodToMeal(mealId, id, quantity)
+                val mealId = getOrCreateMealForSlotType(slotType)
+                mealRepository.addFoodToMeal(mealId, id, quantity, unit)
                 loadDiet()
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message) }
@@ -122,22 +127,28 @@ class DietDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun getOrCreateMealForSlot(slot: DefaultMealSlot): Long {
-        val existingMeal = _uiState.value.dietWithMeals?.meals?.get(slot.name)
+    private suspend fun getOrCreateMealForSlotType(slotType: String): Long {
+        val existingMeal = _uiState.value.dietWithMeals?.meals?.get(slotType)
         return if (existingMeal != null) {
             existingMeal.meal.id
         } else {
-            val meal = Meal(userId = 0, name = slot.displayName, slotType = slot.name)
+            val displayName = DefaultMealSlot.fromString(slotType)?.displayName
+                ?: if (slotType.startsWith("CUSTOM:")) slotType.removePrefix("CUSTOM:")
+                else slotType
+            val meal = Meal(userId = 0, name = displayName, slotType = slotType)
             val mealId = mealRepository.insertMeal(meal)
-            dietRepository.setMealForSlot(dietId, slot.name, mealId)
+            dietRepository.setMealForSlot(dietId, slotType, mealId)
             mealId
         }
     }
 
-    fun removeFood(slot: DefaultMealSlot, item: MealFoodItemWithDetails) {
+    fun removeFood(slot: DefaultMealSlot, item: MealFoodItemWithDetails) =
+        removeFoodFromSlot(slot.name, item)
+
+    fun removeFoodFromSlot(slotType: String, item: MealFoodItemWithDetails) {
         viewModelScope.launch {
             try {
-                val mealId = _uiState.value.dietWithMeals?.meals?.get(slot.name)?.meal?.id ?: return@launch
+                val mealId = _uiState.value.dietWithMeals?.meals?.get(slotType)?.meal?.id ?: return@launch
                 mealRepository.removeFoodFromMeal(mealId, item.mealFoodItem.foodId)
                 loadDiet()
             } catch (e: Exception) {
@@ -146,24 +157,60 @@ class DietDetailViewModel @Inject constructor(
         }
     }
 
-    fun incrementQty(slot: DefaultMealSlot, item: MealFoodItemWithDetails) {
-        updateFoodQty(slot, item, item.mealFoodItem.quantity + 1.0)
-    }
+    fun incrementQty(slot: DefaultMealSlot, item: MealFoodItemWithDetails) =
+        updateFoodQty(slot.name, item, item.mealFoodItem.quantity + 1.0)
 
-    fun decrementQty(slot: DefaultMealSlot, item: MealFoodItemWithDetails) {
-        val newQty = (item.mealFoodItem.quantity - 1.0).coerceAtLeast(1.0)
-        updateFoodQty(slot, item, newQty)
-    }
+    fun decrementQty(slot: DefaultMealSlot, item: MealFoodItemWithDetails) =
+        updateFoodQty(slot.name, item, (item.mealFoodItem.quantity - 1.0).coerceAtLeast(1.0))
 
-    private fun updateFoodQty(slot: DefaultMealSlot, item: MealFoodItemWithDetails, newQty: Double) {
+    fun incrementQtyInSlot(slotType: String, item: MealFoodItemWithDetails) =
+        updateFoodQty(slotType, item, item.mealFoodItem.quantity + 1.0)
+
+    fun decrementQtyInSlot(slotType: String, item: MealFoodItemWithDetails) =
+        updateFoodQty(slotType, item, (item.mealFoodItem.quantity - 1.0).coerceAtLeast(1.0))
+
+    private fun updateFoodQty(slotType: String, item: MealFoodItemWithDetails, newQty: Double) {
         viewModelScope.launch {
             try {
-                val updated = item.mealFoodItem.copy(quantity = newQty)
-                mealRepository.updateMealFoodItem(updated)
+                mealRepository.updateMealFoodItem(item.mealFoodItem.copy(quantity = newQty))
                 loadDiet()
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message) }
             }
+        }
+    }
+
+    // ── Custom slot management ──────────────────────────────────────────────
+
+    fun addCustomSlot(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        val slotType = "CUSTOM:$trimmed"
+        if (_uiState.value.customSlotTypes.contains(slotType)) return
+        viewModelScope.launch {
+            try {
+                dietRepository.setMealForSlot(dietId, slotType, null)
+                loadDiet()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun removeCustomSlot(slotType: String) {
+        viewModelScope.launch {
+            try {
+                dietRepository.removeMealFromSlot(dietId, slotType)
+                loadDiet()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun updateSlotInstructionsForType(slotType: String, text: String) {
+        _uiState.update { state ->
+            state.copy(editSlotInstructions = state.editSlotInstructions + (slotType to text))
         }
     }
 
@@ -193,11 +240,8 @@ class DietDetailViewModel @Inject constructor(
         }
     }
 
-    fun updateSlotInstructions(slot: DefaultMealSlot, text: String) {
-        _uiState.update { state ->
-            state.copy(editSlotInstructions = state.editSlotInstructions + (slot.name to text))
-        }
-    }
+    fun updateSlotInstructions(slot: DefaultMealSlot, text: String) =
+        updateSlotInstructionsForType(slot.name, text)
 
     fun updateName(name: String) { _uiState.update { it.copy(editName = name) } }
     fun updateDescription(desc: String) { _uiState.update { it.copy(editDescription = desc) } }

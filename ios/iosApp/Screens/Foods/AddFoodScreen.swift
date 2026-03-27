@@ -138,7 +138,7 @@ struct FoodDetailScreen: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(12)
                 .shadow(color: .black.opacity(0.1), radius: 5)
                 .padding(.horizontal)
@@ -168,7 +168,7 @@ struct FoodDetailScreen: View {
                     }
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(12)
                 .shadow(color: .black.opacity(0.1), radius: 5)
                 .padding(.horizontal)
@@ -187,7 +187,7 @@ struct FoodDetailScreen: View {
                     NutritionRow(label: "Fat", value: String(format: "%.1f", scaledFat), unit: "g", color: .yellow)
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(12)
                 .shadow(color: .black.opacity(0.1), radius: 5)
                 .padding(.horizontal)
@@ -197,12 +197,7 @@ struct FoodDetailScreen: View {
             .padding(.top)
         }
         .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
         )
         .navigationTitle("Food Details")
         .navigationBarTitleDisplayMode(.inline)

@@ -47,6 +47,7 @@ fun CalendarScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLog: (String) -> Unit,
     onNavigateToDietPicker: (String) -> Unit = {},
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
     savedStateHandle: SavedStateHandle? = null,
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
@@ -75,7 +76,7 @@ fun CalendarScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 16.dp)
         ) {
@@ -103,7 +104,8 @@ fun CalendarScreen(
                 onAssignDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
                 onChangeDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
                 onRemoveDiet = { viewModel.clearPlan() },
-                onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) }
+                onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
+                onNavigateToMealDetail = onNavigateToMealDetail
             )
         }
     }
@@ -155,10 +157,10 @@ private fun CalendarCard(
     onNextMonth: () -> Unit,
     onToggleView: () -> Unit
 ) {
-    // For week view, track which week's Sunday we're showing (start of week containing selectedDate)
+    // For week view, track which week's Monday we're showing (start of week containing selectedDate)
     val weekStart = remember(selectedDate) {
-        val dow = selectedDate.dayOfWeek.value % 7 // Sunday=0
-        selectedDate.minusDays(dow.toLong())
+        val dow = (selectedDate.dayOfWeek.value - 1).toLong() // Monday=0
+        selectedDate.minusDays(dow)
     }
     // Derive header label from week view context
     val headerText = if (isWeekView) {
@@ -176,7 +178,7 @@ private fun CalendarCard(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -192,7 +194,7 @@ private fun CalendarCard(
                         onClick = { onDateSelected(selectedDate.minusWeeks(1)) },
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev week", tint = Color.Gray)
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Spacer(Modifier.width(32.dp))
@@ -211,7 +213,7 @@ private fun CalendarCard(
                             onClick = { onDateSelected(selectedDate.plusWeeks(1)) },
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next week", tint = Color.Gray)
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     // Toggle pill: label shows what you'll switch TO
@@ -245,13 +247,13 @@ private fun CalendarCard(
 
             // Day of week headers
             Row(modifier = Modifier.fillMaxWidth()) {
-                listOf("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa").forEach { day ->
+                listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su").forEach { day ->
                     Text(
                         text = day,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -288,7 +290,7 @@ private fun CalendarCard(
                 LegendItem(color = CompletedGreen, label = "Completed")
                 LegendItem(color = Color(0xFFFFC107), label = "Planned")
                 LegendItem(color = DarkGreen, label = "Today", isOutline = true)
-                LegendItem(color = Color.LightGray, label = "No plan")
+                LegendItem(color = MaterialTheme.colorScheme.outlineVariant, label = "No plan")
             }
         }
     }
@@ -307,7 +309,7 @@ private fun LegendItem(color: Color, label: String, isOutline: Boolean = false) 
                 )
         )
         Spacer(Modifier.width(3.dp))
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -348,7 +350,7 @@ private fun MealPlanCalendarGrid(
     onDateSelected: (LocalDate) -> Unit
 ) {
     val firstDay = month.atDay(1)
-    val startOffset = (firstDay.dayOfWeek.value % 7) // Sunday = 0
+    val startOffset = firstDay.dayOfWeek.value - 1 // Monday = 0
     val daysInMonth = month.lengthOfMonth()
     val totalCells = startOffset + daysInMonth
     val rows = (totalCells + 6) / 7
@@ -398,14 +400,15 @@ private fun SelectedDatePanel(
     onAssignDiet: () -> Unit,
     onChangeDiet: () -> Unit,
     onRemoveDiet: () -> Unit,
-    onViewLog: () -> Unit
+    onViewLog: () -> Unit,
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
 ) {
     val today = LocalDate.now()
     val isToday = date == today
     val isPast = date.isBefore(today)
     val isFuture = date.isAfter(today)
 
-    val panelBg = if (isToday || isPast) LightGreenBg else YellowBg
+    val panelBg = MaterialTheme.colorScheme.surfaceVariant
     val dateLabel = when {
         isToday -> "Today"
         isPast -> "Past"
@@ -435,14 +438,14 @@ private fun SelectedDatePanel(
                     Text(
                         text = dateDisplay,
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = diet?.name ?: "No diet planned",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (diet != null) Color.Black else Color.Gray
+                        color = if (diet != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     // First tag chip
                     val firstTag = tags.firstOrNull()
@@ -467,8 +470,8 @@ private fun SelectedDatePanel(
                 // Action button (right side)
                 when {
                     isToday && diet != null -> TextButton(onClick = onViewLog) {
-                        Text("View Log", color = DarkGreen, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = DarkGreen, modifier = Modifier.size(18.dp))
+                        Text("View Log", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                     isFuture && diet != null -> Button(
                         onClick = onChangeDiet,
@@ -487,8 +490,8 @@ private fun SelectedDatePanel(
                         Text("+ Plan", style = MaterialTheme.typography.labelMedium)
                     }
                     isPast && diet != null -> TextButton(onClick = onViewLog) {
-                        Text("View Log", color = DarkGreen, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = DarkGreen, modifier = Modifier.size(18.dp))
+                        Text("View Log", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -497,7 +500,8 @@ private fun SelectedDatePanel(
                 // Macros + meals section
                 DietDetailSection(
                     diet = diet,
-                    dietWithMeals = dietWithMeals
+                    dietWithMeals = dietWithMeals,
+                    onNavigateToMealDetail = onNavigateToMealDetail
                 )
 
                 // Remove diet option (future only)
@@ -524,7 +528,7 @@ private fun SelectedDatePanel(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(MaterialTheme.colorScheme.surface)
                             .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -532,13 +536,13 @@ private fun SelectedDatePanel(
                             Icons.Default.Restaurant,
                             contentDescription = null,
                             modifier = Modifier.size(52.dp),
-                            tint = Color.LightGray
+                            tint = MaterialTheme.colorScheme.outlineVariant
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
                             "No diet planned for this day yet.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                         if (isFuture || isToday) {
@@ -570,11 +574,15 @@ private fun SelectedDatePanel(
 }
 
 @Composable
-private fun DietDetailSection(diet: Diet, dietWithMeals: DietWithMeals) {
+private fun DietDetailSection(
+    diet: Diet,
+    dietWithMeals: DietWithMeals,
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
         // 4-stat macro tiles
@@ -614,7 +622,7 @@ private fun DietDetailSection(diet: Diet, dietWithMeals: DietWithMeals) {
             Text(
                 text = desc,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -622,15 +630,32 @@ private fun DietDetailSection(diet: Diet, dietWithMeals: DietWithMeals) {
         HorizontalDivider()
         Spacer(Modifier.height(8.dp))
 
-        // All meal slots (always show all)
-        val allSlots = DefaultMealSlot.entries
-        allSlots.forEach { slot ->
+        // Default meal slots
+        DefaultMealSlot.entries.forEach { slot ->
             val mealWithFoods = dietWithMeals.meals[slot.name]
             MealSlotRow(
                 slot = slot,
-                mealName = mealWithFoods?.meal?.name
+                mealName = mealWithFoods?.meal?.name,
+                onTap = if (mealWithFoods != null && mealWithFoods.items.isNotEmpty())
+                    { -> onNavigateToMealDetail(diet.id, slot.name) }
+                else null
             )
         }
+
+        // Custom diet slots
+        dietWithMeals.meals.entries
+            .filter { it.key.startsWith("CUSTOM:") }
+            .sortedBy { it.key }
+            .forEach { (slotType, mealWithFoods) ->
+                val displayName = slotType.removePrefix("CUSTOM:")
+                CustomMealSlotRow(
+                    displayName = displayName,
+                    mealName = mealWithFoods?.meal?.name,
+                    onTap = if (mealWithFoods != null && mealWithFoods.items.isNotEmpty())
+                        { -> onNavigateToMealDetail(diet.id, slotType) }
+                    else null
+                )
+            }
     }
 }
 
@@ -661,7 +686,7 @@ private fun MacroTile(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 9.sp,
                 maxLines = 1
             )
@@ -670,37 +695,104 @@ private fun MacroTile(
 }
 
 @Composable
-private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?) {
+private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?, onTap: (() -> Unit)? = null) {
     val (emoji, tint) = slotEmojiAndColor(slot)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Emoji in colored circle
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(tint.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = emoji, fontSize = 16.sp)
+            Text(text = emoji, fontSize = 18.sp)
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = slot.displayName,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = mealName ?: "—",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (mealName != null) Color.Black else Color.LightGray,
+                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
+                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onTap != null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "View ingredients",
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomMealSlotRow(displayName: String, mealName: String?, onTap: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF7B1FA2).copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("⭐", fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFF7B1FA2).copy(alpha = 0.10f)
+                ) {
+                    Text(
+                        "custom",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF7B1FA2),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                }
+            }
+            Text(
+                text = mealName ?: "—",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
+                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onTap != null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "View ingredients",
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
             )
         }
     }

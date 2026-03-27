@@ -48,10 +48,22 @@ class AppState: ObservableObject {
 
     private let isLoggedInKey = "is_logged_in"
     private let userIdKey = "user_id"
+    private let darkModeKey = "dark_mode_enabled"
+    @Published var isDarkMode: Bool
+    /// Incremented whenever custom meal slots change — HomeScreen observes this to refresh.
+    @Published var customSlotsVersion: Int = 0
+    /// Today's custom slot defs — read directly in HomeScreen.mergedSlots (no onChange needed)
+    @Published var todayCustomSlots: [(id: Int, name: String)] = []
 
     init() {
+        self.isDarkMode = UserDefaults.standard.bool(forKey: "dark_mode_enabled")
         // Start async initialization - don't block main thread
         Task { await initializeApp() }
+    }
+
+    func setDarkMode(_ enabled: Bool) {
+        isDarkMode = enabled
+        userDefaults.set(enabled, forKey: darkModeKey)
     }
 
     private func initializeApp() async {
@@ -67,8 +79,22 @@ class AppState: ObservableObject {
         // Check auth state (uses UserDefaults, fast)
         checkAuthState()
 
+        // Load today's custom slots for HomeScreen
+        loadTodayCustomSlots()
+
         // Done loading
         isLoading = false
+    }
+
+    private func loadTodayCustomSlots() {
+        guard let userId = currentUserId else { return }
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        let today = fmt.string(from: Date())
+        let key = "custom_slots_\(userId)_\(today)"
+        struct SlotDef: Codable { let id: Int; let name: String }
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let defs = try? JSONDecoder().decode([SlotDef].self, from: data) else { return }
+        todayCustomSlots = defs.map { ($0.id, $0.name) }
     }
 
     private func checkAuthState() {
@@ -128,6 +154,7 @@ struct AppNavigation: View {
             }
         }
         .environmentObject(appState)
+        .preferredColorScheme(appState.isDarkMode ? .dark : .light)
     }
 }
 
@@ -196,9 +223,19 @@ struct MainTabView: View {
         }
         .accentColor(Color(red: 0x2E/255.0, green: 0x7D/255.0, blue: 0x52/255.0))
         .onReceive(NotificationCenter.default.publisher(for: .navigateToLog)) { notification in
+            selectedTab = 2
             if let isoDate = notification.object as? String {
-                selectedTab = 2
                 NotificationCenter.default.post(name: .navigateToDate, object: isoDate)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToTab)) { notification in
+            if let tab = notification.object as? Int {
+                selectedTab = tab
+            }
+        }
+        .onChange(of: selectedTab) { newTab in
+            if newTab == 0 {
+                NotificationCenter.default.post(name: .homeNeedsRefresh, object: nil)
             }
         }
     }
@@ -206,9 +243,16 @@ struct MainTabView: View {
 
 // MARK: - Notification names for log navigation
 extension Notification.Name {
-    static let navigateToDate = Notification.Name("navigateToDate")
+    static let navigateToDate    = Notification.Name("navigateToDate")
     /// Post with an ISO date String to switch to the Log tab and jump to that date.
-    static let navigateToLog  = Notification.Name("navigateToLog")
+    static let navigateToLog     = Notification.Name("navigateToLog")
+    /// Post with an Int as object to switch to that tab index.
+    static let navigateToTab     = Notification.Name("navigateToTab")
+    static let navigateToFoods   = Notification.Name("navigateToFoods")
+    static let navigateToMeals   = Notification.Name("navigateToMeals")
+    static let navigateToSettings = Notification.Name("navigateToSettings")
+    static let navigateToProfile  = Notification.Name("navigateToProfile")
+    static let homeNeedsRefresh  = Notification.Name("homeNeedsRefresh")
 }
 
 // Tab wrapper views

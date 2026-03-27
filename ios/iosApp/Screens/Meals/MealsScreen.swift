@@ -50,12 +50,7 @@ struct MealsScreen: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [Color.green.opacity(0.2), Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Search bar
@@ -69,7 +64,7 @@ struct MealsScreen: View {
                     }
                 }
                 .padding(12)
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(10)
                 .padding(.horizontal)
                 .padding(.top)
@@ -164,7 +159,7 @@ struct FilterChip: View {
                 .fontWeight(isSelected ? .semibold : .regular)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.green : Color.white)
+                .background(isSelected ? Color.green : Color(.systemBackground))
                 .foregroundColor(isSelected ? .white : .primary)
                 .cornerRadius(20)
                 .overlay(

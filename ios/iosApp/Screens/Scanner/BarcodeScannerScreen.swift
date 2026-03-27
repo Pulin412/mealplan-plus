@@ -118,7 +118,7 @@ struct BarcodeScannerScreen: View {
                     .cornerRadius(10)
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(20)
                 .padding(40)
             }

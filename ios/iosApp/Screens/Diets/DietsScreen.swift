@@ -84,7 +84,7 @@ struct DietsScreen: View {
                         }
                     }
                     .padding(10)
-                    .background(Color.white)
+                    .background(Color(.systemBackground))
                     .cornerRadius(10)
                     .shadow(color: .black.opacity(0.05), radius: 3)
 
@@ -113,7 +113,7 @@ struct DietsScreen: View {
                             }
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color(.systemBackground))
                         .cornerRadius(10)
                         .shadow(color: .black.opacity(0.05), radius: 3)
                         .padding(.horizontal, 16)
@@ -367,7 +367,7 @@ private struct ExpandableDietCard: View {
                 .padding(.vertical, 4)
             }
         }
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
     }

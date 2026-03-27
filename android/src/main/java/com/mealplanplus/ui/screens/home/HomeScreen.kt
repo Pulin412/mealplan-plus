@@ -1,5 +1,8 @@
 package com.mealplanplus.ui.screens.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,15 +13,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.HealthMetric
+import com.mealplanplus.util.ThemePreferences
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -37,6 +49,7 @@ import com.patrykandpatrick.vico.core.entry.entryOf
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 // Design tokens
 private val PrimaryGreen = Color(0xFF2E7D52)
@@ -60,10 +73,21 @@ fun HomeScreen(
     onNavigateToProfile: () -> Unit = {},
     onNavigateToDietPickerForToday: () -> Unit = {},
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
+    onNavigateToFoods: () -> Unit = {},
+    onNavigateToMeals: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToDiets: () -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val weekOffset by viewModel.weekOffset.collectAsState()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val followSystem by ThemePreferences.isFollowSystem(context).collectAsState(initial = true)
+    val darkModePref by ThemePreferences.isDarkMode(context).collectAsState(initial = false)
+    val isDark = if (followSystem) isSystemInDarkTheme() else darkModePref
 
     // Observe diet selection result from DietPickerScreen
     val selectedDietId by (savedStateHandle
@@ -76,72 +100,162 @@ fun HomeScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(LightGreenBg)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                // Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(PrimaryGreen)
+                        .padding(horizontal = 24.dp, vertical = 28.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "MealPlan+",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                NavigationDrawerItem(
+                    label = { Text("Home") },
+                    icon = { Text("🏠") },
+                    selected = true,
+                    onClick = { scope.launch { drawerState.close() } }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Foods") },
+                    icon = { Text("🥗") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToFoods() }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Meals") },
+                    icon = { Text("🍽️") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToMeals() }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Diets") },
+                    icon = { Text("📋") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToDiets() }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Log Today") },
+                    icon = { Text("✏️") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToLog() }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Health") },
+                    icon = { Text("❤️") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToHealth() }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Grocery Lists") },
+                    icon = { Text("🛒") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToGroceryLists() }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                NavigationDrawerItem(
+                    label = { Text("Settings") },
+                    icon = { Text("⚙️") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToSettings() }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Profile") },
+                    icon = { Text("👤") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNavigateToProfile() }
+                )
+            }
+        }
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // ── Green header hero ──────────────────────────────────
-            HomeHeaderSection(
-                userName = uiState.userName,
-                userInitial = uiState.userInitial,
-                caloriesConsumed = uiState.todaySummary.calories,
-                calorieGoal = uiState.calorieGoal,
-                onProfileClick = onNavigateToProfile
-            )
-
-            // ── Macro rings card ───────────────────────────────────
-            MacroRingsCard(
-                calories = uiState.todaySummary.calories,
-                calorieGoal = uiState.calorieGoal,
-                protein = uiState.todaySummary.protein,
-                carbs = uiState.todaySummary.carbs,
-                fat = uiState.todaySummary.fat
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ── This Week mini-calendar ────────────────────────────
-            ThisWeekCard(
-                weekDays = uiState.weekDays,
-                onDayClick = { date -> onNavigateToLogWithDate(date.toString()) },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ── Today's Plan ───────────────────────────────────────
-            TodaysPlanCard(
-                slots = uiState.todayPlanSlots,
-                hasDietToday = uiState.hasDietToday,
-                onPlanOrChangeDiet = onNavigateToDietPickerForToday,
-                onSlotToggle = { slot -> viewModel.toggleSlotLogged(slot) },
-                onSlotTap = { slot ->
-                    val dId = slot.dietId
-                    if (dId != null && slot.plannedMealId != null) {
-                        onNavigateToMealDetail(dId, slot.slotType)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                // ── Green header hero ──────────────────────────────────
+                HomeHeaderSection(
+                    userName = uiState.userName,
+                    userInitial = uiState.userInitial,
+                    caloriesConsumed = uiState.todaySummary.calories,
+                    calorieGoal = uiState.calorieGoal,
+                    onProfileClick = onNavigateToProfile,
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    isDark = isDark,
+                    onThemeToggle = {
+                        scope.launch {
+                            ThemePreferences.setFollowSystem(context, false)
+                            ThemePreferences.setDarkMode(context, !isDark)
+                        }
                     }
-                },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                // ── Macro rings card ───────────────────────────────────
+                MacroRingsCard(
+                    calories = uiState.todaySummary.calories,
+                    calorieGoal = uiState.calorieGoal,
+                    protein = uiState.todaySummary.protein,
+                    carbs = uiState.todaySummary.carbs,
+                    fat = uiState.todaySummary.fat
+                )
 
-            // ── Stats row (A1C / Weight / Streak) ─────────────────
-            StatsRow(
-                latestHba1c = uiState.latestHba1c,
-                latestWeight = uiState.latestWeight,
-                dayStreak = uiState.dayStreak,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
+                // ── This Week mini-calendar ────────────────────────────
+                ThisWeekCard(
+                    weekDays = uiState.weekDays,
+                    weekOffset = weekOffset,
+                    onDayClick = { date -> onNavigateToLogWithDate(date.toString()) },
+                    onPreviousWeek = viewModel::previousWeek,
+                    onNextWeek = viewModel::nextWeek,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Today's Plan ───────────────────────────────────────
+                TodaysPlanCard(
+                    slots = uiState.todayPlanSlots,
+                    hasDietToday = uiState.hasDietToday,
+                    onPlanOrChangeDiet = onNavigateToDietPickerForToday,
+                    onSlotToggle = { slot -> viewModel.toggleSlotLogged(slot) },
+                    onSlotTap = { slot ->
+                        val dId = slot.dietId
+                        if (dId != null && slot.plannedMealId != null) {
+                            onNavigateToMealDetail(dId, slot.slotType)
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Stats row (A1C / Weight / Streak) ─────────────────
+                StatsRow(
+                    latestHba1c = uiState.latestHba1c,
+                    latestWeight = uiState.latestWeight,
+                    dayStreak = uiState.dayStreak,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }
@@ -154,7 +268,10 @@ fun HomeHeaderSection(
     userInitial: String,
     caloriesConsumed: Int,
     calorieGoal: Int,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onMenuClick: () -> Unit = {},
+    isDark: Boolean = false,
+    onThemeToggle: () -> Unit = {}
 ) {
     val greeting = when (java.time.LocalTime.now().hour) {
         in 5..11 -> "Good morning"
@@ -176,23 +293,51 @@ fun HomeHeaderSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "$greeting,",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "${userName.ifBlank { "there" }} 👋",
-                        color = Color.White,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Hamburger menu
+                    IconButton(
+                        onClick = onMenuClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = "Open menu",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "$greeting,",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = "${userName.ifBlank { "there" }} 👋",
+                            color = Color.White,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconButton(
+                        onClick = onThemeToggle,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = "Toggle theme",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -278,7 +423,7 @@ fun MacroRingsCard(calories: Int, calorieGoal: Int, protein: Int, carbs: Int, fa
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -315,12 +460,12 @@ fun MacroRingItem(value: Int, unit: String, label: String, percent: Int, color: 
                 strokeCap = StrokeCap.Round
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "$value", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A))
-                Text(text = unit, fontSize = 10.sp, color = Color(0xFF888888))
+                Text(text = "$value", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(text = unit, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Text(text = label, fontSize = 12.sp, color = Color(0xFF444444))
-        Text(text = "$percent%", fontSize = 11.sp, color = Color(0xFF888888))
+        Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = "$percent%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -356,32 +501,60 @@ fun QuickLogFoodButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 fun ThisWeekCard(
     weekDays: List<WeekDayInfo>,
+    weekOffset: Int = 0,
     onDayClick: (LocalDate) -> Unit = {},
+    onPreviousWeek: () -> Unit = {},
+    onNextWeek: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
-    val monthName = today.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
     // Fallback: if weekDays not yet loaded, build basic list
     val displayDays = if (weekDays.isEmpty()) {
         (6 downTo 0).map { WeekDayInfo(today.minusDays(it.toLong()), null, WeekDayState.NO_DATA) }
     } else weekDays
 
+    val weekLabel = if (displayDays.isNotEmpty()) {
+        val start = displayDays.first().date
+        val end = displayDays.last().date
+        val startMonth = start.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        val endMonth = end.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        if (start.month == end.month) {
+            "$startMonth ${start.year}"
+        } else {
+            "$startMonth – $endMonth ${end.year}"
+        }
+    } else {
+        today.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + " ${today.year}"
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Text("This Week", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("This Week", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A1A))
-                    Text("$monthName ${today.year}", fontSize = 12.sp, color = Color(0xFF888888))
+                IconButton(onClick = onPreviousWeek) {
+                    Icon(Icons.Default.ChevronLeft, contentDescription = "Previous week")
+                }
+                Text(
+                    text = weekLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                IconButton(
+                    onClick = onNextWeek,
+                    enabled = weekOffset < 0
+                ) {
+                    Icon(Icons.Default.ChevronRight, contentDescription = "Next week")
                 }
             }
 
@@ -397,7 +570,7 @@ fun ThisWeekCard(
                     Text(
                         text = letter,
                         fontSize = 12.sp,
-                        color = Color(0xFF999999),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center
                     )
@@ -419,7 +592,7 @@ fun ThisWeekCard(
                         else -> Color.Transparent
                     }
                     val textColor = when {
-                        bgColor == Color.Transparent -> Color(0xFFCCCCCC)
+                        bgColor == Color.Transparent -> MaterialTheme.colorScheme.outlineVariant
                         else -> Color.White
                     }
                     // Only allow tap on days that have data (completed, missed, or planned)
@@ -457,7 +630,7 @@ fun ThisWeekCard(
                                     WeekDayState.COMPLETED -> PrimaryGreen
                                     WeekDayState.PLANNED_FUTURE -> WeekOrange
                                     WeekDayState.MISSED -> WeekRed
-                                    else -> Color(0xFF888888)
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                                 textAlign = TextAlign.Center,
                                 maxLines = 1
@@ -485,7 +658,7 @@ fun ThisWeekCard(
 fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Text(text = label, fontSize = 11.sp, color = Color(0xFF666666))
+        Text(text = label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -505,7 +678,7 @@ fun TodaysPlanCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -514,7 +687,7 @@ fun TodaysPlanCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1A1A1A))
+                Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
                 TextButton(onClick = onPlanOrChangeDiet) {
                     Text("$actionLabel >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
@@ -526,7 +699,7 @@ fun TodaysPlanCard(
                     if (hasDietToday) "Loading plan…"
                     else "No diet planned for today.\nTap \"Plan a Diet\" to get started.",
                     fontSize = 13.sp,
-                    color = Color(0xFF888888),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             } else {
@@ -560,84 +733,142 @@ fun TodayPlanSlotRow(
         "EVENING", "EVENING_SNACK", "POST_DINNER" -> Color(0xFFFCE4EC)
         else -> Color(0xFFE8F5E9)
     }
-    // Only show toggle if this slot has planned foods or is already logged
     val canToggle = slot.plannedFoods.isNotEmpty() || slot.isLogged
+    val hasLoggedFoods = slot.loggedFoods.isNotEmpty()
+    var expanded by remember(slot.loggedFoods.size) { mutableStateOf(hasLoggedFoods) }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onTap != null) Modifier.clickable(onClick = onTap) else Modifier)
-    ) {
-        // Emoji in colored rounded box
-        Box(
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(slotBgColor),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .clickable {
+                    when {
+                        onTap != null -> onTap()
+                        hasLoggedFoods -> expanded = !expanded
+                    }
+                }
         ) {
-            Text(slot.emoji, fontSize = 20.sp)
-        }
+            // Emoji in colored rounded box
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(slotBgColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(slot.emoji, fontSize = 20.sp)
+            }
 
-        Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-        // Slot name + meal name
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                slot.slotDisplayName,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = Color(0xFF1A1A1A)
-            )
-            if (slot.plannedMealName != null) {
+            // Slot name + subtitle
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    slot.plannedMealName,
-                    fontSize = 12.sp,
-                    color = Color(0xFF666666),
-                    maxLines = 1
+                    slot.slotDisplayName,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                when {
+                    slot.plannedMealName != null -> Text(
+                        slot.plannedMealName,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                    !expanded && hasLoggedFoods -> Text(
+                        "${slot.loggedFoods.size} item${if (slot.loggedFoods.size > 1) "s" else ""} logged",
+                        fontSize = 12.sp,
+                        color = PrimaryGreen
+                    )
+                }
             }
-        }
 
-        // Chevron (navigable slots only)
-        if (onTap != null) {
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = "View meal details",
-                tint = Color(0xFFBBBBBB),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-        }
-
-        // Tappable tick or unticked circle
-        if (slot.isLogged) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryGreen)
-                    .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
-                contentAlignment = Alignment.Center
-            ) {
+            // Expand/collapse indicator for custom slots with logged foods
+            if (hasLoggedFoods && onTap == null) {
                 Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Logged – tap to undo",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
                 )
+                Spacer(modifier = Modifier.width(4.dp))
             }
-        } else {
-            Box(
+
+            // Chevron (navigable slots only)
+            if (onTap != null) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "View meal details",
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+
+            // Tappable tick or unticked circle
+            if (slot.isLogged) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryGreen)
+                        .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Logged – tap to undo",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // empty circle — tap to log
+                }
+            }
+        }
+
+        // Expanded logged food list
+        AnimatedVisibility(
+            visible = expanded && hasLoggedFoods,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
                 modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE0E0E0))
-                    .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
-                contentAlignment = Alignment.Center
+                    .padding(start = 56.dp, top = 6.dp, bottom = 2.dp)
             ) {
-                // empty circle — tap to log
+                slot.loggedFoods.forEach { loggedFood ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = loggedFood.food.name,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "${loggedFood.calculatedCalories.toInt()} kcal",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
@@ -655,7 +886,7 @@ fun BloodGlucoseCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -674,7 +905,7 @@ fun BloodGlucoseCard(
                     ) {
                         Text("🔥", fontSize = 14.sp)
                     }
-                    Text("Blood Glucose", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A1A))
+                    Text("Blood Glucose", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                 }
                 TextButton(onClick = onDetailsClick) {
                     Text("Details >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -685,8 +916,8 @@ fun BloodGlucoseCard(
 
             if (latestSugar != null) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(latestSugar.value.toInt().toString(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A))
-                    Text("mg/dL", fontSize = 14.sp, color = Color(0xFF888888), modifier = Modifier.padding(bottom = 6.dp))
+                    Text(latestSugar.value.toInt().toString(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("mg/dL", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
                 }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -704,8 +935,8 @@ fun BloodGlucoseCard(
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("Target Range", fontSize = 11.sp, color = Color(0xFF888888))
-                        Text("80–130", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF444444))
+                        Text("Target Range", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("80–130", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -717,7 +948,7 @@ fun BloodGlucoseCard(
                 Text(
                     "No glucose reading today.\nLog a reading in Health.",
                     fontSize = 14.sp,
-                    color = Color(0xFF888888),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
@@ -793,7 +1024,7 @@ fun StatCard(
     Card(
         modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -807,8 +1038,8 @@ fun StatCard(
             ) {
                 Text(emoji, fontSize = 16.sp)
             }
-            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A), maxLines = 1)
-            Text(text = label, fontSize = 10.sp, color = Color(0xFF888888))
+            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+            Text(text = label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

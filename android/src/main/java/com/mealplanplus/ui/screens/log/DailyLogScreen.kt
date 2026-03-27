@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,23 +16,38 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
+import com.mealplanplus.data.model.CustomMealSlot
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.FoodItem
+import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.model.LoggedFoodWithDetails
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.min
+
+// ── Unified slot model (default + custom) for drag-to-reorder ────────────────
+sealed class LogSlot {
+    data class Default(val mealSlot: DefaultMealSlot) : LogSlot()
+    data class Custom(val customSlot: CustomMealSlot) : LogSlot()
+    val key: String get() = when (this) {
+        is Default -> "default_${mealSlot.name}"
+        is Custom  -> "custom_${customSlot.id}"
+    }
+}
 
 // ── Colours ─────────────────────────────────────────────────────────────────
 private val TopBarGreen = Color(0xFF2E7D52)
@@ -50,12 +66,15 @@ fun DailyLogScreen(
     onNavigateBack: () -> Unit,
     onNavigateToMealPicker: (String, String) -> Unit = { _, _ -> }, // kept for NavHost compat
     onNavigateToDietPicker: (String) -> Unit = { _ -> },
+    onNavigateToFoodPickerForCustomSlot: () -> Unit = {},
     onNavigateHome: () -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: DailyLogViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val allFoods by viewModel.allFoods.collectAsState()
+    val customSlots by viewModel.customSlots.collectAsState()
+    val savedSlotOrder by viewModel.savedSlotOrder.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val expandedSlots = remember { mutableStateOf(setOf(DefaultMealSlot.BREAKFAST.name)) }
 
@@ -82,6 +101,19 @@ fun DailyLogScreen(
         }
     }
 
+    // Handle food returned from FoodPickerForCustomSlot nav screen
+    val customFoodId by (savedStateHandle
+        ?.getStateFlow("custom_food_id", -1L)
+        ?.collectAsState() ?: remember { mutableStateOf(-1L) })
+    LaunchedEffect(customFoodId) {
+        if (customFoodId != -1L) {
+            val qty = savedStateHandle?.get<Double>("custom_food_qty") ?: 100.0
+            viewModel.logFood(customFoodId, qty)
+            savedStateHandle?.set("custom_food_id", -1L)
+            savedStateHandle?.set("custom_food_qty", -1.0)
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -100,7 +132,7 @@ fun DailyLogScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF0F9F4))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             DateNavigatorPill(
                 date = uiState.date,
@@ -122,15 +154,30 @@ fun DailyLogScreen(
                         logWithFoods = uiState.logWithFoods,
                         plannedDiet = uiState.plannedDiet,
                         expandedSlots = expandedSlots.value,
+                        savedSlotOrder = savedSlotOrder,
                         onToggleSlot = { slot ->
                             expandedSlots.value = if (slot.name in expandedSlots.value)
                                 expandedSlots.value - slot.name
                             else
                                 expandedSlots.value + slot.name
                         },
+                        onToggleCustomSlot = { key ->
+                            expandedSlots.value = if (key in expandedSlots.value)
+                                expandedSlots.value - key
+                            else
+                                expandedSlots.value + key
+                        },
                         onAddFood = { slot -> viewModel.showFoodPickerFor(slot) },
+                        onAddFoodToCustomSlot = { slot ->
+                            viewModel.setPendingCustomSlot(slot)
+                            onNavigateToFoodPickerForCustomSlot()
+                        },
                         onDeleteFood = { id -> viewModel.deleteLoggedFood(id) },
-                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) }
+                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) },
+                        customSlots = customSlots,
+                        onDeleteCustomSlot = { id -> viewModel.deleteCustomSlot(id) },
+                        onAddCustomSlot = { name -> viewModel.addCustomSlot(name) },
+                        onReorderSlots = { keys, customs -> viewModel.reorderSlots(keys, customs) }
                     )
                     1 -> PlanVsActualTab(comparison = uiState.comparison)
                 }
@@ -143,7 +190,9 @@ fun DailyLogScreen(
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ) {
                 FoodPickerSheetContent(
-                    slot = uiState.selectedSlot ?: DefaultMealSlot.BREAKFAST,
+                    slotName = uiState.selectedSlot?.displayName
+                        ?: uiState.selectedCustomSlot?.name
+                        ?: "Meal Slot",
                     foods = allFoods,
                     onLogFood = { foodId, qty -> viewModel.logFood(foodId, qty) },
                     onDismiss = { viewModel.hideFoodPicker() }
@@ -227,7 +276,7 @@ fun DateNavigatorPill(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -244,13 +293,13 @@ fun DateNavigatorPill(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF1B5E20)
+                color = MaterialTheme.colorScheme.onSurface
             )
             IconButton(onClick = onNext, enabled = !isToday) {
                 Icon(
                     Icons.Default.KeyboardArrowRight,
                     contentDescription = "Next day",
-                    tint = if (isToday) Color.LightGray else TopBarGreen
+                    tint = if (isToday) MaterialTheme.colorScheme.outlineVariant else TopBarGreen
                 )
             }
         }
@@ -270,7 +319,7 @@ fun MacroSummaryCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -289,7 +338,7 @@ fun MacroSummaryCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFF5F5F5))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 TabToggleButton("Daily Log", selectedTab == 0, Modifier.weight(1f)) { onTabSelected(0) }
                 TabToggleButton("Plan vs Actual", selectedTab == 1, Modifier.weight(1f)) { onTabSelected(1) }
@@ -312,7 +361,7 @@ private fun TabToggleButton(label: String, selected: Boolean, modifier: Modifier
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (selected) Color.White else Color.Gray,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -344,7 +393,7 @@ fun MacroTile(label: String, actual: Int, unit: String, planned: Int, color: Col
             )
         }
         Spacer(Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -355,10 +404,17 @@ fun DailyLogTab(
     logWithFoods: DailyLogWithFoods?,
     plannedDiet: DietWithMeals? = null,
     expandedSlots: Set<String>,
+    savedSlotOrder: List<String> = emptyList(),
     onToggleSlot: (DefaultMealSlot) -> Unit,
+    onToggleCustomSlot: (String) -> Unit = {},
     onAddFood: (DefaultMealSlot) -> Unit,
+    onAddFoodToCustomSlot: (CustomMealSlot) -> Unit = {},
     onDeleteFood: (Long) -> Unit,
-    onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null
+    onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null,
+    customSlots: List<CustomMealSlot> = emptyList(),
+    onDeleteCustomSlot: (Long) -> Unit = {},
+    onAddCustomSlot: (String) -> Unit = {},
+    onReorderSlots: (List<String>, List<CustomMealSlot>) -> Unit = { _, _ -> }
 ) {
     val mainSlots = setOf(
         DefaultMealSlot.BREAKFAST, DefaultMealSlot.LUNCH,
@@ -377,19 +433,138 @@ fun DailyLogTab(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(slotsToShow) { slot ->
-            val slotFoods = logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
-            val plannedItems = plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
-            MealSlotCard(
-                slot = slot,
-                foods = slotFoods,
-                plannedItems = plannedItems,
-                isExpanded = slot.name in expandedSlots,
-                onToggleExpand = { onToggleSlot(slot) },
-                onAddFood = { onAddFood(slot) },
-                onDeleteFood = onDeleteFood,
-                onToggleSlotLogged = onToggleSlotLogged?.let { fn -> { fn(slot) } }
-            )
+        item(key = "all_slots") {
+            // Merge default + custom, restoring saved order if available
+            val unified = remember(slotsToShow, customSlots, savedSlotOrder) {
+                val all = slotsToShow.map { LogSlot.Default(it) } +
+                        customSlots.map { LogSlot.Custom(it) }
+                if (savedSlotOrder.isNotEmpty()) {
+                    val byKey = all.associateBy { it.key }
+                    val ordered = savedSlotOrder.mapNotNull { byKey[it] }
+                    val remaining = all.filter { it.key !in savedSlotOrder }
+                    (ordered + remaining).toMutableStateList()
+                } else {
+                    all.toMutableStateList()
+                }
+            }
+            var draggingKey by remember { mutableStateOf<String?>(null) }
+            var accY by remember { mutableFloatStateOf(0f) }
+            val cardHeightPx = with(LocalDensity.current) { 84.dp.toPx() }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                unified.forEach { logSlot ->
+                    val slotKey = logSlot.key
+                    val isDragging = slotKey == draggingKey
+                    val dragMod = Modifier.pointerInput(slotKey) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { draggingKey = slotKey; accY = 0f },
+                            onDrag = { change, delta ->
+                                change.consume()
+                                accY += delta.y
+                                val idx = unified.indexOfFirst { it.key == draggingKey }
+                                if (idx < 0) return@detectDragGesturesAfterLongPress
+                                if (accY > cardHeightPx / 2 && idx < unified.size - 1) {
+                                    unified.add(idx + 1, unified.removeAt(idx))
+                                    accY -= cardHeightPx
+                                } else if (accY < -cardHeightPx / 2 && idx > 0) {
+                                    unified.add(idx - 1, unified.removeAt(idx))
+                                    accY += cardHeightPx
+                                }
+                            },
+                            onDragEnd = {
+                                draggingKey = null; accY = 0f
+                                val allKeys = unified.map { it.key }
+                                val newCustomOrder = unified
+                                    .filterIsInstance<LogSlot.Custom>()
+                                    .map { it.customSlot }
+                                onReorderSlots(allKeys, newCustomOrder)
+                            },
+                            onDragCancel = { draggingKey = null; accY = 0f }
+                        )
+                    }
+                    when (logSlot) {
+                        is LogSlot.Default -> {
+                            val slot = logSlot.mealSlot
+                            val slotFoods = logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
+                            val plannedItems = plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
+                            MealSlotCard(
+                                slot = slot,
+                                foods = slotFoods,
+                                plannedItems = plannedItems,
+                                isExpanded = slot.name in expandedSlots,
+                                onToggleExpand = { onToggleSlot(slot) },
+                                onAddFood = { onAddFood(slot) },
+                                onDeleteFood = onDeleteFood,
+                                onToggleSlotLogged = onToggleSlotLogged?.let { fn -> { fn(slot) } },
+                                modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
+                                dragHandleModifier = dragMod
+                            )
+                        }
+                        is LogSlot.Custom -> {
+                            val slot = logSlot.customSlot
+                            val customKey = "CUSTOM_${slot.id}"
+                            val customFoods = logWithFoods?.foodsForSlot(customKey) ?: emptyList()
+                            CustomMealSlotCard(
+                                slot = slot,
+                                foods = customFoods,
+                                isExpanded = customKey in expandedSlots,
+                                onToggleExpand = { onToggleCustomSlot(customKey) },
+                                onDelete = { onDeleteCustomSlot(slot.id) },
+                                onAddFood = { onAddFoodToCustomSlot(slot) },
+                                onDeleteFood = onDeleteFood,
+                                modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
+                                dragHandleModifier = dragMod
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            var showAddSlotDialog by remember { mutableStateOf(false) }
+            var newSlotName by remember { mutableStateOf("") }
+
+            OutlinedButton(
+                onClick = { showAddSlotDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Add Meal Slot")
+            }
+
+            if (showAddSlotDialog) {
+                AlertDialog(
+                    onDismissRequest = { showAddSlotDialog = false; newSlotName = "" },
+                    title = { Text("New Meal Slot") },
+                    text = {
+                        OutlinedTextField(
+                            value = newSlotName,
+                            onValueChange = { newSlotName = it },
+                            label = { Text("Slot name") },
+                            singleLine = true
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (newSlotName.isNotBlank()) {
+                                    onAddCustomSlot(newSlotName)
+                                    showAddSlotDialog = false
+                                    newSlotName = ""
+                                }
+                            }
+                        ) { Text("Add") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showAddSlotDialog = false; newSlotName = "" }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
         item { Spacer(Modifier.height(80.dp)) }
     }
@@ -406,7 +581,9 @@ fun MealSlotCard(
     onToggleExpand: () -> Unit,
     onAddFood: () -> Unit,
     onDeleteFood: (Long) -> Unit,
-    onToggleSlotLogged: (() -> Unit)? = null
+    onToggleSlotLogged: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier
 ) {
     val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
     val plannedKcal = plannedItems.sumOf { it.calculatedCalories }.toInt()
@@ -419,9 +596,9 @@ fun MealSlotCard(
     val isSlotLogged = foods.isNotEmpty()
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column {
@@ -432,6 +609,15 @@ fun MealSlotCard(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Drag handle — long-press to reorder
+                Icon(
+                    Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    tint = Color(0xFFBBBBBB),
+                    modifier = dragHandleModifier
+                        .size(24.dp)
+                        .padding(end = 4.dp)
+                )
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -444,7 +630,7 @@ fun MealSlotCard(
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(slot.displayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 // Slot-level tick toggle (only when diet is assigned for this slot)
                 if (onToggleSlotLogged != null && plannedItems.isNotEmpty()) {
@@ -453,7 +639,7 @@ fun MealSlotCard(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(if (isSlotLogged) CaloriesColor else Color(0xFFE0E0E0))
+                            .background(if (isSlotLogged) CaloriesColor else MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { onToggleSlotLogged() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -471,7 +657,7 @@ fun MealSlotCard(
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -482,7 +668,7 @@ fun MealSlotCard(
                         Text(
                             "No foods logged",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
                     }
@@ -550,7 +736,7 @@ fun FoodRow(food: LoggedFoodWithDetails, onDelete: () -> Unit) {
             Text(
                 "${food.loggedFood.quantity.toInt()}g · ${food.calculatedCarbs.toInt()}g carbs",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Text(
@@ -560,7 +746,7 @@ fun FoodRow(food: LoggedFoodWithDetails, onDelete: () -> Unit) {
         )
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp), tint = Color.Gray)
+            Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -577,10 +763,10 @@ fun PlannedFoodRow(item: MealFoodItemWithDetails) {
             modifier = Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(Color.Gray.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Circle, contentDescription = null, tint = Color.Gray.copy(alpha = 0.4f), modifier = Modifier.size(8.dp))
+            Icon(Icons.Default.Circle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(8.dp))
         }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -588,7 +774,7 @@ fun PlannedFoodRow(item: MealFoodItemWithDetails) {
                 Text(
                     item.food.name,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -601,13 +787,13 @@ fun PlannedFoodRow(item: MealFoodItemWithDetails) {
             Text(
                 "${item.mealFoodItem.quantity.toInt()}g · ${item.calculatedCarbs.toInt()}g carbs",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }
         Text(
             "${item.calculatedCalories.toInt()} kcal",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.width(36.dp)) // align with FoodRow delete button space
     }
@@ -644,12 +830,12 @@ fun PlanVsActualTab(comparison: MacroComparison) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        LegendItem(Color.Gray.copy(alpha = 0.4f), "Planned")
+                        LegendItem(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), "Planned")
                         LegendItem(CaloriesColor, "Actual")
                         LegendItem(OverColor, "Over target")
                     }
@@ -669,7 +855,7 @@ fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(color))
         Spacer(Modifier.width(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -683,7 +869,7 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
     Column(modifier = Modifier.padding(vertical = 6.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-            Text("Plan: $planned$unit", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text("Plan: $planned$unit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(8.dp))
             Text("$actual$unit", style = MaterialTheme.typography.labelSmall, color = barColor, fontWeight = FontWeight.SemiBold)
             if (planned > 0) {
@@ -701,7 +887,7 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(Color.Gray.copy(alpha = 0.15f))
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
         ) {
             Box(
                 modifier = Modifier
@@ -714,11 +900,112 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
     }
 }
 
+// ── Custom Meal Slot Card ─────────────────────────────────────────────────────
+
+@Composable
+fun CustomMealSlotCard(
+    slot: CustomMealSlot,
+    foods: List<LoggedFoodWithDetails> = emptyList(),
+    isExpanded: Boolean = false,
+    onToggleExpand: () -> Unit = {},
+    onDelete: () -> Unit,
+    onAddFood: () -> Unit = {},
+    onDeleteFood: (Long) -> Unit = {},
+    modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier
+) {
+    val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
+    val subtitle = if (foods.isNotEmpty()) "${foods.size} logged · $loggedKcal kcal" else "Nothing logged"
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggleExpand)
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Drag handle — long-press to reorder
+                Icon(
+                    Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    tint = Color(0xFFBBBBBB),
+                    modifier = dragHandleModifier
+                        .size(24.dp)
+                        .padding(end = 4.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFB0BEC5).copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✦", style = MaterialTheme.typography.titleSmall)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(slot.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Remove slot",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                    if (foods.isEmpty()) {
+                        Text(
+                            "No foods logged",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                        )
+                    }
+                    foods.forEach { food ->
+                        FoodRow(food = food, onDelete = { onDeleteFood(food.loggedFood.id) })
+                        HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        TextButton(onClick = onAddFood) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = TopBarGreen)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Add Food", color = TopBarGreen, style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ── Food Picker Sheet ─────────────────────────────────────────────────────────
 
 @Composable
 fun FoodPickerSheetContent(
-    slot: DefaultMealSlot,
+    slotName: String,
     foods: List<FoodItem>,
     onLogFood: (foodId: Long, quantity: Double) -> Unit,
     onDismiss: () -> Unit
@@ -726,6 +1013,12 @@ fun FoodPickerSheetContent(
     var searchText by remember { mutableStateOf("") }
     var selectedFood by remember { mutableStateOf<FoodItem?>(null) }
     var quantityText by remember { mutableStateOf("100") }
+    val defaultUnit = remember(selectedFood) {
+        selectedFood?.preferredUnit?.let {
+            try { FoodUnit.valueOf(it) } catch (e: Exception) { null }
+        } ?: if (selectedFood?.gramsPerPiece != null) FoodUnit.PIECE else FoodUnit.GRAM
+    }
+    var selectedUnit by remember(selectedFood) { mutableStateOf(defaultUnit) }
 
     val filtered = remember(searchText, foods) {
         if (searchText.isEmpty()) foods
@@ -740,7 +1033,7 @@ fun FoodPickerSheetContent(
     ) {
         if (selectedFood == null) {
             Text(
-                "Add Food to ${slot.displayName}",
+                "Add Food to $slotName",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -763,13 +1056,13 @@ fun FoodPickerSheetContent(
                             Text(
                                 "${food.caloriesPer100.toInt()} kcal/100g · P:${food.proteinPer100.toInt()}g C:${food.carbsPer100.toInt()}g",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         trailingContent = { food.glycemicIndex?.let { GiBadge(it) } },
                         modifier = Modifier.clickable { selectedFood = food }
                     )
-                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                 }
             }
         } else {
@@ -787,26 +1080,56 @@ fun FoodPickerSheetContent(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            val qty = quantityText.toDoubleOrNull() ?: 100.0
+            val qty = quantityText.toDoubleOrNull() ?: 1.0
             val food = selectedFood!!
+            val grams = food.toGrams(qty, selectedUnit)
             Text(
-                "${(food.caloriesPer100 * qty / 100).toInt()} kcal · P:${(food.proteinPer100 * qty / 100).toInt()}g C:${(food.carbsPer100 * qty / 100).toInt()}g F:${(food.fatPer100 * qty / 100).toInt()}g",
+                "${(food.caloriesPer100 * grams / 100).toInt()} kcal · P:${(food.proteinPer100 * grams / 100).toInt()}g C:${(food.carbsPer100 * grams / 100).toInt()}g F:${(food.fatPer100 * grams / 100).toInt()}g",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = quantityText,
-                onValueChange = { quantityText = it },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Quantity (grams)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = quantityText,
+                    onValueChange = { quantityText = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("Quantity") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                var unitMenuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(
+                        onClick = { unitMenuExpanded = true },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(selectedUnit.shortLabel)
+                    }
+                    DropdownMenu(
+                        expanded = unitMenuExpanded,
+                        onDismissRequest = { unitMenuExpanded = false }
+                    ) {
+                        FoodUnit.entries.forEach { unit ->
+                            DropdownMenuItem(
+                                text = { Text(unit.label) },
+                                onClick = {
+                                    selectedUnit = unit
+                                    unitMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { onLogFood(food.id, qty) },
+                onClick = { onLogFood(food.id, grams) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = TopBarGreen)
             ) {
