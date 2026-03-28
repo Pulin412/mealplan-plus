@@ -39,26 +39,30 @@ fun ForgotPasswordScreen(
     }
 
     if (showDialog) {
+        val isSuccess = uiState.passwordResetEmailSent
         AlertDialog(
             onDismissRequest = {
                 showDialog = false
                 viewModel.clearForgotPasswordResult()
+                if (isSuccess) onNavigateToLogin()
             },
             icon = {
                 Icon(
                     Icons.Default.Email,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = if (isSuccess) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.error
                 )
             },
-            title = { Text("Password Recovery") },
+            title = { Text(if (isSuccess) "Check Your Inbox" else "Password Recovery") },
             text = { Text(dialogMessage) },
             confirmButton = {
-                TextButton(onClick = {
+                Button(onClick = {
                     showDialog = false
                     viewModel.clearForgotPasswordResult()
+                    if (isSuccess) onNavigateToLogin()
                 }) {
-                    Text("OK")
+                    Text(if (isSuccess) "Back to Sign In" else "OK")
                 }
             }
         )
@@ -100,7 +104,7 @@ fun ForgotPasswordScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Enter your registered email address",
+                text = "Enter your email and we'll send you a link to reset your password.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
@@ -143,7 +147,7 @@ fun ForgotPasswordScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Send Password", style = MaterialTheme.typography.labelLarge)
+                    Text("Send Reset Link", style = MaterialTheme.typography.labelLarge)
                 }
             }
 
