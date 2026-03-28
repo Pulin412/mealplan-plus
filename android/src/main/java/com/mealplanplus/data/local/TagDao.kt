@@ -4,6 +4,7 @@ import androidx.room.*
 import com.mealplanplus.data.model.DietTagCrossRef
 import com.mealplanplus.data.model.FoodTagCrossRef
 import com.mealplanplus.data.model.Tag
+import com.mealplanplus.data.model.TagWithDietId
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -27,6 +28,19 @@ interface TagDao {
         WHERE dt.dietId = :dietId
     """)
     fun getTagsForDietFlow(dietId: Long): Flow<List<Tag>>
+
+    /**
+     * Batch variant: fetches tags for multiple diets in a single query.
+     * Returns a flat list of [TagWithDietId] — group by [TagWithDietId.dietId] in the caller.
+     * Avoids the N+1 problem when loading a list of diets.
+     */
+    @Query("""
+        SELECT dt.dietId, t.id, t.userId, t.name, t.color, t.createdAt
+        FROM tags t
+        INNER JOIN diet_tags dt ON t.id = dt.tagId
+        WHERE dt.dietId IN (:dietIds)
+    """)
+    suspend fun getTagsForDiets(dietIds: List<Long>): List<TagWithDietId>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTag(tag: Tag): Long

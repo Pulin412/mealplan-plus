@@ -96,6 +96,22 @@ data class DietTagCrossRef(
 )
 
 /**
+ * Flat projection used by the batch tag query in [TagDao.getTagsForDiets].
+ * Carries the junction `dietId` alongside the tag fields so a single SQL query
+ * can return tags for many diets at once (avoids N+1 per-diet queries).
+ */
+data class TagWithDietId(
+    val dietId: Long,
+    val id: Long,
+    val userId: Long,
+    val name: String,
+    val color: String?,
+    val createdAt: Long
+) {
+    fun toTag() = Tag(id = id, userId = userId, name = name, color = color, createdAt = createdAt)
+}
+
+/**
  * Junction table: Food can have multiple tags
  */
 @Entity(

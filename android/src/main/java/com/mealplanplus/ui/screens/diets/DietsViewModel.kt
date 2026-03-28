@@ -56,7 +56,8 @@ data class DietsUiState(
 @HiltViewModel
 class DietsViewModel @Inject constructor(
     private val dietRepository: DietRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val dietDisplayCache: DietDisplayCache
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -65,8 +66,10 @@ class DietsViewModel @Inject constructor(
     private val _sortOption = MutableStateFlow(DietSortOption.NAME_ASC)
     private val _selectedTagIds = MutableStateFlow<Set<Long>>(emptySet())
     private val _tagFilterMode = MutableStateFlow(TagFilterMode.ANY)
-    private val _isLoading = MutableStateFlow(true)
-    private val _dietsWithMeals = MutableStateFlow<List<DietDisplayItem>>(emptyList())
+    // Pre-populate from the singleton cache so the list is visible immediately on
+    // re-navigation while Room refreshes in the background.
+    private val _isLoading = MutableStateFlow(dietDisplayCache.items.value.isEmpty())
+    private val _dietsWithMeals = MutableStateFlow(dietDisplayCache.items.value)
     private val _allTags = MutableStateFlow<List<Tag>>(emptyList())
     private val _showTagsDialog = MutableStateFlow(false)
 
@@ -155,14 +158,15 @@ class DietsViewModel @Inject constructor(
     private fun loadDietsWithMeals() {
         viewModelScope.launch {
             dietRepository.getDietsWithFullSummary().collect { summaries ->
-                _isLoading.value = true
+                // Show spinner only on the very first load (cache was empty).
+                // On re-navigation the cache is warm so we refresh silently.
+                _isLoading.value = _dietsWithMeals.value.isEmpty()
 
-                val enrichedItems = summaries.mapIndexed { idx, summary ->
-                    val tags = dietRepository.getTagsForDiet(summary.id)
-                    val dietWithMeals = dietRepository.getDietWithMeals(summary.id)
-                    val foodNames = dietWithMeals?.meals?.values?.filterNotNull()
-                        ?.flatMap { mwf -> mwf.items.map { it.food.name } } ?: emptyList()
-                    val assignedSlots = dietWithMeals?.meals?.keys?.toSet() ?: emptySet()
+                val dietIds = summaries.map { it.id }
+                val tagsMap = dietRepository.getTagsForDiets(dietIds)
+                val (foodNamesMap, slotsMap) = dietRepository.getDietFoodNamesAndSlots(dietIds)
+
+                val enrichedItems = summaries.map { summary ->
                     DietDisplayItem(
                         diet = summary.toDiet(),
                         totalCalories = summary.totalCalories,
@@ -170,12 +174,13 @@ class DietsViewModel @Inject constructor(
                         totalCarbs = summary.totalCarbs,
                         totalFat = summary.totalFat,
                         mealCount = summary.mealCount,
-                        tags = tags,
-                        foodNames = foodNames,
-                        assignedSlots = assignedSlots
+                        tags = tagsMap[summary.id] ?: emptyList(),
+                        foodNames = foodNamesMap[summary.id] ?: emptyList(),
+                        assignedSlots = slotsMap[summary.id] ?: emptySet()
                     )
                 }
                 _dietsWithMeals.value = enrichedItems
+                dietDisplayCache.items.value = enrichedItems  // keep singleton warm
                 _isLoading.value = false
             }
         }

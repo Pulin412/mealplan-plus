@@ -33,6 +33,33 @@ class DietRepository @Inject constructor(
 
     suspend fun getTagsForDiet(dietId: Long): List<Tag> = tagDao.getTagsForDiet(dietId)
 
+    /**
+     * Batch variant of [getTagsForDiet] — fetches tags for all diets in one query.
+     * Returns a map of dietId → list of tags.
+     */
+    suspend fun getTagsForDiets(dietIds: List<Long>): Map<Long, List<Tag>> {
+        if (dietIds.isEmpty()) return emptyMap()
+        return tagDao.getTagsForDiets(dietIds)
+            .groupBy({ it.dietId }, { it.toTag() })
+    }
+
+    /**
+     * Batch fetch of food names and assigned slot types for all given diets.
+     * Returns (foodNamesMap, slotsMap) — both keyed by dietId.
+     * Replaces per-diet [getDietWithMeals] calls when only names/slots are needed.
+     */
+    suspend fun getDietFoodNamesAndSlots(
+        dietIds: List<Long>
+    ): Pair<Map<Long, List<String>>, Map<Long, Set<String>>> {
+        if (dietIds.isEmpty()) return emptyMap<Long, List<String>>() to emptyMap()
+        val foodRows  = dietDao.getFoodNamesForDiets(dietIds)
+        val mealRows  = dietDao.getDietMealsForDiets(dietIds)
+        val foodNames = foodRows.groupBy({ it.dietId }, { it.foodName })
+        val slots     = mealRows.groupBy({ it.dietId }, { it.slotType })
+            .mapValues { (_, v) -> v.toSet() }
+        return foodNames to slots
+    }
+
     suspend fun getDietWithMeals(dietId: Long): DietWithMeals? {
         val diet = dietDao.getDietById(dietId) ?: return null
         val dietMeals = dietDao.getDietMeals(dietId)

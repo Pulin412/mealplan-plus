@@ -7,6 +7,12 @@ import com.mealplanplus.data.model.DietMeal
 import com.mealplanplus.data.model.DietSummary
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Flat row returned by [DietDao.getFoodNamesForDiets].
+ * Carries `dietId` so a single batch query can cover all diets at once.
+ */
+data class DietFoodNameRow(val dietId: Long, val foodName: String)
+
 @Dao
 interface DietDao {
     @Query("SELECT * FROM diets WHERE userId = :userId ORDER BY name ASC")
@@ -138,6 +144,29 @@ interface DietDao {
         ORDER BY d.name
     """)
     fun getDietsWithFullSummaryByUser(userId: Long): Flow<List<DietFullSummary>>
+
+    // ─── Batch enrichment helpers (avoids N+1 on the Diets screen) ──────────
+
+    /**
+     * Returns every food name that appears in any meal slot of the given diets.
+     * One query instead of one per diet — avoids N+1 when loading the diet list.
+     */
+    @Query("""
+        SELECT dm.dietId, f.name as foodName
+        FROM diet_meals dm
+        JOIN meals m ON dm.mealId = m.id
+        JOIN meal_food_items mfi ON m.id = mfi.mealId
+        JOIN food_items f ON mfi.foodId = f.id
+        WHERE dm.dietId IN (:dietIds)
+    """)
+    suspend fun getFoodNamesForDiets(dietIds: List<Long>): List<DietFoodNameRow>
+
+    /**
+     * Returns all diet_meal rows for the given diets in a single query.
+     * Used to determine which slot types each diet has assigned.
+     */
+    @Query("SELECT * FROM diet_meals WHERE dietId IN (:dietIds)")
+    suspend fun getDietMealsForDiets(dietIds: List<Long>): List<DietMeal>
 
     // Sync helpers (v19)
     @Query("SELECT * FROM diets WHERE userId = :userId AND (syncedAt IS NULL OR updatedAt > syncedAt)")
