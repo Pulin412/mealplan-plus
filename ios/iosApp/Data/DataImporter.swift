@@ -281,13 +281,16 @@ final class DataImporter {
 
     private func parseUnit(_ unitStr: String) -> FoodUnit {
         switch unitStr.lowercased() {
-        case "g", "gram", "grams": return .gram
-        case "piece", "pieces": return .piece
-        case "cup", "cups": return .cup
-        case "tbsp": return .tbsp
-        case "tsp": return .tsp
-        case "ml": return .gram
-        default: return .gram
+        case "g", "gram", "grams":          return .gram
+        case "ml":                          return .ml
+        case "serving", "servings", "srv":  return .serving
+        case "piece", "pieces", "pcs":      return .piece
+        case "cup", "cups":                 return .cup
+        case "tbsp":                        return .tbsp
+        case "tsp":                         return .tsp
+        case "slice", "slices":             return .slice
+        case "scoop", "scoops":             return .scoop
+        default:                            return .gram
         }
     }
 }

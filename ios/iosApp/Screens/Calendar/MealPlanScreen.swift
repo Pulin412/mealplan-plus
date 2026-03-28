@@ -17,6 +17,9 @@ private struct SlotInfo {
 }
 
 private func slotInfo(for slot: String) -> SlotInfo {
+    if slot.uppercased().hasPrefix("CUSTOM:") {
+        return SlotInfo(emoji: "⭐", color: Color(red: 0x7B/255.0, green: 0x1F/255.0, blue: 0xA2/255.0))
+    }
     switch slot {
     case "EARLY_MORNING":   return SlotInfo(emoji: "🌙", color: Color(red: 0x31/255.0, green: 0x3A/255.0, blue: 0x4A/255.0))
     case "BREAKFAST":       return SlotInfo(emoji: "🌅", color: Color(red: 0xFF/255.0, green: 0x98/255.0, blue: 0x00/255.0))
@@ -37,6 +40,14 @@ private let allSlots = ["EARLY_MORNING", "BREAKFAST", "NOON", "MID_MORNING", "LU
                         "PRE_WORKOUT", "EVENING", "EVENING_SNACK", "POST_WORKOUT", "DINNER", "POST_DINNER"]
 
 private func slotDisplayName(_ slot: String) -> String {
+    if slot.uppercased().hasPrefix("CUSTOM:") {
+        let rawName = String(slot.dropFirst("CUSTOM:".count))
+        return rawName
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.isEmpty ? "" : $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+            .joined(separator: " ")
+    }
     switch slot {
     case "EARLY_MORNING":   return "Early Morning"
     case "BREAKFAST":       return "Breakfast"
@@ -79,6 +90,7 @@ struct MealPlanScreen: View {
     @State private var currentMonth: Date = Date()
     @State private var showDietPicker = false
     @State private var dietPickerDate: Date = Date()
+    @State private var selectedDetailMeal: IdentifiableMealWrapper? = nil
 
     private var userId: Int64 { appState.currentUserId ?? 0 }
 
@@ -102,6 +114,9 @@ struct MealPlanScreen: View {
                 showDietPicker = false
             }
             .environmentObject(appState)
+        }
+        .sheet(item: $selectedDetailMeal) { wrapper in
+            MealPlanDetailSheet(wrapper: wrapper)
         }
         .onAppear { loadData() }
     }
@@ -187,8 +202,15 @@ struct MealPlanScreen: View {
                 if plansVM.isWeekView {
                     Button(action: {
                         let prev = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: selectedDate)!
-                        selectedDate = prev
-                        plansVM.selectDate(isoString(prev), userId: userId)
+                        let prevMonthDate = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: prev))!
+                        if !Calendar.current.isDate(prevMonthDate, equalTo: currentMonth, toGranularity: .month) {
+                            currentMonth = prevMonthDate
+                            selectedDate = prev
+                            loadData()
+                        } else {
+                            selectedDate = prev
+                            plansVM.selectDate(isoString(prev), userId: userId)
+                        }
                     }) {
                         Image(systemName: "chevron.left").foregroundColor(darkGreen)
                     }
@@ -207,8 +229,15 @@ struct MealPlanScreen: View {
                 if plansVM.isWeekView {
                     Button(action: {
                         let next = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: selectedDate)!
-                        selectedDate = next
-                        plansVM.selectDate(isoString(next), userId: userId)
+                        let nextMonthDate = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: next))!
+                        if !Calendar.current.isDate(nextMonthDate, equalTo: currentMonth, toGranularity: .month) {
+                            currentMonth = nextMonthDate
+                            selectedDate = next
+                            loadData()
+                        } else {
+                            selectedDate = next
+                            plansVM.selectDate(isoString(next), userId: userId)
+                        }
                     }) {
                         Image(systemName: "chevron.right").foregroundColor(darkGreen)
                     }
@@ -518,6 +547,9 @@ struct MealPlanScreen: View {
 
     private func dietDetailSection(_ dwm: DietWithMeals) -> some View {
         let mealsMap = buildMealsMap(dwm)
+        // Standard slots + any custom slots (CUSTOM: prefix) present in the diet
+        let customSlots = mealsMap.keys.filter { $0.uppercased().hasPrefix("CUSTOM:") }.sorted()
+        let displaySlots = allSlots + customSlots
         return VStack(alignment: .leading, spacing: 12) {
             // Macro tiles
             HStack(spacing: 8) {
@@ -534,10 +566,24 @@ struct MealPlanScreen: View {
             }
             // Meal slots
             VStack(spacing: 0) {
-                ForEach(allSlots, id: \.self) { slot in
+                ForEach(displaySlots, id: \.self) { slot in
                     let meal = mealsMap[slot] ?? nil
-                    MealPlanSlotRow(slot: slot, meal: meal)
-                    if slot != allSlots.last {
+                    let items = (meal?.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+                    let hasItems = meal != nil && !items.isEmpty
+                    if hasItems, let m = meal {
+                        Button {
+                            selectedDetailMeal = IdentifiableMealWrapper(
+                                mealWithFoods: m,
+                                title: slotDisplayName(slot)
+                            )
+                        } label: {
+                            MealPlanSlotRow(slot: slot, meal: meal, showChevron: true)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        MealPlanSlotRow(slot: slot, meal: meal)
+                    }
+                    if slot != displaySlots.last {
                         Divider().padding(.leading, 44)
                     }
                 }
@@ -585,8 +631,11 @@ struct MealPlanScreen: View {
         let calendar = Calendar.current
         let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
         let lastOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: firstOfMonth)!
+        // Extend ±6 days so weeks that straddle a month boundary are fully covered
+        let startDate = calendar.date(byAdding: .day, value: -6, to: firstOfMonth)!
+        let endDate = calendar.date(byAdding: .day, value: 6, to: lastOfMonth)!
 
-        plansVM.loadPlans(userId: userId, startDate: isoString(firstOfMonth), endDate: isoString(lastOfMonth))
+        plansVM.loadPlans(userId: userId, startDate: isoString(startDate), endDate: isoString(endDate))
         plansVM.selectDate(isoString(selectedDate), userId: userId)
     }
 
@@ -724,6 +773,7 @@ struct MacroTile: View {
 struct MealPlanSlotRow: View {
     let slot: String
     let meal: MealWithFoods?
+    var showChevron: Bool = false
 
     var body: some View {
         let info = slotInfo(for: slot)
@@ -731,13 +781,14 @@ struct MealPlanSlotRow: View {
             ZStack {
                 Circle()
                     .fill(info.color.opacity(0.15))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                 Text(info.emoji)
                     .font(.system(size: 16))
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(slotDisplayName(slot))
                     .font(.caption)
+                    .fontWeight(.medium)
                     .foregroundColor(.secondary)
                 Text(meal?.meal.name ?? "—")
                     .font(.subheadline)
@@ -745,8 +796,127 @@ struct MealPlanSlotRow: View {
                     .foregroundColor(meal != nil ? .primary : .secondary)
             }
             Spacer()
+            if showChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
+    }
+}
+
+// MARK: - Identifiable wrapper for MealWithFoods (for sheet(item:))
+
+struct IdentifiableMealWrapper: Identifiable {
+    let id = UUID()
+    let mealWithFoods: MealWithFoods
+    let title: String
+}
+
+// MARK: - MealPlanDetailSheet (read-only ingredient view from calendar)
+
+struct MealPlanDetailSheet: View {
+    let wrapper: IdentifiableMealWrapper
+
+    enum SortOrder { case none, az, qty }
+    @State private var sortOrder: SortOrder = .none
+
+    private var items: [MealFoodItemWithDetails] {
+        let base = (wrapper.mealWithFoods.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+        switch sortOrder {
+        case .none: return base
+        case .az:   return base.sorted { $0.food.name < $1.food.name }
+        case .qty:  return base.sorted { $0.mealFoodItem.quantity > $1.mealFoodItem.quantity }
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                // Macro header
+                Section {
+                    HStack {
+                        MacroTile(value: Int(wrapper.mealWithFoods.totalCalories), label: "Calories", unit: "kcal")
+                        MacroTile(value: Int(wrapper.mealWithFoods.totalProtein),  label: "Protein",  unit: "g")
+                        MacroTile(value: Int(wrapper.mealWithFoods.totalCarbs),    label: "Carbs",    unit: "g")
+                        MacroTile(value: Int(wrapper.mealWithFoods.totalFat),      label: "Fat",      unit: "g")
+                    }
+                }
+
+                // Sort chips
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            sortChip("A–Z", active: sortOrder == .az) { sortOrder = sortOrder == .az ? .none : .az }
+                            sortChip("Qty ↓", active: sortOrder == .qty) { sortOrder = sortOrder == .qty ? .none : .qty }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+
+                // Ingredients
+                Section("Ingredients (\(items.count))") {
+                    ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.food.name)
+                                    .font(.system(size: 15, weight: .medium))
+                                Text(ingredientSubtitle(item))
+                                    .font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("\(Int(item.calculatedCalories)) kcal")
+                                    .font(.caption).fontWeight(.semibold).foregroundColor(.green)
+                                HStack(spacing: 4) {
+                                    Text("P\(Int(item.calculatedProtein))g").font(.caption2).foregroundColor(.blue)
+                                    Text("C\(Int(item.calculatedCarbs))g").font(.caption2).foregroundColor(.orange)
+                                    Text("F\(Int(item.calculatedFat))g").font(.caption2).foregroundColor(.pink)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle(wrapper.mealWithFoods.meal.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text(wrapper.mealWithFoods.meal.name).font(.headline)
+                        Text(wrapper.title).font(.caption).foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func sortChip(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption)
+                .padding(.horizontal, 12).padding(.vertical, 5)
+                .background(active ? Color.green : Color(.systemGray5))
+                .foregroundColor(active ? .white : .primary)
+                .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func ingredientSubtitle(_ item: MealFoodItemWithDetails) -> String {
+        let qty = item.mealFoodItem.quantity
+        let unitName = item.mealFoodItem.unit.name
+        let formatted = qty == floor(qty) ? "\(Int(qty))" : String(format: "%.1f", qty)
+        switch unitName {
+        case "GRAM":    return "\(formatted)g"
+        case "ML":      return "\(formatted)ml"
+        case "SERVING": return "\(formatted) srv"
+        case "PIECE":   return "\(formatted) pcs"
+        default:        return "\(formatted) \(unitName.lowercased())"
+        }
     }
 }

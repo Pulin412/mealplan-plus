@@ -918,13 +918,38 @@ struct HomeDietPickerSheet: View {
     }
 }
 
-// MARK: - Home Meal Detail Sheet (read-only ingredient view)
+// MARK: - Home Meal Detail Sheet (ingredient checklist view)
 
 struct HomeMealDetailSheet: View {
     let slot: TodayPlanSlot
     @StateObject private var mealsVM = MealsViewModel()
     @State private var mealWithFoods: MealWithFoods? = nil
     @State private var isLoading = true
+    @State private var checkedIds: Set<Int64> = []
+
+    enum SortOrderHMD { case none, az, qty }
+    @State private var sortOrder: SortOrderHMD = .none
+
+    private func sortedItems(_ items: [MealFoodItemWithDetails]) -> [MealFoodItemWithDetails] {
+        switch sortOrder {
+        case .none: return items
+        case .az:   return items.sorted { $0.food.name < $1.food.name }
+        case .qty:  return items.sorted { $0.mealFoodItem.quantity > $1.mealFoodItem.quantity }
+        }
+    }
+
+    private func quantityText(_ item: MealFoodItemWithDetails) -> String {
+        let qty = item.mealFoodItem.quantity
+        let unitName = item.mealFoodItem.unit.name
+        let formatted = qty == floor(qty) ? "\(Int(qty))" : String(format: "%.1f", qty)
+        switch unitName {
+        case "GRAM":    return "\(formatted)g"
+        case "ML":      return "\(formatted)ml"
+        case "SERVING": return "\(formatted) srv"
+        case "PIECE":   return "\(formatted) pcs"
+        default:        return "\(formatted) \(unitName.lowercased())"
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -932,6 +957,10 @@ struct HomeMealDetailSheet: View {
                 if isLoading {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let mwf = mealWithFoods {
+                    let allItems = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
+                    let displayItems = sortedItems(allItems)
+                    let checkedCount = allItems.filter { checkedIds.contains($0.food.id) }.count
+
                     List {
                         // Macro header
                         Section {
@@ -942,24 +971,70 @@ struct HomeMealDetailSheet: View {
                                 MacroMiniTile(label: "Fat",      value: "\(Int(mwf.totalFat))g",      unit: "", color: .pink)
                             }
                         }
-                        // Ingredients
-                        Section("Ingredients") {
-                            let items = (mwf.items as? NSArray)?.compactMap { $0 as? MealFoodItemWithDetails } ?? []
-                            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.food.name).font(.system(size: 14, weight: .medium))
-                                        Text("\(Int(item.mealFoodItem.quantity))g · \(Int(item.calculatedCalories)) kcal")
-                                            .font(.caption).foregroundColor(.secondary)
+
+                        // Sort chips + progress bar
+                        Section {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    hmdSortChip("A–Z", active: sortOrder == .az) {
+                                        sortOrder = sortOrder == .az ? .none : .az
                                     }
-                                    Spacer()
-                                    VStack(alignment: .trailing, spacing: 2) {
-                                        Text("P \(Int(item.calculatedProtein))g").font(.caption2).foregroundColor(.blue)
-                                        Text("C \(Int(item.calculatedCarbs))g").font(.caption2).foregroundColor(.orange)
-                                        Text("F \(Int(item.calculatedFat))g").font(.caption2).foregroundColor(.pink)
+                                    hmdSortChip("Qty ↓", active: sortOrder == .qty) {
+                                        sortOrder = sortOrder == .qty ? .none : .qty
                                     }
                                 }
                                 .padding(.vertical, 2)
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text("\(checkedCount) of \(allItems.count) prepared")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    if checkedCount > 0 {
+                                        Button("Clear all") { checkedIds.removeAll() }
+                                            .font(.caption)
+                                            .foregroundColor(.red)
+                                    }
+                                }
+                                ProgressView(value: Double(checkedCount), total: Double(max(allItems.count, 1)))
+                                    .tint(.green)
+                            }
+                        }
+
+                        // Ingredients
+                        Section("Ingredients (\(allItems.count))") {
+                            ForEach(Array(displayItems.enumerated()), id: \.offset) { _, item in
+                                let isChecked = checkedIds.contains(item.food.id)
+                                Button(action: {
+                                    if isChecked {
+                                        checkedIds.remove(item.food.id)
+                                    } else {
+                                        checkedIds.insert(item.food.id)
+                                    }
+                                }) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                                            .foregroundColor(isChecked ? .green : .secondary)
+                                            .font(.title3)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(item.food.name)
+                                                .font(.system(size: 15, weight: .medium))
+                                                .strikethrough(isChecked, color: .secondary)
+                                                .foregroundColor(isChecked ? .secondary : .primary)
+                                            Text("\(quantityText(item)) · \(Int(item.calculatedCalories)) kcal")
+                                                .font(.caption).foregroundColor(.secondary)
+                                        }
+                                        Spacer()
+                                        VStack(alignment: .trailing, spacing: 2) {
+                                            Text("P \(Int(item.calculatedProtein))g").font(.caption2).foregroundColor(.blue)
+                                            Text("C \(Int(item.calculatedCarbs))g").font(.caption2).foregroundColor(.orange)
+                                            Text("F \(Int(item.calculatedFat))g").font(.caption2).foregroundColor(.pink)
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -979,6 +1054,19 @@ struct HomeMealDetailSheet: View {
                 isLoading = false
             }
         }
+    }
+
+    @ViewBuilder
+    private func hmdSortChip(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption)
+                .padding(.horizontal, 12).padding(.vertical, 5)
+                .background(active ? Color.green : Color(.systemGray5))
+                .foregroundColor(active ? .white : .primary)
+                .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
     }
 }
 

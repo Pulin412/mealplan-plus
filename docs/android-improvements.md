@@ -2,7 +2,69 @@
 
 Tracks UI/UX and feature improvements made to the Android app.
 Each entry notes what changed and the file(s) affected.
-iOS parity to be reviewed separately at a later stage.
+
+---
+
+## 2026-03-27 — iOS Parity
+
+iOS parity implemented on branch `feature/ios-android-parity` for all changes below.
+
+### Shared KMP module — SERVING unit added
+**Files:** `shared/.../FoodUnit.kt`, `shared/.../FoodItem.kt`
+
+**What changed:**
+- Added `SERVING("Servings", "srv")` to the shared KMP `FoodUnit` enum (was missing; only existed in the Android-only enum)
+- `FoodItem.toGrams()` in shared now handles `FoodUnit.SERVING → quantity × 100.0`
+- `PIECE` label updated to "Pieces" / shortLabel "pcs" to match Android
+
+### iOS — Meal Plan calendar dots fix
+**File:** `ios/.../MealPlanScreen.swift`
+
+- `loadData()` range extended ±6 days (matches Android `CalendarViewModel` fix)
+- Week navigation prev/next buttons now check month boundary: if the new week lands in a different month, `currentMonth` is updated and `loadData()` is called to reload plans for the new month
+- `slotInfo(for:)` and `slotDisplayName(_:)` now handle `CUSTOM:` prefix for custom slots
+
+### iOS — Meal Plan tappable slots
+**File:** `ios/.../MealPlanScreen.swift`
+
+- `MealPlanSlotRow` gains `showChevron: Bool = false` — shows chevron `>` when meal has ingredients
+- `dietDetailSection` now includes custom slots (keys with `CUSTOM:` prefix from `mealsMap`)
+- Tapping a slot with ingredients presents `MealPlanDetailSheet` (read-only, `readOnly = true`)
+- `MealPlanDetailSheet`: macro tiles + A–Z / Qty sort chips + ingredients list with unit-aware quantity display
+- Added `IdentifiableMealWrapper` struct for `sheet(item:)` presentation
+
+### iOS — HomeMealDetailSheet overhaul (Meal Detail checklist)
+**File:** `ios/.../HomeScreen.swift`
+
+- Unit display fixed: `"\(Int(quantity))g"` → unit-aware string (`g`, `ml`, `srv`, `pcs`)
+- Added ingredient **checkboxes** — tap row or checkbox to mark as prepared; checked rows get strikethrough + dimmed
+- Added **A–Z / Qty** sort chips
+- Added **progress bar** ("X of N prepared") with "Clear all" button
+
+### iOS — Create Diet + custom meal slots
+**Files:** `ios/.../DietDetailScreen.swift`
+
+- `dietSlotDisplayName()` and `dietSlotIcon()` now handle `CUSTOM:` prefix:
+  - Display name: splits by `_`/space, title-cases each word (e.g. `CUSTOM:EVENING_TEA` → "Evening Tea")
+  - Icon: `star.fill` for custom slots
+- `mealSlotsSection()` now includes custom slots from `mealsMap` (those with `CUSTOM:` prefix)
+- **"Add Custom Meal Slot"** button shown in edit mode (purple dashed border); opens alert to type a name
+- Custom slot name saved as `CUSTOM:<name>` slotType — no DB migration needed
+- `MealSlotCardNew` and `EmptyMealSlotCard` accept `isCustom: Bool` — shows a purple "custom" badge next to the slot label
+
+### iOS — Food picker: Pieces + Servings units + correct unit storage
+**Files:** `ios/.../AddMealScreen.swift`, `ios/.../FoodsScreen.swift`, `ios/.../Data/DataImporter.swift`
+
+- `FoodItemUI` gains `quantity: Double = 100.0` and `unitKmpName: String = "GRAM"` (backward-compatible defaults)
+- `FoodPickerScreen` no longer immediately adds food; tapping a food now shows `FoodQuantitySheetView`
+- `FoodQuantitySheetView`:
+  - Segmented unit picker: Grams / ml / Servings / Pieces
+  - Quantity text field + quick-select chips (50/100/150/200g, 50/100/200/250ml, 0.5/1/1.5/2 srv, 1/2/3/4 pcs)
+  - Live macro preview (calories/protein/carbs/fat) calculated from actual quantity × unit
+  - "1 piece ≈ Xg" hint when Pieces is selected
+- `populateIfEditing()` now stores actual quantity + unit in `FoodItemUI` (was always "g")
+- `saveMeal()` now calls `addFoodToMeal(quantity: food.quantity, unit: foodUnitFromKmpName(food.unitKmpName))` instead of hardcoded `100.0, .gram`
+- `DataImporter.parseUnit()` updated to map "serving/srv" → `.serving`, "slice" → `.slice`, "scoop" → `.scoop`
 
 ---
 

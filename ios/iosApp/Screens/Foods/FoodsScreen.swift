@@ -593,7 +593,9 @@ struct FoodItemUI: Identifiable {
     let protein: Double
     let carbs: Double
     let fat: Double
-    let unit: String
+    let unit: String           // display string, e.g. "100g", "2 srv", "3 pcs"
+    var quantity: Double = 100.0
+    var unitKmpName: String = "GRAM"   // KMP FoodUnit.name, e.g. "GRAM", "SERVING", "PIECE"
 }
 
 struct FoodsScreen_Previews: PreviewProvider {
