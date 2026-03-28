@@ -104,6 +104,13 @@ class DailyLogRepository @Inject constructor(
         dailyLogDao.clearLoggedFoodsForSlot(getCurrentUserId(), date.format(dateFormatter), slotType)
     }
 
+    /** Returns true if any food has been logged for [slotType] on [date]. Queries the DB directly (never stale). */
+    suspend fun isSlotLogged(date: LocalDate, slotType: String): Boolean {
+        val userId = getCurrentUserId()
+        val dateStr = date.format(dateFormatter)
+        return dailyLogDao.getLoggedFoodsForSlot(userId, dateStr, slotType).isNotEmpty()
+    }
+
     suspend fun clearAllFoodsForDate(date: LocalDate) {
         dailyLogDao.clearLoggedFoods(getCurrentUserId(), date.format(dateFormatter))
     }
@@ -134,6 +141,8 @@ class DailyLogRepository @Inject constructor(
         }
 
         dietWithMeals.meals.forEach { (slotType, mealWithFoods) ->
+            // Clear this slot first so re-applying the same diet never creates duplicates
+            dailyLogDao.clearLoggedFoodsForSlot(userId, dateStr, slotType)
             mealWithFoods?.items?.forEach { foodItem ->
                 dailyLogDao.insertLoggedFood(
                     LoggedFood(

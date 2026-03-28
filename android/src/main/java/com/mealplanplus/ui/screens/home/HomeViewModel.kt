@@ -17,6 +17,9 @@ import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.extractShortDietName
+import androidx.glance.appwidget.updateAll
+import com.mealplanplus.widget.DietSummaryWidget
+import com.mealplanplus.widget.TodayPlanWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -288,10 +291,15 @@ class HomeViewModel @Inject constructor(
     fun toggleSlotLogged(slot: TodayPlanSlot) {
         viewModelScope.launch {
             val today = LocalDate.now()
-            if (slot.isLogged) {
+            // Query the DB directly to avoid acting on stale UI state (prevents double-logging)
+            val isCurrentlyLogged = dailyLogRepository.isSlotLogged(today, slot.slotType)
+            if (isCurrentlyLogged) {
                 // Un-log: clear all logged foods for this slot
                 dailyLogRepository.clearSlot(today, slot.slotType)
             } else if (slot.plannedFoods.isNotEmpty()) {
+                // Always clear first — makes this operation idempotent even if called concurrently
+                // or if stale duplicate rows exist from a previous bug. No-op when already empty.
+                dailyLogRepository.clearSlot(today, slot.slotType)
                 // Log: insert LoggedFood for each food in the planned meal
                 val timestamp = System.currentTimeMillis()
                 slot.plannedFoods.forEach { foodItem ->
@@ -305,6 +313,9 @@ class HomeViewModel @Inject constructor(
                 }
             }
             // getLogWithFoods flow auto-refreshes todayPlanSlots and DailyLogScreen
+            // Also push the change to the home-screen widgets immediately
+            TodayPlanWidget().updateAll(context)
+            DietSummaryWidget().updateAll(context)
         }
     }
 

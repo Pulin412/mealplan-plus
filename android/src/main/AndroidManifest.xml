@@ -33,6 +33,47 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- ── Home Screen Widgets ──────────────────────────────────────── -->
+
+        <!-- Mini Calendar Widget -->
+        <receiver
+            android:name=".widget.CalendarWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_calendar_description">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_calendar_info" />
+        </receiver>
+
+        <!-- Today's Plan Widget -->
+        <receiver
+            android:name=".widget.TodayPlanWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_today_plan_description">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_plan_info" />
+        </receiver>
+
+        <!-- Today's Diet Summary Widget -->
+        <receiver
+            android:name=".widget.DietSummaryWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_diet_summary_description">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_diet_summary_info" />
+        </receiver>
     </application>
 
 </manifest>

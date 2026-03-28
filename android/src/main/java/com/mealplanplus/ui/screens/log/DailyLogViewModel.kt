@@ -11,6 +11,9 @@ import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
+import androidx.glance.appwidget.updateAll
+import com.mealplanplus.widget.DietSummaryWidget
+import com.mealplanplus.widget.TodayPlanWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -203,11 +206,15 @@ class DailyLogViewModel @Inject constructor(
                 timestamp = System.currentTimeMillis()
             )
             hideFoodPicker()
+            updateWidgetsIfToday()
         }
     }
 
     fun deleteLoggedFood(id: Long) {
-        viewModelScope.launch { logRepository.deleteLoggedFood(id) }
+        viewModelScope.launch {
+            logRepository.deleteLoggedFood(id)
+            updateWidgetsIfToday()
+        }
     }
 
     // ── Plan management ───────────────────────────────────────────────────────
@@ -223,6 +230,7 @@ class DailyLogViewModel @Inject constructor(
                 logRepository.applyDiet(date, dietWithMeals)
                 loadPlanForDate(date)
             }
+            updateWidgetsIfToday()
         }
     }
 
@@ -245,11 +253,15 @@ class DailyLogViewModel @Inject constructor(
     fun toggleSlotLogged(slot: DefaultMealSlot) {
         viewModelScope.launch {
             val date = _date.value
-            val slotFoods = _uiState.value.logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
-            if (slotFoods.isNotEmpty()) {
+            // Query the DB directly so we never act on stale UI state (prevents double-logging)
+            val isCurrentlyLogged = logRepository.isSlotLogged(date, slot.name)
+            if (isCurrentlyLogged) {
                 logRepository.clearSlot(date, slot.name)
             } else {
                 val plannedItems = _uiState.value.plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
+                // Always clear first — makes this operation idempotent even if called concurrently
+                // or if stale duplicate rows exist from a previous bug. No-op when already empty.
+                logRepository.clearSlot(date, slot.name)
                 val timestamp = System.currentTimeMillis()
                 plannedItems.forEach { foodItem ->
                     logRepository.logFood(
@@ -261,6 +273,7 @@ class DailyLogViewModel @Inject constructor(
                     )
                 }
             }
+            updateWidgetsIfToday()
         }
     }
 
@@ -269,6 +282,7 @@ class DailyLogViewModel @Inject constructor(
             logRepository.clearAllFoodsForDate(_date.value)
             planRepository.removePlan(_date.value.toString())
             loadPlanForDate(_date.value)
+            updateWidgetsIfToday()
         }
     }
 
@@ -276,6 +290,19 @@ class DailyLogViewModel @Inject constructor(
         viewModelScope.launch {
             planRepository.uncompletePlan(_date.value.toString())
             loadPlanForDate(_date.value)
+        }
+    }
+
+    /**
+     * Push widget refresh only when the user is editing today's log.
+     * Called after every DB mutation that changes logged-food data.
+     */
+    private fun updateWidgetsIfToday() {
+        if (_date.value == LocalDate.now()) {
+            viewModelScope.launch {
+                TodayPlanWidget().updateAll(context)
+                DietSummaryWidget().updateAll(context)
+            }
         }
     }
 

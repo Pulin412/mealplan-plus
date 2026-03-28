@@ -50,6 +50,7 @@ import com.mealplanplus.ui.screens.calendar.CalendarScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.charts.ChartsScreen
 import com.mealplanplus.ui.screens.settings.SettingsScreen
+import com.mealplanplus.ui.screens.settings.WidgetSettingsScreen
 import com.mealplanplus.ui.screens.scanner.BarcodeScannerScreen
 import com.mealplanplus.ui.screens.scanner.OnlineSearchScreen
 import com.mealplanplus.ui.screens.meals.FoodPickerScreen
@@ -67,6 +68,12 @@ import com.mealplanplus.ui.screens.grocery.GroceryDetailScreen
 import android.app.Activity
 import android.content.Intent
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.widget.NAV_CALENDAR
+import com.mealplanplus.widget.NAV_CALENDAR_FOR_DATE
+import com.mealplanplus.widget.NAV_DIET_DETAIL
+import com.mealplanplus.widget.NAV_HOME
+import com.mealplanplus.widget.NAV_LOG_FOR_DATE
+import com.mealplanplus.widget.WidgetDeepLink
 
 private val PrimaryGreen = Color(0xFF2E7D52)
 
@@ -111,6 +118,9 @@ sealed class Screen(val route: String) {
         fun createRoute(date: String) = "diet_picker/$date"
     }
     object Calendar : Screen("calendar")
+    object CalendarWithDate : Screen("calendar_date/{initialDate}") {
+        fun createRoute(date: String) = "calendar_date/$date"
+    }
     object Health : Screen("health")
     object Charts : Screen("charts")
     object ForgotPassword : Screen("forgot_password")
@@ -123,6 +133,7 @@ sealed class Screen(val route: String) {
         fun createRoute(listId: Long) = "grocery_detail/$listId"
     }
     object FoodPickerForCustomSlot : Screen("food_picker_custom_slot")
+    object WidgetSettings : Screen("widget_settings")
 }
 
 // Bottom nav tab definitions
@@ -145,6 +156,7 @@ private val bottomNavItems = listOf(
 private val bottomNavRoutes = setOf(
     Screen.Home.route,
     Screen.Calendar.route,
+    Screen.CalendarWithDate.route,
     Screen.DailyLog.route,
     Screen.Diets.route,
     Screen.Health.route,
@@ -152,7 +164,12 @@ private val bottomNavRoutes = setOf(
 )
 
 @Composable
-fun MealPlanNavHost() {
+fun MealPlanNavHost(
+    widgetDeepLink: WidgetDeepLink? = null
+) {
+    val widgetNavTarget = widgetDeepLink?.target
+    val widgetDate      = widgetDeepLink?.date
+    val widgetDietId    = widgetDeepLink?.dietId
     val navController = rememberNavController()
     val context = LocalContext.current
     val isLoggedIn by AuthPreferences.isLoggedIn(context).collectAsState(initial = null)
@@ -179,6 +196,43 @@ fun MealPlanNavHost() {
             }
             activity.startActivity(intent)
             activity.finish()
+        }
+    }
+
+    // Handle widget deep-links.
+    // Key on widgetDeepLink?.id so that:
+    //   • every new tap (even to the same destination type) triggers navigation, and
+    //   • warm-launch taps (onNewIntent) re-run the effect because MainActivity updates
+    //     widgetDeepLink with a fresh id each time.
+    LaunchedEffect(widgetDeepLink?.id) {
+        if (widgetNavTarget == null || isLoggedIn != true) return@LaunchedEffect
+        when (widgetNavTarget) {
+            NAV_HOME -> navController.navigate(Screen.Home.route) {
+                popUpTo(Screen.Home.route) { inclusive = false }
+                launchSingleTop = true
+            }
+            NAV_CALENDAR -> navController.navigate(Screen.Calendar.route) {
+                popUpTo(Screen.Home.route) { inclusive = false }
+                launchSingleTop = true
+            }
+            NAV_DIET_DETAIL -> {
+                val dietId = widgetDietId ?: return@LaunchedEffect
+                navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = false)) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                }
+            }
+            NAV_CALENDAR_FOR_DATE -> {
+                val date = widgetDate ?: return@LaunchedEffect
+                navController.navigate(Screen.CalendarWithDate.createRoute(date)) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                }
+            }
+            NAV_LOG_FOR_DATE -> {
+                val date = widgetDate ?: return@LaunchedEffect
+                navController.navigate(Screen.DailyLogWithDate.createRoute(date)) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                }
+            }
         }
     }
 
@@ -567,6 +621,26 @@ fun MealPlanNavHost() {
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
+            // Widget deep-link: same screen but with an initialDate nav argument so the
+            // CalendarViewModel pre-selects the tapped date instead of defaulting to today.
+            composable(
+                route = Screen.CalendarWithDate.route,
+                arguments = listOf(navArgument("initialDate") { type = NavType.StringType })
+            ) { backStackEntry ->
+                CalendarScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLog = { date ->
+                        navController.navigate(Screen.DailyLogWithDate.createRoute(date))
+                    },
+                    onNavigateToDietPicker = { date ->
+                        navController.navigate(Screen.DietPicker.createRoute(date))
+                    },
+                    onNavigateToMealDetail = { dietId, slotType ->
+                        navController.navigate(Screen.MealDetail.createRoute(dietId, slotType, readOnly = true))
+                    },
+                    savedStateHandle = backStackEntry.savedStateHandle
+                )
+            }
             composable(Screen.Health.route) {
                 HealthScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -580,6 +654,12 @@ fun MealPlanNavHost() {
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToWidgetSettings = { navController.navigate(Screen.WidgetSettings.route) }
+                )
+            }
+            composable(Screen.WidgetSettings.route) {
+                WidgetSettingsScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

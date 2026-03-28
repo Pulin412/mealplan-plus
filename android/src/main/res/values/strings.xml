@@ -3,4 +3,9 @@
     <string name="app_name">MealPlan+</string>
     <!-- Set real Web OAuth client ID for Google sign-in -->
     <string name="google_web_client_id">815506562788-nl2s2vjlhsa3tcofvf7rfs2a7i98vvvc.apps.googleusercontent.com</string>
+
+    <!-- Widget descriptions -->
+    <string name="widget_calendar_description">Mini calendar showing your 7-day meal plan</string>
+    <string name="widget_today_plan_description">Today\'s meal plan with tap-to-log checkboxes</string>
+    <string name="widget_diet_summary_description">Today\'s diet name and macro totals</string>
 </resources>

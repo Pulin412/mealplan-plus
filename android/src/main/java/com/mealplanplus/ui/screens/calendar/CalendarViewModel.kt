@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.calendar
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
@@ -29,7 +30,8 @@ data class CalendarUiState(
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
     private val planRepository: PlanRepository,
-    private val dietRepository: DietRepository
+    private val dietRepository: DietRepository,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CalendarUiState())
@@ -39,8 +41,22 @@ class CalendarViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
+        // If the screen was opened from a widget tap with a specific date, honour it.
+        val startDate = savedStateHandle.get<String>("initialDate")
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: LocalDate.now()
+
+        // Pre-set month so loadPlansForMonth() fetches the correct date range.
+        if (startDate != LocalDate.now()) {
+            _uiState.update {
+                it.copy(
+                    currentMonth = YearMonth.from(startDate),
+                    selectedDate = startDate
+                )
+            }
+        }
         loadPlansForMonth()
-        selectDate(LocalDate.now())
+        selectDate(startDate)
     }
 
     private fun loadPlansForMonth() {

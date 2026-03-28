@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Diet Summary widget provider info.
+
+    Default size: 4×1 cells → wide layout (4 rings in a row).
+    The user can resize it:
+      • Wider rectangle  → still wide layout, rings grow
+      • Tall square      → 2×2 grid layout
+    Minimum resize: 2 cells wide (shows 2 rings, then scrolls) or 2 cells tall.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_diet_summary_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="250dp"
+    android:minHeight="80dp"
+    android:minResizeWidth="120dp"
+    android:minResizeHeight="80dp"
+    android:maxResizeWidth="400dp"
+    android:maxResizeHeight="300dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />
