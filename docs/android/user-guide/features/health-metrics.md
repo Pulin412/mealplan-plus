@@ -67,7 +67,6 @@ Tap **View Charts** to see your metrics visualised over time.
 
 ## Blood Glucose Tips
 
-For diabetes management:
 - Log **Fasting** glucose every morning before breakfast.
 - Log **Post-meal** glucose 2 hours after a meal to see the impact of specific foods.
 - Use **Charts** to see patterns — e.g. does your lunch diet cause a spike?

@@ -2,7 +2,7 @@
 
 **Version:** 3.0 | **Last Updated:** March 2026 | **Status:** Active Development
 
-MealPlan+ is a diabetes-friendly meal planning and nutrition tracking app for Android and iOS. It helps users manage dietary intake through structured meal planning, food logging, and health metrics monitoring.
+MealPlan+ is a meal planning and nutrition tracking app for Android and iOS. It helps users manage dietary intake through structured meal planning, food logging, and health metrics monitoring.
 
 ---
 

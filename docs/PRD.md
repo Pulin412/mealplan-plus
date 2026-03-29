@@ -8,10 +8,10 @@
 
 ## 1. Product Vision
 
-**MealPlan+** is a diabetes-friendly meal planning and nutrition tracking application designed to help users manage their dietary intake through structured meal planning, food logging, and health metrics monitoring.
+**MealPlan+** is a meal planning and nutrition tracking application designed to help users manage their dietary intake through structured meal planning, food logging, and health metrics monitoring.
 
 ### Problem Statement
-People managing diabetes or following specific dietary requirements struggle to:
+People following specific dietary requirements or health goals struggle to:
 - Track daily nutritional intake accurately
 - Plan meals that meet their macro targets
 - Monitor health metrics alongside diet
@@ -30,11 +30,11 @@ A cross-platform mobile app (Android + iOS) that provides:
 
 ## 2. User Personas
 
-### Primary: Diabetic Patient (Age 35-65)
+### Primary: Health-Focused Individual (Age 30-60)
 - Needs to monitor carb intake and blood sugar
 - Wants pre-planned meals to reduce daily decisions
 - Values seeing planned vs actual intake comparison
-- Tracks fasting sugar and HbA1c regularly
+- Tracks health metrics like fasting glucose and weight regularly
 
 ### Secondary: Health-Conscious Meal Planner (Age 25-45)
 - Focused on macro tracking (protein/carbs/fat)

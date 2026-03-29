@@ -7,7 +7,7 @@ A **diet** is a full-day meal template. It groups your meals into slots (Breakfa
 ## Why Use Diets?
 
 Instead of planning meals from scratch every day, you create reusable diet templates:
-- **Remission Diet** — a stricter plan for active diabetes management
+- **Remission Diet** — a stricter, lower-carb plan
 - **Maintenance Diet** — a balanced everyday plan
 - **Cheat Day** — a relaxed plan for weekends
 

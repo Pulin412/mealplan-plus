@@ -227,7 +227,7 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Your diabetes-friendly diet tracker",
+                            text = "Your personal meal planning tracker",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }

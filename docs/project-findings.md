@@ -1,7 +1,7 @@
 # MealPlan+ Project Findings (Current State)
 
 ## Project Snapshot
-- Product: Meal planning + nutrition logging app, diabetes-oriented.
+- Product: Meal planning + nutrition logging app.
 - Platforms: Android (`app`), iOS (`iosApp`), shared KMP module (`shared`).
 - Runtime model: local-first SQLite persistence; optional online food lookup APIs.
 - Build/tooling: Gradle KMP + Android app + Xcode iOS app.

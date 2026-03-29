@@ -1,6 +1,6 @@
 # MealPlan+
 
-A diabetes-friendly meal planning and nutrition tracking app for Android and iOS. Build a personal food database, create reusable diet templates, plan your week on a calendar, log daily intake, and track health metrics — all stored privately on your device.
+A meal planning and nutrition tracking app for Android and iOS. Build a personal food database, create reusable diet templates, plan your week on a calendar, log daily intake, and track health metrics — all stored privately on your device.
 
 ---
 

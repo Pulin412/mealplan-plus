@@ -34,7 +34,7 @@ class CalendarViewModelTest {
     private val testDiet = Diet(id = 1L, userId = 1L, name = "Low-Carb Plan", description = "Under 100g carbs/day")
     private val testPlan = Plan(userId = 1L, date = todayStr, dietId = 1L, isCompleted = false)
     private val testDietWithMeals = DietWithMeals(diet = testDiet, meals = emptyMap())
-    private val testTag = Tag(id = 1L, userId = 1L, name = "Diabetic", color = "#7B1FA2")
+    private val testTag = Tag(id = 1L, userId = 1L, name = "Low Carb", color = "#7B1FA2")
 
     @Before
     fun setup() {

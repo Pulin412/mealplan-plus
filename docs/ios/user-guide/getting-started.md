@@ -2,7 +2,7 @@
 
 ## What is MealPlan+?
 
-MealPlan+ is a meal planning and nutrition tracking app designed for people managing diabetes or following specific dietary plans. It lets you build a personal food database, create reusable meal and diet templates, plan your week, log what you eat, and track health metrics.
+MealPlan+ is a meal planning and nutrition tracking app. It lets you build a personal food database, create reusable meal and diet templates, plan your week, log what you eat, and track health metrics.
 
 ---
 
