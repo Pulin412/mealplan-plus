@@ -138,10 +138,11 @@ dependencies {
     // Accompanist (Permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
-    // Firebase (Spark/free-tier compatible — Auth + Crashlytics only)
+    // Firebase (Spark/free-tier compatible — Auth + Crashlytics + Remote Config only)
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
+    implementation("com.google.firebase:firebase-config-ktx")
 
     // Google Sign-In via Credential Manager
     implementation("androidx.credentials:credentials:1.3.0")

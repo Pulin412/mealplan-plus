@@ -5,6 +5,48 @@ Each entry notes what changed and the file(s) affected.
 
 ---
 
+## 2026-03-29 — Firebase Remote Config / Feature Flags (P1)
+
+**Branch:** `feature/remote-config`
+
+### What changed
+
+Added Firebase Remote Config so feature flags can be toggled remotely without an app release. All flags have safe local defaults applied before the first fetch.
+
+**Files added:**
+- `android/src/main/java/com/mealplanplus/util/FeatureFlag.kt` — Enum of all feature flags. Each entry holds a Remote Config key and a boolean default. Adding a flag here automatically registers its default in `RemoteConfigManager.applyDefaults()`.
+- `android/src/main/java/com/mealplanplus/util/RemoteConfigManager.kt` — Injectable `@Singleton` wrapper around `FirebaseRemoteConfig`. Provides `applyDefaults()`, `fetchAndActivate()`, `isEnabled(FeatureFlag)`, `getString()`, `getLong()`, `getDouble()`. Fetch failures are caught and logged — cached/default values remain available.
+
+**Files modified:**
+- `android/build.gradle.kts` — Added `firebase-config-ktx` under the existing Firebase BOM.
+- `MealPlanApp.kt` — Injects `RemoteConfigManager`; calls `applyDefaults()` synchronously then `fetchAndActivate()` in a background coroutine on startup.
+
+### Feature flags
+
+| Flag | Key | Default | Purpose |
+|---|---|---|---|
+| `BARCODE_SCANNER` | `barcode_scanner_enabled` | `true` | Kill-switch for CameraX/MLKit barcode flow |
+| `USDA_SEARCH` | `usda_search_enabled` | `true` | USDA FoodData Central API search |
+| `OFF_SEARCH` | `off_search_enabled` | `true` | OpenFoodFacts search + barcode lookup |
+| `SYNC` | `sync_enabled` | `false` | Background sync — off until backend is live |
+| `GROCERY_AUTO_GENERATE` | `grocery_auto_generate_enabled` | `true` | Auto-generate grocery lists from diet |
+| `HEALTH_TRACKING` | `health_tracking_enabled` | `true` | Health metrics tracking screen |
+
+### Tests added
+
+| File | Tests | What's covered |
+|---|---|---|
+| `FeatureFlagTest` | 14 | Key names, default values, uniqueness, count guard |
+| `RemoteConfigManagerTest` | 13 | `applyDefaults` (map contents + all keys), `fetchAndActivate` (true/false/exception), `isEnabled` (delegation + key correctness for each flag), `getString`/`getLong`/`getDouble` |
+
+### Notes
+- Remote Config is free on the Firebase Spark plan — no per-event billing.
+- `fetchAndActivate` uses Firebase's built-in 12-hour minimum fetch interval to avoid quota issues.
+- Fetch failure is non-fatal: the app continues with local defaults (or last-cached values) — no user-visible impact.
+- To add a new flag: add an entry to `FeatureFlag` enum — defaults and Remote Config registration are automatic.
+
+---
+
 ## 2026-03-29 — Firebase Crashlytics (P1)
 
 **Branch:** `feature/crashlytics`
