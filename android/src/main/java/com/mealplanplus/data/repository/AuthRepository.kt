@@ -19,6 +19,7 @@ import com.mealplanplus.data.local.PlanDao
 import com.mealplanplus.data.local.UserDao
 import com.mealplanplus.data.local.UserDataSeeder
 import com.mealplanplus.data.model.User
+import com.mealplanplus.util.AnalyticsManager
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CrashlyticsReporter
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,6 +39,7 @@ class AuthRepository @Inject constructor(
     private val dietDao: DietDao,
     private val mealDao: MealDao,
     private val crashlytics: CrashlyticsReporter,
+    private val analytics: AnalyticsManager,
     @ApplicationContext private val context: Context
 ) {
     private val TAG = "AuthRepository"
@@ -66,6 +68,8 @@ class AuthRepository @Inject constructor(
             AuthPreferences.setLoggedIn(context, localUser.id)
             crashlytics.setUserId(localUser.id.toString())
             crashlytics.log("sign_in", "provider=email")
+            analytics.setUserId(localUser.id.toString())
+            analytics.logSignIn("email")
             Result.success(localUser)
         } catch (e: FirebaseAuthInvalidCredentialsException) {
             Result.failure(Exception("Invalid email or password"))
@@ -114,6 +118,8 @@ class AuthRepository @Inject constructor(
             AuthPreferences.setLoggedIn(context, localUser.id)
             crashlytics.setUserId(localUser.id.toString())
             crashlytics.log("sign_in", "provider=google")
+            analytics.setUserId(localUser.id.toString())
+            analytics.logSignIn("google")
             Result.success(localUser)
         } catch (e: Exception) {
             crashlytics.recordNonFatal(e, context = "sign_in_google")
@@ -155,6 +161,8 @@ class AuthRepository @Inject constructor(
             AuthPreferences.setLoggedIn(context, userId)
             crashlytics.setUserId(userId.toString())
             crashlytics.log("sign_up", "provider=email")
+            analytics.setUserId(userId.toString())
+            analytics.logSignUp("email")
             Result.success(user.copy(id = userId))
         } catch (e: FirebaseAuthUserCollisionException) {
             Result.failure(Exception("Email already registered"))
@@ -172,6 +180,8 @@ class AuthRepository @Inject constructor(
         runCatching { FirebaseAuth.getInstance().signOut() }
         crashlytics.clearUserId()
         crashlytics.log("sign_out")
+        analytics.logSignOut()
+        analytics.clearUserId()
         AuthPreferences.clearAuth(context)
     }
 

@@ -5,6 +5,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mealplanplus.data.local.DatabaseSeeder
+import com.mealplanplus.util.AnalyticsManager
 import com.mealplanplus.util.CrashlyticsReporter
 import com.mealplanplus.util.RemoteConfigManager
 import com.mealplanplus.work.SyncWorker
@@ -26,6 +27,9 @@ class MealPlanApp : Application() {
 
     @Inject
     lateinit var remoteConfigManager: RemoteConfigManager
+
+    @Inject
+    lateinit var analyticsManager: AnalyticsManager
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
