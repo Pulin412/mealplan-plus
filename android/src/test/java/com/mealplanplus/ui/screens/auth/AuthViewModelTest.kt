@@ -146,7 +146,8 @@ class AuthViewModelTest {
 
     @Test
     fun forgotPassword_emailNotFound_setsError() = runTest {
-        coEvery { authRepository.getUserByEmail(any()) } returns null
+        coEvery { authRepository.sendPasswordResetEmail(any()) } returns
+            Result.failure(Exception("No account found with this email"))
 
         viewModel.forgotPassword("unknown@example.com")
 
@@ -155,14 +156,15 @@ class AuthViewModelTest {
 
     @Test
     fun forgotPassword_emailFound_setsForgotPasswordResult() = runTest {
-        coEvery { authRepository.getUserByEmail(any()) } returns fakeUser
+        coEvery { authRepository.sendPasswordResetEmail(any()) } returns Result.success(Unit)
 
         viewModel.forgotPassword("test@example.com")
 
         val state = viewModel.uiState.value
         assertNotNull(state.forgotPasswordResult)
         assertNull(state.error)
-        assertTrue(state.forgotPasswordResult!!.contains("security reasons"))
+        assertTrue(state.passwordResetEmailSent)
+        assertTrue(state.forgotPasswordResult!!.contains("password reset link"))
     }
 
     // --- signOut ---
@@ -196,7 +198,7 @@ class AuthViewModelTest {
 
     @Test
     fun clearForgotPasswordResult_resetsResult() = runTest {
-        coEvery { authRepository.getUserByEmail(any()) } returns fakeUser
+        coEvery { authRepository.sendPasswordResetEmail(any()) } returns Result.success(Unit)
         viewModel.forgotPassword("test@example.com")
         assertNotNull(viewModel.uiState.value.forgotPasswordResult)
 

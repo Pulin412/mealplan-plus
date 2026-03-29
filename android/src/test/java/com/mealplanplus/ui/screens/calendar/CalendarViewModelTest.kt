@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.calendar
 
+import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.PlanRepository
@@ -52,7 +53,7 @@ class CalendarViewModelTest {
         coEvery { dietRepo.getDietWithMeals(any()) } returns testDietWithMeals
         coEvery { dietRepo.getTagsForDiet(any()) } returns listOf(testTag)
 
-        viewModel = CalendarViewModel(planRepo, dietRepo)
+        viewModel = CalendarViewModel(planRepo, dietRepo, SavedStateHandle())
     }
 
     @After

@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.log
 
+import android.appwidget.AppWidgetManager
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
@@ -7,12 +8,16 @@ import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.util.WidgetAppearanceState
+import com.mealplanplus.util.WidgetPreferences
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.mockkStatic
 import io.mockk.unmockkObject
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -85,11 +90,23 @@ class DailyLogViewModelTest {
 
         val customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true)
         every { customMealSlotDao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
+        val tempDir = java.io.File(System.getProperty("java.io.tmpdir"), "mealplan_test_${System.nanoTime()}")
+        tempDir.mkdirs()
         val context = mockk<android.content.Context>(relaxed = true)
+        every { context.filesDir } returns tempDir
+        every { context.applicationContext } returns context
 
         // AuthPreferences is called in init for reactive custom slot loading
         mockkObject(AuthPreferences)
         every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
+
+        // WidgetPreferences.getAppearance reads DataStore (needs real filesDir); mock it out
+        mockkObject(WidgetPreferences)
+        coEvery { WidgetPreferences.getAppearance(any()) } returns WidgetAppearanceState()
+
+        // Glance widget updateAll calls AppWidgetManager.getInstance internally
+        mockkStatic(AppWidgetManager::class)
+        every { AppWidgetManager.getInstance(any()) } returns mockk(relaxed = true)
 
         viewModel = DailyLogViewModel(logRepository, mealRepository, planRepository, dietRepository, foodRepository, customMealSlotDao, context)
     }
@@ -97,6 +114,10 @@ class DailyLogViewModelTest {
     @After
     fun tearDown() {
         unmockkObject(AuthPreferences)
+        unmockkObject(WidgetPreferences)
+        // Note: AppWidgetManager static mock is intentionally NOT unmocked here.
+        // The widget update coroutine runs on DefaultDispatcher and may outlive the test;
+        // removing the mock early causes "not mocked" exceptions in subsequent tests.
         Dispatchers.resetMain()
     }
 
