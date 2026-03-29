@@ -14,7 +14,8 @@ data class AuthUiState(
     val isLoggedIn: Boolean = false,
     val error: String? = null,
     val user: User? = null,
-    val forgotPasswordResult: String? = null
+    val forgotPasswordResult: String? = null,
+    val passwordResetEmailSent: Boolean = false
 )
 
 @HiltViewModel
@@ -113,19 +114,21 @@ class AuthViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val user = authRepository.getUserByEmail(email.lowercase().trim())
-            _uiState.update { it.copy(isLoading = false) }
-
-            if (user == null) {
-                _uiState.update { it.copy(error = "No account found with this email") }
-            } else {
-                // Passwords are SHA-256 hashed locally — cannot be recovered or emailed
-                _uiState.update {
-                    it.copy(
-                        forgotPasswordResult = "For security reasons, your password is stored locally and cannot be sent via email.\n\nTo reset your password, please reinstall the app or contact support."
-                    )
+            val result = authRepository.sendPasswordResetEmail(email)
+            result.fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            passwordResetEmailSent = true,
+                            forgotPasswordResult = "A password reset link has been sent to ${email.trim()}.\n\nCheck your inbox and follow the link to set a new password."
+                        )
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message) }
                 }
-            }
+            )
         }
     }
 
@@ -145,6 +148,6 @@ class AuthViewModel @Inject constructor(
     }
 
     fun clearForgotPasswordResult() {
-        _uiState.update { it.copy(forgotPasswordResult = null) }
+        _uiState.update { it.copy(forgotPasswordResult = null, passwordResetEmailSent = false) }
     }
 }

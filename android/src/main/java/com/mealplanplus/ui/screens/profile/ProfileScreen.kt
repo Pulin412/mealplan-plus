@@ -340,11 +340,46 @@ fun ProfileScreen(
     if (uiState.showClearDataDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissClearDataDialog() },
+            icon = {
+                Icon(
+                    Icons.Default.DeleteSweep,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
             title = { Text("Clear All Data?") },
-            text = { Text("Deletes all logs, health readings, diets, meals and grocery lists. Your account stays active.") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("This will permanently delete:")
+                    listOf(
+                        "All meals and diets you created",
+                        "All food logs and daily records",
+                        "All health readings",
+                        "All grocery lists"
+                    ).forEach { item ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("•", color = MaterialTheme.colorScheme.error)
+                            Text(item, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        "⚠\uFE0F Your data is stored on this device only. " +
+                        "There is no cloud backup. Once deleted, it cannot be recovered.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmClearData() }) {
-                    Text("Clear All", color = MaterialTheme.colorScheme.error)
+                Button(
+                    onClick = { viewModel.confirmClearData() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Yes, Delete Everything")
                 }
             },
             dismissButton = {
@@ -356,11 +391,50 @@ fun ProfileScreen(
     if (uiState.showDeleteAccountDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteAccountDialog() },
+            icon = {
+                Icon(
+                    Icons.Default.PersonOff,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
             title = { Text("Delete Account?") },
-            text = { Text("Permanently deletes your account and all data. This cannot be undone.") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Your account and all associated data will be permanently deleted, including:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    listOf(
+                        "All meals and diets you created",
+                        "All food logs and daily records",
+                        "All health readings",
+                        "Your profile and settings"
+                    ).forEach { item ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("•", color = MaterialTheme.colorScheme.error)
+                            Text(item, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        "⚠\uFE0F Your data is stored on this device only. " +
+                        "There is no cloud backup. Deleting your account is permanent " +
+                        "and there is no way to restore your data.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmDeleteAccount(onLogout) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                Button(
+                    onClick = { viewModel.confirmDeleteAccount(onLogout) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Yes, Delete My Account")
                 }
             },
             dismissButton = {

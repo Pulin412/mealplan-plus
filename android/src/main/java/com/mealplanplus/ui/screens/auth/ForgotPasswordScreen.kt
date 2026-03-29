@@ -8,7 +8,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -25,40 +30,29 @@ fun ForgotPasswordScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
     var email by remember { mutableStateOf("") }
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogMessage by remember { mutableStateOf("") }
 
-    // Show dialog when forgotPassword result comes in
-    LaunchedEffect(uiState.forgotPasswordResult) {
-        uiState.forgotPasswordResult?.let { result ->
-            dialogMessage = result
-            showDialog = true
+    if (uiState.forgotPasswordResult != null) {
+        val isSuccess = uiState.passwordResetEmailSent
+        val dismiss = {
+            viewModel.clearForgotPasswordResult()
+            if (isSuccess) onNavigateToLogin()
         }
-    }
-
-    if (showDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showDialog = false
-                viewModel.clearForgotPasswordResult()
-            },
+            onDismissRequest = dismiss,
             icon = {
                 Icon(
                     Icons.Default.Email,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = if (isSuccess) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.error
                 )
             },
-            title = { Text("Password Recovery") },
-            text = { Text(dialogMessage) },
+            title = { Text(if (isSuccess) "Check Your Inbox" else "Password Recovery") },
+            text = { Text(uiState.forgotPasswordResult!!) },
             confirmButton = {
-                TextButton(onClick = {
-                    showDialog = false
-                    viewModel.clearForgotPasswordResult()
-                }) {
-                    Text("OK")
+                Button(onClick = dismiss) {
+                    Text(if (isSuccess) "Back to Sign In" else "OK")
                 }
             }
         )
@@ -100,7 +94,7 @@ fun ForgotPasswordScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Enter your registered email address",
+                text = "Enter your email and we'll send you a link to reset your password.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
@@ -143,7 +137,7 @@ fun ForgotPasswordScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Send Password", style = MaterialTheme.typography.labelLarge)
+                    Text("Send Reset Link", style = MaterialTheme.typography.labelLarge)
                 }
             }
 

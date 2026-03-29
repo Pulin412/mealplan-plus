@@ -21,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -188,8 +190,15 @@ fun MealPlanNavHost(
 
     // On logout: restart the activity cleanly so NavHost, ViewModels, and back
     // stack all reset to a fresh state. Avoids Compose Navigation back-stack bugs.
+    //
+    // We track the previous value so we only restart on a true→false transition.
+    // Checking startDestination was wrong: if the user launched the app while
+    // already logged out (startDestination="login"), logged into a new account,
+    // then logged out again, startDestination never equalled "home" and the
+    // restart never fired — leaving them stuck on the profile screen.
+    var previousLoggedIn by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn == false && startDestination == Screen.Home.route) {
+        if (previousLoggedIn == true && isLoggedIn == false) {
             val activity = context as? Activity ?: return@LaunchedEffect
             val intent = Intent(activity, activity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -197,6 +206,7 @@ fun MealPlanNavHost(
             activity.startActivity(intent)
             activity.finish()
         }
+        previousLoggedIn = isLoggedIn
     }
 
     // Handle widget deep-links.
