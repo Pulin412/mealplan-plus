@@ -5,6 +5,56 @@ Each entry notes what changed and the file(s) affected.
 
 ---
 
+## 2026-03-29 — Firebase Analytics (P2)
+
+**Branch:** `feature/analytics`
+
+### What changed
+
+Added Firebase Analytics for user journey tracking before public launch. All analytics flows through an injectable wrapper so call sites are decoupled from the SDK.
+
+**Files added:**
+- `android/src/main/java/com/mealplanplus/util/AnalyticsEvent.kt` — Plain string constants for all event names and parameter keys. Contract tests enforce exact values so renaming silently won't break dashboards.
+- `android/src/main/java/com/mealplanplus/util/AnalyticsManager.kt` — Injectable `@Singleton` wrapper around `FirebaseAnalytics`. Provides typed log methods for each event, `setUserId`/`clearUserId`, `setUserProperty`, and `logScreenView`.
+
+**Files modified:**
+- `android/build.gradle.kts` — Added `firebase-analytics-ktx` under the existing Firebase BOM.
+- `MealPlanApp.kt` — Injects `AnalyticsManager` (no-op at app level; events fired from repositories/screens).
+- `AuthRepository.kt` — `setUserId`/`clearUserId` + event logging on sign-in (email + Google), sign-up, and sign-out.
+
+### Events tracked
+
+| Event | When fired | Key params |
+|---|---|---|
+| `sign_in` | Successful email or Google sign-in | `provider` |
+| `sign_up` | Successful email registration | `provider` |
+| `sign_out` | User signs out or deletes account | — |
+| `food_searched` | User searches for a food | `search_query`, `source` |
+| `food_added` | Food item added to a meal | `food_name`, `source` |
+| `barcode_scanned` | Barcode scan attempted | `success` |
+| `diet_created` | New diet saved | `diet_id` |
+| `diet_viewed` | Diet detail screen opened | `diet_id` |
+| `meal_plan_viewed` | Calendar/meal plan screen opened | — |
+| `grocery_list_created` | Manual grocery list created | — |
+| `grocery_list_generated` | Grocery list auto-generated from diet | — |
+| `health_metric_logged` | Health metric recorded | `metric_type` |
+
+### Tests added (TDD)
+
+| File | Tests | What's covered |
+|---|---|---|
+| `AnalyticsEventTest` | 24 | All 12 event name constants, all 8 param constants, uniqueness, count guards |
+| `AnalyticsManagerTest` | 18 | All typed log methods delegate to `FirebaseAnalytics.logEvent` with correct event name; `setUserId`/`clearUserId`/`setUserProperty`; `logScreenView` uses `SCREEN_VIEW` |
+| `AuthRepositoryTest` | Extended | Analytics `setUserId` + event logged alongside Crashlytics on sign-in, sign-up, sign-out |
+
+### Notes
+- Analytics is free on the Firebase Spark plan — no per-event billing.
+- `setUserId(null)` clears the identity on sign-out (Firebase requirement for GDPR compliance).
+- `logScreenView` is available for explicit screen tracking in Compose (where automatic Firebase screen tracking doesn't fire).
+- To add a new event: add constants to `AnalyticsEvent`, add a typed method to `AnalyticsManager`, update `AnalyticsEventTest` count guard.
+
+---
+
 ## 2026-03-29 — Firebase Remote Config / Feature Flags (P1)
 
 **Branch:** `feature/remote-config`

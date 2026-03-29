@@ -2,6 +2,7 @@ package com.mealplanplus.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
 import com.google.android.gms.tasks.Task
@@ -19,16 +20,22 @@ import com.mealplanplus.data.local.PlanDao
 import com.mealplanplus.data.local.UserDao
 import com.mealplanplus.data.local.UserDataSeeder
 import com.mealplanplus.data.model.User
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.mealplanplus.util.AnalyticsEvent
+import com.mealplanplus.util.AnalyticsManager
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CrashlyticsReporter
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -47,6 +54,8 @@ class AuthRepositoryTest {
     private lateinit var dietDao: DietDao
     private lateinit var mealDao: MealDao
     private lateinit var crashlytics: CrashlyticsReporter
+    private lateinit var analytics: AnalyticsManager
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
     private lateinit var context: Context
     private lateinit var repository: AuthRepository
 
@@ -66,7 +75,16 @@ class AuthRepositoryTest {
         dietDao = mockk(relaxed = true)
         mealDao = mockk(relaxed = true)
         crashlytics = mockk(relaxed = true)
+        firebaseAnalytics = mockk(relaxed = true)
+        mockkStatic(FirebaseAnalytics::class)
+        every { FirebaseAnalytics.getInstance(any()) } returns firebaseAnalytics
+        mockkConstructor(Bundle::class)
+        every { anyConstructed<Bundle>().putString(any(), any()) } returns Unit
+        every { anyConstructed<Bundle>().putBoolean(any(), any()) } returns Unit
+        every { anyConstructed<Bundle>().putLong(any(), any()) } returns Unit
+        every { anyConstructed<Bundle>().putCharSequence(any(), any()) } returns Unit
         context = mockk(relaxed = true)
+        analytics = AnalyticsManager(context)
 
         firebaseUser = mockk(relaxed = true)
         every { firebaseUser.uid } returns "uid-abc"
@@ -94,7 +112,7 @@ class AuthRepositoryTest {
 
         repository = AuthRepository(
             userDao, userDataSeeder, healthMetricDao, dailyLogDao,
-            planDao, groceryDao, dietDao, mealDao, crashlytics, context
+            planDao, groceryDao, dietDao, mealDao, crashlytics, analytics, context
         )
     }
 
@@ -102,6 +120,8 @@ class AuthRepositoryTest {
     fun tearDown() {
         unmockkObject(AuthPreferences)
         unmockkStatic(FirebaseAuth::class)
+        unmockkStatic(FirebaseAnalytics::class)
+        unmockkConstructor(Bundle::class)
         unmockkStatic("kotlinx.coroutines.tasks.TasksKt")
         unmockkStatic(TextUtils::class)
         unmockkStatic(Uri::class)
@@ -123,6 +143,8 @@ class AuthRepositoryTest {
 
         coVerify(exactly = 1) { crashlytics.setUserId("1") }
         coVerify(exactly = 1) { crashlytics.log("sign_in", "provider=email") }
+        verify(exactly = 1) { firebaseAnalytics.setUserId("1") }
+        verify(exactly = 1) { firebaseAnalytics.logEvent(AnalyticsEvent.SIGN_IN, any()) }
     }
 
     // ── signInWithEmail — unexpected exception ────────────────────────────────
@@ -173,6 +195,8 @@ class AuthRepositoryTest {
 
         coVerify(exactly = 1) { crashlytics.setUserId("2") }
         coVerify(exactly = 1) { crashlytics.log("sign_up", "provider=email") }
+        verify(exactly = 1) { firebaseAnalytics.setUserId("2") }
+        verify(exactly = 1) { firebaseAnalytics.logEvent(AnalyticsEvent.SIGN_UP, any()) }
     }
 
     // ── signUpWithEmail — unexpected exception ────────────────────────────────
@@ -210,6 +234,8 @@ class AuthRepositoryTest {
 
         coVerify(exactly = 1) { crashlytics.clearUserId() }
         coVerify(exactly = 1) { crashlytics.log("sign_out") }
+        verify(exactly = 1) { firebaseAnalytics.logEvent(AnalyticsEvent.SIGN_OUT, any()) }
+        verify(atLeast = 1) { firebaseAnalytics.setUserId(null) }
     }
 
     // ── updateProfile ─────────────────────────────────────────────────────────
