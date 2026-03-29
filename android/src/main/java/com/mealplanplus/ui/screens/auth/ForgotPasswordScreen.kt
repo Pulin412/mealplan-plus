@@ -8,7 +8,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -25,27 +30,16 @@ fun ForgotPasswordScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
     var email by remember { mutableStateOf("") }
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogMessage by remember { mutableStateOf("") }
 
-    // Show dialog when forgotPassword result comes in
-    LaunchedEffect(uiState.forgotPasswordResult) {
-        uiState.forgotPasswordResult?.let { result ->
-            dialogMessage = result
-            showDialog = true
-        }
-    }
-
-    if (showDialog) {
+    if (uiState.forgotPasswordResult != null) {
         val isSuccess = uiState.passwordResetEmailSent
+        val dismiss = {
+            viewModel.clearForgotPasswordResult()
+            if (isSuccess) onNavigateToLogin()
+        }
         AlertDialog(
-            onDismissRequest = {
-                showDialog = false
-                viewModel.clearForgotPasswordResult()
-                if (isSuccess) onNavigateToLogin()
-            },
+            onDismissRequest = dismiss,
             icon = {
                 Icon(
                     Icons.Default.Email,
@@ -55,13 +49,9 @@ fun ForgotPasswordScreen(
                 )
             },
             title = { Text(if (isSuccess) "Check Your Inbox" else "Password Recovery") },
-            text = { Text(dialogMessage) },
+            text = { Text(uiState.forgotPasswordResult!!) },
             confirmButton = {
-                Button(onClick = {
-                    showDialog = false
-                    viewModel.clearForgotPasswordResult()
-                    if (isSuccess) onNavigateToLogin()
-                }) {
+                Button(onClick = dismiss) {
                     Text(if (isSuccess) "Back to Sign In" else "OK")
                 }
             }

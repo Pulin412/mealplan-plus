@@ -47,129 +47,63 @@ class AuthRepository @Inject constructor(
 
     suspend fun signInWithEmail(email: String, password: String): Result<User> {
         val trimmedEmail = email.lowercase().trim()
-        val firebaseAuth = FirebaseAuth.getInstance()
+        return try {
+            val firebaseUser = FirebaseAuth.getInstance()
+                .signInWithEmailAndPassword(trimmedEmail, password).await().user
+                ?: return Result.failure(Exception("Sign in failed"))
 
-        // ── Step 1: check for a legacy account (non-empty local hash) ──────────
-        // If a local hash exists the account was created before Firebase Email Auth.
-        // We verify locally first so that sign-in works even when the Firebase
-        // Email/Password provider is not yet enabled in the console.
-        val localUserPrecheck = userDao.getUserByEmail(trimmedEmail)
-        if (localUserPrecheck != null && localUserPrecheck.passwordHash.isNotBlank()) {
-            if (!User.verifyPassword(password, localUserPrecheck.passwordHash)) {
-                return Result.failure(Exception("Invalid email or password"))
-            }
-            // Local credentials correct — silently migrate to Firebase so future
-            // sign-ins and password resets go through Firebase from now on.
-            try {
-                val migrated = firebaseAuth
-                    .createUserWithEmailAndPassword(trimmedEmail, password).await().user
-                if (migrated != null) {
-                    AuthPreferences.setProviderSubjectMapping(
-                        context, "email", migrated.uid, localUserPrecheck.id
-                    )
-                    // Clear the local hash — Firebase owns the credential from here on.
-                    userDao.updateUser(localUserPrecheck.copy(passwordHash = ""))
-                    Log.i(TAG, "Migrated legacy account to Firebase Auth (userId=${localUserPrecheck.id})")
-                }
-            } catch (e: FirebaseAuthUserCollisionException) {
-                // A Firebase account already exists for this email (e.g. from a previous
-                // partial migration attempt). Sign in to get the existing Firebase UID
-                // and complete the mapping.
-                Log.i(TAG, "Firebase account already exists, completing migration via sign-in")
-                try {
-                    val existing = firebaseAuth
-                        .signInWithEmailAndPassword(trimmedEmail, password).await().user
-                    if (existing != null) {
-                        AuthPreferences.setProviderSubjectMapping(
-                            context, "email", existing.uid, localUserPrecheck.id
-                        )
-                        userDao.updateUser(localUserPrecheck.copy(passwordHash = ""))
-                        Log.i(TAG, "Migration completed via existing Firebase account (userId=${localUserPrecheck.id})")
-                    }
-                } catch (e2: Exception) {
-                    Log.w(TAG, "Migration via existing account failed: ${e2.message}")
-                }
-            } catch (e: Exception) {
-                // Migration failed (e.g. provider not yet enabled in Firebase console).
-                // Sign in still succeeds locally; migration retries on next login.
-                Log.w(TAG, "Firebase migration skipped: ${e.message}")
-            }
-            AuthPreferences.setLoggedIn(context, localUserPrecheck.id)
-            return Result.success(localUserPrecheck)
-        }
+            val mappedUserId = AuthPreferences.getUserIdForProviderSubject(
+                context, provider = "email", subject = firebaseUser.uid
+            )
+            val localUser = mappedUserId?.let { userDao.getUserByIdSync(it) }
+                ?: userDao.getUserByEmail(trimmedEmail)
+                ?: return Result.failure(Exception("Local user record not found. Please sign up again."))
 
-        // ── Step 2: Firebase path (accounts created after migration, empty local hash) ──
-        val firebaseUser = try {
-            firebaseAuth.signInWithEmailAndPassword(trimmedEmail, password).await().user
+            AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, localUser.id)
+            AuthPreferences.setLoggedIn(context, localUser.id)
+            Result.success(localUser)
         } catch (e: FirebaseAuthInvalidCredentialsException) {
-            return Result.failure(Exception("Invalid email or password"))
+            Result.failure(Exception("Invalid email or password"))
         } catch (e: FirebaseAuthInvalidUserException) {
-            return Result.failure(Exception("No account found with this email"))
+            Result.failure(Exception("No account found with this email"))
         } catch (e: Exception) {
-            return Result.failure(Exception("Sign in failed: ${e.message}"))
-        } ?: return Result.failure(Exception("Sign in failed"))
-
-        val mappedUserId = AuthPreferences.getUserIdForProviderSubject(
-            context, provider = "email", subject = firebaseUser.uid
-        )
-        val localUser = mappedUserId?.let { userDao.getUserByIdSync(it) }
-            ?: userDao.getUserByEmail(trimmedEmail)
-            ?: return Result.failure(Exception("Local user record not found. Please sign up again."))
-        AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, localUser.id)
-        AuthPreferences.setLoggedIn(context, localUser.id)
-        return Result.success(localUser)
+            Result.failure(Exception("Sign in failed: ${e.message}"))
+        }
     }
 
     suspend fun signInWithGoogle(idToken: String): Result<User> {
         return try {
-            val firebaseAuth = runCatching { com.google.firebase.auth.FirebaseAuth.getInstance() }
-                .getOrElse {
-                    return Result.failure(
-                        Exception("Google OAuth is not configured for this build. Please add Firebase config first.")
-                    )
-                }
-
-            val credential = GoogleAuthProvider.getCredential(idToken, null)
-            val firebaseUser = firebaseAuth.signInWithCredential(credential).await().user
+            val firebaseUser = FirebaseAuth.getInstance()
+                .signInWithCredential(GoogleAuthProvider.getCredential(idToken, null))
+                .await().user
                 ?: return Result.failure(Exception("Google sign-in failed: no user returned"))
 
             val normalizedEmail = firebaseUser.email?.lowercase()?.trim()
                 ?: return Result.failure(Exception("Google account did not provide an email"))
 
             val mappedUserId = AuthPreferences.getUserIdForProviderSubject(
-                context,
-                provider = "google",
-                subject = firebaseUser.uid
+                context, provider = "google", subject = firebaseUser.uid
             )
-
             val existing = mappedUserId?.let { userDao.getUserByIdSync(it) }
                 ?: userDao.getUserByEmail(normalizedEmail)
 
-            val localUser = if (existing != null) {
-                existing
-            } else {
-                val created = User(
+            val localUser = existing ?: run {
+                val newUser = User(
                     email = normalizedEmail,
-                    // OAuth users do not need local password sign-in unless explicitly added later.
                     passwordHash = "",
                     displayName = firebaseUser.displayName?.trim(),
                     photoUrl = firebaseUser.photoUrl?.toString()
                 )
-                val id = userDao.insertUser(created)
+                val id = userDao.insertUser(newUser)
                 try {
                     userDataSeeder.seedUserData(context, id)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to seed user data after Google sign-in: ${e.message}")
                 }
-                created.copy(id = id)
+                newUser.copy(id = id)
             }
 
-            AuthPreferences.setProviderSubjectMapping(
-                context = context,
-                provider = "google",
-                subject = firebaseUser.uid,
-                userId = localUser.id
-            )
+            AuthPreferences.setProviderSubjectMapping(context, "google", firebaseUser.uid, localUser.id)
             AuthPreferences.setLoggedIn(context, localUser.id)
             Result.success(localUser)
         } catch (e: Exception) {
@@ -228,7 +162,7 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun signOut() {
-        runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().signOut() }
+        runCatching { FirebaseAuth.getInstance().signOut() }
         AuthPreferences.clearAuth(context)
     }
 
@@ -237,26 +171,13 @@ class AuthRepository @Inject constructor(
      * Firebase handles the link generation, expiry, and delivery — no backend needed.
      */
     suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
-        val trimmedEmail = email.lowercase().trim()
         return try {
             FirebaseAuth.getInstance()
-                .sendPasswordResetEmail(trimmedEmail)
+                .sendPasswordResetEmail(email.lowercase().trim())
                 .await()
             Result.success(Unit)
         } catch (e: FirebaseAuthInvalidUserException) {
-            // Firebase has no record — check if this is a legacy local-only account.
-            val localExists = userDao.getUserByEmail(trimmedEmail) != null
-            if (localExists) {
-                // The account exists but hasn't been migrated to Firebase yet.
-                // Migration happens automatically on next sign-in (we need the plain
-                // password to create the Firebase account, which only sign-in provides).
-                Result.failure(Exception(
-                    "Please sign in with your current password first. " +
-                    "Once signed in, password reset will be available."
-                ))
-            } else {
-                Result.failure(Exception("No account found with this email"))
-            }
+            Result.failure(Exception("No account found with this email"))
         } catch (e: Exception) {
             Result.failure(Exception("Could not send reset email: ${e.message}"))
         }
