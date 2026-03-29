@@ -49,60 +49,73 @@ class AuthRepository @Inject constructor(
         val trimmedEmail = email.lowercase().trim()
         val firebaseAuth = FirebaseAuth.getInstance()
 
-        // ── Step 1: try Firebase auth (accounts created after the migration) ──
+        // ── Step 1: check for a legacy account (non-empty local hash) ──────────
+        // If a local hash exists the account was created before Firebase Email Auth.
+        // We verify locally first so that sign-in works even when the Firebase
+        // Email/Password provider is not yet enabled in the console.
+        val localUserPrecheck = userDao.getUserByEmail(trimmedEmail)
+        if (localUserPrecheck != null && localUserPrecheck.passwordHash.isNotBlank()) {
+            if (!User.verifyPassword(password, localUserPrecheck.passwordHash)) {
+                return Result.failure(Exception("Invalid email or password"))
+            }
+            // Local credentials correct — silently migrate to Firebase so future
+            // sign-ins and password resets go through Firebase from now on.
+            try {
+                val migrated = firebaseAuth
+                    .createUserWithEmailAndPassword(trimmedEmail, password).await().user
+                if (migrated != null) {
+                    AuthPreferences.setProviderSubjectMapping(
+                        context, "email", migrated.uid, localUserPrecheck.id
+                    )
+                    // Clear the local hash — Firebase owns the credential from here on.
+                    userDao.updateUser(localUserPrecheck.copy(passwordHash = ""))
+                    Log.i(TAG, "Migrated legacy account to Firebase Auth (userId=${localUserPrecheck.id})")
+                }
+            } catch (e: FirebaseAuthUserCollisionException) {
+                // A Firebase account already exists for this email (e.g. from a previous
+                // partial migration attempt). Sign in to get the existing Firebase UID
+                // and complete the mapping.
+                Log.i(TAG, "Firebase account already exists, completing migration via sign-in")
+                try {
+                    val existing = firebaseAuth
+                        .signInWithEmailAndPassword(trimmedEmail, password).await().user
+                    if (existing != null) {
+                        AuthPreferences.setProviderSubjectMapping(
+                            context, "email", existing.uid, localUserPrecheck.id
+                        )
+                        userDao.updateUser(localUserPrecheck.copy(passwordHash = ""))
+                        Log.i(TAG, "Migration completed via existing Firebase account (userId=${localUserPrecheck.id})")
+                    }
+                } catch (e2: Exception) {
+                    Log.w(TAG, "Migration via existing account failed: ${e2.message}")
+                }
+            } catch (e: Exception) {
+                // Migration failed (e.g. provider not yet enabled in Firebase console).
+                // Sign in still succeeds locally; migration retries on next login.
+                Log.w(TAG, "Firebase migration skipped: ${e.message}")
+            }
+            AuthPreferences.setLoggedIn(context, localUserPrecheck.id)
+            return Result.success(localUserPrecheck)
+        }
+
+        // ── Step 2: Firebase path (accounts created after migration, empty local hash) ──
         val firebaseUser = try {
             firebaseAuth.signInWithEmailAndPassword(trimmedEmail, password).await().user
         } catch (e: FirebaseAuthInvalidCredentialsException) {
-            // Password is definitely wrong — no point checking local hash.
             return Result.failure(Exception("Invalid email or password"))
         } catch (e: FirebaseAuthInvalidUserException) {
-            // No Firebase account yet — this is a legacy (pre-migration) local account.
-            null
+            return Result.failure(Exception("No account found with this email"))
         } catch (e: Exception) {
             return Result.failure(Exception("Sign in failed: ${e.message}"))
-        }
+        } ?: return Result.failure(Exception("Sign in failed"))
 
-        if (firebaseUser != null) {
-            // Happy path: Firebase accepted the credentials.
-            val mappedUserId = AuthPreferences.getUserIdForProviderSubject(
-                context, provider = "email", subject = firebaseUser.uid
-            )
-            val localUser = mappedUserId?.let { userDao.getUserByIdSync(it) }
-                ?: userDao.getUserByEmail(trimmedEmail)
-                ?: return Result.failure(Exception("Local user record not found. Please sign up again."))
-            AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, localUser.id)
-            AuthPreferences.setLoggedIn(context, localUser.id)
-            return Result.success(localUser)
-        }
-
-        // ── Step 2: legacy path — verify against the local SHA-256 hash ──────
-        // These accounts were created before Firebase Email Auth was introduced.
-        // We have the plain-text password right now, so we can migrate on the spot.
-        val localUser = userDao.getUserByEmail(trimmedEmail)
-            ?: return Result.failure(Exception("No account found with this email"))
-
-        if (!User.verifyPassword(password, localUser.passwordHash)) {
-            return Result.failure(Exception("Invalid email or password"))
-        }
-
-        // Local credentials are correct — silently create the Firebase account so
-        // that future sign-ins and password resets go through Firebase from now on.
-        // The plain-text password is only available at this moment, so we act now.
-        try {
-            val migrated = firebaseAuth
-                .createUserWithEmailAndPassword(trimmedEmail, password).await().user
-            if (migrated != null) {
-                AuthPreferences.setProviderSubjectMapping(context, "email", migrated.uid, localUser.id)
-                // Clear the local hash — Firebase owns the credential from here on.
-                userDao.updateUser(localUser.copy(passwordHash = ""))
-                Log.i(TAG, "Migrated legacy account to Firebase Auth (userId=${localUser.id})")
-            }
-        } catch (e: Exception) {
-            // Migration failed (e.g. Email/Password provider not yet enabled in the
-            // Firebase console). Sign in still works locally; migration retries next login.
-            Log.w(TAG, "Firebase migration skipped: ${e.message}")
-        }
-
+        val mappedUserId = AuthPreferences.getUserIdForProviderSubject(
+            context, provider = "email", subject = firebaseUser.uid
+        )
+        val localUser = mappedUserId?.let { userDao.getUserByIdSync(it) }
+            ?: userDao.getUserByEmail(trimmedEmail)
+            ?: return Result.failure(Exception("Local user record not found. Please sign up again."))
+        AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, localUser.id)
         AuthPreferences.setLoggedIn(context, localUser.id)
         return Result.success(localUser)
     }
