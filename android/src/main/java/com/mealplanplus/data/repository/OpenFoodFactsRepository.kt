@@ -3,12 +3,14 @@ package com.mealplanplus.data.repository
 import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.remote.OpenFoodFactsApi
 import com.mealplanplus.data.remote.OpenFoodFactsProduct
+import com.mealplanplus.util.CrashlyticsReporter
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class OpenFoodFactsRepository @Inject constructor(
-    private val api: OpenFoodFactsApi
+    private val api: OpenFoodFactsApi,
+    private val crashlytics: CrashlyticsReporter
 ) {
     suspend fun getProductByBarcode(barcode: String): Result<FoodItem?> {
         return try {
@@ -19,6 +21,7 @@ class OpenFoodFactsRepository @Inject constructor(
                 Result.success(null)
             }
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "off_barcode", extras = mapOf("barcode" to barcode))
             Result.failure(e)
         }
     }
@@ -31,6 +34,7 @@ class OpenFoodFactsRepository @Inject constructor(
             }
             Result.success(foods)
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "off_search", extras = mapOf("query" to query))
             Result.failure(e)
         }
     }
