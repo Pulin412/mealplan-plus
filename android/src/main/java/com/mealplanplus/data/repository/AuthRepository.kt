@@ -20,6 +20,7 @@ import com.mealplanplus.data.local.UserDao
 import com.mealplanplus.data.local.UserDataSeeder
 import com.mealplanplus.data.model.User
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.util.CrashlyticsReporter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
@@ -36,9 +37,11 @@ class AuthRepository @Inject constructor(
     private val groceryDao: GroceryDao,
     private val dietDao: DietDao,
     private val mealDao: MealDao,
+    private val crashlytics: CrashlyticsReporter,
     @ApplicationContext private val context: Context
 ) {
     private val TAG = "AuthRepository"
+
     fun isLoggedIn(): Flow<Boolean> = AuthPreferences.isLoggedIn(context)
 
     fun getCurrentUserId(): Flow<Long?> = AuthPreferences.getUserId(context)
@@ -61,12 +64,15 @@ class AuthRepository @Inject constructor(
 
             AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, localUser.id)
             AuthPreferences.setLoggedIn(context, localUser.id)
+            crashlytics.setUserId(localUser.id.toString())
+            crashlytics.log("sign_in", "provider=email")
             Result.success(localUser)
         } catch (e: FirebaseAuthInvalidCredentialsException) {
             Result.failure(Exception("Invalid email or password"))
         } catch (e: FirebaseAuthInvalidUserException) {
             Result.failure(Exception("No account found with this email"))
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "sign_in_email")
             Result.failure(Exception("Sign in failed: ${e.message}"))
         }
     }
@@ -99,14 +105,18 @@ class AuthRepository @Inject constructor(
                     userDataSeeder.seedUserData(context, id)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to seed user data after Google sign-in: ${e.message}")
+                    crashlytics.recordNonFatal(e, context = "google_sign_in_seed")
                 }
                 newUser.copy(id = id)
             }
 
             AuthPreferences.setProviderSubjectMapping(context, "google", firebaseUser.uid, localUser.id)
             AuthPreferences.setLoggedIn(context, localUser.id)
+            crashlytics.setUserId(localUser.id.toString())
+            crashlytics.log("sign_in", "provider=google")
             Result.success(localUser)
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "sign_in_google")
             Result.failure(Exception("Google sign-in failed: ${e.message ?: "unknown error"}"))
         }
     }
@@ -116,20 +126,15 @@ class AuthRepository @Inject constructor(
             val trimmedEmail = email.lowercase().trim()
             val firebaseAuth = FirebaseAuth.getInstance()
 
-            // Create the Firebase account — Firebase handles duplicate-email detection,
-            // password strength enforcement, and credential storage.
             val authResult = firebaseAuth.createUserWithEmailAndPassword(trimmedEmail, password).await()
             val firebaseUser = authResult.user
                 ?: return Result.failure(Exception("Sign up failed"))
 
-            // Persist display name in Firebase profile so it's visible in the console.
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(name.trim())
                 .build()
             firebaseUser.updateProfile(profileUpdates).await()
 
-            // Create the local Room user. passwordHash is empty — Firebase owns the
-            // credentials, the app never stores or compares passwords locally again.
             val user = User(
                 email = trimmedEmail,
                 passwordHash = "",
@@ -137,7 +142,6 @@ class AuthRepository @Inject constructor(
             )
             val userId = userDao.insertUser(user)
 
-            // Map Firebase UID → local userId so sign-in can find the record.
             AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, userId)
 
             try {
@@ -145,30 +149,34 @@ class AuthRepository @Inject constructor(
                 Log.d(TAG, "Seeded user data for userId=$userId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to seed user data: ${e.message}")
+                crashlytics.recordNonFatal(e, context = "sign_up_seed", extras = mapOf("userId" to userId.toString()))
             }
 
             AuthPreferences.setLoggedIn(context, userId)
+            crashlytics.setUserId(userId.toString())
+            crashlytics.log("sign_up", "provider=email")
             Result.success(user.copy(id = userId))
         } catch (e: FirebaseAuthUserCollisionException) {
             Result.failure(Exception("Email already registered"))
         } catch (e: FirebaseAuthWeakPasswordException) {
             Result.failure(Exception("Password is too weak. Use at least 6 characters."))
         } catch (e: SQLiteConstraintException) {
-            // Unlikely — Firebase already caught the duplicate — but handle defensively.
             Result.failure(Exception("Email already registered"))
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "sign_up_email")
             Result.failure(Exception("Sign up failed: ${e.message}"))
         }
     }
 
     suspend fun signOut() {
         runCatching { FirebaseAuth.getInstance().signOut() }
+        crashlytics.clearUserId()
+        crashlytics.log("sign_out")
         AuthPreferences.clearAuth(context)
     }
 
     /**
      * Sends a Firebase password-reset email to [email].
-     * Firebase handles the link generation, expiry, and delivery — no backend needed.
      */
     suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
         return try {
@@ -179,6 +187,7 @@ class AuthRepository @Inject constructor(
         } catch (e: FirebaseAuthInvalidUserException) {
             Result.failure(Exception("No account found with this email"))
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "password_reset")
             Result.failure(Exception("Could not send reset email: ${e.message}"))
         }
     }
@@ -193,6 +202,7 @@ class AuthRepository @Inject constructor(
             userDao.updateUser(updatedUser)
             Result.success(updatedUser)
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "update_profile")
             Result.failure(e)
         }
     }
@@ -215,12 +225,13 @@ class AuthRepository @Inject constructor(
         return try {
             clearAllUserData()
             userDao.deleteUser(userId)
-            // Also delete the Firebase account so the email can be reused and no
-            // orphaned credential record is left in Firebase Auth.
             runCatching { FirebaseAuth.getInstance().currentUser?.delete()?.await() }
+            crashlytics.log("account_deleted")
+            crashlytics.clearUserId()
             signOut()
             Result.success(Unit)
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "delete_account")
             Result.failure(e)
         }
     }

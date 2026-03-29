@@ -8,6 +8,7 @@ import com.mealplanplus.data.local.MealDao
 import com.mealplanplus.data.local.DietDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.remote.*
+import com.mealplanplus.util.CrashlyticsReporter
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -20,7 +21,8 @@ class SyncRepository @Inject constructor(
     private val mealDao: MealDao,
     private val dietDao: DietDao,
     private val healthMetricDao: HealthMetricDao,
-    private val groceryDao: GroceryDao
+    private val groceryDao: GroceryDao,
+    private val crashlytics: CrashlyticsReporter
 ) {
     private val TAG = "SyncRepository"
     private val isoFormatter = DateTimeFormatter.ISO_INSTANT
@@ -77,7 +79,11 @@ class SyncRepository @Inject constructor(
             groceryDao.updateGroceryList(g.copy(syncedAt = now))
         }
 
+        crashlytics.log("sync_push", "accepted=${resp.accepted}")
         resp.accepted
+    }.onFailure { e ->
+        crashlytics.recordNonFatal(e, context = "sync_push", extras = mapOf("userId" to userId.toString()))
+        Log.e(TAG, "Push failed: ${e.message}")
     }
 
     /** Pull backend changes since last pull and merge into local DB */
@@ -141,5 +147,10 @@ class SyncRepository @Inject constructor(
 
         Log.d(TAG, "Pull complete: meals=${resp.meals.size} diets=${resp.diets.size} " +
             "metrics=${resp.healthMetrics.size} lists=${resp.groceryLists.size}")
+        crashlytics.log("sync_pull", "meals=${resp.meals.size} diets=${resp.diets.size} " +
+            "metrics=${resp.healthMetrics.size} lists=${resp.groceryLists.size}")
+    }.onFailure { e ->
+        crashlytics.recordNonFatal(e, context = "sync_pull", extras = mapOf("userId" to userId.toString()))
+        Log.e(TAG, "Pull failed: ${e.message}")
     }
 }

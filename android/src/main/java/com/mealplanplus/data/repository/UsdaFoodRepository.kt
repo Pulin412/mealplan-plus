@@ -3,12 +3,14 @@ package com.mealplanplus.data.repository
 import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.remote.UsdaFoodApi
 import com.mealplanplus.data.remote.UsdaFoodItem
+import com.mealplanplus.util.CrashlyticsReporter
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UsdaFoodRepository @Inject constructor(
-    private val api: UsdaFoodApi
+    private val api: UsdaFoodApi,
+    private val crashlytics: CrashlyticsReporter
 ) {
     suspend fun searchFoods(query: String): Result<List<UsdaFoodResult>> {
         return try {
@@ -29,7 +31,7 @@ class UsdaFoodRepository @Inject constructor(
             }
             Result.success(results)
         } catch (e: Exception) {
-            e.printStackTrace()
+            crashlytics.recordNonFatal(e, context = "usda_search", extras = mapOf("query" to query))
             Result.failure(e)
         }
     }
@@ -51,6 +53,7 @@ class UsdaFoodRepository @Inject constructor(
                 )
             )
         } catch (e: Exception) {
+            crashlytics.recordNonFatal(e, context = "usda_details", extras = mapOf("fdcId" to fdcId.toString()))
             Result.failure(e)
         }
     }

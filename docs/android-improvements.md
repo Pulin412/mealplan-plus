@@ -5,6 +5,57 @@ Each entry notes what changed and the file(s) affected.
 
 ---
 
+## 2026-03-29 — Firebase Crashlytics (P1)
+
+**Branch:** `feature/crashlytics`
+
+### What changed
+
+Added Firebase Crashlytics for crash visibility before public launch. All crashes are automatically captured; key non-fatal errors and user-journey breadcrumbs are reported explicitly.
+
+**Files added:**
+- `android/src/main/java/com/mealplanplus/util/CrashlyticsReporter.kt` — Injectable singleton wrapper around `FirebaseCrashlytics`. Provides `recordNonFatal()`, `log()`, `setUserId()`, `clearUserId()`, and `setKey()`. Keeps call sites decoupled from the Firebase SDK and makes unit testing straightforward.
+
+**Files modified:**
+- `build.gradle.kts` (root) — Added `com.google.firebase.crashlytics` Gradle plugin declaration (`v3.0.2`).
+- `android/build.gradle.kts` — Applied `com.google.firebase.crashlytics` plugin; added `firebase-crashlytics-ktx` under the existing Firebase BOM.
+- `MealPlanApp.kt` — Injects `CrashlyticsReporter`; enables collection on startup and logs `app_start` breadcrumb.
+- `AuthRepository.kt` — Sets Crashlytics user ID on sign-in (email + Google), clears on sign-out/account deletion. Reports non-fatals for unexpected auth/seed exceptions.
+- `SyncRepository.kt` — Non-fatal on push/pull failures; breadcrumb on successful sync.
+- `OpenFoodFactsRepository.kt` — Non-fatal on barcode lookup and product search failures.
+- `UsdaFoodRepository.kt` — Non-fatal on search and detail-fetch failures.
+
+### Breadcrumbs logged
+| Event | Detail |
+|---|---|
+| `app_start` | `version=<versionName>` |
+| `sign_in` | `provider=email\|google` |
+| `sign_up` | `provider=email` |
+| `sign_out` | — |
+| `account_deleted` | — |
+| `sync_push` | `accepted=<n>` |
+| `sync_pull` | item counts per entity type |
+
+### Non-fatals reported
+| Context key | Trigger |
+|---|---|
+| `sign_in_email` / `sign_in_google` | Unexpected exception during sign-in |
+| `sign_up_email` | Unexpected exception during sign-up |
+| `sign_up_seed` / `google_sign_in_seed` | Failure seeding initial data for new user |
+| `password_reset` | Unexpected exception sending reset email |
+| `update_profile` | DB exception updating user profile |
+| `delete_account` | Exception during account deletion |
+| `sync_push` / `sync_pull` | Network/DB error during background sync |
+| `off_barcode` / `off_search` | OpenFoodFacts API failure |
+| `usda_search` / `usda_details` | USDA API failure |
+
+### Notes
+- Crashlytics is free on the Firebase Spark plan — no per-event billing.
+- `CrashlyticsReporter` is a regular `@Singleton` injected via Hilt; no static access in call sites.
+- If a user opt-out preference is added later, pass that flag to `setCrashlyticsCollectionEnabled()` in `MealPlanApp.initCrashlytics()`.
+
+---
+
 ## 2026-03-27 — iOS Parity
 
 iOS parity implemented on branch `feature/ios-android-parity` for all changes below.
