@@ -1,7 +1,7 @@
 # Android Architecture
 
 **Audience:** Contributors and developers
-**Tech Stack:** Kotlin · Jetpack Compose · Room · Hilt · Coroutines · WorkManager · Firebase Crashlytics
+**Tech Stack:** Kotlin · Jetpack Compose · Room · Hilt · Coroutines · WorkManager · Firebase Crashlytics · Firebase Remote Config
 
 ---
 
@@ -45,6 +45,7 @@
 │  │               CROSS-CUTTING CONCERNS                         │   │
 │  │   Hilt DI  •  DataStore Preferences  •  WorkManager         │   │
 │  │   Firebase Auth  •  Firebase Crashlytics                    │   │
+│  │   Firebase Remote Config  •  Feature Flags                  │   │
 │  │   Glance Widgets  •  CSV Export                             │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -216,6 +217,7 @@ See [Authentication](authentication.md) for full details.
 | Widgets | Jetpack Glance |
 | Auth | Firebase Authentication |
 | Crash reporting | Firebase Crashlytics |
+| Feature flags | Firebase Remote Config |
 | Build | Gradle (KTS) |
 | Min SDK | 26 (Android 8.0) |
 | Target SDK | 34 (Android 14) |

@@ -6,6 +6,7 @@ import androidx.work.WorkManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mealplanplus.data.local.DatabaseSeeder
 import com.mealplanplus.util.CrashlyticsReporter
+import com.mealplanplus.util.RemoteConfigManager
 import com.mealplanplus.work.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -23,11 +24,15 @@ class MealPlanApp : Application() {
     @Inject
     lateinit var crashlyticsReporter: CrashlyticsReporter
 
+    @Inject
+    lateinit var remoteConfigManager: RemoteConfigManager
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
         initCrashlytics()
+        initRemoteConfig()
         // Seed only if database is empty (first run)
         applicationScope.launch {
             databaseSeeder.seedFromFilesIfNeeded(this@MealPlanApp)
@@ -43,6 +48,13 @@ class MealPlanApp : Application() {
             crashlyticsReporter.log("app_start", "version=$versionName")
         } catch (e: Exception) {
             crashlyticsReporter.log("app_start")
+        }
+    }
+
+    private fun initRemoteConfig() {
+        remoteConfigManager.applyDefaults()
+        applicationScope.launch {
+            remoteConfigManager.fetchAndActivate()
         }
     }
 
