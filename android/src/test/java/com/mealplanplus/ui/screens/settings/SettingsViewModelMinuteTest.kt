@@ -7,6 +7,7 @@ import com.mealplanplus.data.local.JsonDataImporter
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.notification.NotificationAlarmBootstrapper
+import com.mealplanplus.util.AlarmScheduler
 import com.mealplanplus.util.NotificationAlarmType
 import com.mealplanplus.util.NotificationPreferences
 import com.mealplanplus.util.ThemePreferences
@@ -16,10 +17,8 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
-import io.mockk.mockkStatic
 import io.mockk.Runs
 import io.mockk.unmockkObject
-import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -29,20 +28,16 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
 
 /**
- * Tests for the notification-related state and setters in [SettingsViewModel].
- *
- * [NotificationPreferences] and [ThemePreferences] are mocked so the ViewModel
- * never touches a real DataStore.
+ * Tests for minute-precision notification preferences in [SettingsViewModel].
+ * Verifies initial state defaults and setter methods (including rescheduling side-effects).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class SettingsViewModelNotificationTest {
+class SettingsViewModelMinuteTest {
 
     companion object {
         @OptIn(ExperimentalCoroutinesApi::class)
@@ -54,9 +49,7 @@ class SettingsViewModelNotificationTest {
 
         @JvmStatic
         @AfterClass
-        fun tearDownClass() {
-            // Intentionally left empty — Main stays set for in-flight coroutines.
-        }
+        fun tearDownClass() {}
     }
 
     private lateinit var context: Context
@@ -74,14 +67,13 @@ class SettingsViewModelNotificationTest {
         jsonImporter = mockk(relaxed = true)
         csvImporter = mockk(relaxed = true)
 
-        // Stub ThemePreferences so loadThemePreferences() doesn't hit DataStore
         mockkObject(ThemePreferences)
         every { ThemePreferences.isDarkMode(context) } returns flowOf(false)
         every { ThemePreferences.isDynamicColor(context) } returns flowOf(true)
         every { ThemePreferences.isFollowSystem(context) } returns flowOf(true)
 
-        // Stub NotificationPreferences reads with known defaults
         mockkObject(NotificationPreferences)
+        // hour defaults
         every { NotificationPreferences.getMasterEnabled(context) } returns flowOf(false)
         every { NotificationPreferences.getMealRemindersEnabled(context) } returns flowOf(true)
         every { NotificationPreferences.getStreakProtectionEnabled(context) } returns flowOf(true)
@@ -90,12 +82,16 @@ class SettingsViewModelNotificationTest {
         every { NotificationPreferences.getLunchHour(context) } returns flowOf(NotificationPreferences.DEFAULT_LUNCH_HOUR)
         every { NotificationPreferences.getDinnerHour(context) } returns flowOf(NotificationPreferences.DEFAULT_DINNER_HOUR)
         every { NotificationPreferences.getStreakAlertHour(context) } returns flowOf(NotificationPreferences.DEFAULT_STREAK_ALERT_HOUR)
-        // Minute getters
+        // minute defaults
         every { NotificationPreferences.getBreakfastMinute(context) } returns flowOf(NotificationPreferences.DEFAULT_BREAKFAST_MINUTE)
         every { NotificationPreferences.getLunchMinute(context) } returns flowOf(NotificationPreferences.DEFAULT_LUNCH_MINUTE)
         every { NotificationPreferences.getDinnerMinute(context) } returns flowOf(NotificationPreferences.DEFAULT_DINNER_MINUTE)
         every { NotificationPreferences.getStreakAlertMinute(context) } returns flowOf(NotificationPreferences.DEFAULT_STREAK_ALERT_MINUTE)
-        // Stub writes so coVerify can capture them
+        // write stubs
+        coEvery { NotificationPreferences.setBreakfastMinute(context, any()) } just Runs
+        coEvery { NotificationPreferences.setLunchMinute(context, any()) } just Runs
+        coEvery { NotificationPreferences.setDinnerMinute(context, any()) } just Runs
+        coEvery { NotificationPreferences.setStreakAlertMinute(context, any()) } just Runs
         coEvery { NotificationPreferences.setMasterEnabled(context, any()) } just Runs
         coEvery { NotificationPreferences.setMealRemindersEnabled(context, any()) } just Runs
         coEvery { NotificationPreferences.setStreakProtectionEnabled(context, any()) } just Runs
@@ -109,7 +105,6 @@ class SettingsViewModelNotificationTest {
         coEvery { NotificationAlarmBootstrapper.scheduleAll(context) } just Runs
         coEvery { NotificationAlarmBootstrapper.rescheduleForType(context, any()) } just Runs
 
-        // Stub repository flows so loadDataForExport() exits cleanly
         every { dailyLogRepo.getLogsByUser() } returns flowOf(emptyList())
         every { healthRepo.getRecentMetrics(any()) } returns flowOf(emptyList())
 
@@ -126,65 +121,33 @@ class SettingsViewModelNotificationTest {
     // ── initial state ──────────────────────────────────────────────────────────
 
     @Test
-    fun notificationState_masterEnabled_defaultIsFalse() = runTest {
+    fun notificationState_breakfastMinute_defaultIsZero() = runTest {
         viewModel.notificationState.test {
-            assertFalse(awaitItem().masterEnabled)
+            assertEquals(NotificationPreferences.DEFAULT_BREAKFAST_MINUTE, awaitItem().breakfastMinute)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun notificationState_mealRemindersEnabled_defaultIsTrue() = runTest {
+    fun notificationState_lunchMinute_defaultIsZero() = runTest {
         viewModel.notificationState.test {
-            assertTrue(awaitItem().mealRemindersEnabled)
+            assertEquals(NotificationPreferences.DEFAULT_LUNCH_MINUTE, awaitItem().lunchMinute)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun notificationState_streakProtectionEnabled_defaultIsTrue() = runTest {
+    fun notificationState_dinnerMinute_defaultIsZero() = runTest {
         viewModel.notificationState.test {
-            assertTrue(awaitItem().streakProtectionEnabled)
+            assertEquals(NotificationPreferences.DEFAULT_DINNER_MINUTE, awaitItem().dinnerMinute)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun notificationState_weeklyPlanEnabled_defaultIsTrue() = runTest {
+    fun notificationState_streakAlertMinute_defaultIsZero() = runTest {
         viewModel.notificationState.test {
-            assertTrue(awaitItem().weeklyPlanEnabled)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun notificationState_breakfastHour_defaultIs8() = runTest {
-        viewModel.notificationState.test {
-            assertEquals(NotificationPreferences.DEFAULT_BREAKFAST_HOUR, awaitItem().breakfastHour)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun notificationState_lunchHour_defaultIs13() = runTest {
-        viewModel.notificationState.test {
-            assertEquals(NotificationPreferences.DEFAULT_LUNCH_HOUR, awaitItem().lunchHour)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun notificationState_dinnerHour_defaultIs19() = runTest {
-        viewModel.notificationState.test {
-            assertEquals(NotificationPreferences.DEFAULT_DINNER_HOUR, awaitItem().dinnerHour)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun notificationState_streakAlertHour_defaultIs21() = runTest {
-        viewModel.notificationState.test {
-            assertEquals(NotificationPreferences.DEFAULT_STREAK_ALERT_HOUR, awaitItem().streakAlertHour)
+            assertEquals(NotificationPreferences.DEFAULT_STREAK_ALERT_MINUTE, awaitItem().streakAlertMinute)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -192,56 +155,44 @@ class SettingsViewModelNotificationTest {
     // ── setters ────────────────────────────────────────────────────────────────
 
     @Test
-    fun setMasterEnabled_callsPreferences() = runTest {
-        viewModel.setMasterEnabled(true)
-        coVerify { NotificationPreferences.setMasterEnabled(context, true) }
+    fun setBreakfastMinute_callsPreferencesAndReschedules() = runTest {
+        viewModel.setBreakfastMinute(15)
+        coVerify { NotificationPreferences.setBreakfastMinute(context, 15) }
+        coVerify { NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.BREAKFAST) }
     }
 
     @Test
-    fun setMasterEnabled_false_callsPreferences() = runTest {
-        viewModel.setMasterEnabled(false)
-        coVerify { NotificationPreferences.setMasterEnabled(context, false) }
+    fun setLunchMinute_callsPreferencesAndReschedules() = runTest {
+        viewModel.setLunchMinute(30)
+        coVerify { NotificationPreferences.setLunchMinute(context, 30) }
+        coVerify { NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.LUNCH) }
     }
 
     @Test
-    fun setMealRemindersEnabled_callsPreferences() = runTest {
-        viewModel.setMealRemindersEnabled(false)
-        coVerify { NotificationPreferences.setMealRemindersEnabled(context, false) }
+    fun setDinnerMinute_callsPreferencesAndReschedules() = runTest {
+        viewModel.setDinnerMinute(45)
+        coVerify { NotificationPreferences.setDinnerMinute(context, 45) }
+        coVerify { NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.DINNER) }
     }
 
     @Test
-    fun setStreakProtectionEnabled_callsPreferences() = runTest {
-        viewModel.setStreakProtectionEnabled(false)
-        coVerify { NotificationPreferences.setStreakProtectionEnabled(context, false) }
+    fun setStreakAlertMinute_callsPreferencesAndReschedules() = runTest {
+        viewModel.setStreakAlertMinute(0)
+        coVerify { NotificationPreferences.setStreakAlertMinute(context, 0) }
+        coVerify { NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.STREAK) }
     }
 
     @Test
-    fun setWeeklyPlanEnabled_callsPreferences() = runTest {
-        viewModel.setWeeklyPlanEnabled(false)
-        coVerify { NotificationPreferences.setWeeklyPlanEnabled(context, false) }
-    }
-
-    @Test
-    fun setBreakfastHour_callsPreferences() = runTest {
+    fun setBreakfastHour_alsoReschedules() = runTest {
         viewModel.setBreakfastHour(7)
         coVerify { NotificationPreferences.setBreakfastHour(context, 7) }
+        coVerify { NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.BREAKFAST) }
     }
 
     @Test
-    fun setLunchHour_callsPreferences() = runTest {
-        viewModel.setLunchHour(12)
-        coVerify { NotificationPreferences.setLunchHour(context, 12) }
-    }
-
-    @Test
-    fun setDinnerHour_callsPreferences() = runTest {
-        viewModel.setDinnerHour(20)
-        coVerify { NotificationPreferences.setDinnerHour(context, 20) }
-    }
-
-    @Test
-    fun setStreakAlertHour_callsPreferences() = runTest {
-        viewModel.setStreakAlertHour(22)
-        coVerify { NotificationPreferences.setStreakAlertHour(context, 22) }
+    fun setMasterEnabled_false_callsScheduleAll() = runTest {
+        viewModel.setMasterEnabled(false)
+        coVerify { NotificationPreferences.setMasterEnabled(context, false) }
+        coVerify { NotificationAlarmBootstrapper.scheduleAll(context) }
     }
 }

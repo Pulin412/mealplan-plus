@@ -39,7 +39,7 @@ fun SettingsScreen(
         null
     }
 
-    var hourPickerTarget by remember { mutableStateOf<HourPickerTarget?>(null) }
+    var timePickerTarget by remember { mutableStateOf<HourPickerTarget?>(null) }
 
     // File picker for JSON import
     val jsonPickerLauncher = rememberLauncherForActivityResult(
@@ -151,17 +151,20 @@ fun SettingsScreen(
                         SettingsTimeItem(
                             label = "Breakfast reminder",
                             hour = notificationState.breakfastHour,
-                            onClick = { hourPickerTarget = HourPickerTarget.BREAKFAST }
+                            minute = notificationState.breakfastMinute,
+                            onClick = { timePickerTarget = HourPickerTarget.BREAKFAST }
                         )
                         SettingsTimeItem(
                             label = "Lunch reminder",
                             hour = notificationState.lunchHour,
-                            onClick = { hourPickerTarget = HourPickerTarget.LUNCH }
+                            minute = notificationState.lunchMinute,
+                            onClick = { timePickerTarget = HourPickerTarget.LUNCH }
                         )
                         SettingsTimeItem(
                             label = "Dinner reminder",
                             hour = notificationState.dinnerHour,
-                            onClick = { hourPickerTarget = HourPickerTarget.DINNER }
+                            minute = notificationState.dinnerMinute,
+                            onClick = { timePickerTarget = HourPickerTarget.DINNER }
                         )
                     }
 
@@ -177,7 +180,8 @@ fun SettingsScreen(
                         SettingsTimeItem(
                             label = "Streak alert time",
                             hour = notificationState.streakAlertHour,
-                            onClick = { hourPickerTarget = HourPickerTarget.STREAK_ALERT }
+                            minute = notificationState.streakAlertMinute,
+                            onClick = { timePickerTarget = HourPickerTarget.STREAK_ALERT }
                         )
                     }
 
@@ -323,25 +327,33 @@ fun SettingsScreen(
         }
     }
 
-    // Hour picker dialog
-    hourPickerTarget?.let { target ->
+    // Time picker dialog (hour + minute)
+    timePickerTarget?.let { target ->
         val currentHour = when (target) {
             HourPickerTarget.BREAKFAST -> notificationState.breakfastHour
             HourPickerTarget.LUNCH -> notificationState.lunchHour
             HourPickerTarget.DINNER -> notificationState.dinnerHour
             HourPickerTarget.STREAK_ALERT -> notificationState.streakAlertHour
         }
+        val currentMinute = when (target) {
+            HourPickerTarget.BREAKFAST -> notificationState.breakfastMinute
+            HourPickerTarget.LUNCH -> notificationState.lunchMinute
+            HourPickerTarget.DINNER -> notificationState.dinnerMinute
+            HourPickerTarget.STREAK_ALERT -> notificationState.streakAlertMinute
+        }
         var sliderHour by remember(currentHour) { mutableStateOf(currentHour.toFloat()) }
+        var sliderMinute by remember(currentMinute) { mutableStateOf(currentMinute.toFloat()) }
         AlertDialog(
-            onDismissRequest = { hourPickerTarget = null },
+            onDismissRequest = { timePickerTarget = null },
             title = { Text("Set time for ${target.label}") },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = formatHour(sliderHour.toInt()),
+                        text = formatTime(sliderHour.toInt(), sliderMinute.toInt()),
                         style = MaterialTheme.typography.headlineMedium
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text("Hour", style = MaterialTheme.typography.labelMedium)
                     Slider(
                         value = sliderHour,
                         onValueChange = { sliderHour = it },
@@ -355,22 +367,50 @@ fun SettingsScreen(
                         Text("12 AM", style = MaterialTheme.typography.labelSmall)
                         Text("11 PM", style = MaterialTheme.typography.labelSmall)
                     }
+                    Spacer(Modifier.height(12.dp))
+                    Text("Minute", style = MaterialTheme.typography.labelMedium)
+                    Slider(
+                        value = sliderMinute,
+                        onValueChange = { sliderMinute = it },
+                        valueRange = 0f..59f,
+                        steps = 58
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(":00", style = MaterialTheme.typography.labelSmall)
+                        Text(":59", style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     val h = sliderHour.toInt()
+                    val m = sliderMinute.toInt()
                     when (target) {
-                        HourPickerTarget.BREAKFAST -> viewModel.setBreakfastHour(h)
-                        HourPickerTarget.LUNCH -> viewModel.setLunchHour(h)
-                        HourPickerTarget.DINNER -> viewModel.setDinnerHour(h)
-                        HourPickerTarget.STREAK_ALERT -> viewModel.setStreakAlertHour(h)
+                        HourPickerTarget.BREAKFAST -> {
+                            viewModel.setBreakfastHour(h)
+                            viewModel.setBreakfastMinute(m)
+                        }
+                        HourPickerTarget.LUNCH -> {
+                            viewModel.setLunchHour(h)
+                            viewModel.setLunchMinute(m)
+                        }
+                        HourPickerTarget.DINNER -> {
+                            viewModel.setDinnerHour(h)
+                            viewModel.setDinnerMinute(m)
+                        }
+                        HourPickerTarget.STREAK_ALERT -> {
+                            viewModel.setStreakAlertHour(h)
+                            viewModel.setStreakAlertMinute(m)
+                        }
                     }
-                    hourPickerTarget = null
+                    timePickerTarget = null
                 }) { Text("Set") }
             },
             dismissButton = {
-                TextButton(onClick = { hourPickerTarget = null }) { Text("Cancel") }
+                TextButton(onClick = { timePickerTarget = null }) { Text("Cancel") }
             }
         )
     }
@@ -445,12 +485,13 @@ private enum class HourPickerTarget(val label: String) {
     STREAK_ALERT("Streak Alert")
 }
 
-private fun formatHour(hour: Int): String {
+private fun formatTime(hour: Int, minute: Int): String {
+    val minuteStr = minute.toString().padStart(2, '0')
     return when {
-        hour == 0 -> "12:00 AM"
-        hour < 12 -> "$hour:00 AM"
-        hour == 12 -> "12:00 PM"
-        else -> "${hour - 12}:00 PM"
+        hour == 0 -> "12:$minuteStr AM"
+        hour < 12 -> "$hour:$minuteStr AM"
+        hour == 12 -> "12:$minuteStr PM"
+        else -> "${hour - 12}:$minuteStr PM"
     }
 }
 
@@ -513,6 +554,7 @@ fun SettingsSwitchItem(
 fun SettingsTimeItem(
     label: String,
     hour: Int,
+    minute: Int = 0,
     onClick: () -> Unit
 ) {
     Row(
@@ -529,7 +571,7 @@ fun SettingsTimeItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         TextButton(onClick = onClick) {
-            Text(formatHour(hour))
+            Text(formatTime(hour, minute))
         }
     }
 }

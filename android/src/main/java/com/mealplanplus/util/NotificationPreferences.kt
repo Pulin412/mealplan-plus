@@ -30,6 +30,10 @@ object NotificationPreferences {
     private val LUNCH_HOUR = intPreferencesKey("notifications_lunch_hour")
     private val DINNER_HOUR = intPreferencesKey("notifications_dinner_hour")
     private val STREAK_ALERT_HOUR = intPreferencesKey("notifications_streak_alert_hour")
+    private val BREAKFAST_MINUTE = intPreferencesKey("notifications_breakfast_minute")
+    private val LUNCH_MINUTE = intPreferencesKey("notifications_lunch_minute")
+    private val DINNER_MINUTE = intPreferencesKey("notifications_dinner_minute")
+    private val STREAK_ALERT_MINUTE = intPreferencesKey("notifications_streak_alert_minute")
 
     // ── Defaults ──────────────────────────────────────────────────────────────
 
@@ -37,6 +41,10 @@ object NotificationPreferences {
     const val DEFAULT_LUNCH_HOUR = 13
     const val DEFAULT_DINNER_HOUR = 19
     const val DEFAULT_STREAK_ALERT_HOUR = 21
+    const val DEFAULT_BREAKFAST_MINUTE = 0
+    const val DEFAULT_LUNCH_MINUTE = 0
+    const val DEFAULT_DINNER_MINUTE = 0
+    const val DEFAULT_STREAK_ALERT_MINUTE = 0
 
     // ── Reads ─────────────────────────────────────────────────────────────────
 
@@ -63,6 +71,18 @@ object NotificationPreferences {
 
     fun getStreakAlertHour(context: Context): Flow<Int> =
         context.dataStore.data.map { it[STREAK_ALERT_HOUR] ?: DEFAULT_STREAK_ALERT_HOUR }
+
+    fun getBreakfastMinute(context: Context): Flow<Int> =
+        context.dataStore.data.map { it[BREAKFAST_MINUTE] ?: DEFAULT_BREAKFAST_MINUTE }
+
+    fun getLunchMinute(context: Context): Flow<Int> =
+        context.dataStore.data.map { it[LUNCH_MINUTE] ?: DEFAULT_LUNCH_MINUTE }
+
+    fun getDinnerMinute(context: Context): Flow<Int> =
+        context.dataStore.data.map { it[DINNER_MINUTE] ?: DEFAULT_DINNER_MINUTE }
+
+    fun getStreakAlertMinute(context: Context): Flow<Int> =
+        context.dataStore.data.map { it[STREAK_ALERT_MINUTE] ?: DEFAULT_STREAK_ALERT_MINUTE }
 
     // ── Writes ────────────────────────────────────────────────────────────────
 
@@ -96,5 +116,21 @@ object NotificationPreferences {
 
     suspend fun setStreakAlertHour(context: Context, hour: Int) {
         context.dataStore.edit { it[STREAK_ALERT_HOUR] = hour }
+    }
+
+    suspend fun setBreakfastMinute(context: Context, minute: Int) {
+        context.dataStore.edit { it[BREAKFAST_MINUTE] = minute }
+    }
+
+    suspend fun setLunchMinute(context: Context, minute: Int) {
+        context.dataStore.edit { it[LUNCH_MINUTE] = minute }
+    }
+
+    suspend fun setDinnerMinute(context: Context, minute: Int) {
+        context.dataStore.edit { it[DINNER_MINUTE] = minute }
+    }
+
+    suspend fun setStreakAlertMinute(context: Context, minute: Int) {
+        context.dataStore.edit { it[STREAK_ALERT_MINUTE] = minute }
     }
 }
