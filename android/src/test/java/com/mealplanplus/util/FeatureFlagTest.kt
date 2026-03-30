@@ -44,6 +44,11 @@ class FeatureFlagTest {
         assertEquals("health_tracking_enabled", FeatureFlag.HEALTH_TRACKING.key)
     }
 
+    @Test
+    fun analyticsEnabledFlag_hasCorrectKey() {
+        assertEquals("analytics_enabled", FeatureFlag.ANALYTICS_ENABLED.key)
+    }
+
     // ── default values ────────────────────────────────────────────────────────
 
     @Test
@@ -77,6 +82,12 @@ class FeatureFlagTest {
         assertTrue(FeatureFlag.HEALTH_TRACKING.defaultValue)
     }
 
+    @Test
+    fun analyticsEnabledFlag_defaultIsFalse() {
+        // Off by default — enabled remotely after pre-launch privacy review
+        assertFalse(FeatureFlag.ANALYTICS_ENABLED.defaultValue)
+    }
+
     // ── uniqueness ────────────────────────────────────────────────────────────
 
     @Test
@@ -89,6 +100,6 @@ class FeatureFlagTest {
     fun flagCount_matchesExpected() {
         // This test intentionally fails when a flag is added or removed without updating
         // the rest of the feature (documentation, Remote Config console defaults, etc.).
-        assertEquals(6, FeatureFlag.entries.size)
+        assertEquals(7, FeatureFlag.entries.size)
     }
 }
