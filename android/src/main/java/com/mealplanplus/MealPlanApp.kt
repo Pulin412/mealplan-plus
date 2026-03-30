@@ -5,8 +5,10 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mealplanplus.data.local.DatabaseSeeder
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.mealplanplus.util.AnalyticsManager
 import com.mealplanplus.util.CrashlyticsReporter
+import com.mealplanplus.util.FeatureFlag
 import com.mealplanplus.util.RemoteConfigManager
 import com.mealplanplus.work.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -59,6 +61,10 @@ class MealPlanApp : Application() {
         remoteConfigManager.applyDefaults()
         applicationScope.launch {
             remoteConfigManager.fetchAndActivate()
+            // Apply analytics collection state after config is fresh
+            val analyticsEnabled = remoteConfigManager.isEnabled(FeatureFlag.ANALYTICS_ENABLED)
+            FirebaseAnalytics.getInstance(this@MealPlanApp)
+                .setAnalyticsCollectionEnabled(analyticsEnabled)
         }
     }
 

@@ -45,6 +45,13 @@
             {
               "client_id": "815506562788-nl2s2vjlhsa3tcofvf7rfs2a7i98vvvc.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "815506562788-3696eim2djlljtfrpegltdq2nak3bs2f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mealplanplus.ios"
+              }
             }
           ]
         }

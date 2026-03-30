@@ -36,13 +36,19 @@ import io.mockk.unmockkConstructor
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AuthRepositoryTest {
 
     private lateinit var userDao: UserDao
@@ -66,6 +72,7 @@ class AuthRepositoryTest {
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         userDao = mockk(relaxed = true)
         userDataSeeder = mockk(relaxed = true)
         healthMetricDao = mockk(relaxed = true)
@@ -118,6 +125,7 @@ class AuthRepositoryTest {
 
     @After
     fun tearDown() {
+        Dispatchers.resetMain()
         unmockkObject(AuthPreferences)
         unmockkStatic(FirebaseAuth::class)
         unmockkStatic(FirebaseAnalytics::class)

@@ -31,4 +31,7 @@ enum class FeatureFlag(val key: String, val defaultValue: Boolean) {
 
     /** Health metrics tracking screen. */
     HEALTH_TRACKING("health_tracking_enabled", true),
+
+    /** Firebase Analytics event collection. Off by default until pre-launch privacy review. */
+    ANALYTICS_ENABLED("analytics_enabled", false),
 }
