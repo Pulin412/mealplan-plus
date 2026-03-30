@@ -1,0 +1,163 @@
+name: CI
+
+# Single entry point for all CI. On every push to main, a cheap "detect-changes"
+# job runs first and outputs which modules were touched. Each downstream job only
+# starts if its module's files actually changed — so a docs-only or backend-only
+# push never triggers the Android or iOS builds.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ── 1. Detect which modules changed ─────────────────────────────────────────
+  detect-changes:
+    name: Detect changed modules
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.filter.outputs.android }}
+      backend: ${{ steps.filter.outputs.backend }}
+      ios:     ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Path filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            android:
+              - 'android/**'
+              - 'shared/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle/**'
+              - '.github/workflows/ci.yml'
+            ios:
+              - 'ios/**'
+              - 'shared/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle/**'
+              - '.github/workflows/ci.yml'
+
+  # ── 2a. Android build + unit tests ──────────────────────────────────────────
+  android:
+    name: Android (build + tests)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Build + unit tests
+        run: >
+          ./gradlew
+          :android:assembleDebug
+          :android:testDebugUnitTest
+          :shared:testDebugUnitTest
+          --parallel
+          --build-cache
+          --configuration-cache
+          --no-daemon
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-results
+          path: |
+            android/build/reports/tests/
+            shared/build/reports/tests/
+          retention-days: 7
+
+  # ── 2b. Backend build + unit tests ──────────────────────────────────────────
+  backend:
+    name: Backend (build + tests)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Build + test
+        run: >
+          ./gradlew
+          :backend:build
+          --parallel
+          --build-cache
+          --configuration-cache
+          --no-daemon
+        env:
+          FIREBASE_PROJECT_ID: test-project
+
+      - name: Docker build check
+        run: docker build -t mealplan-api ./backend
+
+  # ── 2c. iOS build ────────────────────────────────────────────────────────────
+  ios:
+    name: iOS (build)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ios == 'true'
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Build shared KMP framework (iOS simulator)
+        run: >
+          ./gradlew
+          :shared:linkDebugFrameworkIosSimulatorArm64
+          --build-cache
+          --configuration-cache
+          --no-daemon
+
+      - name: Build iOS app
+        run: |
+          xcodebuild \
+            -project ios/iosApp.xcodeproj \
+            -scheme iosApp \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
