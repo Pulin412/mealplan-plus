@@ -40,16 +40,39 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthRepositoryTest {
+
+    companion object {
+        // Set Main once for the entire class so that any DataStore IO actor that
+        // escapes a test scope (SingleProcessDataStore dispatches completions back on
+        // Dispatchers.Main) can always dispatch cleanly — even in the gap between
+        // one test's tearDown and the next test's setUp.
+        // We intentionally do NOT call resetMain() after the class so the dispatcher
+        // remains available for any background coroutines still in flight.
+        @OptIn(ExperimentalCoroutinesApi::class)
+        @JvmStatic
+        @BeforeClass
+        fun setUpClass() {
+            Dispatchers.setMain(UnconfinedTestDispatcher())
+        }
+
+        @JvmStatic
+        @AfterClass
+        fun tearDownClass() {
+            // Intentionally left empty: Main stays set so lingering DataStore IO
+            // callbacks can dispatch without throwing in subsequent test classes.
+        }
+    }
 
     private lateinit var userDao: UserDao
     private lateinit var userDataSeeder: UserDataSeeder
@@ -72,7 +95,6 @@ class AuthRepositoryTest {
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
         userDao = mockk(relaxed = true)
         userDataSeeder = mockk(relaxed = true)
         healthMetricDao = mockk(relaxed = true)
@@ -125,7 +147,6 @@ class AuthRepositoryTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         unmockkObject(AuthPreferences)
         unmockkStatic(FirebaseAuth::class)
         unmockkStatic(FirebaseAnalytics::class)
