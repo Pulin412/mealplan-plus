@@ -12,8 +12,11 @@ import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.HealthRepository
+import com.mealplanplus.notification.NotificationAlarmBootstrapper
+import com.mealplanplus.util.AlarmScheduler
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CsvExporter
+import com.mealplanplus.util.NotificationAlarmType
 import com.mealplanplus.util.NotificationPreferences
 import com.mealplanplus.util.ThemePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,7 +49,11 @@ data class NotificationState(
     val breakfastHour: Int = NotificationPreferences.DEFAULT_BREAKFAST_HOUR,
     val lunchHour: Int = NotificationPreferences.DEFAULT_LUNCH_HOUR,
     val dinnerHour: Int = NotificationPreferences.DEFAULT_DINNER_HOUR,
-    val streakAlertHour: Int = NotificationPreferences.DEFAULT_STREAK_ALERT_HOUR
+    val streakAlertHour: Int = NotificationPreferences.DEFAULT_STREAK_ALERT_HOUR,
+    val breakfastMinute: Int = NotificationPreferences.DEFAULT_BREAKFAST_MINUTE,
+    val lunchMinute: Int = NotificationPreferences.DEFAULT_LUNCH_MINUTE,
+    val dinnerMinute: Int = NotificationPreferences.DEFAULT_DINNER_MINUTE,
+    val streakAlertMinute: Int = NotificationPreferences.DEFAULT_STREAK_ALERT_MINUTE
 )
 
 @HiltViewModel
@@ -129,6 +136,26 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             NotificationPreferences.getStreakAlertHour(context).collect { v ->
                 _notificationState.update { it.copy(streakAlertHour = v) }
+            }
+        }
+        viewModelScope.launch {
+            NotificationPreferences.getBreakfastMinute(context).collect { v ->
+                _notificationState.update { it.copy(breakfastMinute = v) }
+            }
+        }
+        viewModelScope.launch {
+            NotificationPreferences.getLunchMinute(context).collect { v ->
+                _notificationState.update { it.copy(lunchMinute = v) }
+            }
+        }
+        viewModelScope.launch {
+            NotificationPreferences.getDinnerMinute(context).collect { v ->
+                _notificationState.update { it.copy(dinnerMinute = v) }
+            }
+        }
+        viewModelScope.launch {
+            NotificationPreferences.getStreakAlertMinute(context).collect { v ->
+                _notificationState.update { it.copy(streakAlertMinute = v) }
             }
         }
     }
@@ -280,36 +307,98 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(importResult = null, error = null) }
     }
 
+    /**
+     * Called when the user returns from the SCHEDULE_EXACT_ALARM system settings screen.
+     * Re-schedules all alarms so any previously-inexact alarms are upgraded to exact.
+     */
+    fun onExactAlarmPermissionResult() {
+        viewModelScope.launch {
+            NotificationAlarmBootstrapper.scheduleAll(context)
+        }
+    }
+
     // Notification preference setters
     fun setMasterEnabled(enabled: Boolean) {
-        viewModelScope.launch { NotificationPreferences.setMasterEnabled(context, enabled) }
+        viewModelScope.launch {
+            NotificationPreferences.setMasterEnabled(context, enabled)
+            NotificationAlarmBootstrapper.scheduleAll(context)
+        }
     }
 
     fun setMealRemindersEnabled(enabled: Boolean) {
-        viewModelScope.launch { NotificationPreferences.setMealRemindersEnabled(context, enabled) }
+        viewModelScope.launch {
+            NotificationPreferences.setMealRemindersEnabled(context, enabled)
+            NotificationAlarmBootstrapper.scheduleAll(context)
+        }
     }
 
     fun setStreakProtectionEnabled(enabled: Boolean) {
-        viewModelScope.launch { NotificationPreferences.setStreakProtectionEnabled(context, enabled) }
+        viewModelScope.launch {
+            NotificationPreferences.setStreakProtectionEnabled(context, enabled)
+            NotificationAlarmBootstrapper.scheduleAll(context)
+        }
     }
 
     fun setWeeklyPlanEnabled(enabled: Boolean) {
-        viewModelScope.launch { NotificationPreferences.setWeeklyPlanEnabled(context, enabled) }
+        viewModelScope.launch {
+            NotificationPreferences.setWeeklyPlanEnabled(context, enabled)
+            NotificationAlarmBootstrapper.scheduleAll(context)
+        }
     }
 
     fun setBreakfastHour(hour: Int) {
-        viewModelScope.launch { NotificationPreferences.setBreakfastHour(context, hour) }
+        viewModelScope.launch {
+            NotificationPreferences.setBreakfastHour(context, hour)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.BREAKFAST)
+        }
     }
 
     fun setLunchHour(hour: Int) {
-        viewModelScope.launch { NotificationPreferences.setLunchHour(context, hour) }
+        viewModelScope.launch {
+            NotificationPreferences.setLunchHour(context, hour)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.LUNCH)
+        }
     }
 
     fun setDinnerHour(hour: Int) {
-        viewModelScope.launch { NotificationPreferences.setDinnerHour(context, hour) }
+        viewModelScope.launch {
+            NotificationPreferences.setDinnerHour(context, hour)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.DINNER)
+        }
     }
 
     fun setStreakAlertHour(hour: Int) {
-        viewModelScope.launch { NotificationPreferences.setStreakAlertHour(context, hour) }
+        viewModelScope.launch {
+            NotificationPreferences.setStreakAlertHour(context, hour)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.STREAK)
+        }
+    }
+
+    fun setBreakfastMinute(minute: Int) {
+        viewModelScope.launch {
+            NotificationPreferences.setBreakfastMinute(context, minute)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.BREAKFAST)
+        }
+    }
+
+    fun setLunchMinute(minute: Int) {
+        viewModelScope.launch {
+            NotificationPreferences.setLunchMinute(context, minute)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.LUNCH)
+        }
+    }
+
+    fun setDinnerMinute(minute: Int) {
+        viewModelScope.launch {
+            NotificationPreferences.setDinnerMinute(context, minute)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.DINNER)
+        }
+    }
+
+    fun setStreakAlertMinute(minute: Int) {
+        viewModelScope.launch {
+            NotificationPreferences.setStreakAlertMinute(context, minute)
+            NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.STREAK)
+        }
     }
 }

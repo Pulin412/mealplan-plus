@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Required to post notifications on Android 13+ (API 33). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Required for exact AlarmManager alarms on API 31+ (user grants via Settings). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Re-schedule alarms after device reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
@@ -35,6 +39,26 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- ── Notification Alarms ────────────────────────────────────────── -->
+
+        <!-- Receives exact alarm broadcasts and posts the notification. -->
+        <receiver
+            android:name=".notification.NotificationAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.mealplanplus.ACTION_NOTIFICATION_ALARM" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Re-schedules notification alarms after device reboot. -->
+        <receiver
+            android:name=".notification.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- ── Home Screen Widgets ──────────────────────────────────────── -->
 

@@ -7,17 +7,16 @@ HomeScreen (bell icon)
     └─→ SettingsScreen (Notifications section)
             └─→ SettingsViewModel
                     └─→ NotificationPreferences (DataStore)
+                    └─→ NotificationAlarmBootstrapper
 
-WorkManager (hourly)
-    ├─→ MealReminderWorker
-    │       ├─→ NotificationDecider.shouldSendMealReminder()
-    │       └─→ NotificationHelper.postMealReminder()
-    ├─→ StreakProtectionWorker
-    │       ├─→ NotificationDecider.shouldSendStreakAlert() / computeStreak()
-    │       └─→ NotificationHelper.postStreakAlert()
-    └─→ WeeklyPlanWorker
-            ├─→ NotificationDecider.shouldSendWeeklyPlan()
-            └─→ NotificationHelper.postWeeklyPlanReminder()
+AlarmManager (exact, one-shot)
+    ├─→ NotificationAlarmReceiver  (ACTION_NOTIFICATION_ALARM)
+    │       ├─→ handleMealAlarm()   → NotificationHelper.postMealReminder()
+    │       ├─→ handleStreakAlarm() → NotificationHelper.postStreakAlert()
+    │       ├─→ handleWeeklyPlanAlarm() → NotificationHelper.postWeeklyPlanReminder()
+    │       └─→ rescheduleNext()    (re-arm for next day / next Monday)
+    └─→ BootReceiver  (BOOT_COMPLETED)
+            └─→ NotificationAlarmBootstrapper.scheduleAll()
 ```
 
 ---
@@ -26,14 +25,15 @@ WorkManager (hourly)
 
 | File | Purpose |
 |------|---------|
-| `util/NotificationPreferences.kt` | DataStore reads/writes for all notification settings |
+| `util/AlarmScheduler.kt` | `NotificationAlarmType` enum; pure time functions (`nextTriggerMillis`, `nextMondayTriggerMillis`); `scheduleAlarm` / `cancelAlarm` / `cancelAllNotificationAlarms`; `scheduleMealAlarm` / `scheduleWeeklyPlanAlarm` |
+| `notification/NotificationAlarmBootstrapper.kt` | Coordinator object: `scheduleAll(context)` and `rescheduleForType(context, type)` — reads prefs and delegates to `AlarmScheduler` |
+| `notification/NotificationAlarmReceiver.kt` | `BroadcastReceiver` for `ACTION_NOTIFICATION_ALARM`; uses `goAsync()` + coroutine; dispatches per type; re-schedules next occurrence |
+| `notification/BootReceiver.kt` | `BroadcastReceiver` for `BOOT_COMPLETED`; delegates to `NotificationAlarmBootstrapper.scheduleAll()` |
+| `util/NotificationPreferences.kt` | DataStore reads/writes for all notification settings (booleans, hours, **minutes**) |
 | `util/NotificationDecider.kt` | Pure Kotlin decision logic (no Android deps) |
 | `util/NotificationHelper.kt` | Notification channel creation and posting |
-| `work/MealReminderWorker.kt` | Hourly WorkManager worker for meal reminders |
-| `work/StreakProtectionWorker.kt` | Hourly WorkManager worker for streak alerts |
-| `work/WeeklyPlanWorker.kt` | Hourly WorkManager worker for weekly plan reminder |
-| `ui/screens/settings/SettingsScreen.kt` | Notifications section UI |
-| `ui/screens/settings/SettingsViewModel.kt` | `NotificationState` + setters |
+| `ui/screens/settings/SettingsScreen.kt` | Notifications section UI with hour + minute sliders |
+| `ui/screens/settings/SettingsViewModel.kt` | `NotificationState` + setters; calls bootstrapper on every change |
 
 ---
 
@@ -52,29 +52,90 @@ objects. Keys are prefixed with `notifications_` to avoid collisions.
 | `notifications_lunch_hour` | Int | `13` |
 | `notifications_dinner_hour` | Int | `19` |
 | `notifications_streak_alert_hour` | Int | `21` |
+| `notifications_breakfast_minute` | Int | `0` |
+| `notifications_lunch_minute` | Int | `0` |
+| `notifications_dinner_minute` | Int | `0` |
+| `notifications_streak_alert_minute` | Int | `0` |
+
+---
+
+## AlarmScheduler
+
+Stateless `object`. All public functions except `scheduleAlarm` / `cancelAlarm` can be
+unit-tested on the JVM because they accept an injectable `java.time.Clock`.
+
+```kotlin
+// Pure time calculation — testable without Robolectric
+AlarmScheduler.nextTriggerMillis(hour: Int, minute: Int, clock: Clock): Long
+AlarmScheduler.nextMondayTriggerMillis(hour: Int, minute: Int, clock: Clock): Long
+
+// Android-side scheduling
+AlarmScheduler.scheduleAlarm(context, type, triggerAtMillis)
+AlarmScheduler.cancelAlarm(context, type)
+AlarmScheduler.cancelAllNotificationAlarms(context)
+AlarmScheduler.scheduleMealAlarm(context, type, hour, minute)
+AlarmScheduler.scheduleWeeklyPlanAlarm(context)   // always next Monday 08:00
+```
+
+### API 31+ exact-alarm fallback
+
+```kotlin
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
+    am.setAndAllowWhileIdle(...)   // approximate — user hasn't granted SCHEDULE_EXACT_ALARM
+} else {
+    am.setExactAndAllowWhileIdle(...)
+}
+```
+
+`NotificationAlarmType` enum values carry a stable `requestCode` (1–5) used as the
+`PendingIntent` request code, which is what allows `cancelAlarm` to target the exact alarm.
+
+---
+
+## NotificationAlarmReceiver
+
+Uses `goAsync()` to keep the receiver process alive while the coroutine runs on
+`Dispatchers.IO`. A `withTimeout(9_000)` safety net prevents the process from being held
+longer than Android allows (~10 s budget for `goAsync`).
+
+Execution order per alarm fire:
+1. Check `NOTIFICATIONS_ENABLED` Remote Config kill-switch — reschedule next but skip post.
+2. Read `masterEnabled` — if off, **do not** re-schedule (alarms stay cancelled until user
+   re-enables master).
+3. Dispatch to `handleMealAlarm` / `handleStreakAlarm` / `handleWeeklyPlanAlarm`.
+4. Read type-specific toggle — skip post if off (alarm still re-schedules).
+5. Collect repository data, run `NotificationDecider`, call `NotificationHelper` if yes.
+6. Call `rescheduleNext()` — re-arm for next day (or next Monday for `WEEKLY_PLAN`).
+
+The `shouldPostMealAlarm(notificationsEnabled, mealRemindersEnabled, isAlreadyLogged)` helper
+is exposed as a `companion object` function for pure unit testing.
+
+---
+
+## NotificationAlarmBootstrapper
+
+Called from `MealPlanApp.onCreate()` and from every `SettingsViewModel` setter to keep alarms
+in sync with preferences:
+
+```kotlin
+NotificationAlarmBootstrapper.scheduleAll(context)        // reads all prefs, cancel+reschedule all
+NotificationAlarmBootstrapper.rescheduleForType(context, type)  // single alarm update
+```
+
+`scheduleAll` cancels all alarms first when `masterEnabled == false`, ensuring no stale alarms
+fire after the user disables notifications.
 
 ---
 
 ## NotificationDecider
 
-Stateless `object` with pure functions — no `Context`, no coroutines. This allows full unit
-testing without Android mocks.
+Unchanged from the WorkManager era — pure Kotlin, no Android dependencies.
 
 ```kotlin
-NotificationDecider.shouldSendMealReminder(
-    currentHour, notificationsEnabled, mealRemindersEnabled, targetHour, isAlreadyLogged
-): Boolean
-
-NotificationDecider.shouldSendStreakAlert(
-    currentHour, notificationsEnabled, streakProtectionEnabled,
-    alertHour, streakDays, todayCalories
-): Boolean
-
-NotificationDecider.shouldSendWeeklyPlan(
-    dayOfWeek, currentHour, notificationsEnabled, weeklyPlanEnabled, plansThisWeekCount
-): Boolean
-
-NotificationDecider.computeStreak(completedDateStrings: List<String>, today: LocalDate): Int
+NotificationDecider.shouldSendMealReminder(...)
+NotificationDecider.shouldSendStreakAlert(...)
+NotificationDecider.shouldSendWeeklyPlan(...)
+NotificationDecider.computeStreak(completedDateStrings, today)
 ```
 
 ---
@@ -91,67 +152,28 @@ NotificationDecider.computeStreak(completedDateStrings: List<String>, today: Loc
 
 Channel ID: `meal_reminders`. Created once in `MealPlanApp.onCreate()`.
 
-`canPostNotifications(context)` guards all post calls: returns `true` unconditionally on
-API < 33; checks `POST_NOTIFICATIONS` permission on API 33+.
-
 ---
 
-## WorkManager Workers
+## Android Permissions
 
-All three workers are scheduled in `MealPlanApp.scheduleNotificationWork()` using
-`ExistingPeriodicWorkPolicy.KEEP` (no duplicate work if already scheduled).
-
-Each worker uses Hilt's `@EntryPoint` pattern to inject repositories:
-
-```kotlin
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface WorkerEntryPoint {
-    fun dailyLogRepository(): DailyLogRepository
-    fun remoteConfigManager(): RemoteConfigManager
-    // ...
-}
-```
-
-Worker execution order per run:
-1. Read `NOTIFICATIONS_ENABLED` Remote Config flag — abort if disabled.
-2. Read `masterEnabled` DataStore preference — abort if off.
-3. Read type-specific toggle — abort if off.
-4. Collect repository data (logs, plans, metrics).
-5. Call `NotificationDecider` to decide if alert fires.
-6. Call `NotificationHelper` if yes.
-
----
-
-## Feature Flag
-
-| Flag key | Default | Behaviour |
-|----------|---------|-----------|
-| `notifications_enabled` | `true` | Kill-switch. Set to `false` in Remote Config to silence all workers globally without an app release. |
-
-The flag is checked as the first guard in each worker, before any DataStore or repository access.
-
----
-
-## Android Permission
-
-`POST_NOTIFICATIONS` is declared in `AndroidManifest.xml` and required at runtime on
-Android 13+ (API 33). The Settings screen handles the permission request:
-- If the user tries to enable the master toggle and the permission is not yet granted, the
-  system permission dialog is shown.
-- The toggle becomes active only after the user grants the permission.
+| Permission | Reason |
+|------------|--------|
+| `POST_NOTIFICATIONS` | Required at runtime on Android 13+ (API 33) to post notifications. Settings UI handles the request flow. |
+| `SCHEDULE_EXACT_ALARM` | Required on API 31+ for `setExactAndAllowWhileIdle`. User can grant via **Settings → Apps → Special app access → Alarms & reminders**. App falls back to `setAndAllowWhileIdle` if not granted. |
+| `RECEIVE_BOOT_COMPLETED` | Allows `BootReceiver` to re-schedule alarms after device reboot (AlarmManager alarms do not survive reboots). |
 
 ---
 
 ## Adding a New Notification Type
 
-1. Add a firing condition function to `NotificationDecider` (pure Kotlin, write test first).
-2. Add a `postXxx()` method to `NotificationHelper` with a unique notification ID.
-3. Create a new `Worker` subclass following the existing pattern.
-4. Schedule it in `MealPlanApp.scheduleNotificationWork()`.
-5. Add a preference key (if user-configurable) to `NotificationPreferences`.
-6. Add a toggle/time-picker row to `SettingsScreen` Notifications section.
-7. Add getter + setter to `NotificationState` / `SettingsViewModel`.
+1. Add a new entry to `NotificationAlarmType` with a unique `requestCode`.
+2. Add a firing condition to `NotificationDecider` (pure Kotlin — write test first).
+3. Add a `postXxx()` method to `NotificationHelper` with a unique notification ID.
+4. Handle the new type in `NotificationAlarmReceiver.handleAlarm()`.
+5. Schedule/cancel it in `NotificationAlarmBootstrapper.scheduleAll()` and `rescheduleForType()`.
+6. Add preference keys (if user-configurable) to `NotificationPreferences`.
+7. Add a toggle/time-picker row to `SettingsScreen` Notifications section.
+8. Add getter + setter to `NotificationState` / `SettingsViewModel`.
 
 ---
 
@@ -159,9 +181,14 @@ Android 13+ (API 33). The Settings screen handles the permission request:
 
 | Test file | What it covers |
 |-----------|---------------|
-| `NotificationDeciderTest` | 26 unit tests for all four pure functions |
+| `AlarmSchedulerTest` | 6 pure JVM tests: `nextTriggerMillis` boundary cases, `nextMondayTriggerMillis` |
+| `NotificationPreferencesMinuteTest` | 8 tests: minute constants, default values |
+| `NotificationAlarmBootstrapperTest` | 4 tests: `scheduleAll` (master on/off), `rescheduleForType` |
+| `NotificationAlarmReceiverTest` | 3 tests: `shouldPostMealAlarm` pure logic |
+| `SettingsViewModelMinuteTest` | 10 tests: minute state defaults, minute setters, rescheduling side-effects |
+| `SettingsViewModelNotificationTest` | 17 tests: all toggle/hour state defaults and setters |
+| `NotificationDeciderTest` | 26 tests: all four pure decision functions |
 | `NotificationPreferencesTest` | Default values and constants |
-| `SettingsViewModelNotificationTest` | Initial state from flows + all 8 setters |
 
 Run with:
 ```
