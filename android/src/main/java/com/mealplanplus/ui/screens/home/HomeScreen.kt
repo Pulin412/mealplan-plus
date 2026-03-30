@@ -340,13 +340,12 @@ fun HomeHeaderSection(
                             modifier = Modifier.size(22.dp)
                         )
                     }
-                    Box(
+                    IconButton(
+                        onClick = onNotificationClick,
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.15f))
-                            .clickable(onClick = onNotificationClick),
-                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Notifications,
