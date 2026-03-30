@@ -13,6 +13,7 @@ import com.mealplanplus.util.NotificationDecider
 import com.mealplanplus.util.NotificationHelper
 import com.mealplanplus.util.NotificationPreferences
 import com.mealplanplus.util.RemoteConfigManager
+import android.util.Log
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -45,6 +46,7 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        Log.d(TAG, "onReceive action=${intent.action} type=${intent.getStringExtra(EXTRA_ALARM_TYPE)}")
         if (intent.action != ACTION_NOTIFICATION_ALARM) return
         val pending = goAsync()
         val appContext = context.applicationContext
@@ -53,6 +55,8 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
                 withTimeout(9_000L) {
                     handleAlarm(appContext, intent)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "handleAlarm failed", e)
             } finally {
                 pending.finish()
             }
@@ -72,6 +76,7 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
         }
 
         val masterEnabled = NotificationPreferences.getMasterEnabled(context).firstOrNull() ?: false
+        Log.d(TAG, "handleAlarm type=$type masterEnabled=$masterEnabled")
         if (!masterEnabled) return  // master off — don't re-schedule either
 
         when (type) {
@@ -104,9 +109,13 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
 
         val slotType = type.slotType ?: return
         val isLogged = todayLog?.foodsForSlot(slotType)?.isNotEmpty() ?: false
+        Log.d(TAG, "handleMealAlarm slot=$slotType mealReminders=$mealRemindersEnabled isLogged=$isLogged")
 
         if (shouldPostMealAlarm(masterEnabled, mealRemindersEnabled, isLogged)) {
+            Log.d(TAG, "Posting meal reminder for $slotType")
             NotificationHelper.postMealReminder(context, slotType)
+        } else {
+            Log.d(TAG, "Skipping meal reminder for $slotType (already logged or disabled)")
         }
     }
 
@@ -218,6 +227,7 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "NotificationAlarmRcvr"
         const val ACTION_NOTIFICATION_ALARM = "com.mealplanplus.ACTION_NOTIFICATION_ALARM"
         const val EXTRA_ALARM_TYPE = "alarm_type"
 

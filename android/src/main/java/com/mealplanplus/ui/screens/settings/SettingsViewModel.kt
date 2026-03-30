@@ -307,6 +307,16 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(importResult = null, error = null) }
     }
 
+    /**
+     * Called when the user returns from the SCHEDULE_EXACT_ALARM system settings screen.
+     * Re-schedules all alarms so any previously-inexact alarms are upgraded to exact.
+     */
+    fun onExactAlarmPermissionResult() {
+        viewModelScope.launch {
+            NotificationAlarmBootstrapper.scheduleAll(context)
+        }
+    }
+
     // Notification preference setters
     fun setMasterEnabled(enabled: Boolean) {
         viewModelScope.launch {
