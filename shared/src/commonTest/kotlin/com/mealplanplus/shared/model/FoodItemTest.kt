@@ -122,7 +122,7 @@ class FoodItemTest {
         assertEquals("cup", FoodUnit.CUP.shortLabel)
         assertEquals("tbsp", FoodUnit.TBSP.shortLabel)
         assertEquals("tsp", FoodUnit.TSP.shortLabel)
-        assertEquals("pc", FoodUnit.PIECE.shortLabel)
+        assertEquals("pcs", FoodUnit.PIECE.shortLabel)
     }
 
     @Test
