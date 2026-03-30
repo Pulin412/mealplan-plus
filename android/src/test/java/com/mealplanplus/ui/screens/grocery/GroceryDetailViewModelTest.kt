@@ -14,18 +14,34 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GroceryDetailViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    companion object {
+        @OptIn(ExperimentalCoroutinesApi::class)
+        @JvmStatic
+        @BeforeClass
+        fun setUpClass() {
+            Dispatchers.setMain(UnconfinedTestDispatcher())
+        }
+
+        @JvmStatic
+        @AfterClass
+        fun tearDownClass() {
+            // Intentionally left empty: Main stays set so lingering background
+            // coroutines can dispatch without throwing in subsequent test classes.
+        }
+    }
+
     private lateinit var repo: GroceryRepository
     private lateinit var viewModel: GroceryDetailViewModel
 
@@ -46,7 +62,6 @@ class GroceryDetailViewModelTest {
 
     @Before
     fun setup() {
-        Dispatchers.setMain(testDispatcher)
         repo = mockk(relaxed = true)
 
         every { repo.getListWithItems(listId) } returns flowOf(listWithItems)
@@ -58,7 +73,7 @@ class GroceryDetailViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        // Main dispatcher stays set (class-level @BeforeClass) — nothing to reset here.
     }
 
     // ── initial load ──────────────────────────────────────────────────────────

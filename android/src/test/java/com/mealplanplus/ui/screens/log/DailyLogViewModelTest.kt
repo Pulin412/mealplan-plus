@@ -22,19 +22,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
 import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DailyLogViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    companion object {
+        @OptIn(ExperimentalCoroutinesApi::class)
+        @JvmStatic
+        @BeforeClass
+        fun setUpClass() {
+            Dispatchers.setMain(UnconfinedTestDispatcher())
+        }
+
+        @JvmStatic
+        @AfterClass
+        fun tearDownClass() {
+            // Intentionally left empty: Main stays set so lingering background
+            // coroutines (widget update, DataStore IO) can dispatch without
+            // throwing in subsequent test classes.
+        }
+    }
+
     private lateinit var logRepository: DailyLogRepository
     private lateinit var mealRepository: MealRepository
     private lateinit var planRepository: PlanRepository
@@ -75,7 +92,6 @@ class DailyLogViewModelTest {
 
     @Before
     fun setup() {
-        Dispatchers.setMain(testDispatcher)
         logRepository = mockk(relaxed = true)
         mealRepository = mockk(relaxed = true)
         planRepository = mockk(relaxed = true)
@@ -118,7 +134,6 @@ class DailyLogViewModelTest {
         // Note: AppWidgetManager static mock is intentionally NOT unmocked here.
         // The widget update coroutine runs on DefaultDispatcher and may outlive the test;
         // removing the mock early causes "not mocked" exceptions in subsequent tests.
-        Dispatchers.resetMain()
     }
 
     @Test

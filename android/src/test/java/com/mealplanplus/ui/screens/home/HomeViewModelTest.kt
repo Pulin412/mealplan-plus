@@ -23,19 +23,35 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
 import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    companion object {
+        @OptIn(ExperimentalCoroutinesApi::class)
+        @JvmStatic
+        @BeforeClass
+        fun setUpClass() {
+            Dispatchers.setMain(UnconfinedTestDispatcher())
+        }
+
+        @JvmStatic
+        @AfterClass
+        fun tearDownClass() {
+            // Intentionally left empty: Main stays set so lingering background
+            // coroutines can dispatch without throwing in subsequent test classes.
+        }
+    }
+
     private lateinit var dailyLogRepo: DailyLogRepository
     private lateinit var healthRepo: HealthRepository
     private lateinit var planRepo: PlanRepository
@@ -45,7 +61,6 @@ class HomeViewModelTest {
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
         dailyLogRepo = mockk(relaxed = true)
         healthRepo = mockk(relaxed = true)
         planRepo = mockk(relaxed = true)
@@ -67,7 +82,6 @@ class HomeViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         unmockkObject(AuthPreferences)
     }
 
