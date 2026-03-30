@@ -71,11 +71,15 @@ regardless of the individual toggle states. All pending alarms are cancelled imm
 ## Frequently Asked Questions
 
 **Why didn't I receive a reminder even though it's enabled?**
+- **Most common reason:** you already logged that meal for today. Reminders are only sent when
+  the slot is empty — if you've logged dinner, the dinner reminder is automatically suppressed
+  for that day.
 - Check that the system notification permission is granted: Device Settings → Apps → MealPlan+ →
   Notifications → Allow.
 - On Android 12+ check **Settings → Apps → Special app access → Alarms & reminders** and ensure
-  MealPlan+ is allowed. If not granted, notifications will fire but may be a few minutes late.
-- The reminder is skipped if you already logged that meal slot earlier in the day.
+  MealPlan+ is allowed. If not granted, a red warning card appears in the Notifications settings
+  — tap "Grant permission" to fix it. Without this, alarms may fire up to an hour late.
+- The master "Enable Notifications" toggle must be on.
 
 **Can I set reminders to a specific minute?**
 Yes. The time picker has separate hour and minute sliders, letting you set any time such as

@@ -110,6 +110,11 @@ Execution order per alarm fire:
 The `shouldPostMealAlarm(notificationsEnabled, mealRemindersEnabled, isAlreadyLogged)` helper
 is exposed as a `companion object` function for pure unit testing.
 
+> **Key behaviour:** meal reminders are suppressed when the slot already has food logged for
+> today (`isAlreadyLogged = true`). This is intentional — the reminder fires only when the
+> user hasn't logged yet. Re-scheduling still happens regardless, so the alarm is ready for
+> the next day.
+
 ---
 
 ## NotificationAlarmBootstrapper
