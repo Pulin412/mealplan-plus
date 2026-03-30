@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.settings
 
+import android.Manifest
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,8 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.local.ImportStrategy
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
@@ -27,6 +31,15 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val themeState by viewModel.themeState.collectAsState()
+    val notificationState by viewModel.notificationState.collectAsState()
+
+    val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    } else {
+        null
+    }
+
+    var hourPickerTarget by remember { mutableStateOf<HourPickerTarget?>(null) }
 
     // File picker for JSON import
     val jsonPickerLauncher = rememberLauncherForActivityResult(
@@ -104,6 +117,78 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Widgets,
                     onClick = onNavigateToWidgetSettings
                 )
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Notifications Section
+            SettingsSection(title = "Notifications") {
+                val permissionGranted = notificationPermissionState?.status?.isGranted ?: true
+                SettingsSwitchItem(
+                    title = "Enable Notifications",
+                    subtitle = if (!permissionGranted) "Tap to grant permission" else "Master on/off for all alerts",
+                    icon = Icons.Default.Notifications,
+                    checked = notificationState.masterEnabled && permissionGranted,
+                    onCheckedChange = { enabled ->
+                        if (enabled && !permissionGranted) {
+                            notificationPermissionState?.launchPermissionRequest()
+                        } else {
+                            viewModel.setMasterEnabled(enabled)
+                        }
+                    }
+                )
+
+                if (notificationState.masterEnabled && permissionGranted) {
+                    SettingsSwitchItem(
+                        title = "Meal Reminders",
+                        subtitle = "Remind me to log breakfast, lunch, and dinner",
+                        icon = Icons.Default.Notifications,
+                        checked = notificationState.mealRemindersEnabled,
+                        onCheckedChange = { viewModel.setMealRemindersEnabled(it) }
+                    )
+
+                    if (notificationState.mealRemindersEnabled) {
+                        SettingsTimeItem(
+                            label = "Breakfast reminder",
+                            hour = notificationState.breakfastHour,
+                            onClick = { hourPickerTarget = HourPickerTarget.BREAKFAST }
+                        )
+                        SettingsTimeItem(
+                            label = "Lunch reminder",
+                            hour = notificationState.lunchHour,
+                            onClick = { hourPickerTarget = HourPickerTarget.LUNCH }
+                        )
+                        SettingsTimeItem(
+                            label = "Dinner reminder",
+                            hour = notificationState.dinnerHour,
+                            onClick = { hourPickerTarget = HourPickerTarget.DINNER }
+                        )
+                    }
+
+                    SettingsSwitchItem(
+                        title = "Streak Protection",
+                        subtitle = "Alert me if I haven't logged today and have a streak",
+                        icon = Icons.Default.Star,
+                        checked = notificationState.streakProtectionEnabled,
+                        onCheckedChange = { viewModel.setStreakProtectionEnabled(it) }
+                    )
+
+                    if (notificationState.streakProtectionEnabled) {
+                        SettingsTimeItem(
+                            label = "Streak alert time",
+                            hour = notificationState.streakAlertHour,
+                            onClick = { hourPickerTarget = HourPickerTarget.STREAK_ALERT }
+                        )
+                    }
+
+                    SettingsSwitchItem(
+                        title = "Weekly Plan Reminder",
+                        subtitle = "Remind me on Mondays if I haven't planned this week",
+                        icon = Icons.Default.DateRange,
+                        checked = notificationState.weeklyPlanEnabled,
+                        onCheckedChange = { viewModel.setWeeklyPlanEnabled(it) }
+                    )
+                }
             }
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
@@ -238,6 +323,58 @@ fun SettingsScreen(
         }
     }
 
+    // Hour picker dialog
+    hourPickerTarget?.let { target ->
+        val currentHour = when (target) {
+            HourPickerTarget.BREAKFAST -> notificationState.breakfastHour
+            HourPickerTarget.LUNCH -> notificationState.lunchHour
+            HourPickerTarget.DINNER -> notificationState.dinnerHour
+            HourPickerTarget.STREAK_ALERT -> notificationState.streakAlertHour
+        }
+        var sliderHour by remember(currentHour) { mutableStateOf(currentHour.toFloat()) }
+        AlertDialog(
+            onDismissRequest = { hourPickerTarget = null },
+            title = { Text("Set time for ${target.label}") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = formatHour(sliderHour.toInt()),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Slider(
+                        value = sliderHour,
+                        onValueChange = { sliderHour = it },
+                        valueRange = 0f..23f,
+                        steps = 22
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("12 AM", style = MaterialTheme.typography.labelSmall)
+                        Text("11 PM", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val h = sliderHour.toInt()
+                    when (target) {
+                        HourPickerTarget.BREAKFAST -> viewModel.setBreakfastHour(h)
+                        HourPickerTarget.LUNCH -> viewModel.setLunchHour(h)
+                        HourPickerTarget.DINNER -> viewModel.setDinnerHour(h)
+                        HourPickerTarget.STREAK_ALERT -> viewModel.setStreakAlertHour(h)
+                    }
+                    hourPickerTarget = null
+                }) { Text("Set") }
+            },
+            dismissButton = {
+                TextButton(onClick = { hourPickerTarget = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     // Export success dialog
     if (uiState.exportSuccess) {
         AlertDialog(
@@ -301,6 +438,22 @@ fun SettingsScreen(
     }
 }
 
+private enum class HourPickerTarget(val label: String) {
+    BREAKFAST("Breakfast"),
+    LUNCH("Lunch"),
+    DINNER("Dinner"),
+    STREAK_ALERT("Streak Alert")
+}
+
+private fun formatHour(hour: Int): String {
+    return when {
+        hour == 0 -> "12:00 AM"
+        hour < 12 -> "$hour:00 AM"
+        hour == 12 -> "12:00 PM"
+        else -> "${hour - 12}:00 PM"
+    }
+}
+
 @Composable
 fun SettingsSection(
     title: String,
@@ -353,6 +506,31 @@ fun SettingsSwitchItem(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+@Composable
+fun SettingsTimeItem(
+    label: String,
+    hour: Int,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Spacer(Modifier.width(40.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TextButton(onClick = onClick) {
+            Text(formatHour(hour))
+        }
     }
 }
 

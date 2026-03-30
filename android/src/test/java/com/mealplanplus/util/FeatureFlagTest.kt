@@ -49,6 +49,11 @@ class FeatureFlagTest {
         assertEquals("analytics_enabled", FeatureFlag.ANALYTICS_ENABLED.key)
     }
 
+    @Test
+    fun notificationsEnabledFlag_hasCorrectKey() {
+        assertEquals("notifications_enabled", FeatureFlag.NOTIFICATIONS_ENABLED.key)
+    }
+
     // ── default values ────────────────────────────────────────────────────────
 
     @Test
@@ -88,6 +93,12 @@ class FeatureFlagTest {
         assertFalse(FeatureFlag.ANALYTICS_ENABLED.defaultValue)
     }
 
+    @Test
+    fun notificationsEnabledFlag_defaultIsTrue() {
+        // On by default — acts as an engineering kill-switch if needed
+        assertTrue(FeatureFlag.NOTIFICATIONS_ENABLED.defaultValue)
+    }
+
     // ── uniqueness ────────────────────────────────────────────────────────────
 
     @Test
@@ -100,6 +111,6 @@ class FeatureFlagTest {
     fun flagCount_matchesExpected() {
         // This test intentionally fails when a flag is added or removed without updating
         // the rest of the feature (documentation, Remote Config console defaults, etc.).
-        assertEquals(7, FeatureFlag.entries.size)
+        assertEquals(8, FeatureFlag.entries.size)
     }
 }

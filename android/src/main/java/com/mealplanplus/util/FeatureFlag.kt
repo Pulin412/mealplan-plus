@@ -34,4 +34,8 @@ enum class FeatureFlag(val key: String, val defaultValue: Boolean) {
 
     /** Firebase Analytics event collection. Off by default until pre-launch privacy review. */
     ANALYTICS_ENABLED("analytics_enabled", false),
+
+    /** Local push notifications (meal reminders, streak alerts, weekly plan nudge).
+     *  On by default — acts as an engineering kill-switch if notification spam is reported. */
+    NOTIFICATIONS_ENABLED("notifications_enabled", true),
 }

@@ -203,7 +203,8 @@ fun HomeScreen(
                             ThemePreferences.setFollowSystem(context, false)
                             ThemePreferences.setDarkMode(context, !isDark)
                         }
-                    }
+                    },
+                    onNotificationClick = onNavigateToSettings
                 )
 
                 // ── Macro rings card ───────────────────────────────────
@@ -271,7 +272,8 @@ fun HomeHeaderSection(
     onProfileClick: () -> Unit,
     onMenuClick: () -> Unit = {},
     isDark: Boolean = false,
-    onThemeToggle: () -> Unit = {}
+    onThemeToggle: () -> Unit = {},
+    onNotificationClick: () -> Unit = {}
 ) {
     val greeting = when (java.time.LocalTime.now().hour) {
         in 5..11 -> "Good morning"
@@ -342,12 +344,13 @@ fun HomeHeaderSection(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.15f)),
+                            .background(Color.White.copy(alpha = 0.15f))
+                            .clickable(onClick = onNotificationClick),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Notifications,
-                            contentDescription = "Notifications",
+                            contentDescription = "Notification settings",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )

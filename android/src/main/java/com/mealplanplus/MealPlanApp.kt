@@ -10,7 +10,11 @@ import com.mealplanplus.util.AnalyticsManager
 import com.mealplanplus.util.CrashlyticsReporter
 import com.mealplanplus.util.FeatureFlag
 import com.mealplanplus.util.RemoteConfigManager
+import com.mealplanplus.util.NotificationHelper
+import com.mealplanplus.work.MealReminderWorker
+import com.mealplanplus.work.StreakProtectionWorker
 import com.mealplanplus.work.SyncWorker
+import com.mealplanplus.work.WeeklyPlanWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,11 +43,13 @@ class MealPlanApp : Application() {
         super.onCreate()
         initCrashlytics()
         initRemoteConfig()
+        NotificationHelper.createChannel(this)
         // Seed only if database is empty (first run)
         applicationScope.launch {
             databaseSeeder.seedFromFilesIfNeeded(this@MealPlanApp)
         }
         scheduleSyncWork()
+        scheduleNotificationWork()
     }
 
     private fun initCrashlytics() {
@@ -73,6 +79,25 @@ class MealPlanApp : Application() {
             SyncWorker.TAG,
             ExistingPeriodicWorkPolicy.KEEP,
             SyncWorker.periodicRequest()
+        )
+    }
+
+    private fun scheduleNotificationWork() {
+        val wm = WorkManager.getInstance(this)
+        wm.enqueueUniquePeriodicWork(
+            MealReminderWorker.TAG,
+            ExistingPeriodicWorkPolicy.KEEP,
+            MealReminderWorker.periodicRequest()
+        )
+        wm.enqueueUniquePeriodicWork(
+            StreakProtectionWorker.TAG,
+            ExistingPeriodicWorkPolicy.KEEP,
+            StreakProtectionWorker.periodicRequest()
+        )
+        wm.enqueueUniquePeriodicWork(
+            WeeklyPlanWorker.TAG,
+            ExistingPeriodicWorkPolicy.KEEP,
+            WeeklyPlanWorker.periodicRequest()
         )
     }
 }
