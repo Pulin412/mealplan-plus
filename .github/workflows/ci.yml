@@ -68,6 +68,8 @@ jobs:
           cache-read-only: false
 
       - name: Build + unit tests
+        # --configuration-cache is omitted: the custom verifyNoBillableFirebaseFeatures
+        # task captures a Project reference which is not config-cache serialisable.
         run: >
           ./gradlew
           :android:assembleDebug
@@ -75,7 +77,6 @@ jobs:
           :shared:testDebugUnitTest
           --parallel
           --build-cache
-          --configuration-cache
           --no-daemon
 
       - name: Upload test results
@@ -110,6 +111,7 @@ jobs:
           cache-read-only: false
 
       - name: Build + test
+        # Backend has no Project-capturing custom tasks so configuration cache is safe here.
         run: >
           ./gradlew
           :backend:build
@@ -144,7 +146,19 @@ jobs:
         with:
           cache-read-only: false
 
+      # Cache Xcode DerivedData so incremental xcodebuild runs skip recompilation.
+      # Key includes the hash of all Swift/xcodeproj files; a miss falls back to
+      # any prior DerivedData for this branch.
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-derived-${{ runner.os }}-${{ hashFiles('ios/**/*.swift', 'ios/**/*.xcodeproj/**') }}
+          restore-keys: |
+            xcode-derived-${{ runner.os }}-
+
       - name: Build shared KMP framework (iOS simulator)
+        # --configuration-cache safe here: shared module has no Project-capturing tasks.
         run: >
           ./gradlew
           :shared:linkDebugFrameworkIosSimulatorArm64
@@ -159,5 +173,6 @@ jobs:
             -scheme iosApp \
             -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17' \
             -configuration Debug \
+            -derivedDataPath ~/Library/Developer/Xcode/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             build
