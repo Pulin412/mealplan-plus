@@ -1,0 +1,129 @@
+# MealPlan+ — Android Project Context
+
+## What this app does
+Offline-first meal planning and food logging app. Users log meals by slot (BREAKFAST / LUNCH / DINNER), track health metrics, browse/create diets, get shopping lists, and receive smart notifications when they haven't logged a meal yet.
+
+---
+
+## Module layout
+| Module | Role |
+|--------|------|
+| `android/` | Android app (Kotlin, Compose, Room, Hilt) — primary focus |
+| `shared/` | Kotlin Multiplatform library shared with iOS (SQLDelight, Ktor) |
+| `ios/` | iOS SwiftUI app consuming the shared KMP framework |
+| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres |
+
+---
+
+## Android architecture
+**MVVM + Repository + Hilt DI**, following Google's Now in Android guidelines.
+
+```
+Compose UI  →  @HiltViewModel  →  Repository  →  Room DAO / Retrofit
+                 StateFlow                         Flow<T>
+```
+
+- **ViewModels** — `@HiltViewModel`, expose `StateFlow<XxxState>` data classes, use `viewModelScope`
+- **Repositories** — `@Singleton`, return `Flow<T>` for reactive observation, suspend funs for writes
+- **Room** — 17 entities, 21 explicit migrations (no destructive fallback ever), schema exported to `android/schemas/`
+- **Compose** — Material 3, dynamic color, single-Activity (`MainActivity`), `NavHost` for all navigation
+- **DataStore** — all user preferences (theme, notifications); shared `"settings"` store in `ThemePreferences.kt`
+
+### Key package map
+```
+android/src/main/java/com/mealplanplus/
+├── data/
+│   ├── local/          Room DB, DAOs, migrations, importers/exporters
+│   ├── model/          Entity + domain model classes
+│   ├── remote/         Retrofit API clients (MealPlanApi, OpenFoodFactsApi, UsdaFoodApi)
+│   └── repository/     All repositories (one per domain)
+├── di/                 Hilt modules (DatabaseModule, NetworkModule, AuthModule)
+├── notification/       AlarmManager-based notification system
+│   ├── NotificationAlarmReceiver.kt   BroadcastReceiver (goAsync + coroutine)
+│   ├── NotificationAlarmBootstrapper.kt  scheduleAll / rescheduleForType
+│   └── BootReceiver.kt
+├── ui/
+│   ├── screens/        One package per screen, each has Screen.kt + ViewModel.kt
+│   ├── components/     Shared Compose components
+│   ├── navigation/     NavHost + route definitions
+│   └── theme/          Material 3 Color / Type / Shape
+├── util/               Pure utilities (NotificationDecider, AlarmScheduler, SortUtils, etc.)
+├── widget/             Glance home-screen widgets
+├── work/               SyncWorker (WorkManager, Hilt entry point pattern)
+└── MealPlanApp.kt      Application class (@HiltAndroidApp)
+```
+
+---
+
+## Hard rules — never break these
+
+1. **No destructive Room migrations.** Always add an explicit `MIGRATION_X_Y` in `DatabaseModule.kt`. The schema files in `android/schemas/` must stay in sync.
+2. **Zero billing guardrail.** Do not import Firestore, Cloud Functions, Firebase Storage, or Firebase Realtime Database. The build has a custom task that fails CI if these appear.
+3. **Firebase used only for:** Authentication, Crashlytics, Remote Config, Analytics — all free-tier only.
+4. **Notifications fire only when the meal slot is not yet logged.** `shouldPostMealAlarm()` in `NotificationAlarmReceiver` enforces this; don't bypass it.
+5. **AlarmManager, not WorkManager, for notifications.** WorkManager is only used for `SyncWorker`. The three old notification workers are deleted — do not re-add them.
+
+---
+
+## Testing conventions
+- **TDD when adding features** — write the failing test first, then implement.
+- **Unit tests** live in `android/src/test/` and run on the JVM (no emulator needed).
+- **Instrumented DAO tests** live in `android/src/androidTest/` using an in-memory Room database.
+- Run all unit tests locally: `./gradlew :android:testDebugUnitTest`
+
+### Test patterns used throughout the codebase
+```kotlin
+// Coroutine dispatcher — use @BeforeClass, not @Before, to avoid re-setting per test
+@BeforeClass fun setUpClass() { Dispatchers.setMain(UnconfinedTestDispatcher()) }
+
+// Mock singletons (objects) with mockkObject — always unmock in @After
+mockkObject(NotificationPreferences)
+coEvery { NotificationPreferences.setBreakfastHour(context, any()) } just Runs
+// ...
+unmockkObject(NotificationPreferences)
+
+// Test flows with Turbine
+viewModel.uiState.test {
+    assertEquals(expected, awaitItem())
+    cancelAndIgnoreRemainingEvents()
+}
+```
+
+---
+
+## Notification system (AlarmManager)
+- **5 alarm types** defined in `NotificationAlarmType` enum (BREAKFAST, LUNCH, DINNER, STREAK, WEEKLY_PLAN)
+- Each has a stable `requestCode` (1–5) used as `PendingIntent` identity for cancel/replace
+- Alarms are one-shot (`setExactAndAllowWhileIdle`); receiver re-schedules next occurrence after each fire
+- `SCHEDULE_EXACT_ALARM` permission required on API 31+; Settings screen shows a banner if not granted
+- `NotificationAlarmBootstrapper.scheduleAll(context)` is the single entry point for (re-)scheduling everything
+- Hour + minute precision: both stored in DataStore, both shown in the Settings time picker
+
+---
+
+## CI pipeline
+Single `ci.yml` orchestrator. Runs **only on push to main**.
+
+1. `detect-changes` (5 s) — dorny/paths-filter decides which modules changed
+2. `android` job — only if `android/**` or `shared/**` changed. Uses `--build-cache --parallel`. **No `--configuration-cache`** — blocked by `verifyNoBillableFirebaseFeatures` task capturing a `Project` reference.
+3. `backend` job — only if `backend/**` changed. `--configuration-cache` is safe here.
+4. `ios` job — only if `ios/**` or `shared/**` changed. Caches Xcode DerivedData to cut warm builds from ~11 min to ~3-4 min.
+5. `backend-deploy.yml` — separate file, deploys to Cloud Run on backend changes to main.
+
+---
+
+## Key dependency versions
+| Library | Version |
+|---------|---------|
+| Kotlin | 1.9.24 |
+| AGP (Android Gradle Plugin) | 8.5.0 |
+| Compose BOM | 2024.02.00 |
+| Room | 2.6.1 |
+| Hilt | 2.51.1 |
+| Coroutines | 1.7.3 |
+| Firebase BOM | 32.7.0 |
+| Retrofit | 2.9.0 |
+| MockK | 1.13.10 |
+| Turbine | 1.1.0 |
+| DataStore | 1.0.0 |
+| Glance (widgets) | 1.1.0 |
