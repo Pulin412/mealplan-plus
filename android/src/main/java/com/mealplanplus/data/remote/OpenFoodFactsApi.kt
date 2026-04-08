@@ -1,5 +1,6 @@
 package com.mealplanplus.data.remote
 
+import com.google.gson.annotations.SerializedName
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -40,16 +41,22 @@ data class OpenFoodFactsProduct(
 )
 
 data class Nutriments(
+    // OpenFoodFacts uses a hyphen in the JSON key ("energy-kcal_100g") which
+    // is not a valid Kotlin/Java identifier, so @SerializedName is required.
+    @SerializedName("energy-kcal_100g")
     val energy_kcal_100g: Double?,
+    // kJ fallback — some products only report energy in kJ, not kcal
+    @SerializedName("energy_100g")
+    val energy_kj_100g: Double? = null,
     val proteins_100g: Double?,
     val carbohydrates_100g: Double?,
     val fat_100g: Double?,
     val fiber_100g: Double?,
     val sugars_100g: Double?
 ) {
-    // Fallback for different API field names
-    val energyKcal: Double? get() = energy_kcal_100g
-    val proteins: Double? get() = proteins_100g
-    val carbohydrates: Double? get() = carbohydrates_100g
-    val fat: Double? get() = fat_100g
+    /** Calories per 100 g/ml — prefers kcal field, falls back to kJ ÷ 4.184. */
+    val caloriesPer100g: Double
+        get() = energy_kcal_100g
+            ?: energy_kj_100g?.div(4.184)
+            ?: 0.0
 }

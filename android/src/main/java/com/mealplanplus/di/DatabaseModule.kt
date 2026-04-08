@@ -760,6 +760,27 @@ object DatabaseModule {
         }
     }
 
+    // Migration 21->22: fix food_items that had per-serving values stored as per-100g,
+    // and populate gramsPerPiece / gramsPerCup so unit conversions are accurate.
+    private val MIGRATION_21_22 = object : Migration(21, 22) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Egg Whole: stored 78 kcal/egg → correct 155 kcal/100g, gramsPerPiece=50
+            db.execSQL("UPDATE food_items SET caloriesPer100=155, proteinPer100=12.6, carbsPer100=1.1, fatPer100=10.6, gramsPerPiece=50 WHERE name='Egg Whole' AND isSystemFood=1")
+            // Egg White: stored 17 kcal/white → correct 52 kcal/100g, gramsPerPiece=33
+            db.execSQL("UPDATE food_items SET caloriesPer100=52, proteinPer100=10.9, carbsPer100=0.7, fatPer100=0.2, gramsPerPiece=33 WHERE name='Egg White' AND isSystemFood=1")
+            // BB Toast: stored 75 kcal/slice → correct 260 kcal/100g, gramsPerPiece=30
+            db.execSQL("UPDATE food_items SET caloriesPer100=260, proteinPer100=8.7, carbsPer100=47.0, fatPer100=3.3, gramsPerPiece=30 WHERE name='BB Toast' AND isSystemFood=1")
+            // Large Tortilla: stored 144 kcal/tortilla → correct 220 kcal/100g, gramsPerPiece=65
+            db.execSQL("UPDATE food_items SET caloriesPer100=220, proteinPer100=6.8, carbsPer100=39.0, fatPer100=5.5, gramsPerPiece=65 WHERE name='Large Tortilla' AND isSystemFood=1")
+            // Cheese Slice: stored 113 kcal/slice → correct 370 kcal/100g, gramsPerPiece=28
+            db.execSQL("UPDATE food_items SET caloriesPer100=370, proteinPer100=23.0, carbsPer100=1.3, fatPer100=31.0, gramsPerPiece=28 WHERE name='Cheese Slice' AND isSystemFood=1")
+            // Black Coffee: stored 2 kcal/cup → correct 1 kcal/100ml, gramsPerCup=240
+            db.execSQL("UPDATE food_items SET caloriesPer100=1, proteinPer100=0.1, carbsPer100=0.0, fatPer100=0.0, gramsPerCup=240 WHERE name='Black Coffee' AND isSystemFood=1")
+            // Oreo Biscuits: stored 160 kcal/serving → correct 473 kcal/100g, gramsPerPiece=11
+            db.execSQL("UPDATE food_items SET caloriesPer100=473, proteinPer100=4.6, carbsPer100=67.0, fatPer100=24.0, gramsPerPiece=11 WHERE name='Oreo Biscuits' AND isSystemFood=1")
+        }
+    }
+
     // Migration 20->21: add food_tag_cross_refs junction table
     private val MIGRATION_20_21 = object : Migration(20, 21) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -785,7 +806,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
             // Removed fallbackToDestructiveMigration() - this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

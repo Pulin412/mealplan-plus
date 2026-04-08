@@ -49,7 +49,7 @@ class OpenFoodFactsRepository @Inject constructor(
             name = name,
             brand = product.brands,
             barcode = barcode,
-            caloriesPer100 = nutriments.energy_kcal_100g ?: 0.0,
+            caloriesPer100 = nutriments.caloriesPer100g,
             proteinPer100 = nutriments.proteins_100g ?: 0.0,
             carbsPer100 = nutriments.carbohydrates_100g ?: 0.0,
             fatPer100 = nutriments.fat_100g ?: 0.0

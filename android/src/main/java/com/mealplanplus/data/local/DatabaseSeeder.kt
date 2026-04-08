@@ -31,7 +31,11 @@ data class SeedFood(
     val calories: Double,
     val protein: Double,
     val carbs: Double,
-    val fat: Double
+    val fat: Double,
+    val gramsPerPiece: Double? = null,
+    val gramsPerCup: Double? = null,
+    val gramsPerTbsp: Double? = null,
+    val gramsPerTsp: Double? = null
 )
 
 data class SeedFoodWrapper(
@@ -131,6 +135,10 @@ class DatabaseSeeder @Inject constructor(
                 proteinPer100 = sf.protein,
                 carbsPer100 = sf.carbs,
                 fatPer100 = sf.fat,
+                gramsPerPiece = sf.gramsPerPiece,
+                gramsPerCup = sf.gramsPerCup,
+                gramsPerTbsp = sf.gramsPerTbsp,
+                gramsPerTsp = sf.gramsPerTsp,
                 isSystemFood = true
             )
             val id = foodDao.insertFood(foodItem)

@@ -126,9 +126,11 @@ class HomeViewModelTest {
 
     // ─── computeStreak ────────────────────────────────────────────────────────
 
+    // ── streak tests use getLoggedDatesForStreak (any food logged = counts) ──────
+
     @Test
     fun streak_noData_isZero() = runTest {
-        every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(emptyList())
+        every { dailyLogRepo.getLoggedDatesForStreak(any(), any()) } returns flowOf(emptyList())
 
         val vm = buildViewModel()
         assertEquals(0, vm.uiState.value.dayStreak)
@@ -137,8 +139,8 @@ class HomeViewModelTest {
     @Test
     fun streak_todayOnly_isOne() = runTest {
         val today = LocalDate.now().toString()
-        val data = listOf(DailyMacroSummary(date = today, calories = 1800.0, protein = 80.0, carbs = 200.0, fat = 60.0))
-        every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(data)
+        val data = listOf(DailyMacroSummary(date = today, calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0))
+        every { dailyLogRepo.getLoggedDatesForStreak(any(), any()) } returns flowOf(data)
 
         val vm = buildViewModel()
         assertEquals(1, vm.uiState.value.dayStreak)
@@ -150,10 +152,10 @@ class HomeViewModelTest {
         val data = (0..2).map { daysAgo ->
             DailyMacroSummary(
                 date = today.minusDays(daysAgo.toLong()).toString(),
-                calories = 1800.0, protein = 80.0, carbs = 200.0, fat = 60.0
+                calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0
             )
         }
-        every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(data)
+        every { dailyLogRepo.getLoggedDatesForStreak(any(), any()) } returns flowOf(data)
 
         val vm = buildViewModel()
         assertEquals(3, vm.uiState.value.dayStreak)
@@ -164,10 +166,10 @@ class HomeViewModelTest {
         val today = LocalDate.now()
         // Today logged, yesterday not, 2 days ago logged → streak should be 1 (breaks at yesterday)
         val data = listOf(
-            DailyMacroSummary(date = today.toString(), calories = 1800.0, protein = 0.0, carbs = 0.0, fat = 0.0),
-            DailyMacroSummary(date = today.minusDays(2).toString(), calories = 1500.0, protein = 0.0, carbs = 0.0, fat = 0.0)
+            DailyMacroSummary(date = today.toString(), calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0),
+            DailyMacroSummary(date = today.minusDays(2).toString(), calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0)
         )
-        every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(data)
+        every { dailyLogRepo.getLoggedDatesForStreak(any(), any()) } returns flowOf(data)
 
         val vm = buildViewModel()
         assertEquals(1, vm.uiState.value.dayStreak)
@@ -175,11 +177,9 @@ class HomeViewModelTest {
 
     @Test
     fun streak_zerocaloriesBreaksStreak() = runTest {
-        val today = LocalDate.now()
-        val data = listOf(
-            DailyMacroSummary(date = today.toString(), calories = 0.0, protein = 0.0, carbs = 0.0, fat = 0.0)
-        )
-        every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(data)
+        // getLoggedDatesForStreak only returns dates with actual logged food (calories > 0
+        // at the DAO level), so an empty response means no streak.
+        every { dailyLogRepo.getLoggedDatesForStreak(any(), any()) } returns flowOf(emptyList())
 
         val vm = buildViewModel()
         assertEquals(0, vm.uiState.value.dayStreak)
