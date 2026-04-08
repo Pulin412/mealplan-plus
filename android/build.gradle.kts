@@ -139,7 +139,8 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
     // Health Connect (read steps, calories burned, weight from fitness watches / Health apps)
-    implementation("androidx.health.connect:connect-client:1.1.0-alpha09")
+    // 1.0.1 is the last stable release that compiles against API 34 (AGP 8.5.0 caps at 34).
+    implementation("androidx.health.connect:connect-client:1.0.1")
 
     // Firebase (Spark/free-tier compatible — Auth + Crashlytics + Remote Config + Analytics only)
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))

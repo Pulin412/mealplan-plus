@@ -174,4 +174,4 @@ Permission is requested via `PermissionController.createRequestPermissionResultC
 | Turbine | 1.1.0 |
 | DataStore | 1.0.0 |
 | Glance (widgets) | 1.1.0 |
-| Health Connect | 1.1.0-alpha09 |
+| Health Connect | 1.0.1 |
