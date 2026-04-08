@@ -1,0 +1,168 @@
+{
+  "diets": [
+    {
+      "name": "Sample: Egg & Veggie Day",
+      "meal_type": "REMISSION",
+      "description": "A balanced day with eggs, fresh vegetables and a light rice dinner — great starting template for a low-carb day.",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Veggie Egg Scramble + Toast",
+          "items": [
+            {"food": "Egg Whole",       "quantity": 1,   "unit": "piece"},
+            {"food": "Egg White",       "quantity": 3,   "unit": "piece"},
+            {"food": "Onion",           "quantity": 40,  "unit": "g"},
+            {"food": "Tomato",          "quantity": 40,  "unit": "g"},
+            {"food": "Capsicum",        "quantity": 40,  "unit": "g"},
+            {"food": "Butter",          "quantity": 10,  "unit": "g"},
+            {"food": "BB Toast",        "quantity": 2,   "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Fresh Fruit Bowl",
+          "items": [
+            {"food": "Red Apple",   "quantity": 100, "unit": "g"},
+            {"food": "Banana",      "quantity": 80,  "unit": "g"},
+            {"food": "Almonds",     "quantity": 14,  "unit": "g"},
+            {"food": "Cashew",      "quantity": 14,  "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Evening Milk",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Veggie Fried Rice",
+          "items": [
+            {"food": "White Rice",   "quantity": 45,  "unit": "g"},
+            {"food": "Broccoli",     "quantity": 100, "unit": "g"},
+            {"food": "Carrot",       "quantity": 80,  "unit": "g"},
+            {"food": "Matar",        "quantity": 40,  "unit": "g"},
+            {"food": "Onion",        "quantity": 60,  "unit": "g"},
+            {"food": "Tomato",       "quantity": 60,  "unit": "g"},
+            {"food": "Olive Oil",    "quantity": 12,  "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Sample: Protein Power Day",
+      "meal_type": "MAINTENANCE",
+      "description": "High-protein template with paneer, eggs and a tofu-based dinner — ideal for muscle maintenance or active days.",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer & Egg Stir Fry + Toast",
+          "items": [
+            {"food": "Paneer",          "quantity": 80,  "unit": "g"},
+            {"food": "Egg Whole",       "quantity": 2,   "unit": "piece"},
+            {"food": "Onion",           "quantity": 50,  "unit": "g"},
+            {"food": "Tomato",          "quantity": 50,  "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40,  "unit": "g"},
+            {"food": "Butter",          "quantity": 10,  "unit": "g"},
+            {"food": "BB Toast",        "quantity": 2,   "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Peanut Butter Banana Sandwich",
+          "items": [
+            {"food": "Peanut Butter", "quantity": 40, "unit": "g"},
+            {"food": "Banana",        "quantity": 80, "unit": "g"},
+            {"food": "BB Toast",      "quantity": 2,  "unit": "piece"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Dry Fruits Mix",
+          "items": [
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Cashew",  "quantity": 20, "unit": "g"},
+            {"food": "Walnuts", "quantity": 15, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Evening Milk",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Tofu Veggie Stir Fry",
+          "items": [
+            {"food": "Tofu",         "quantity": 120, "unit": "g"},
+            {"food": "Zucchini",     "quantity": 100, "unit": "g"},
+            {"food": "Capsicum",     "quantity": 60,  "unit": "g"},
+            {"food": "Mushroom",     "quantity": 80,  "unit": "g"},
+            {"food": "Onion",        "quantity": 50,  "unit": "g"},
+            {"food": "Olive Oil",    "quantity": 10,  "unit": "g"},
+            {"food": "White Rice",   "quantity": 40,  "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Sample: Light Vegetarian Day",
+      "meal_type": "SOS",
+      "description": "A lighter, plant-based day — fruits in the morning, chickpea stir fry at lunch and a wholesome veggie roti dinner.",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mixed Fruit Bowl",
+          "items": [
+            {"food": "Watermelon",  "quantity": 150, "unit": "g"},
+            {"food": "Red Apple",   "quantity": 100, "unit": "g"},
+            {"food": "Strawberry",  "quantity": 60,  "unit": "g"},
+            {"food": "Blueberry",   "quantity": 40,  "unit": "g"},
+            {"food": "Almonds",     "quantity": 14,  "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Chickpea Stir Fry",
+          "items": [
+            {"food": "Chickpea",  "quantity": 80,  "unit": "g"},
+            {"food": "Onion",     "quantity": 60,  "unit": "g"},
+            {"food": "Tomato",    "quantity": 60,  "unit": "g"},
+            {"food": "Capsicum",  "quantity": 50,  "unit": "g"},
+            {"food": "Zucchini",  "quantity": 80,  "unit": "g"},
+            {"food": "Olive Oil", "quantity": 10,  "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Evening Milk",
+          "items": [
+            {"food": "Milk", "quantity": 200, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Mix Veg Roti",
+          "items": [
+            {"food": "Paneer",      "quantity": 80,  "unit": "g"},
+            {"food": "Cabbage",     "quantity": 80,  "unit": "g"},
+            {"food": "Carrot",      "quantity": 80,  "unit": "g"},
+            {"food": "Potato",      "quantity": 60,  "unit": "g"},
+            {"food": "Matar",       "quantity": 40,  "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 10,  "unit": "g"},
+            {"food": "Wheat Flour", "quantity": 40,  "unit": "g"},
+            {"food": "Gram Flour",  "quantity": 20,  "unit": "g"}
+          ]
+        }
+      }
+    }
+  ]
+}

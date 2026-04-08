@@ -299,7 +299,7 @@ fun MealPlanNavHost(
                 HomeScreen(
                     onNavigateToLog = { navController.navigate(Screen.DailyLog.route) },
                     onNavigateToLogWithDate = { date ->
-                        navController.navigate(Screen.DailyLogWithDate.createRoute(date))
+                        navController.navigate(Screen.CalendarWithDate.createRoute(date))
                     },
                     onNavigateToHealth = { navController.navigate(Screen.Health.route) },
                     onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },

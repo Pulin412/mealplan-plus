@@ -140,6 +140,24 @@ interface DailyLogDao {
     """)
     fun getCompletedDaysCalories(userId: Long, startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
 
+    /**
+     * Returns one row per date (within range) where at least one food was logged,
+     * with calories = row count (always > 0). Used for streak calculation — no
+     * isCompleted filter so logging any food counts.
+     */
+    @Query("""
+        SELECT logDate as date,
+               CAST(COUNT(*) AS REAL) as calories,
+               0.0 as protein,
+               0.0 as carbs,
+               0.0 as fat
+        FROM logged_foods
+        WHERE userId = :userId AND logDate BETWEEN :startDate AND :endDate
+        GROUP BY logDate
+        ORDER BY logDate DESC
+    """)
+    fun getLoggedDates(userId: Long, startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
+
     @Query("DELETE FROM logged_foods")
     suspend fun deleteAllLoggedFoods()
 

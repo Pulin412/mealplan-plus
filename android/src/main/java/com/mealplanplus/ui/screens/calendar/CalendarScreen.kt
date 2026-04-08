@@ -95,16 +95,21 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            val isPlanCompleted = uiState.plans[uiState.selectedDate.toString()]?.isCompleted ?: false
+
             // Selected date detail panel
             SelectedDatePanel(
                 date = uiState.selectedDate,
                 diet = uiState.selectedDiet,
                 dietWithMeals = uiState.selectedDietWithMeals,
                 tags = uiState.selectedDietTags,
+                isPlanCompleted = isPlanCompleted,
+                todayLoggedSlots = uiState.todayLoggedSlots,
                 onAssignDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
                 onChangeDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
                 onRemoveDiet = { viewModel.clearPlan() },
                 onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
+                onSlotToggle = { slotType -> viewModel.toggleSlotLogged(slotType) },
                 onNavigateToMealDetail = onNavigateToMealDetail
             )
         }
@@ -397,10 +402,13 @@ private fun SelectedDatePanel(
     diet: Diet?,
     dietWithMeals: DietWithMeals?,
     tags: List<Tag>,
+    isPlanCompleted: Boolean = false,
+    todayLoggedSlots: Map<String, Boolean> = emptyMap(),
     onAssignDiet: () -> Unit,
     onChangeDiet: () -> Unit,
     onRemoveDiet: () -> Unit,
     onViewLog: () -> Unit,
+    onSlotToggle: (String) -> Unit = {},
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
 ) {
     val today = LocalDate.now()
@@ -469,10 +477,10 @@ private fun SelectedDatePanel(
 
                 // Action button (right side)
                 when {
-                    isToday && diet != null -> TextButton(onClick = onViewLog) {
-                        Text("View Log", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    isToday && diet != null && isPlanCompleted -> TextButton(onClick = onChangeDiet) {
+                        Text("Change", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                     }
+                    // Today with an incomplete plan: checkboxes are shown inline — no header button needed
                     isFuture && diet != null -> Button(
                         onClick = onChangeDiet,
                         colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
@@ -489,18 +497,20 @@ private fun SelectedDatePanel(
                     ) {
                         Text("+ Plan", style = MaterialTheme.typography.labelMedium)
                     }
-                    isPast && diet != null -> TextButton(onClick = onViewLog) {
-                        Text("View Log", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    }
+                    // Past dates: diet details are shown read-only inline — no log redirect needed
                 }
             }
 
             if (diet != null && dietWithMeals != null) {
                 // Macros + meals section
+                // For today's unfinished plan → show interactive checkboxes, otherwise read-only rows
+                val showCheckboxes = isToday && !isPlanCompleted
                 DietDetailSection(
                     diet = diet,
                     dietWithMeals = dietWithMeals,
+                    showCheckboxes = showCheckboxes,
+                    slotLoggedState = if (showCheckboxes) todayLoggedSlots else emptyMap(),
+                    onSlotToggle = onSlotToggle,
                     onNavigateToMealDetail = onNavigateToMealDetail
                 )
 
@@ -577,6 +587,9 @@ private fun SelectedDatePanel(
 private fun DietDetailSection(
     diet: Diet,
     dietWithMeals: DietWithMeals,
+    showCheckboxes: Boolean = false,
+    slotLoggedState: Map<String, Boolean> = emptyMap(),
+    onSlotToggle: (String) -> Unit = {},
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
 ) {
     Column(
@@ -633,12 +646,15 @@ private fun DietDetailSection(
         // Default meal slots
         DefaultMealSlot.entries.forEach { slot ->
             val mealWithFoods = dietWithMeals.meals[slot.name]
+            val hasFoods = mealWithFoods != null && mealWithFoods.items.isNotEmpty()
+            val isLogged = slotLoggedState[slot.name.uppercase()] == true
             MealSlotRow(
                 slot = slot,
                 mealName = mealWithFoods?.meal?.name,
-                onTap = if (mealWithFoods != null && mealWithFoods.items.isNotEmpty())
-                    { -> onNavigateToMealDetail(diet.id, slot.name) }
-                else null
+                showCheckbox = showCheckboxes && hasFoods,
+                isLogged = isLogged,
+                onToggle = if (showCheckboxes && hasFoods) { -> onSlotToggle(slot.name) } else null,
+                onTap = if (!showCheckboxes && hasFoods) { -> onNavigateToMealDetail(diet.id, slot.name) } else null
             )
         }
 
@@ -648,12 +664,15 @@ private fun DietDetailSection(
             .sortedBy { it.key }
             .forEach { (slotType, mealWithFoods) ->
                 val displayName = slotType.removePrefix("CUSTOM:")
+                val hasFoods = mealWithFoods != null && mealWithFoods.items.isNotEmpty()
+                val isLogged = slotLoggedState[slotType.uppercase()] == true
                 CustomMealSlotRow(
                     displayName = displayName,
                     mealName = mealWithFoods?.meal?.name,
-                    onTap = if (mealWithFoods != null && mealWithFoods.items.isNotEmpty())
-                        { -> onNavigateToMealDetail(diet.id, slotType) }
-                    else null
+                    showCheckbox = showCheckboxes && hasFoods,
+                    isLogged = isLogged,
+                    onToggle = if (showCheckboxes && hasFoods) { -> onSlotToggle(slotType) } else null,
+                    onTap = if (!showCheckboxes && hasFoods) { -> onNavigateToMealDetail(diet.id, slotType) } else null
                 )
             }
     }
@@ -695,7 +714,14 @@ private fun MacroTile(
 }
 
 @Composable
-private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?, onTap: (() -> Unit)? = null) {
+private fun MealSlotRow(
+    slot: DefaultMealSlot,
+    mealName: String?,
+    showCheckbox: Boolean = false,
+    isLogged: Boolean = false,
+    onToggle: (() -> Unit)? = null,
+    onTap: (() -> Unit)? = null
+) {
     val (emoji, tint) = slotEmojiAndColor(slot)
     Row(
         modifier = Modifier
@@ -729,7 +755,9 @@ private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?, onTap: (() -> 
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (onTap != null) {
+        if (showCheckbox) {
+            SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
+        } else if (onTap != null) {
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = "View ingredients",
@@ -741,7 +769,14 @@ private fun MealSlotRow(slot: DefaultMealSlot, mealName: String?, onTap: (() -> 
 }
 
 @Composable
-private fun CustomMealSlotRow(displayName: String, mealName: String?, onTap: (() -> Unit)? = null) {
+private fun CustomMealSlotRow(
+    displayName: String,
+    mealName: String?,
+    showCheckbox: Boolean = false,
+    isLogged: Boolean = false,
+    onToggle: (() -> Unit)? = null,
+    onTap: (() -> Unit)? = null
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -787,7 +822,9 @@ private fun CustomMealSlotRow(displayName: String, mealName: String?, onTap: (()
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (onTap != null) {
+        if (showCheckbox) {
+            SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
+        } else if (onTap != null) {
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = "View ingredients",
@@ -795,6 +832,36 @@ private fun CustomMealSlotRow(displayName: String, mealName: String?, onTap: (()
                 modifier = Modifier.size(20.dp)
             )
         }
+    }
+}
+
+/** Green filled circle with checkmark when logged, empty gray circle when not. */
+@Composable
+private fun SlotCheckCircle(isLogged: Boolean, onToggle: (() -> Unit)? = null) {
+    if (isLogged) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(DarkGreen)
+                .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = "Logged – tap to undo",
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
+        )
     }
 }
 

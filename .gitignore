@@ -9,3 +9,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Personal developer seed data — not for distribution
+/developer_data/

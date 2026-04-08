@@ -195,6 +195,7 @@ fun HomeScreen(
                     userInitial = uiState.userInitial,
                     caloriesConsumed = uiState.todaySummary.calories,
                     calorieGoal = uiState.calorieGoal,
+                    dayStreak = uiState.dayStreak,
                     onProfileClick = onNavigateToProfile,
                     onMenuClick = { scope.launch { drawerState.open() } },
                     isDark = isDark,
@@ -245,16 +246,6 @@ fun HomeScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // ── Stats row (A1C / Weight / Streak) ─────────────────
-                StatsRow(
-                    latestHba1c = uiState.latestHba1c,
-                    latestWeight = uiState.latestWeight,
-                    dayStreak = uiState.dayStreak,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
@@ -269,6 +260,7 @@ fun HomeHeaderSection(
     userInitial: String,
     caloriesConsumed: Int,
     calorieGoal: Int,
+    dayStreak: Int = 0,
     onProfileClick: () -> Unit,
     onMenuClick: () -> Unit = {},
     isDark: Boolean = false,
@@ -411,7 +403,31 @@ fun HomeHeaderSection(
                         strokeCap = StrokeCap.Round
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(statusText, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(statusText, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                        if (dayStreak > 0) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.White.copy(alpha = 0.18f))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text("🔥", fontSize = 12.sp)
+                                Text(
+                                    text = "$dayStreak day streak",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

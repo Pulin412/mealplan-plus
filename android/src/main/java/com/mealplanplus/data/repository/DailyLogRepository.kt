@@ -128,6 +128,10 @@ class DailyLogRepository @Inject constructor(
     fun getCompletedDaysCalories(startDate: LocalDate, endDate: LocalDate): Flow<List<DailyMacroSummary>> =
         dailyLogDao.getCompletedDaysCalories(getCurrentUserId(), startDate.format(dateFormatter), endDate.format(dateFormatter))
 
+    /** Returns dates where any food was logged — used for accurate streak calculation. */
+    fun getLoggedDatesForStreak(startDate: LocalDate, endDate: LocalDate): Flow<List<DailyMacroSummary>> =
+        dailyLogDao.getLoggedDates(getCurrentUserId(), startDate.format(dateFormatter), endDate.format(dateFormatter))
+
     /**
      * Apply a full diet to a day — logs each food individually into logged_foods.
      */

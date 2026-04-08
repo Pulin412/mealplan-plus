@@ -56,12 +56,12 @@ class UserDataSeeder @Inject constructor(
         val tagMap = createDefaultTags(userId)
         Log.d(TAG, "Created ${tagMap.size} tags")
 
-        // 2. Load seed_data.json
+        // 2. Load sample_data.json
         val seedData = loadSeedData(context) ?: run {
-            Log.w(TAG, "Failed to load seed_data.json")
+            Log.w(TAG, "Failed to load sample_data.json")
             return@withContext
         }
-        Log.d(TAG, "Loaded ${seedData.diets.size} diets from seed_data.json")
+        Log.d(TAG, "Loaded ${seedData.diets.size} sample diets from sample_data.json")
 
         // 3. Build food lookup map
         val foodMap = buildFoodMap()
@@ -101,12 +101,12 @@ class UserDataSeeder @Inject constructor(
 
     private fun loadSeedData(context: Context): SeedData? {
         return try {
-            val json = context.assets.open("data/seed_data.json")
+            val json = context.assets.open("data/sample_data.json")
                 .bufferedReader()
                 .use { it.readText() }
             gson.fromJson(json, SeedData::class.java)
         } catch (e: Exception) {
-            Log.e(TAG, "Error loading seed_data.json: ${e.message}")
+            Log.e(TAG, "Error loading sample_data.json: ${e.message}")
             null
         }
     }

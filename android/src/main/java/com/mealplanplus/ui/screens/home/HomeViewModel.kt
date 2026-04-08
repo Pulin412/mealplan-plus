@@ -119,9 +119,25 @@ class HomeViewModel @Inject constructor(
         loadTodayData()
         loadTodayPlanSlots()
         loadGlucoseHistory()
+        loadStreakData()
         viewModelScope.launch {
             _weekOffset.collect { loadWeekData() }
         }
+    }
+
+    /**
+     * Observes up to 365 days of logged-food dates and computes an unbounded streak.
+     * Any day with at least one logged food counts — no isCompleted gate.
+     */
+    private fun loadStreakData() {
+        val today = LocalDate.now()
+        val startDate = today.minusDays(365)
+        dailyLogRepository.getLoggedDatesForStreak(startDate, today)
+            .onEach { entries ->
+                val loggedDates = entries.map { it.date }.toSet()
+                _uiState.update { it.copy(dayStreak = computeStreak(loggedDates)) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun previousWeek() { _weekOffset.update { it - 1 } }
@@ -340,7 +356,6 @@ class HomeViewModel @Inject constructor(
             planRepository.getPlansWithDietNames(weekStart.toString(), weekEnd.toString())
         ) { calories, plans ->
             val loggedDates = calories.filter { it.calories > 0 }.map { it.date }.toSet()
-            val streak = computeStreak(calories)
 
             // Build diet label map for the week
             val weekDietLabels = plans
@@ -377,13 +392,12 @@ class HomeViewModel @Inject constructor(
                 )
             }
 
-            Triple(loggedDates, streak, weekDays)
+            Pair(loggedDates, weekDays)
         }
-            .onEach { (loggedDates, streak, weekDays) ->
+            .onEach { (loggedDates, weekDays) ->
                 _uiState.update {
                     it.copy(
                         weeklyLoggedDates = loggedDates,
-                        dayStreak = streak,
                         weekDays = weekDays
                     )
                 }
@@ -394,13 +408,17 @@ class HomeViewModel @Inject constructor(
         loadPlansForMonth()
     }
 
-    private fun computeStreak(weekData: List<DailyMacroSummary>): Int {
+    /**
+     * Walks backwards from today until it finds a day with no logged food.
+     * [loggedDates] is the set of date strings ("yyyy-MM-dd") where food was logged.
+     */
+    private fun computeStreak(loggedDates: Set<String>): Int {
         val today = LocalDate.now()
         var streak = 0
-        for (i in 0..6) {
+        var i = 0
+        while (true) {
             val date = today.minusDays(i.toLong()).toString()
-            val hasData = weekData.any { it.date == date && it.calories > 0 }
-            if (hasData) streak++ else break
+            if (date in loggedDates) { streak++; i++ } else break
         }
         return streak
     }
@@ -438,6 +456,7 @@ class HomeViewModel @Inject constructor(
         loadTodayPlanSlots()
         loadWeekData()
         loadGlucoseHistory()
+        loadStreakData()
     }
 
     companion object {

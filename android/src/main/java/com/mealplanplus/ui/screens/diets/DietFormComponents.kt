@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -21,6 +23,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mealplanplus.data.model.DefaultMealSlot
+import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import com.mealplanplus.data.model.Tag
 import androidx.compose.ui.text.style.TextAlign
@@ -603,6 +607,194 @@ fun CustomDietSlotSection(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Compact view of a diet's meal slots — matches the style used in the Meal Plan screen.
+ * Shows a card with macro totals then one row per slot (emoji + slot name + meal name + chevron).
+ * Tapping a row with foods navigates to MealDetailScreen.
+ */
+@Composable
+fun DietMealSlotsCompact(
+    diet: Diet,
+    dietWithMeals: DietWithMeals,
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
+) {
+    val slotColors = mapOf(
+        "EARLY_MORNING" to Color(0xFF9C27B0),
+        "BREAKFAST" to Color(0xFFFF9800),
+        "MID_MORNING" to Color(0xFF795548),
+        "NOON" to Color(0xFFFFC107),
+        "LUNCH" to Color(0xFFFFC107),
+        "PRE_WORKOUT" to Color(0xFF2196F3),
+        "EVENING" to Color(0xFFFF5722),
+        "EVENING_SNACK" to Color(0xFF4CAF50),
+        "POST_WORKOUT" to Color(0xFF03A9F4),
+        "DINNER" to Color(0xFF3F51B5),
+        "POST_DINNER" to Color(0xFF009688)
+    )
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Meal Plan",
+                style = MaterialTheme.typography.titleSmall,
+                color = FormGreen,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+
+            // Default slots that have meals
+            DefaultMealSlot.entries.forEach { slot ->
+                val mealWithFoods = dietWithMeals.meals[slot.name]
+                val hasFoods = mealWithFoods != null && mealWithFoods.items.isNotEmpty()
+                val tint = slotColors[slot.name] ?: FormGreen
+                CompactSlotRow(
+                    emoji = slotEmoji(slot),
+                    tint = tint,
+                    slotLabel = slot.displayName,
+                    mealName = mealWithFoods?.meal?.name,
+                    onTap = if (hasFoods) { -> onNavigateToMealDetail(diet.id, slot.name) } else null
+                )
+            }
+
+            // Custom slots that have meals
+            dietWithMeals.meals.entries
+                .filter { it.key.startsWith("CUSTOM:") }
+                .sortedBy { it.key }
+                .forEach { (slotType, mealWithFoods) ->
+                    val hasFoods = mealWithFoods != null && mealWithFoods.items.isNotEmpty()
+                    CompactCustomSlotRow(
+                        displayName = slotType.removePrefix("CUSTOM:"),
+                        mealName = mealWithFoods?.meal?.name,
+                        onTap = if (hasFoods) { -> onNavigateToMealDetail(diet.id, slotType) } else null
+                    )
+                }
+        }
+    }
+}
+
+@Composable
+private fun CompactSlotRow(
+    emoji: String,
+    tint: Color,
+    slotLabel: String,
+    mealName: String?,
+    onTap: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(tint.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = emoji, fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = slotLabel,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = mealName ?: "—",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
+                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onTap != null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "View meal ingredients",
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactCustomSlotRow(
+    displayName: String,
+    mealName: String?,
+    onTap: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF7B1FA2).copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("⭐", fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFF7B1FA2).copy(alpha = 0.10f)
+                ) {
+                    Text(
+                        "custom",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF7B1FA2),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                }
+            }
+            Text(
+                text = mealName ?: "—",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
+                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onTap != null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "View meal ingredients",
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

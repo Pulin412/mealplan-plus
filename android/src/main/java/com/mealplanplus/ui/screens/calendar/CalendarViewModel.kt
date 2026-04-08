@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.extractShortDietName
@@ -24,13 +25,16 @@ data class CalendarUiState(
     val selectedDietTags: List<Tag> = emptyList(),
     val showDietPicker: Boolean = false,
     val isWeekView: Boolean = true,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    /** Slot types logged today — used for checkbox state when today is selected. */
+    val todayLoggedSlots: Map<String, Boolean> = emptyMap()
 )
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository,
+    private val dailyLogRepository: DailyLogRepository,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -57,6 +61,49 @@ class CalendarViewModel @Inject constructor(
         }
         loadPlansForMonth()
         selectDate(startDate)
+        observeTodayLog()
+    }
+
+    /** Keep today's logged-slot map in sync so checkboxes stay reactive. */
+    private fun observeTodayLog() {
+        dailyLogRepository.getLogWithFoods(LocalDate.now())
+            .onEach { logWithFoods ->
+                val logged = logWithFoods?.foods
+                    ?.groupBy { it.loggedFood.slotType.uppercase() }
+                    ?.mapValues { true }
+                    ?: emptyMap()
+                _uiState.update { it.copy(todayLoggedSlots = logged) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    /**
+     * Toggle a meal slot logged/unlogged for today.
+     * Only callable when the selected date is today.
+     */
+    fun toggleSlotLogged(slotType: String) {
+        val dietWithMeals = _uiState.value.selectedDietWithMeals ?: return
+        viewModelScope.launch {
+            val today = LocalDate.now()
+            val isCurrentlyLogged = dailyLogRepository.isSlotLogged(today, slotType)
+            if (isCurrentlyLogged) {
+                dailyLogRepository.clearSlot(today, slotType)
+            } else {
+                val plannedFoods = dietWithMeals.meals[slotType]?.items ?: return@launch
+                if (plannedFoods.isEmpty()) return@launch
+                dailyLogRepository.clearSlot(today, slotType)
+                val timestamp = System.currentTimeMillis()
+                plannedFoods.forEach { foodItem ->
+                    dailyLogRepository.logFood(
+                        date = today,
+                        foodId = foodItem.mealFoodItem.foodId,
+                        quantity = foodItem.mealFoodItem.quantity,
+                        slotType = slotType,
+                        timestamp = timestamp
+                    )
+                }
+            }
+        }
     }
 
     private fun loadPlansForMonth() {

@@ -174,84 +174,83 @@ fun DietDetailScreen(
                 }
             }
 
-            // Estimated Totals card
-            item {
-                val totalCal = dwm?.totalCalories?.toInt() ?: 0
-                val totalPro = dwm?.totalProtein?.toInt() ?: 0
-                val totalCarb = dwm?.totalCarbs?.toInt() ?: 0
-                val totalFat = dwm?.totalFat?.toInt() ?: 0
-                EstimatedTotalsCard(totalCal, totalPro, totalCarb, totalFat)
-            }
+            // Totals card + slot sections
+            if (isEditing) {
+                // Edit mode: estimated totals + editable slot cards
+                item {
+                    val totalCal = dwm?.totalCalories?.toInt() ?: 0
+                    val totalPro = dwm?.totalProtein?.toInt() ?: 0
+                    val totalCarb = dwm?.totalCarbs?.toInt() ?: 0
+                    val totalFat = dwm?.totalFat?.toInt() ?: 0
+                    EstimatedTotalsCard(totalCal, totalPro, totalCarb, totalFat)
+                }
 
-            // Default slot sections
-            val slots = slotsToShow(slotFoodItems)
-            items(slots.size) { index ->
-                val slot = slots[index]
-                val foods = slotFoodItems[slot] ?: emptyList()
-                val dietId = uiState.diet?.id ?: 0L
-                DietSlotSection(
-                    slot = slot,
-                    foods = foods,
-                    onAddFood = {
-                        viewModel.setPickingSlot(slot)
-                        onNavigateToFoodPicker()
-                    },
-                    onRemoveFood = { idx ->
-                        if (idx in foods.indices) viewModel.removeFood(slot, foods[idx])
-                    },
-                    onIncrement = { idx ->
-                        if (idx in foods.indices) viewModel.incrementQty(slot, foods[idx])
-                    },
-                    onDecrement = { idx ->
-                        if (idx in foods.indices) viewModel.decrementQty(slot, foods[idx])
-                    },
-                    isEditing = isEditing,
-                    instructions = if (isEditing)
-                        uiState.editSlotInstructions[slot.name] ?: ""
-                    else
-                        uiState.dietWithMeals?.instructions?.get(slot.name) ?: "",
-                    onInstructionsChange = if (isEditing)
-                        { text -> viewModel.updateSlotInstructions(slot, text) } else null,
-                    onViewDetails = if (!isEditing && foods.isNotEmpty())
-                        { -> onNavigateToMealDetail(dietId, slot.name) } else null
-                )
-            }
+                val slots = slotsToShow(slotFoodItems)
+                items(slots.size) { index ->
+                    val slot = slots[index]
+                    val foods = slotFoodItems[slot] ?: emptyList()
+                    DietSlotSection(
+                        slot = slot,
+                        foods = foods,
+                        onAddFood = {
+                            viewModel.setPickingSlot(slot)
+                            onNavigateToFoodPicker()
+                        },
+                        onRemoveFood = { idx ->
+                            if (idx in foods.indices) viewModel.removeFood(slot, foods[idx])
+                        },
+                        onIncrement = { idx ->
+                            if (idx in foods.indices) viewModel.incrementQty(slot, foods[idx])
+                        },
+                        onDecrement = { idx ->
+                            if (idx in foods.indices) viewModel.decrementQty(slot, foods[idx])
+                        },
+                        isEditing = true,
+                        instructions = uiState.editSlotInstructions[slot.name] ?: "",
+                        onInstructionsChange = { text -> viewModel.updateSlotInstructions(slot, text) },
+                        onViewDetails = null
+                    )
+                }
 
-            // Custom slot sections
-            items(customSlotTypes.size) { index ->
-                val slotType = customSlotTypes[index]
-                val displayName = slotType.removePrefix("CUSTOM:")
-                val foods = dwm?.meals?.get(slotType)?.items ?: emptyList()
-                val dietId = uiState.diet?.id ?: 0L
-                CustomDietSlotSection(
-                    slotType = slotType,
-                    displayName = displayName,
-                    foods = foods,
-                    isEditing = isEditing,
-                    instructions = if (isEditing)
-                        uiState.editSlotInstructions[slotType] ?: ""
-                    else
-                        uiState.dietWithMeals?.instructions?.get(slotType) ?: "",
-                    onAddFood = {
-                        viewModel.setPickingSlotType(slotType)
-                        onNavigateToFoodPicker()
-                    },
-                    onRemoveFood = { idx ->
-                        if (idx in foods.indices) viewModel.removeFoodFromSlot(slotType, foods[idx])
-                    },
-                    onIncrement = { idx ->
-                        if (idx in foods.indices) viewModel.incrementQtyInSlot(slotType, foods[idx])
-                    },
-                    onDecrement = { idx ->
-                        if (idx in foods.indices) viewModel.decrementQtyInSlot(slotType, foods[idx])
-                    },
-                    onInstructionsChange = if (isEditing)
-                        { text -> viewModel.updateSlotInstructionsForType(slotType, text) } else null,
-                    onRemoveSlot = if (isEditing)
-                        { -> viewModel.removeCustomSlot(slotType) } else null,
-                    onViewDetails = if (!isEditing && foods.isNotEmpty())
-                        { -> onNavigateToMealDetail(dietId, slotType) } else null
-                )
+                items(customSlotTypes.size) { index ->
+                    val slotType = customSlotTypes[index]
+                    val displayName = slotType.removePrefix("CUSTOM:")
+                    val foods = dwm?.meals?.get(slotType)?.items ?: emptyList()
+                    CustomDietSlotSection(
+                        slotType = slotType,
+                        displayName = displayName,
+                        foods = foods,
+                        isEditing = true,
+                        instructions = uiState.editSlotInstructions[slotType] ?: "",
+                        onAddFood = {
+                            viewModel.setPickingSlotType(slotType)
+                            onNavigateToFoodPicker()
+                        },
+                        onRemoveFood = { idx ->
+                            if (idx in foods.indices) viewModel.removeFoodFromSlot(slotType, foods[idx])
+                        },
+                        onIncrement = { idx ->
+                            if (idx in foods.indices) viewModel.incrementQtyInSlot(slotType, foods[idx])
+                        },
+                        onDecrement = { idx ->
+                            if (idx in foods.indices) viewModel.decrementQtyInSlot(slotType, foods[idx])
+                        },
+                        onInstructionsChange = { text -> viewModel.updateSlotInstructionsForType(slotType, text) },
+                        onRemoveSlot = { viewModel.removeCustomSlot(slotType) },
+                        onViewDetails = null
+                    )
+                }
+            } else {
+                // View mode: compact Meal Plan-style slot rows (like CalendarScreen)
+                if (dwm != null) {
+                    item {
+                        DietMealSlotsCompact(
+                            diet = uiState.diet!!,
+                            dietWithMeals = dwm,
+                            onNavigateToMealDetail = onNavigateToMealDetail
+                        )
+                    }
+                }
             }
 
             // Add custom slot button (edit mode)
