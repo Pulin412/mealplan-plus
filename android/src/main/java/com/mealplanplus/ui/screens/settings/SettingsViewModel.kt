@@ -456,20 +456,16 @@ class SettingsViewModel @Inject constructor(
      * the local Room database (today's date), if no entry exists for today already.
      */
     private suspend fun syncWeightFromHealthConnect(weightKg: Double) {
-        val userId = com.mealplanplus.util.AuthPreferences.getUserId(context).first() ?: return
         val today = java.time.LocalDate.now().toString()
         val existing = healthRepository.getMetricsForDate(today)
             .first()
             .any { it.metricType == MetricType.WEIGHT.name }
         if (!existing) {
             healthRepository.logMetric(
-                HealthMetric(
-                    userId = userId,
-                    metricType = MetricType.WEIGHT.name,
-                    value = weightKg,
-                    date = today,
-                    notes = "Synced from Health Connect"
-                )
+                type = MetricType.WEIGHT,
+                value = weightKg,
+                date = today,
+                notes = "Synced from Health Connect"
             )
         }
     }
