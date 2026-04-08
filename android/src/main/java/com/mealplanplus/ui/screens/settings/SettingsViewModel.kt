@@ -10,7 +10,9 @@ import com.mealplanplus.data.local.ImportStrategy
 import com.mealplanplus.data.local.JsonDataImporter
 import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.HealthMetric
+import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.data.repository.DailyLogRepository
+import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.notification.NotificationAlarmBootstrapper
 import com.mealplanplus.util.AlarmScheduler
@@ -32,7 +34,11 @@ data class SettingsUiState(
     val error: String? = null,
     // Import state
     val isImporting: Boolean = false,
-    val importResult: ImportResult? = null
+    val importResult: ImportResult? = null,
+    // Health Connect state
+    val isHealthConnectAvailable: Boolean = false,
+    val isHealthConnectConnected: Boolean = false,
+    val healthConnectLastSyncWeight: Double? = null
 )
 
 data class ThemeState(
@@ -61,12 +67,16 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dailyLogRepository: DailyLogRepository,
     private val healthRepository: HealthRepository,
+    private val healthConnectRepository: HealthConnectRepository,
     private val jsonDataImporter: JsonDataImporter,
     private val csvDataImporter: CsvDataImporter
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    /** Exposed to the UI so the permission launcher can be initialised with the exact set. */
+    val healthConnectPermissions: Set<String> get() = healthConnectRepository.requiredPermissions
 
     private val _themeState = MutableStateFlow(ThemeState())
     val themeState: StateFlow<ThemeState> = _themeState.asStateFlow()
@@ -81,6 +91,7 @@ class SettingsViewModel @Inject constructor(
         loadThemePreferences()
         loadNotificationPreferences()
         loadDataForExport()
+        checkHealthConnectStatus()
     }
 
     private fun loadThemePreferences() {
@@ -399,6 +410,67 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             NotificationPreferences.setStreakAlertMinute(context, minute)
             NotificationAlarmBootstrapper.rescheduleForType(context, NotificationAlarmType.STREAK)
+        }
+    }
+
+    // ── Health Connect ────────────────────────────────────────────────────────
+
+    /**
+     * Checks HC availability and permission status, and optionally syncs the latest
+     * weight entry into the Health screen's Room database.
+     * Safe to call on every Settings screen resume.
+     */
+    fun checkHealthConnectStatus() {
+        viewModelScope.launch {
+            val available = healthConnectRepository.isAvailable
+            val connected = available && healthConnectRepository.hasPermissions()
+            var latestWeight: Double? = null
+
+            if (connected) {
+                latestWeight = healthConnectRepository.getLatestWeightKg()
+                if (latestWeight != null) {
+                    syncWeightFromHealthConnect(latestWeight)
+                }
+            }
+
+            _uiState.update {
+                it.copy(
+                    isHealthConnectAvailable = available,
+                    isHealthConnectConnected = connected,
+                    healthConnectLastSyncWeight = latestWeight
+                )
+            }
+        }
+    }
+
+    /**
+     * Called from the UI after the Health Connect permission dialog returns.
+     * Re-checks permissions and refreshes state.
+     */
+    fun onHealthConnectPermissionsResult() {
+        checkHealthConnectStatus()
+    }
+
+    /**
+     * Writes the most recent weight from Health Connect as a WEIGHT metric entry in
+     * the local Room database (today's date), if no entry exists for today already.
+     */
+    private suspend fun syncWeightFromHealthConnect(weightKg: Double) {
+        val userId = com.mealplanplus.util.AuthPreferences.getUserId(context).first() ?: return
+        val today = java.time.LocalDate.now().toString()
+        val existing = healthRepository.getMetricsForDate(today)
+            .first()
+            .any { it.metricType == MetricType.WEIGHT.name }
+        if (!existing) {
+            healthRepository.logMetric(
+                HealthMetric(
+                    userId = userId,
+                    metricType = MetricType.WEIGHT.name,
+                    value = weightKg,
+                    date = today,
+                    notes = "Synced from Health Connect"
+                )
+            )
         }
     }
 }

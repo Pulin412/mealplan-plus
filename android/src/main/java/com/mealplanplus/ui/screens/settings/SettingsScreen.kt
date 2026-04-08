@@ -10,6 +10,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -62,18 +63,29 @@ fun SettingsScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                val nowExact = am.canScheduleExactAlarms()
-                if (nowExact && !canScheduleExact) {
-                    // Permission just granted — upgrade all pending alarms to exact
-                    viewModel.onExactAlarmPermissionResult()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                    val nowExact = am.canScheduleExactAlarms()
+                    if (nowExact && !canScheduleExact) {
+                        viewModel.onExactAlarmPermissionResult()
+                    }
+                    canScheduleExact = nowExact
                 }
-                canScheduleExact = nowExact
+                // Re-check HC permissions each time the user returns (they may have revoked in settings)
+                viewModel.checkHealthConnectStatus()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Health Connect permission launcher
+    val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { _ ->
+        // Regardless of granted/denied, re-check status so the UI updates
+        viewModel.onHealthConnectPermissionsResult()
     }
 
     // File picker for JSON import
@@ -267,6 +279,72 @@ fun SettingsScreen(
                         icon = Icons.Default.DateRange,
                         checked = notificationState.weeklyPlanEnabled,
                         onCheckedChange = { viewModel.setWeeklyPlanEnabled(it) }
+                    )
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Fitness & Wearables Section
+            SettingsSection(title = "Fitness & Wearables") {
+                Text(
+                    text = "Connect Android Health Connect to sync steps, calories burned, and weight from fitness watches (Garmin, Fitbit, Samsung Galaxy Watch, etc.).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                if (!uiState.isHealthConnectAvailable) {
+                    // HC not installed — show install prompt
+                    SettingsActionItem(
+                        title = "Health Connect not installed",
+                        subtitle = "Install the Health Connect app to sync fitness data",
+                        icon = Icons.Default.Watch,
+                        actionLabel = "Install",
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+                            }
+                            context.startActivity(intent)
+                        }
+                    )
+                } else if (uiState.isHealthConnectConnected) {
+                    // Connected — show status and disconnect option
+                    SettingsActionItem(
+                        title = "Health Connect",
+                        subtitle = buildString {
+                            append("Connected — syncing steps, calories & weight")
+                            uiState.healthConnectLastSyncWeight?.let { w ->
+                                append("\nLatest weight: ${"%.1f".format(w)} kg")
+                            }
+                        },
+                        icon = Icons.Default.Watch,
+                        actionLabel = "Manage",
+                        onClick = {
+                            val intent = Intent("androidx.health.ACTION_MANAGE_HEALTH_PERMISSIONS")
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(fallback)
+                            }
+                        }
+                    )
+                } else {
+                    // Available but not connected — show connect button
+                    SettingsActionItem(
+                        title = "Health Connect",
+                        subtitle = "Tap Connect to allow reading steps, calories burned, and weight",
+                        icon = Icons.Default.Watch,
+                        actionLabel = "Connect",
+                        onClick = {
+                            healthConnectPermissionLauncher.launch(
+                                viewModel.healthConnectPermissions
+                            )
+                        }
                     )
                 }
             }
@@ -669,5 +747,44 @@ fun SettingsButtonItem(
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(title)
+    }
+}
+
+/**
+ * A settings row with an icon, title/subtitle on the left and a text action button on the right.
+ * Used for items that launch an external flow (permissions, app settings, install prompts).
+ */
+@Composable
+fun SettingsActionItem(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    actionLabel: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        TextButton(onClick = onClick) {
+            Text(actionLabel)
+        }
     }
 }

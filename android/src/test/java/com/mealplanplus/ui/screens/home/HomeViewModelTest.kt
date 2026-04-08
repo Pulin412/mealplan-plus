@@ -7,9 +7,11 @@ import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.MealWithFoods
 import com.mealplanplus.data.model.Plan
 import com.mealplanplus.data.model.PlanWithDietName
+import com.mealplanplus.data.healthconnect.ActivitySummary
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
@@ -57,6 +59,7 @@ class HomeViewModelTest {
     private lateinit var planRepo: PlanRepository
     private lateinit var dietRepo: DietRepository
     private lateinit var authRepo: AuthRepository
+    private lateinit var healthConnectRepo: HealthConnectRepository
     private lateinit var context: Context
 
     @Before
@@ -66,7 +69,11 @@ class HomeViewModelTest {
         planRepo = mockk(relaxed = true)
         dietRepo = mockk(relaxed = true)
         authRepo = mockk(relaxed = true)
+        healthConnectRepo = mockk(relaxed = true)
         context = mockk(relaxed = true)
+
+        // HC returns disconnected summary by default (no HC available in unit tests)
+        coEvery { healthConnectRepo.getTodayActivity() } returns ActivitySummary(isConnected = false)
 
         // Stub shared flows to return empty by default
         every { dailyLogRepo.getLogWithFoods(any()) } returns flowOf(null)
@@ -440,6 +447,7 @@ class HomeViewModelTest {
         planRepository = planRepo,
         dietRepository = dietRepo,
         authRepository = authRepo,
+        healthConnectRepository = healthConnectRepo,
         customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true).also { dao ->
             every { dao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
         },
