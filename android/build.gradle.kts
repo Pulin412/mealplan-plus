@@ -138,6 +138,10 @@ dependencies {
     // Accompanist (Permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
+    // Health Connect (read steps, calories burned, weight from fitness watches / Health apps)
+    // 1.1.0-alpha08 is the highest version with minCompileSdk=34; alpha09+ requires 35.
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha08")
+
     // Firebase (Spark/free-tier compatible — Auth + Crashlytics + Remote Config + Analytics only)
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-auth-ktx")

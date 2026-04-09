@@ -10,12 +10,16 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Widgets
@@ -26,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.local.ImportStrategy
+import kotlinx.coroutines.launch
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -49,6 +54,8 @@ fun SettingsScreen(
 
     var timePickerTarget by remember { mutableStateOf<HourPickerTarget?>(null) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Re-check exact-alarm permission on every resume (user may have just granted it).
     var canScheduleExact by remember {
@@ -62,18 +69,43 @@ fun SettingsScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                val nowExact = am.canScheduleExactAlarms()
-                if (nowExact && !canScheduleExact) {
-                    // Permission just granted — upgrade all pending alarms to exact
-                    viewModel.onExactAlarmPermissionResult()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                    val nowExact = am.canScheduleExactAlarms()
+                    if (nowExact && !canScheduleExact) {
+                        viewModel.onExactAlarmPermissionResult()
+                    }
+                    canScheduleExact = nowExact
                 }
-                canScheduleExact = nowExact
+                // Re-check HC permissions each time the user returns (they may have revoked in settings)
+                viewModel.checkHealthConnectStatus()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Health Connect permission launcher — result is the Set<String> of actually granted permissions
+    val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        viewModel.onHealthConnectPermissionsResult()
+        if (granted.containsAll(viewModel.healthConnectPermissions)) {
+            scope.launch { snackbarHostState.showSnackbar("Health Connect connected!") }
+        } else {
+            // Dialog dismissed or permissions denied — guide the user to HC settings
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = "Permissions not granted. Open Health Connect to allow manually.",
+                    actionLabel = "Open HC",
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.openHealthConnectSettings(context)
+                }
+            }
+        }
     }
 
     // File picker for JSON import
@@ -91,6 +123,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
@@ -267,6 +300,77 @@ fun SettingsScreen(
                         icon = Icons.Default.DateRange,
                         checked = notificationState.weeklyPlanEnabled,
                         onCheckedChange = { viewModel.setWeeklyPlanEnabled(it) }
+                    )
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Fitness & Wearables Section
+            SettingsSection(title = "Fitness & Wearables") {
+                Text(
+                    text = "Connect Android Health Connect to sync steps, calories burned, and weight from fitness watches (Garmin, Fitbit, Samsung Galaxy Watch, etc.).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                if (!uiState.isHealthConnectAvailable) {
+                    // HC not installed — show install prompt
+                    SettingsActionItem(
+                        title = "Health Connect not installed",
+                        subtitle = "Install the Health Connect app to sync fitness data",
+                        icon = Icons.Default.Watch,
+                        actionLabel = "Install",
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+                            }
+                            context.startActivity(intent)
+                        }
+                    )
+                } else if (uiState.isHealthConnectConnected) {
+                    // Connected — show status and disconnect option
+                    SettingsActionItem(
+                        title = "Health Connect",
+                        subtitle = buildString {
+                            append("Connected — syncing steps, calories & weight")
+                            uiState.healthConnectLastSyncWeight?.let { w ->
+                                append("\nLatest weight: ${"%.1f".format(w)} kg")
+                            }
+                        },
+                        icon = Icons.Default.Watch,
+                        actionLabel = "Manage",
+                        onClick = {
+                            val intent = Intent("androidx.health.ACTION_MANAGE_HEALTH_PERMISSIONS")
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(fallback)
+                            }
+                        }
+                    )
+                } else {
+                    // Available but not connected
+                    SettingsActionItem(
+                        title = "Health Connect",
+                        subtitle = "Grant read access to steps, calories burned, and weight.",
+                        icon = Icons.Default.Watch,
+                        actionLabel = "Connect",
+                        onClick = {
+                            healthConnectPermissionLauncher.launch(
+                                viewModel.healthConnectPermissions
+                            )
+                        }
+                    )
+
+                    // Setup guide for sideloaded / debug builds
+                    HealthConnectSetupGuide(
+                        onOpenHealthConnect = { viewModel.openHealthConnectApp(context) }
                     )
                 }
             }
@@ -669,5 +773,232 @@ fun SettingsButtonItem(
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(title)
+    }
+}
+
+/**
+ * Expandable card shown when Health Connect is available but permissions have not been granted.
+ * Covers three methods ordered by ease: reinstall, HC developer mode, ADB.
+ */
+@Composable
+private fun HealthConnectSetupGuide(onOpenHealthConnect: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        ),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            // Header row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Connect button not working?",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+                IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Health Connect blocks non-Play-Store apps from the permission dialog. " +
+                           "Use one of the methods below — try them in order:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Method A ─────────────────────────────────────────────
+                HcMethodHeader("Method 1 — Reinstall the app (try first)")
+                HealthConnectStep("1", "Uninstall MealPlan+ from your phone")
+                HealthConnectStep("2", "Reinstall the APK")
+                HealthConnectStep("3", "Open Settings → Fitness & Wearables → tap Connect")
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Method B ─────────────────────────────────────────────
+                HcMethodHeader("Method 2 — Health Connect developer mode")
+                Text(
+                    text = "Navigation varies by Android version and device:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                )
+                HealthConnectStep("1", "Open Health Connect (button below)")
+                HealthConnectStep("2",
+                    "Find \"About Health Connect\":\n" +
+                    "• Android 14+ Pixel: tap ⋮ menu (top-right) → About\n" +
+                    "• Android 14+ Samsung: Settings gear → About Health Connect\n" +
+                    "• Android 9–13 (HC app): tap profile icon → scroll down to About"
+                )
+                HealthConnectStep("3", "Tap the Health Connect version number 7 times")
+                HealthConnectStep("4",
+                    "A \"Developer options\" item appears in the menu — tap it, then enable " +
+                    "\"Allow apps from unknown sources\"\n" +
+                    "(If you don't see this option, your HC version doesn't support it — use Method 3)"
+                )
+                HealthConnectStep("5", "Come back and tap Connect — the dialog will now work")
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = onOpenHealthConnect,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Open Health Connect")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Method C ─────────────────────────────────────────────
+                HcMethodHeader("Method 3 — ADB (Android 14+ only, requires a PC)")
+                Text(
+                    text = "With USB debugging on and your phone connected to a computer:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                )
+                HcCodeBlock(
+                    "adb shell pm grant com.mealplanplus \\\n" +
+                    "  android.permission.health.READ_STEPS\n" +
+                    "adb shell pm grant com.mealplanplus \\\n" +
+                    "  android.permission.health.READ_TOTAL_CALORIES_BURNED\n" +
+                    "adb shell pm grant com.mealplanplus \\\n" +
+                    "  android.permission.health.READ_WEIGHT"
+                )
+                Text(
+                    text = "After running all three commands, come back here and tap Connect.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HcMethodHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.padding(bottom = 6.dp)
+    )
+}
+
+@Composable
+private fun HcCodeBlock(code: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(10.dp)
+    ) {
+        Text(
+            text = code,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun HealthConnectStep(number: String, text: String) {
+    Row(
+        modifier = Modifier.padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondary),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = number,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondary
+            )
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/**
+ * A settings row with an icon, title/subtitle on the left and a text action button on the right.
+ * Used for items that launch an external flow (permissions, app settings, install prompts).
+ */
+@Composable
+fun SettingsActionItem(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    actionLabel: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        TextButton(onClick = onClick) {
+            Text(actionLabel)
+        }
     }
 }

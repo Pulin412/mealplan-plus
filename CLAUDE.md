@@ -33,10 +33,12 @@ Compose UI  →  @HiltViewModel  →  Repository  →  Room DAO / Retrofit
 ```
 android/src/main/java/com/mealplanplus/
 ├── data/
+│   ├── healthconnect/  Health Connect SDK wrapper (HealthConnectManager, ActivitySummary)
 │   ├── local/          Room DB, DAOs, migrations, importers/exporters
 │   ├── model/          Entity + domain model classes
 │   ├── remote/         Retrofit API clients (MealPlanApi, OpenFoodFactsApi, UsdaFoodApi)
 │   └── repository/     All repositories (one per domain)
+│                       HealthConnectRepository — steps, calories burned, weight from HC
 ├── di/                 Hilt modules (DatabaseModule, NetworkModule, AuthModule)
 ├── notification/       AlarmManager-based notification system
 │   ├── NotificationAlarmReceiver.kt   BroadcastReceiver (goAsync + coroutine)
@@ -112,6 +114,51 @@ Single `ci.yml` orchestrator. Runs **only on push to main**.
 
 ---
 
+## Health Connect integration
+
+MealPlan+ integrates with **Android Health Connect** (free, no cloud costs) to pull activity data from connected fitness watches (Garmin via Garmin Connect, Fitbit, Samsung Galaxy Watch, Polar, etc.).
+
+### Data flow
+```
+Fitness watch  →  vendor companion app  →  Health Connect (local store)
+                                              ↓
+                                   HealthConnectManager (SDK reads)
+                                              ↓
+                                   HealthConnectRepository
+                                         ↙          ↘
+                              HomeViewModel        SettingsViewModel
+                          (activity strip in        (connect / sync
+                           home header)              weight → Health)
+```
+
+### What is synced
+| Data | Record type | Where shown |
+|------|-------------|-------------|
+| Steps today | `StepsRecord` | Home screen activity strip |
+| Calories burned today | `TotalCaloriesBurnedRecord` | Home screen activity strip |
+| Latest weight (last 30 days) | `WeightRecord` | Auto-logged to Health screen (once per day) |
+
+### Permissions
+Three read-only permissions declared in `AndroidManifest.xml`:
+- `android.permission.health.READ_STEPS`
+- `android.permission.health.READ_TOTAL_CALORIES_BURNED`
+- `android.permission.health.READ_WEIGHT`
+
+Permission is requested via `PermissionController.createRequestPermissionResultContract()` in `SettingsScreen`. The `MainActivity` declares `ACTION_SHOW_PERMISSIONS_RATIONALE` intent-filter so Health Connect can show our app in its permission management UI.
+
+### Key classes
+- `HealthConnectManager` — `@Singleton`, direct SDK calls (availability, permissions, reads)
+- `HealthConnectRepository` — `@Singleton`, safe wrapper (returns empty/defaults when unavailable)
+- `ActivitySummary` — data class carrying steps + calories burned + `isConnected` flag
+- `HomeViewModel.loadActivityData()` — fetches on init and refresh
+- `SettingsViewModel.checkHealthConnectStatus()` — checks connection, syncs weight, called on resume
+
+### Availability
+- Android 14+ (API 34): Health Connect is part of the OS — always available.
+- Android 9–13: user must install the Health Connect app from Play Store. The Settings screen shows an "Install" prompt if unavailable.
+
+---
+
 ## Key dependency versions
 | Library | Version |
 |---------|---------|
@@ -127,3 +174,4 @@ Single `ci.yml` orchestrator. Runs **only on push to main**.
 | Turbine | 1.1.0 |
 | DataStore | 1.0.0 |
 | Glance (widgets) | 1.1.0 |
+| Health Connect | 1.1.0-alpha08 |

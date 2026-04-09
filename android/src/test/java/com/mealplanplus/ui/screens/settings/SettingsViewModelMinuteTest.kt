@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.mealplanplus.data.local.CsvDataImporter
 import com.mealplanplus.data.local.JsonDataImporter
 import com.mealplanplus.data.repository.DailyLogRepository
+import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.notification.NotificationAlarmBootstrapper
 import com.mealplanplus.util.AlarmScheduler
@@ -55,6 +56,7 @@ class SettingsViewModelMinuteTest {
     private lateinit var context: Context
     private lateinit var dailyLogRepo: DailyLogRepository
     private lateinit var healthRepo: HealthRepository
+    private lateinit var healthConnectRepo: HealthConnectRepository
     private lateinit var jsonImporter: JsonDataImporter
     private lateinit var csvImporter: CsvDataImporter
     private lateinit var viewModel: SettingsViewModel
@@ -64,6 +66,7 @@ class SettingsViewModelMinuteTest {
         context = mockk(relaxed = true)
         dailyLogRepo = mockk(relaxed = true)
         healthRepo = mockk(relaxed = true)
+        healthConnectRepo = mockk(relaxed = true)
         jsonImporter = mockk(relaxed = true)
         csvImporter = mockk(relaxed = true)
 
@@ -108,7 +111,7 @@ class SettingsViewModelMinuteTest {
         every { dailyLogRepo.getLogsByUser() } returns flowOf(emptyList())
         every { healthRepo.getRecentMetrics(any()) } returns flowOf(emptyList())
 
-        viewModel = SettingsViewModel(context, dailyLogRepo, healthRepo, jsonImporter, csvImporter)
+        viewModel = SettingsViewModel(context, dailyLogRepo, healthRepo, healthConnectRepo, jsonImporter, csvImporter)
     }
 
     @After

@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.healthconnect.ActivitySummary
 import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.HealthMetric
@@ -13,6 +14,7 @@ import com.mealplanplus.data.local.CustomMealSlotDao
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
@@ -90,7 +92,9 @@ data class HomeUiState(
     val currentMonth: YearMonth = YearMonth.now(),
     val plansForMonth: Map<String, Boolean> = emptyMap(),
     val dietNamesForMonth: Map<String, String> = emptyMap(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    /** Activity data synced from Android Health Connect (steps + calories burned). */
+    val activitySummary: ActivitySummary = ActivitySummary()
 )
 
 @HiltViewModel
@@ -101,6 +105,7 @@ class HomeViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val authRepository: AuthRepository,
     private val customMealSlotDao: CustomMealSlotDao,
+    private val healthConnectRepository: HealthConnectRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -120,6 +125,7 @@ class HomeViewModel @Inject constructor(
         loadTodayPlanSlots()
         loadGlucoseHistory()
         loadStreakData()
+        loadActivityData()
         viewModelScope.launch {
             _weekOffset.collect { loadWeekData() }
         }
@@ -138,6 +144,17 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { it.copy(dayStreak = computeStreak(loggedDates)) }
             }
             .launchIn(viewModelScope)
+    }
+
+    /**
+     * Fetches today's activity summary from Health Connect once per load/refresh.
+     * Silently no-ops when HC is not installed or permissions are missing.
+     */
+    private fun loadActivityData() {
+        viewModelScope.launch {
+            val summary = healthConnectRepository.getTodayActivity()
+            _uiState.update { it.copy(activitySummary = summary) }
+        }
     }
 
     fun previousWeek() { _weekOffset.update { it - 1 } }
@@ -457,6 +474,12 @@ class HomeViewModel @Inject constructor(
         loadWeekData()
         loadGlucoseHistory()
         loadStreakData()
+        loadActivityData()
+    }
+
+    /** Called from the UI after the user grants Health Connect permissions. */
+    fun onHealthConnectPermissionsGranted() {
+        loadActivityData()
     }
 
     companion object {

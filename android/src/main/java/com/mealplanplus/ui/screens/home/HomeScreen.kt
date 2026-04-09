@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
+import com.mealplanplus.data.healthconnect.ActivitySummary
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.util.ThemePreferences
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
@@ -196,6 +197,7 @@ fun HomeScreen(
                     caloriesConsumed = uiState.todaySummary.calories,
                     calorieGoal = uiState.calorieGoal,
                     dayStreak = uiState.dayStreak,
+                    activitySummary = uiState.activitySummary,
                     onProfileClick = onNavigateToProfile,
                     onMenuClick = { scope.launch { drawerState.open() } },
                     isDark = isDark,
@@ -261,6 +263,7 @@ fun HomeHeaderSection(
     caloriesConsumed: Int,
     calorieGoal: Int,
     dayStreak: Int = 0,
+    activitySummary: ActivitySummary = ActivitySummary(),
     onProfileClick: () -> Unit,
     onMenuClick: () -> Unit = {},
     isDark: Boolean = false,
@@ -425,6 +428,69 @@ fun HomeHeaderSection(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                            }
+                        }
+                    }
+
+                    // Activity strip — shown only when Health Connect is connected
+                    if (activitySummary.isConnected) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(
+                            color = Color.White.copy(alpha = 0.2f),
+                            thickness = 0.5.dp
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Steps
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Text("👟", fontSize = 14.sp)
+                                Column {
+                                    Text(
+                                        text = "%,d".format(activitySummary.stepsToday),
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "steps",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                            // Divider
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(28.dp)
+                                    .background(Color.White.copy(alpha = 0.2f))
+                            )
+                            // Calories burned
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Text("⚡", fontSize = 14.sp)
+                                Column {
+                                    Text(
+                                        text = "${activitySummary.caloriesBurnedToday} kcal",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "burned",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 10.sp
+                                    )
+                                }
                             }
                         }
                     }
