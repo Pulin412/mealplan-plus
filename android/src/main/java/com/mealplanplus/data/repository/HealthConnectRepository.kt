@@ -1,7 +1,9 @@
 package com.mealplanplus.data.repository
 
+import com.mealplanplus.data.healthconnect.ActivityDaySummary
 import com.mealplanplus.data.healthconnect.ActivitySummary
 import com.mealplanplus.data.healthconnect.HealthConnectManager
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -51,6 +53,27 @@ class HealthConnectRepository @Inject constructor(
             caloriesBurnedToday = manager.readCaloriesBurnedToday().toInt(),
             isConnected = true
         )
+    }
+
+    /**
+     * Returns per-day activity history (steps + calories burned) for the given range.
+     * Days with no recorded data are omitted. Returns empty list when HC is unavailable
+     * or permissions are not granted. Results are sorted newest-first.
+     */
+    suspend fun getActivityHistory(startDate: LocalDate, endDate: LocalDate): List<ActivityDaySummary> {
+        if (!manager.isAvailable || !manager.hasAllPermissions()) return emptyList()
+        val stepsByDay = manager.readStepsByDay(startDate, endDate)
+        val calsByDay = manager.readCaloriesBurnedByDay(startDate, endDate)
+        val allDates = (stepsByDay.keys + calsByDay.keys).toSortedSet()
+        return allDates
+            .map { date ->
+                ActivityDaySummary(
+                    date = date,
+                    steps = stepsByDay[date] ?: 0L,
+                    caloriesBurned = calsByDay[date] ?: 0
+                )
+            }
+            .sortedByDescending { it.date }
     }
 
     /**

@@ -1,9 +1,11 @@
 package com.mealplanplus.ui.screens.health
 
+import com.mealplanplus.data.healthconnect.ActivityDaySummary
 import com.mealplanplus.data.model.CustomMetricType
 import com.mealplanplus.data.model.GlucoseSubType
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
+import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -43,6 +45,7 @@ class HealthViewModelTest {
     }
 
     private lateinit var healthRepo: HealthRepository
+    private lateinit var healthConnectRepo: HealthConnectRepository
     private lateinit var viewModel: HealthViewModel
 
     private fun metric(id: Long, value: Double, type: MetricType = MetricType.BLOOD_GLUCOSE,
@@ -52,12 +55,16 @@ class HealthViewModelTest {
     @Before
     fun setup() {
         healthRepo = mockk(relaxed = true)
+        healthConnectRepo = mockk(relaxed = true)
 
         every { healthRepo.getMetricsByTypeInRange(any(), any(), any()) } returns flowOf(emptyList())
         every { healthRepo.getMetricsByCustomType(any()) } returns flowOf(emptyList())
         every { healthRepo.getActiveCustomTypes() } returns flowOf(emptyList())
+        every { healthConnectRepo.isAvailable } returns false
+        coEvery { healthConnectRepo.hasPermissions() } returns false
+        coEvery { healthConnectRepo.getActivityHistory(any(), any()) } returns emptyList<ActivityDaySummary>()
 
-        viewModel = HealthViewModel(healthRepo)
+        viewModel = HealthViewModel(healthRepo, healthConnectRepo)
     }
 
     @After
@@ -318,11 +325,23 @@ class HealthViewModelTest {
         assertNull(viewModel.uiState.value.error)
     }
 
-    // ── selectPeriod ──────────────────────────────────────────────────────────
+    // ── selectMetricViewType ──────────────────────────────────────────────────
 
     @Test
-    fun `selectPeriod updates selectedPeriodDays`() = runTest {
-        viewModel.selectPeriod(30)
-        assertEquals(30, viewModel.uiState.value.selectedPeriodDays)
+    fun `selectMetricViewType updates metricViewType and resets offset`() = runTest {
+        viewModel.shiftMetricPeriod(-2)
+        viewModel.selectMetricViewType(PeriodViewType.MONTH)
+        assertEquals(PeriodViewType.MONTH, viewModel.uiState.value.metricViewType)
+        assertEquals(0, viewModel.uiState.value.metricPeriodOffset)
+    }
+
+    @Test
+    fun `shiftMetricPeriod decrements offset and caps at zero when going forward`() = runTest {
+        viewModel.shiftMetricPeriod(-1)
+        assertEquals(-1, viewModel.uiState.value.metricPeriodOffset)
+        viewModel.shiftMetricPeriod(1)
+        assertEquals(0, viewModel.uiState.value.metricPeriodOffset)
+        viewModel.shiftMetricPeriod(1)
+        assertEquals(0, viewModel.uiState.value.metricPeriodOffset) // stays at 0, no future
     }
 }

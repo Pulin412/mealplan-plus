@@ -1,12 +1,14 @@
 package com.mealplanplus.ui.screens.health
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,12 +16,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import com.mealplanplus.ui.theme.BrandGreen
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.data.healthconnect.ActivityDaySummary
 import com.mealplanplus.data.model.CustomMetricType
 import com.mealplanplus.data.model.GlucoseSubType
 import com.mealplanplus.data.model.HealthMetric
@@ -28,6 +34,9 @@ import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
+import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
 import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
@@ -122,6 +131,20 @@ fun HealthScreen(
                             )
                         )
                     }
+                    // Activity tab — Health Connect data
+                    item {
+                        FilterChip(
+                            selected = uiState.isActivityTabSelected,
+                            onClick = { viewModel.selectActivityTab() },
+                            label = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🏃")
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Activity")
+                                }
+                            }
+                        )
+                    }
                     item {
                         FilterChip(
                             selected = false,
@@ -138,150 +161,151 @@ fun HealthScreen(
                 }
             }
 
-            // BG summary cards — only when BG selected and has data
-            if (uiState.selectedMetricType == MetricType.BLOOD_GLUCOSE &&
-                uiState.estimatedA1c != null && uiState.timeInRangePercent != null
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        BgSummaryCard("Est. A1C", String.format("%.1f%%", uiState.estimatedA1c), Modifier.weight(1f))
-                        BgSummaryCard("Time in Range", "${uiState.timeInRangePercent}%", Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(8.dp))
+            // ── Period navigator — shared by all tabs ─────────────────────────
+            item {
+                if (uiState.isActivityTabSelected) {
+                    PeriodNavigator(
+                        viewType = uiState.activityViewType,
+                        rangeLabel = uiState.activityRangeLabel,
+                        canGoForward = uiState.activityPeriodOffset < 0,
+                        onViewTypeChange = { viewModel.selectActivityViewType(it) },
+                        onBack = { viewModel.shiftActivityPeriod(-1) },
+                        onForward = { viewModel.shiftActivityPeriod(1) }
+                    )
+                } else {
+                    PeriodNavigator(
+                        viewType = uiState.metricViewType,
+                        rangeLabel = uiState.metricRangeLabel,
+                        canGoForward = uiState.metricPeriodOffset < 0,
+                        onViewTypeChange = { viewModel.selectMetricViewType(it) },
+                        onBack = { viewModel.shiftMetricPeriod(-1) },
+                        onForward = { viewModel.shiftMetricPeriod(1) }
+                    )
                 }
             }
 
-            // Period selector
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (uiState.isActivityTabSelected) {
+                // ── Activity (Health Connect) tab ────────────────────────────
+                item { ActivityTabContent(uiState = uiState, viewModel = viewModel) }
+            } else {
+                // ── Regular metric tabs ──────────────────────────────────────
+
+                // BG summary cards — only when BG selected and has data
+                if (uiState.selectedMetricType == MetricType.BLOOD_GLUCOSE &&
+                    uiState.estimatedA1c != null && uiState.timeInRangePercent != null
                 ) {
-                    Text("Period:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    listOf(7 to "7d", 14 to "14d", 30 to "30d").forEach { (days, label) ->
-                        val selected = uiState.selectedPeriodDays == days
-                        OutlinedButton(
-                            onClick = { viewModel.selectPeriod(days) },
-                            modifier = Modifier.height(32.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(label, style = MaterialTheme.typography.labelSmall)
+                            BgSummaryCard("Est. A1C", String.format("%.1f%%", uiState.estimatedA1c), Modifier.weight(1f))
+                            BgSummaryCard("Time in Range", "${uiState.timeInRangePercent}%", Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+
+                // Stats row
+                uiState.stats?.let { stats ->
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            MetricStatCard("Average", formatHealthValue(stats.avg), selectedUnit, Modifier.weight(1f))
+                            MetricStatCard("Minimum", formatHealthValue(stats.min), selectedUnit, Modifier.weight(1f))
+                            MetricStatCard("Maximum", formatHealthValue(stats.max), selectedUnit, Modifier.weight(1f))
                         }
                     }
                 }
-            }
 
-            // Stats row
-            uiState.stats?.let { stats ->
+                // BG Range Distribution
+                if (uiState.selectedMetricType == MetricType.BLOOD_GLUCOSE) {
+                    uiState.bgDistribution?.let { dist ->
+                        item {
+                            BgDistributionCard(
+                                distribution = dist,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Trend chart
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "$selectedDisplayName Trend ($selectedUnit)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            if (uiState.metrics.size >= 2) {
+                                HealthTrendChart(metrics = uiState.metrics, modifier = Modifier.fillMaxWidth())
+                            } else {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Log at least 2 readings to see trend",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Recent Readings header + list
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        MetricStatCard("Average", formatHealthValue(stats.avg), selectedUnit, Modifier.weight(1f))
-                        MetricStatCard("Minimum", formatHealthValue(stats.min), selectedUnit, Modifier.weight(1f))
-                        MetricStatCard("Maximum", formatHealthValue(stats.max), selectedUnit, Modifier.weight(1f))
+                        Text("Recent Readings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     }
                 }
-            }
 
-            // BG Range Distribution
-            if (uiState.selectedMetricType == MetricType.BLOOD_GLUCOSE) {
-                uiState.bgDistribution?.let { dist ->
+                val recentMetrics = uiState.metrics.take(10)
+                if (recentMetrics.isNotEmpty()) {
+                    items(recentMetrics, key = { it.id }) { metric ->
+                        RecentReadingRow(
+                            metric = metric,
+                            metricType = uiState.selectedMetricType,
+                            unit = selectedUnit,
+                            onDelete = { viewModel.deleteMetric(metric) }
+                        )
+                    }
+                } else if (!uiState.isLoading) {
                     item {
-                        BgDistributionCard(
-                            distribution = dist,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            // Trend chart — always visible
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "$selectedDisplayName Trend ($selectedUnit)",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        if (uiState.metrics.size >= 2) {
-                            HealthTrendChart(metrics = uiState.metrics, modifier = Modifier.fillMaxWidth())
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "Log at least 2 readings to see trend",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(80.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Tap + Log Reading to add data",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    }
-                }
-            }
-
-            // Recent Readings header
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Recent Readings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                }
-            }
-
-            val recentMetrics = uiState.metrics.take(10)
-            if (recentMetrics.isNotEmpty()) {
-                items(recentMetrics, key = { it.id }) { metric ->
-                    RecentReadingRow(
-                        metric = metric,
-                        metricType = uiState.selectedMetricType,
-                        unit = selectedUnit,
-                        onDelete = { viewModel.deleteMetric(metric) }
-                    )
-                }
-            } else if (!uiState.isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(80.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "Tap + Log Reading to add data",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             }
@@ -419,17 +443,28 @@ fun HealthTrendChart(metrics: List<HealthMetric>, modifier: Modifier = Modifier)
         chartMetrics.mapIndexed { i, m -> entryOf(i.toFloat(), m.value.toFloat()) }
     }
     val modelProducer = remember(entries) { ChartEntryModelProducer(entries) }
-    val dateLabels = remember(chartMetrics) { chartMetrics.map { it.date.takeLast(5) } }
+    val dateLabels = remember(chartMetrics) {
+        val fmt = DateTimeFormatter.ofPattern("dd/MM")
+        chartMetrics.map { m -> LocalDate.parse(m.date).format(fmt) }
+    }
+    val xSpacing = remember(chartMetrics.size) { maxOf(1, chartMetrics.size / 5) }
     val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ ->
         dateLabels.getOrElse(v.toInt()) { "" }
     }
-    Chart(
-        chart = lineChart(),
-        chartModelProducer = modelProducer,
-        startAxis = rememberStartAxis(),
-        bottomAxis = rememberBottomAxis(valueFormatter = formatter),
-        modifier = modifier.height(180.dp)
-    )
+    ProvideChartStyle(m3ChartStyle()) {
+        Chart(
+            chart = lineChart(),
+            chartModelProducer = modelProducer,
+            startAxis = rememberStartAxis(
+                itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 4)
+            ),
+            bottomAxis = rememberBottomAxis(
+                valueFormatter = formatter,
+                itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
+            ),
+            modifier = modifier.height(180.dp)
+        )
+    }
 }
 
 @Composable
@@ -731,6 +766,312 @@ fun AddCustomTypeDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+// ── Activity Tab ──────────────────────────────────────────────────────────────
+
+private val StepsColor  = Color(0xFF2E7D52)
+private val CaloriesActivityColor = Color(0xFFF57C00)
+
+@Composable
+private fun PeriodNavigator(
+    viewType: PeriodViewType,
+    rangeLabel: String,
+    canGoForward: Boolean,
+    onViewTypeChange: (PeriodViewType) -> Unit,
+    onBack: () -> Unit,
+    onForward: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Days / Week / Month toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PeriodViewType.entries.forEach { type ->
+                val selected = viewType == type
+                OutlinedButton(
+                    onClick = { onViewTypeChange(type) },
+                    modifier = Modifier.weight(1f).height(34.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
+                                         else Color.Transparent,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                       else MaterialTheme.colorScheme.onSurface
+                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        brush = androidx.compose.ui.graphics.SolidColor(
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline
+                        )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        type.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
+            }
+        }
+
+        // Navigation row: < [label] >
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.ChevronLeft,
+                    contentDescription = "Previous period",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Text(
+                rangeLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            IconButton(
+                onClick = onForward,
+                enabled = canGoForward,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "Next period",
+                    tint = if (canGoForward) MaterialTheme.colorScheme.onSurface
+                           else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivityTabContent(uiState: HealthUiState, viewModel: HealthViewModel) {
+    val history = uiState.activityHistory
+
+    when {
+        uiState.isLoading -> {
+            Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        !uiState.isHcAvailable -> {
+            ActivityEmptyCard(
+                icon = "📱",
+                title = "Health Connect not available",
+                body = "Health Connect requires Android 9+ and the companion app on Android 9–13."
+            )
+        }
+        !uiState.isHcConnected -> {
+            ActivityEmptyCard(
+                icon = "🔗",
+                title = "Not connected",
+                body = "Go to Settings → Fitness & Wearables and tap Connect to link Health Connect."
+            )
+        }
+        history.isEmpty() -> {
+            ActivityEmptyCard(
+                icon = "🏃",
+                title = "No activity data",
+                body = "No steps or calories recorded in the selected period. Make sure your fitness app syncs to Health Connect."
+            )
+        }
+        else -> {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Stats row
+                val avgSteps = history.map { it.steps }.average().toLong()
+                val bestSteps = history.maxOf { it.steps }
+                val totalCals = history.sumOf { it.caloriesBurned }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActivityStatCard("Avg Steps", "$avgSteps", "steps/day", StepsColor, Modifier.weight(1f))
+                    ActivityStatCard("Best Day", "$bestSteps", "steps", StepsColor, Modifier.weight(1f))
+                    ActivityStatCard("Total Burned", "$totalCals", "kcal", CaloriesActivityColor, Modifier.weight(1f))
+                }
+
+                // Steps chart
+                ActivityChartCard(
+                    title = "Steps Trend",
+                    color = StepsColor,
+                    history = history,
+                    valueSelector = { it.steps.toFloat() },
+                    minPoints = 2
+                )
+
+                // Calories chart
+                ActivityChartCard(
+                    title = "Calories Burned Trend",
+                    color = CaloriesActivityColor,
+                    history = history,
+                    valueSelector = { it.caloriesBurned.toFloat() },
+                    minPoints = 2
+                )
+
+                // Daily history list
+                Text(
+                    "Daily History",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                history.forEach { day ->
+                    ActivityDayRow(day)
+                    HorizontalDivider(modifier = Modifier.padding(start = 8.dp))
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityEmptyCard(icon: String, title: String, body: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(icon, fontSize = 36.sp)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun ActivityStatCard(label: String, value: String, unit: String, color: Color, modifier: Modifier = Modifier) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = color)
+            Text(unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ActivityChartCard(
+    title: String,
+    color: Color,
+    history: List<ActivityDaySummary>,
+    valueSelector: (ActivityDaySummary) -> Float,
+    minPoints: Int = 2
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            val chronological = remember(history) { history.reversed() }
+            if (chronological.size >= minPoints) {
+                val entries = remember(chronological) {
+                    chronological.mapIndexed { i, d -> entryOf(i.toFloat(), valueSelector(d)) }
+                }
+                val modelProducer = remember(entries) { ChartEntryModelProducer(entries) }
+                val dateLabels = remember(chronological) {
+                    val fmt = DateTimeFormatter.ofPattern("dd/MM")
+                    chronological.map { d -> d.date.format(fmt) }
+                }
+                val xSpacing = remember(chronological.size) { maxOf(1, chronological.size / 5) }
+                val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ ->
+                    dateLabels.getOrElse(v.toInt()) { "" }
+                }
+                ProvideChartStyle(m3ChartStyle(entityColors = listOf(color))) {
+                    Chart(
+                        chart = lineChart(),
+                        chartModelProducer = modelProducer,
+                        startAxis = rememberStartAxis(
+                            itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 4)
+                        ),
+                        bottomAxis = rememberBottomAxis(
+                            valueFormatter = formatter,
+                            itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(180.dp)
+                    )
+                }
+            } else {
+                Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                    Text("Need at least 2 days of data to show trend",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityDayRow(day: ActivityDaySummary) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Date badge
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    day.date.dayOfMonth.toString(),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    lineHeight = 16.sp
+                )
+                Text(
+                    day.date.month.name.take(3),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    lineHeight = 14.sp
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("🏃 ", fontSize = 14.sp)
+                Text("${day.steps} steps", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = StepsColor)
+            }
+            Text("🔥 ${day.caloriesBurned} kcal burned", style = MaterialTheme.typography.bodySmall, color = CaloriesActivityColor)
+        }
+        // Step goal progress ring hint
+        val stepGoal = 10_000f
+        val fraction = (day.steps / stepGoal).coerceIn(0f, 1f)
+        Column(horizontalAlignment = Alignment.End) {
+            Text("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.labelSmall,
+                color = if (fraction >= 1f) StepsColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (fraction >= 1f) FontWeight.Bold else FontWeight.Normal)
+            Text("of 10k goal", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+        }
+    }
 }
 
 private fun formatHealthValue(value: Double): String =

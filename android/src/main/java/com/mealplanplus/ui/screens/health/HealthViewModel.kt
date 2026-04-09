@@ -2,18 +2,29 @@ package com.mealplanplus.ui.screens.health
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.healthconnect.ActivityDaySummary
 import com.mealplanplus.data.model.CustomMetricType
 import com.mealplanplus.data.model.GlucoseSubType
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
+import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlin.math.roundToInt
+
+/** Granularity selector shared by all metric tabs and the Activity tab. */
+enum class PeriodViewType(val label: String) {
+    DAYS("Days"),
+    WEEK("Week"),
+    MONTH("Month")
+}
 
 data class HealthStats(val avg: Double, val min: Double, val max: Double)
 
@@ -27,7 +38,6 @@ data class BgDistribution(
 data class HealthUiState(
     val selectedMetricType: MetricType? = MetricType.BLOOD_GLUCOSE,
     val selectedCustomTypeId: Long? = null,
-    val selectedPeriodDays: Int = 14,
     // metrics sorted DESC (most recent first)
     val metrics: List<HealthMetric> = emptyList(),
     val stats: HealthStats? = null,
@@ -35,6 +45,20 @@ data class HealthUiState(
     val estimatedA1c: Double? = null,
     val timeInRangePercent: Int? = null,
     val bgDistribution: BgDistribution? = null,
+    // Period navigator — shared by regular metric tabs
+    val metricViewType: PeriodViewType = PeriodViewType.WEEK,
+    val metricPeriodOffset: Int = 0,
+    val metricRangeLabel: String = "",
+    // Activity (Health Connect) tab
+    val isActivityTabSelected: Boolean = false,
+    val activityHistory: List<ActivityDaySummary> = emptyList(),
+    val isHcAvailable: Boolean = false,
+    val isHcConnected: Boolean = false,
+    val activityViewType: PeriodViewType = PeriodViewType.WEEK,
+    /** 0 = current period, -1 = one period back, etc. Never positive (no future). */
+    val activityPeriodOffset: Int = 0,
+    /** Human-readable label for the currently shown period, e.g. "06/04 – 12/04". */
+    val activityRangeLabel: String = "",
     // Log sheet
     val showLogSheet: Boolean = false,
     val logBgValue: String = "",
@@ -58,7 +82,8 @@ data class HealthUiState(
 
 @HiltViewModel
 class HealthViewModel @Inject constructor(
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val healthConnectRepository: HealthConnectRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HealthUiState())
@@ -77,8 +102,9 @@ class HealthViewModel @Inject constructor(
         metricsJob?.cancel()
         metricsJob = viewModelScope.launch {
             val state = _uiState.value
-            val endDate = LocalDate.now()
-            val startDate = endDate.minusDays(state.selectedPeriodDays.toLong())
+            val (startDate, endDate) = periodDateRange(state.metricViewType, state.metricPeriodOffset)
+            val label = periodRangeLabel(startDate, endDate, state.metricViewType)
+            _uiState.update { it.copy(metricRangeLabel = label) }
 
             val flow: Flow<List<HealthMetric>> = when {
                 state.selectedCustomTypeId != null -> {
@@ -142,18 +168,108 @@ class HealthViewModel @Inject constructor(
     }
 
     fun selectMetricType(type: MetricType) {
-        _uiState.update { it.copy(selectedMetricType = type, selectedCustomTypeId = null, isLoading = true) }
+        _uiState.update {
+            it.copy(selectedMetricType = type, selectedCustomTypeId = null,
+                isActivityTabSelected = false, metricPeriodOffset = 0, isLoading = true)
+        }
         loadMetrics()
     }
 
     fun selectCustomType(typeId: Long) {
-        _uiState.update { it.copy(selectedCustomTypeId = typeId, selectedMetricType = null, isLoading = true) }
+        _uiState.update {
+            it.copy(selectedCustomTypeId = typeId, selectedMetricType = null,
+                isActivityTabSelected = false, metricPeriodOffset = 0, isLoading = true)
+        }
         loadMetrics()
     }
 
-    fun selectPeriod(days: Int) {
-        _uiState.update { it.copy(selectedPeriodDays = days, isLoading = true) }
+    /** Switch Days/Week/Month granularity for regular metric tabs and reset to current period. */
+    fun selectMetricViewType(type: PeriodViewType) {
+        _uiState.update { it.copy(metricViewType = type, metricPeriodOffset = 0, isLoading = true) }
         loadMetrics()
+    }
+
+    /** Navigate the metric period backwards (delta = -1) or forwards (delta = +1, capped at 0). */
+    fun shiftMetricPeriod(delta: Int) {
+        val newOffset = (_uiState.value.metricPeriodOffset + delta).coerceAtMost(0)
+        _uiState.update { it.copy(metricPeriodOffset = newOffset, isLoading = true) }
+        loadMetrics()
+    }
+
+    fun selectActivityTab() {
+        _uiState.update {
+            it.copy(isActivityTabSelected = true, selectedMetricType = null,
+                selectedCustomTypeId = null, isLoading = true)
+        }
+        loadActivityHistory()
+    }
+
+    /** Switch Days/Week/Month granularity for the Activity tab and reset to current period. */
+    fun selectActivityViewType(type: PeriodViewType) {
+        _uiState.update { it.copy(activityViewType = type, activityPeriodOffset = 0, isLoading = true) }
+        loadActivityHistory()
+    }
+
+    /** Navigate the activity period backwards (delta = -1) or forwards (delta = +1, capped at 0). */
+    fun shiftActivityPeriod(delta: Int) {
+        val newOffset = (_uiState.value.activityPeriodOffset + delta).coerceAtMost(0)
+        _uiState.update { it.copy(activityPeriodOffset = newOffset, isLoading = true) }
+        loadActivityHistory()
+    }
+
+    // ── Shared period helpers ──────────────────────────────────────────────────
+
+    private fun periodDateRange(viewType: PeriodViewType, offset: Int): Pair<LocalDate, LocalDate> {
+        val today = LocalDate.now()
+        return when (viewType) {
+            PeriodViewType.DAYS -> {
+                val end = today.plusDays((offset * 5).toLong())
+                val start = end.minusDays(4)
+                start to minOf(end, today)
+            }
+            PeriodViewType.WEEK -> {
+                val monday = today.with(DayOfWeek.MONDAY).plusWeeks(offset.toLong())
+                val sunday = monday.plusDays(6)
+                monday to minOf(sunday, today)
+            }
+            PeriodViewType.MONTH -> {
+                val firstDay = today.withDayOfMonth(1).plusMonths(offset.toLong())
+                val lastDay = firstDay.plusMonths(1).minusDays(1)
+                firstDay to minOf(lastDay, today)
+            }
+        }
+    }
+
+    private fun periodRangeLabel(start: LocalDate, end: LocalDate, viewType: PeriodViewType): String {
+        return when (viewType) {
+            PeriodViewType.MONTH -> start.format(DateTimeFormatter.ofPattern("MM/yyyy"))
+            else -> {
+                val fmt = DateTimeFormatter.ofPattern("dd/MM")
+                "${start.format(fmt)} – ${end.format(fmt)}"
+            }
+        }
+    }
+
+    private fun loadActivityHistory() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val (startDate, endDate) = periodDateRange(state.activityViewType, state.activityPeriodOffset)
+            val label = periodRangeLabel(startDate, endDate, state.activityViewType)
+            val isAvailable = healthConnectRepository.isAvailable
+            val isConnected = if (isAvailable) healthConnectRepository.hasPermissions() else false
+            val history = if (isConnected) {
+                healthConnectRepository.getActivityHistory(startDate, endDate)
+            } else emptyList()
+            _uiState.update {
+                it.copy(
+                    activityHistory = history,
+                    activityRangeLabel = label,
+                    isHcAvailable = isAvailable,
+                    isHcConnected = isConnected,
+                    isLoading = false
+                )
+            }
+        }
     }
 
     fun showLogSheet() {

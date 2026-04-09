@@ -44,11 +44,15 @@ import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
+import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
 import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.launch
@@ -1106,24 +1110,34 @@ fun BloodGlucoseCard(
 
 @Composable
 fun GlucoseChart(history: List<HealthMetric>) {
-    val entries = remember(history) {
-        history.sortedBy { it.date }.mapIndexed { index, metric ->
-            entryOf(index.toFloat(), metric.value.toFloat())
-        }
+    val sorted = remember(history) { history.sortedBy { it.date } }
+    val entries = remember(sorted) {
+        sorted.mapIndexed { index, metric -> entryOf(index.toFloat(), metric.value.toFloat()) }
     }
     val producer = remember(entries) { ChartEntryModelProducer(entries) }
-    val labels = remember(history) { history.sortedBy { it.date }.map { it.date.takeLast(5) } }
+    val labels = remember(sorted) {
+        val fmt = DateTimeFormatter.ofPattern("dd/MM")
+        sorted.map { m -> LocalDate.parse(m.date).format(fmt) }
+    }
+    val xSpacing = remember(sorted.size) { maxOf(1, sorted.size / 4) }
     val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
         labels.getOrElse(value.toInt()) { "" }
     }
 
-    Chart(
-        chart = lineChart(),
-        chartModelProducer = producer,
-        startAxis = rememberStartAxis(),
-        bottomAxis = rememberBottomAxis(valueFormatter = formatter),
-        modifier = Modifier.fillMaxWidth().height(140.dp)
-    )
+    ProvideChartStyle(m3ChartStyle()) {
+        Chart(
+            chart = lineChart(),
+            chartModelProducer = producer,
+            startAxis = rememberStartAxis(
+                itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 4)
+            ),
+            bottomAxis = rememberBottomAxis(
+                valueFormatter = formatter,
+                itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
+            ),
+            modifier = Modifier.fillMaxWidth().height(140.dp)
+        )
+    }
 }
 
 // ── Stats row ─────────────────────────────────────────────────────────────────
