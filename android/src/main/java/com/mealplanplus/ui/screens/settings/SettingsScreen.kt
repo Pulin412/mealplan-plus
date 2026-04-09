@@ -778,7 +778,7 @@ fun SettingsButtonItem(
 
 /**
  * Expandable card shown when Health Connect is available but permissions have not been granted.
- * Explains the one-time developer-mode setup needed for sideloaded / debug builds.
+ * Covers three methods ordered by ease: reinstall, HC developer mode, ADB.
  */
 @Composable
 private fun HealthConnectSetupGuide(onOpenHealthConnect: () -> Unit) {
@@ -794,6 +794,7 @@ private fun HealthConnectSetupGuide(onOpenHealthConnect: () -> Unit) {
         shape = MaterialTheme.shapes.medium
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
+            // Header row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -828,18 +829,45 @@ private fun HealthConnectSetupGuide(onOpenHealthConnect: () -> Unit) {
             if (expanded) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Health Connect restricts permission dialogs for sideloaded / debug apps. " +
-                           "Enable developer mode in Health Connect once to unblock it:",
+                    text = "Health Connect blocks non-Play-Store apps from the permission dialog. " +
+                           "Use one of the methods below — try them in order:",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Method A ─────────────────────────────────────────────
+                HcMethodHeader("Method 1 — Reinstall the app (try first)")
+                HealthConnectStep("1", "Uninstall MealPlan+ from your phone")
+                HealthConnectStep("2", "Reinstall the APK")
+                HealthConnectStep("3", "Open Settings → Fitness & Wearables → tap Connect")
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Method B ─────────────────────────────────────────────
+                HcMethodHeader("Method 2 — Health Connect developer mode")
+                Text(
+                    text = "Navigation varies by Android version and device:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                )
                 HealthConnectStep("1", "Open Health Connect (button below)")
-                HealthConnectStep("2", "Tap your profile icon → About Health Connect")
-                HealthConnectStep("3", "Tap the build version 7 times to unlock developer options")
-                HealthConnectStep("4", "In Developer options → enable \"Allow apps from unknown sources\"")
-                HealthConnectStep("5", "Come back here and tap Connect — the permission dialog will now appear")
-                Spacer(modifier = Modifier.height(10.dp))
+                HealthConnectStep("2",
+                    "Find \"About Health Connect\":\n" +
+                    "• Android 14+ Pixel: tap ⋮ menu (top-right) → About\n" +
+                    "• Android 14+ Samsung: Settings gear → About Health Connect\n" +
+                    "• Android 9–13 (HC app): tap profile icon → scroll down to About"
+                )
+                HealthConnectStep("3", "Tap the Health Connect version number 7 times")
+                HealthConnectStep("4",
+                    "A \"Developer options\" item appears in the menu — tap it, then enable " +
+                    "\"Allow apps from unknown sources\"\n" +
+                    "(If you don't see this option, your HC version doesn't support it — use Method 3)"
+                )
+                HealthConnectStep("5", "Come back and tap Connect — the dialog will now work")
+                Spacer(modifier = Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = onOpenHealthConnect,
                     modifier = Modifier.fillMaxWidth()
@@ -848,8 +876,62 @@ private fun HealthConnectSetupGuide(onOpenHealthConnect: () -> Unit) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Open Health Connect")
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Method C ─────────────────────────────────────────────
+                HcMethodHeader("Method 3 — ADB (Android 14+ only, requires a PC)")
+                Text(
+                    text = "With USB debugging on and your phone connected to a computer:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                )
+                HcCodeBlock(
+                    "adb shell pm grant com.mealplanplus \\\n" +
+                    "  android.permission.health.READ_STEPS\n" +
+                    "adb shell pm grant com.mealplanplus \\\n" +
+                    "  android.permission.health.READ_TOTAL_CALORIES_BURNED\n" +
+                    "adb shell pm grant com.mealplanplus \\\n" +
+                    "  android.permission.health.READ_WEIGHT"
+                )
+                Text(
+                    text = "After running all three commands, come back here and tap Connect.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun HcMethodHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.padding(bottom = 6.dp)
+    )
+}
+
+@Composable
+private fun HcCodeBlock(code: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(10.dp)
+    ) {
+        Text(
+            text = code,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
