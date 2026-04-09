@@ -14,9 +14,12 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Widgets
@@ -352,7 +355,7 @@ fun SettingsScreen(
                         }
                     )
                 } else {
-                    // Available but not connected — show connect button
+                    // Available but not connected
                     SettingsActionItem(
                         title = "Health Connect",
                         subtitle = "Grant read access to steps, calories burned, and weight.",
@@ -364,14 +367,10 @@ fun SettingsScreen(
                             )
                         }
                     )
-                    // Secondary hint — common on debug/sideloaded builds where the
-                    // HC dialog dismisses immediately (HC restricts non-Play Store apps).
-                    SettingsActionItem(
-                        title = "Dialog closes instantly?",
-                        subtitle = "In Health Connect → App permissions → MealPlan+, grant permissions manually.",
-                        icon = Icons.Default.Info,
-                        actionLabel = "HC Settings",
-                        onClick = { viewModel.openHealthConnectSettings(context) }
+
+                    // Setup guide for sideloaded / debug builds
+                    HealthConnectSetupGuide(
+                        onOpenHealthConnect = { viewModel.openHealthConnectApp(context) }
                     )
                 }
             }
@@ -774,6 +773,112 @@ fun SettingsButtonItem(
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(title)
+    }
+}
+
+/**
+ * Expandable card shown when Health Connect is available but permissions have not been granted.
+ * Explains the one-time developer-mode setup needed for sideloaded / debug builds.
+ */
+@Composable
+private fun HealthConnectSetupGuide(onOpenHealthConnect: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        ),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Connect button not working?",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+                IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Health Connect restricts permission dialogs for sideloaded / debug apps. " +
+                           "Enable developer mode in Health Connect once to unblock it:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                HealthConnectStep("1", "Open Health Connect (button below)")
+                HealthConnectStep("2", "Tap your profile icon → About Health Connect")
+                HealthConnectStep("3", "Tap the build version 7 times to unlock developer options")
+                HealthConnectStep("4", "In Developer options → enable \"Allow apps from unknown sources\"")
+                HealthConnectStep("5", "Come back here and tap Connect — the permission dialog will now appear")
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onOpenHealthConnect,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Open Health Connect")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthConnectStep(number: String, text: String) {
+    Row(
+        modifier = Modifier.padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondary),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = number,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondary
+            )
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

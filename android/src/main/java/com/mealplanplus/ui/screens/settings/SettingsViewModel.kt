@@ -449,6 +449,26 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
+     * Launches the Health Connect companion app (not a specific permissions page).
+     * Used by the setup guide so the user can navigate to About → enable developer mode.
+     */
+    fun openHealthConnectApp(ctx: Context) {
+        val hcLaunchIntent = ctx.packageManager
+            .getLaunchIntentForPackage("com.google.android.apps.healthdata")
+            ?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        // On Android 14+ there is no separate HC app; open the system health settings instead
+        val systemHealthIntent = android.content.Intent("android.health.ACTION_HEALTH_HOME_SETTINGS")
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            ctx.startActivity(hcLaunchIntent ?: systemHealthIntent)
+        } catch (_: Exception) {
+            try {
+                ctx.startActivity(systemHealthIntent)
+            } catch (_: Exception) { /* nothing to open */ }
+        }
+    }
+
+    /**
      * Opens Health Connect's per-app permissions screen directly.
      *
      * Primary path: the system ACTION_MANAGE_HEALTH_PERMISSIONS deep-link (works on Android 14+
