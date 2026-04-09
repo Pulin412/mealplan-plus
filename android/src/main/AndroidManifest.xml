@@ -44,9 +44,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Health Connect: allows the system to show MealPlan+ as a requesting app -->
+            <!-- Health Connect (Android 9–13 / HC companion app) -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+            <!-- Health Connect (Android 14+ / built-in OS — required or getGrantedPermissions() throws) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity>
 

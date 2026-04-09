@@ -1,6 +1,7 @@
 package com.mealplanplus.data.healthconnect
 
 import android.content.Context
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
@@ -14,17 +15,16 @@ import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "HealthConnectManager"
+
 /**
  * Low-level wrapper around the Health Connect SDK.
  *
- * Responsibilities:
- *  - Availability detection (SDK installed / not available)
- *  - Permission set declaration (used both for permission requests and checks)
- *  - Individual suspend reads for each data type we care about
- *
- * All callers must first check [isAvailable] and [hasAllPermissions] before reading
- * data.  The repository layer ([com.mealplanplus.data.repository.HealthConnectRepository])
- * handles these checks and exposes safe, aggregated results.
+ * All suspend functions are safe — they catch [Exception] and return empty/default values
+ * rather than propagating crashes. This is especially important on Android 14+ where
+ * [HealthConnectClient.permissionController.getGrantedPermissions] throws
+ * [IllegalStateException] when the manifest is missing the
+ * `VIEW_PERMISSION_USAGE / HEALTH_PERMISSIONS` intent filter.
  */
 @Singleton
 class HealthConnectManager @Inject constructor(
@@ -39,67 +39,83 @@ class HealthConnectManager @Inject constructor(
     )
 
     /**
-     * True when the Health Connect app is installed and the SDK is available on this device.
-     * On Android 14+ Health Connect is part of the OS; on 9–13 users must install the app.
+     * True when the Health Connect SDK is available on this device.
+     * On Android 14+ HC is part of the OS; on 9–13 users must install the companion app.
      */
     val isAvailable: Boolean
-        get() = HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+        get() = try {
+            HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+        } catch (e: Exception) {
+            Log.w(TAG, "getSdkStatus failed", e)
+            false
+        }
 
     private val client: HealthConnectClient? by lazy {
-        if (isAvailable) HealthConnectClient.getOrCreate(context) else null
-    }
-
-    /** Returns true when all [requiredPermissions] have been granted by the user. */
-    suspend fun hasAllPermissions(): Boolean {
-        val c = client ?: return false
-        return c.permissionController.getGrantedPermissions().containsAll(requiredPermissions)
-    }
-
-    /** Sum of all step records for today (midnight → now). */
-    suspend fun readStepsToday(): Long {
-        val c = client ?: return 0L
-        val (start, end) = todayRange()
-        return c.readRecords(
-            ReadRecordsRequest(
-                recordType = StepsRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(start, end)
-            )
-        ).records.sumOf { it.count }
-    }
-
-    /** Sum of all active + resting calories burned today in kcal. */
-    suspend fun readCaloriesBurnedToday(): Double {
-        val c = client ?: return 0.0
-        val (start, end) = todayRange()
-        return c.readRecords(
-            ReadRecordsRequest(
-                recordType = TotalCaloriesBurnedRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(start, end)
-            )
-        ).records.sumOf { it.energy.inKilocalories }
+        if (isAvailable) {
+            try { HealthConnectClient.getOrCreate(context) } catch (e: Exception) {
+                Log.w(TAG, "getOrCreate failed", e); null
+            }
+        } else null
     }
 
     /**
-     * Most recent weight entry within the last 30 days, in kilograms.
-     * Returns null if no records exist or permissions are unavailable.
+     * Returns true when all [requiredPermissions] have been granted.
+     * Returns false (never throws) on any SDK or manifest misconfiguration.
      */
+    suspend fun hasAllPermissions(): Boolean {
+        val c = client ?: return false
+        return try {
+            c.permissionController.getGrantedPermissions().containsAll(requiredPermissions)
+        } catch (e: Exception) {
+            Log.w(TAG, "hasAllPermissions failed", e)
+            false
+        }
+    }
+
+    /** Today's total step count. Returns 0 on any error. */
+    suspend fun readStepsToday(): Long {
+        val c = client ?: return 0L
+        return try {
+            val (start, end) = todayRange()
+            c.readRecords(
+                ReadRecordsRequest(StepsRecord::class, TimeRangeFilter.between(start, end))
+            ).records.sumOf { it.count }
+        } catch (e: Exception) {
+            Log.w(TAG, "readStepsToday failed", e); 0L
+        }
+    }
+
+    /** Today's total calories burned in kcal. Returns 0 on any error. */
+    suspend fun readCaloriesBurnedToday(): Double {
+        val c = client ?: return 0.0
+        return try {
+            val (start, end) = todayRange()
+            c.readRecords(
+                ReadRecordsRequest(TotalCaloriesBurnedRecord::class, TimeRangeFilter.between(start, end))
+            ).records.sumOf { it.energy.inKilocalories }
+        } catch (e: Exception) {
+            Log.w(TAG, "readCaloriesBurnedToday failed", e); 0.0
+        }
+    }
+
+    /** Most recent weight in kg within the last 30 days. Returns null on any error. */
     suspend fun readLatestWeightKg(): Double? {
         val c = client ?: return null
-        val zone = ZoneId.systemDefault()
-        val end = LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant()
-        val start = LocalDate.now().minusDays(30).atStartOfDay(zone).toInstant()
-        return c.readRecords(
-            ReadRecordsRequest(
-                recordType = WeightRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(start, end)
-            )
-        ).records.lastOrNull()?.weight?.inKilograms
+        return try {
+            val zone = ZoneId.systemDefault()
+            val end = LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant()
+            val start = LocalDate.now().minusDays(30).atStartOfDay(zone).toInstant()
+            c.readRecords(
+                ReadRecordsRequest(WeightRecord::class, TimeRangeFilter.between(start, end))
+            ).records.lastOrNull()?.weight?.inKilograms
+        } catch (e: Exception) {
+            Log.w(TAG, "readLatestWeightKg failed", e); null
+        }
     }
 
     private fun todayRange(): Pair<java.time.Instant, java.time.Instant> {
         val zone = ZoneId.systemDefault()
-        val start = LocalDate.now().atStartOfDay(zone).toInstant()
-        val end = LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant()
-        return start to end
+        return LocalDate.now().atStartOfDay(zone).toInstant() to
+               LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant()
     }
 }
