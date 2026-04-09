@@ -94,7 +94,11 @@ data class HomeUiState(
     val dietNamesForMonth: Map<String, String> = emptyMap(),
     val isLoading: Boolean = true,
     /** Activity data synced from Android Health Connect (steps + calories burned). */
-    val activitySummary: ActivitySummary = ActivitySummary()
+    val activitySummary: ActivitySummary = ActivitySummary(),
+    /** Whether today's plan has been marked as completed. */
+    val isTodayCompleted: Boolean = false,
+    /** Pulses true once after finishTodayPlan() so the UI can show a snackbar. */
+    val finishCompleted: Boolean = false
 )
 
 @HiltViewModel
@@ -301,10 +305,13 @@ class HomeViewModel @Inject constructor(
                         )
                     }
 
+                    val isTodayCompleted = plans.firstOrNull()?.isCompleted == true
+
                     _uiState.update {
                         it.copy(
                             todayPlanSlots = dietSlots + customTodaySlots,
-                            hasDietToday = dietId != null
+                            hasDietToday = dietId != null,
+                            isTodayCompleted = isTodayCompleted
                         )
                     }
                 }
@@ -351,6 +358,25 @@ class HomeViewModel @Inject constructor(
             DietSummaryWidget().updateAll(context)
         }
     }
+
+    /** Mark today's plan as complete. Triggers a snackbar via [HomeUiState.finishCompleted]. */
+    fun finishTodayPlan() {
+        viewModelScope.launch {
+            planRepository.completePlan(LocalDate.now().toString())
+            _uiState.update { it.copy(finishCompleted = true) }
+            // plan flow auto-refreshes isTodayCompleted via loadTodayPlanSlots combine
+        }
+    }
+
+    /** Re-open a completed day so slots can be edited again. */
+    fun reopenTodayPlan() {
+        viewModelScope.launch {
+            planRepository.uncompletePlan(LocalDate.now().toString())
+            // plan flow auto-refreshes isTodayCompleted
+        }
+    }
+
+    fun clearFinishCompleted() { _uiState.update { it.copy(finishCompleted = false) } }
 
     /**
      * Loads the 7-day week row with rich colour states and diet labels,

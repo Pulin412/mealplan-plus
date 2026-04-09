@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -148,7 +147,6 @@ private data class BottomNavItem(
 private val bottomNavItems = listOf(
     BottomNavItem("Home", Icons.Filled.Home, Screen.Home.route),
     BottomNavItem("Meal Plan", Icons.Filled.CalendarMonth, Screen.Calendar.route),
-    BottomNavItem("Log", Icons.Filled.EditNote, Screen.DailyLog.route),
     BottomNavItem("Diets", Icons.Filled.Restaurant, Screen.Diets.route),
     BottomNavItem("Health", Icons.Filled.FavoriteBorder, Screen.Health.route),
     BottomNavItem("Grocery", Icons.Filled.ShoppingCart, Screen.GroceryLists.route)
@@ -159,7 +157,6 @@ private val bottomNavRoutes = setOf(
     Screen.Home.route,
     Screen.Calendar.route,
     Screen.CalendarWithDate.route,
-    Screen.DailyLog.route,
     Screen.Diets.route,
     Screen.Health.route,
     Screen.GroceryLists.route

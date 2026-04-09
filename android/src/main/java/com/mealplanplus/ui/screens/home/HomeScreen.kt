@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
@@ -86,6 +87,14 @@ fun HomeScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.finishCompleted) {
+        if (uiState.finishCompleted) {
+            snackbarHostState.showSnackbar("Day completed! Great work 🎉", duration = SnackbarDuration.Short)
+            viewModel.clearFinishCompleted()
+        }
+    }
     val followSystem by ThemePreferences.isFollowSystem(context).collectAsState(initial = true)
     val darkModePref by ThemePreferences.isDarkMode(context).collectAsState(initial = false)
     val isDark = if (followSystem) isSystemInDarkTheme() else darkModePref
@@ -179,14 +188,14 @@ fun HomeScreen(
             }
         }
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { innerPadding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(bottom = innerPadding.calculateBottomPadding())
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
@@ -237,6 +246,7 @@ fun HomeScreen(
                 TodaysPlanCard(
                     slots = uiState.todayPlanSlots,
                     hasDietToday = uiState.hasDietToday,
+                    isTodayCompleted = uiState.isTodayCompleted,
                     onPlanOrChangeDiet = onNavigateToDietPickerForToday,
                     onSlotToggle = { slot -> viewModel.toggleSlotLogged(slot) },
                     onSlotTap = { slot ->
@@ -245,6 +255,8 @@ fun HomeScreen(
                             onNavigateToMealDetail(dId, slot.slotType)
                         }
                     },
+                    onFinishDay = { viewModel.finishTodayPlan() },
+                    onReopenDay = { viewModel.reopenTodayPlan() },
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
@@ -752,12 +764,16 @@ fun LegendDot(color: Color, label: String) {
 fun TodaysPlanCard(
     slots: List<TodayPlanSlot>,
     hasDietToday: Boolean,
+    isTodayCompleted: Boolean = false,
     onPlanOrChangeDiet: () -> Unit,
     onSlotToggle: (TodayPlanSlot) -> Unit = {},
     onSlotTap: (TodayPlanSlot) -> Unit = {},
+    onFinishDay: () -> Unit = {},
+    onReopenDay: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val actionLabel = if (hasDietToday) "Change Diet" else "Plan a Diet"
+    val allSlotsLogged = slots.isNotEmpty() && slots.all { it.isLogged }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -771,7 +787,20 @@ fun TodaysPlanCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Today's Plan", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                    if (isTodayCompleted) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(PrimaryGreen.copy(alpha = 0.12f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text("Done", fontSize = 11.sp, color = PrimaryGreen, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
                 TextButton(onClick = onPlanOrChangeDiet) {
                     Text("$actionLabel >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
@@ -792,10 +821,45 @@ fun TodaysPlanCard(
                     val canNavigate = slot.dietId != null && slot.plannedMealId != null
                     TodayPlanSlotRow(
                         slot = slot,
-                        onToggle = { onSlotToggle(slot) },
+                        onToggle = if (!isTodayCompleted) { -> onSlotToggle(slot) } else { -> },
                         onTap = if (canNavigate) { -> onSlotTap(slot) } else null
                     )
                     Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // ── Complete Day / Reopen ───────────────────────────────────
+                if (hasDietToday) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    if (isTodayCompleted) {
+                        OutlinedButton(
+                            onClick = onReopenDay,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Reopen Day", fontSize = 14.sp)
+                        }
+                    } else {
+                        Button(
+                            onClick = onFinishDay,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (allSlotsLogged) PrimaryGreen else PrimaryGreen.copy(alpha = 0.6f)
+                            )
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                if (allSlotsLogged) "Complete Day" else "Complete Day (${slots.count { it.isLogged }}/${slots.size} logged)",
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
                 }
             }
         }
