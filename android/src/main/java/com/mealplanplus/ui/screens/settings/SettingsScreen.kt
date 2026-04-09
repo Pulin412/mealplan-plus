@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.local.ImportStrategy
+import kotlinx.coroutines.launch
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -50,6 +51,8 @@ fun SettingsScreen(
 
     var timePickerTarget by remember { mutableStateOf<HourPickerTarget?>(null) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Re-check exact-alarm permission on every resume (user may have just granted it).
     var canScheduleExact by remember {
@@ -80,12 +83,26 @@ fun SettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Health Connect permission launcher
+    // Health Connect permission launcher — result is the Set<String> of actually granted permissions
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
-    ) { _ ->
-        // Regardless of granted/denied, re-check status so the UI updates
+    ) { granted ->
         viewModel.onHealthConnectPermissionsResult()
+        if (granted.containsAll(viewModel.healthConnectPermissions)) {
+            scope.launch { snackbarHostState.showSnackbar("Health Connect connected!") }
+        } else {
+            // Dialog dismissed or permissions denied — guide the user to HC settings
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = "Permissions not granted. Open Health Connect to allow manually.",
+                    actionLabel = "Open HC",
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.openHealthConnectSettings(context)
+                }
+            }
+        }
     }
 
     // File picker for JSON import
@@ -103,6 +120,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
@@ -337,7 +355,7 @@ fun SettingsScreen(
                     // Available but not connected — show connect button
                     SettingsActionItem(
                         title = "Health Connect",
-                        subtitle = "Tap Connect to allow reading steps, calories burned, and weight",
+                        subtitle = "Grant read access to steps, calories burned, and weight.",
                         icon = Icons.Default.Watch,
                         actionLabel = "Connect",
                         onClick = {
@@ -345,6 +363,15 @@ fun SettingsScreen(
                                 viewModel.healthConnectPermissions
                             )
                         }
+                    )
+                    // Secondary hint — common on debug/sideloaded builds where the
+                    // HC dialog dismisses immediately (HC restricts non-Play Store apps).
+                    SettingsActionItem(
+                        title = "Dialog closes instantly?",
+                        subtitle = "In Health Connect → App permissions → MealPlan+, grant permissions manually.",
+                        icon = Icons.Default.Info,
+                        actionLabel = "HC Settings",
+                        onClick = { viewModel.openHealthConnectSettings(context) }
                     )
                 }
             }

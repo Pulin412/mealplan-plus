@@ -17,6 +17,17 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
 
+    <!--
+        Required on Android 11–13 so PackageManager can resolve the Health Connect companion app
+        and the permission-request intent. On Android 14+ HC is part of the OS; not needed there.
+    -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MealPlanApp"
         android:allowBackup="true"

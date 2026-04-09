@@ -443,12 +443,40 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Called from the UI after the Health Connect permission dialog returns.
-     * Re-checks permissions and refreshes state.
-     */
+    /** Called from the UI after the Health Connect permission dialog returns. */
     fun onHealthConnectPermissionsResult() {
         checkHealthConnectStatus()
+    }
+
+    /**
+     * Opens Health Connect's per-app permissions screen directly.
+     *
+     * Primary path: the system ACTION_MANAGE_HEALTH_PERMISSIONS deep-link (works on Android 14+
+     * and on 9–13 with the HC companion app installed).
+     * Fallback: opens the HC companion app launcher, then the generic app-info screen.
+     *
+     * Use this when the permission dialog closes immediately (common on sideloaded / debug builds
+     * because HC's access policy restricts non-Play-Store apps from the standard dialog flow).
+     */
+    fun openHealthConnectSettings(ctx: Context) {
+        val hcPermIntent = android.content.Intent("android.health.ACTION_MANAGE_HEALTH_PERMISSIONS")
+            .putExtra(android.content.Intent.EXTRA_PACKAGE_NAME, ctx.packageName)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        val hcLaunchIntent = ctx.packageManager
+            .getLaunchIntentForPackage("com.google.android.apps.healthdata")
+            ?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        val appInfoIntent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(android.net.Uri.parse("package:${ctx.packageName}"))
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            ctx.startActivity(hcPermIntent)
+        } catch (_: Exception) {
+            try {
+                ctx.startActivity(hcLaunchIntent ?: appInfoIntent)
+            } catch (_: Exception) {
+                ctx.startActivity(appInfoIntent)
+            }
+        }
     }
 
     /**
