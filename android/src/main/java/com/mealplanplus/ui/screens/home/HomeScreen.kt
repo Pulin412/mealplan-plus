@@ -849,16 +849,18 @@ fun TodaysPlanCard(
                     } else {
                         Button(
                             onClick = onFinishDay,
+                            enabled = allSlotsLogged,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (allSlotsLogged) PrimaryGreen else PrimaryGreen.copy(alpha = 0.6f)
+                                containerColor = PrimaryGreen,
+                                disabledContainerColor = PrimaryGreen.copy(alpha = 0.4f)
                             )
                         ) {
                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                if (allSlotsLogged) "Complete Day" else "Complete Day (${slots.count { it.isLogged }}/${slots.size} logged)",
+                                if (allSlotsLogged) "Complete Day" else "Complete Day (${slots.count { it.isLogged }}/${slots.size} done)",
                                 color = Color.White,
                                 fontSize = 14.sp
                             )

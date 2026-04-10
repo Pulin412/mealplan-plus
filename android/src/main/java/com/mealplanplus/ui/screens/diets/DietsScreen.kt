@@ -143,13 +143,66 @@ fun DietsScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Favourites section (only shown when filters/search are clear)
+                        if (uiState.favouriteDiets.isNotEmpty() &&
+                            uiState.searchQuery.isBlank() &&
+                            uiState.foodFilter.isBlank() &&
+                            uiState.slotFilter.isEmpty() &&
+                            uiState.selectedTagIds.isEmpty()
+                        ) {
+                            item {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFC107),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        "Favourites",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                            items(uiState.favouriteDiets, key = { "fav_${it.diet.id}" }) { item ->
+                                DietCard(
+                                    item = item,
+                                    onView = { onNavigateToDietDetailView(item.diet.id) },
+                                    onEdit = { onNavigateToDietDetail(item.diet.id) },
+                                    onDuplicate = { viewModel.duplicateDiet(item.diet) },
+                                    onDelete = { viewModel.deleteDiet(item.diet) },
+                                    onFavourite = { viewModel.toggleFavourite(item.diet) }
+                                )
+                            }
+                            item {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                                ) {
+                                    Text(
+                                        "All Diets",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
                         items(uiState.diets, key = { it.diet.id }) { item ->
                             DietCard(
                                 item = item,
                                 onView = { onNavigateToDietDetailView(item.diet.id) },
                                 onEdit = { onNavigateToDietDetail(item.diet.id) },
                                 onDuplicate = { viewModel.duplicateDiet(item.diet) },
-                                onDelete = { viewModel.deleteDiet(item.diet) }
+                                onDelete = { viewModel.deleteDiet(item.diet) },
+                                onFavourite = { viewModel.toggleFavourite(item.diet) }
                             )
                         }
                     }
@@ -395,6 +448,7 @@ fun DietCard(
     onEdit: () -> Unit = {},
     onDuplicate: () -> Unit = {},
     onDelete: () -> Unit = {},
+    onFavourite: (() -> Unit)? = null,
     onSelect: (() -> Unit)? = null  // picker mode: tap card to select
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -477,20 +531,35 @@ fun DietCard(
                     }
                 }
 
-                if (isPickerMode) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowRight,
-                        contentDescription = "Select",
-                        tint = DietGreen,
-                        modifier = Modifier.padding(start = 8.dp).size(20.dp)
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (expanded) "Collapse" else "Expand",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp).size(20.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onFavourite != null) {
+                        IconButton(
+                            onClick = onFavourite,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (item.diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = if (item.diet.isFavourite) "Remove from favourites" else "Add to favourites",
+                                tint = if (item.diet.isFavourite) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    if (isPickerMode) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowRight,
+                            contentDescription = "Select",
+                            tint = DietGreen,
+                            modifier = Modifier.padding(start = 8.dp).size(20.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (expanded) "Collapse" else "Expand",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 8.dp).size(20.dp)
+                        )
+                    }
                 }
             }
 

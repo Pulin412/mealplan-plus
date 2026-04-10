@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.GroceryRepository
 import com.mealplanplus.data.repository.PlanRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -46,6 +47,7 @@ class CalendarViewModelTest {
     private lateinit var planRepo: PlanRepository
     private lateinit var dietRepo: DietRepository
     private lateinit var dailyLogRepo: DailyLogRepository
+    private lateinit var groceryRepo: GroceryRepository
     private lateinit var viewModel: CalendarViewModel
 
     private val today = LocalDate.now()
@@ -60,6 +62,7 @@ class CalendarViewModelTest {
         planRepo = mockk(relaxed = true)
         dietRepo = mockk(relaxed = true)
         dailyLogRepo = mockk(relaxed = true)
+        groceryRepo = mockk(relaxed = true)
 
         every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(emptyList())
         every { dietRepo.getDietsByUser() } returns flowOf(emptyList())
@@ -68,7 +71,7 @@ class CalendarViewModelTest {
         coEvery { dietRepo.getDietWithMeals(any()) } returns testDietWithMeals
         coEvery { dietRepo.getTagsForDiet(any()) } returns listOf(testTag)
 
-        viewModel = CalendarViewModel(planRepo, dietRepo, dailyLogRepo, SavedStateHandle())
+        viewModel = CalendarViewModel(planRepo, dietRepo, dailyLogRepo, groceryRepo, SavedStateHandle())
     }
 
     @After

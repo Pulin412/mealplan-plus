@@ -48,6 +48,7 @@ fun CalendarScreen(
     onNavigateToLog: (String) -> Unit,
     onNavigateToDietPicker: (String) -> Unit = {},
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
+    onNavigateToGroceryDetail: (Long) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
@@ -61,6 +62,15 @@ fun CalendarScreen(
         if (pickedDietId != -1L) {
             viewModel.assignDietById(pickedDietId)
             savedStateHandle?.set("selected_diet_id", -1L)
+        }
+    }
+
+    // Navigate to grocery detail once the list is generated
+    LaunchedEffect(uiState.generatedGroceryListId) {
+        val listId = uiState.generatedGroceryListId
+        if (listId != null) {
+            viewModel.clearGeneratedGroceryListId()
+            onNavigateToGroceryDetail(listId)
         }
     }
 
@@ -110,7 +120,10 @@ fun CalendarScreen(
                 onRemoveDiet = { viewModel.clearPlan() },
                 onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
                 onSlotToggle = { slotType -> viewModel.toggleSlotLogged(slotType) },
-                onNavigateToMealDetail = onNavigateToMealDetail
+                onNavigateToMealDetail = onNavigateToMealDetail,
+                onToggleFavourite = { diet -> viewModel.toggleFavourite(diet) },
+                onGenerateGroceries = { viewModel.generateGroceriesForDiet() },
+                isGeneratingGroceries = uiState.isGeneratingGroceries
             )
         }
     }
@@ -409,7 +422,10 @@ private fun SelectedDatePanel(
     onRemoveDiet: () -> Unit,
     onViewLog: () -> Unit,
     onSlotToggle: (String) -> Unit = {},
-    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
+    onToggleFavourite: (Diet) -> Unit = {},
+    onGenerateGroceries: () -> Unit = {},
+    isGeneratingGroceries: Boolean = false
 ) {
     val today = LocalDate.now()
     val isToday = date == today
@@ -475,29 +491,59 @@ private fun SelectedDatePanel(
                     }
                 }
 
-                // Action button (right side)
-                when {
-                    isToday && diet != null && isPlanCompleted -> TextButton(onClick = onChangeDiet) {
-                        Text("Change", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                // Right side: diet actions + star + grocery button
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (diet != null) {
+                        // Star / favourite toggle
+                        IconButton(onClick = { onToggleFavourite(diet) }, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                imageVector = if (diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = if (diet.isFavourite) "Remove from favourites" else "Add to favourites",
+                                tint = if (diet.isFavourite) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        // Grocery list button
+                        IconButton(
+                            onClick = onGenerateGroceries,
+                            enabled = !isGeneratingGroceries,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            if (isGeneratingGroceries) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingCart,
+                                    contentDescription = "View grocery list",
+                                    tint = DarkGreen,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
-                    // Today with an incomplete plan: checkboxes are shown inline — no header button needed
-                    isFuture && diet != null -> Button(
-                        onClick = onChangeDiet,
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("Change", style = MaterialTheme.typography.labelMedium)
+                    when {
+                        isToday && diet != null && isPlanCompleted -> TextButton(onClick = onChangeDiet) {
+                            Text("Change", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        }
+                        // Today with an incomplete plan: checkboxes are shown inline — no header button needed
+                        isFuture && diet != null -> Button(
+                            onClick = onChangeDiet,
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text("Change", style = MaterialTheme.typography.labelMedium)
+                        }
+                        isFuture && diet == null -> Button(
+                            onClick = onAssignDiet,
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text("+ Plan", style = MaterialTheme.typography.labelMedium)
+                        }
+                        // Past dates: diet details are shown read-only inline — no log redirect needed
                     }
-                    isFuture && diet == null -> Button(
-                        onClick = onAssignDiet,
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("+ Plan", style = MaterialTheme.typography.labelMedium)
-                    }
-                    // Past dates: diet details are shown read-only inline — no log redirect needed
                 }
             }
 

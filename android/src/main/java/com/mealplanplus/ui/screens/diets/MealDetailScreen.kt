@@ -135,13 +135,19 @@ fun MealDetailScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        val alphaLabel = if (uiState.sortOrder == IngredientSortOrder.ALPHABETICAL) {
+                                            if (uiState.sortAscending) "A→Z" else "Z→A"
+                                        } else "A–Z"
+                                        val qtyLabel = if (uiState.sortOrder == IngredientSortOrder.QUANTITY) {
+                                            if (uiState.sortAscending) "Qty ↑" else "Qty ↓"
+                                        } else "Qty"
                                         SortChip(
-                                            label = "A–Z",
+                                            label = alphaLabel,
                                             selected = uiState.sortOrder == IngredientSortOrder.ALPHABETICAL,
                                             onClick = { viewModel.setSortOrder(IngredientSortOrder.ALPHABETICAL) }
                                         )
                                         SortChip(
-                                            label = "Qty",
+                                            label = qtyLabel,
                                             selected = uiState.sortOrder == IngredientSortOrder.QUANTITY,
                                             onClick = { viewModel.setSortOrder(IngredientSortOrder.QUANTITY) }
                                         )

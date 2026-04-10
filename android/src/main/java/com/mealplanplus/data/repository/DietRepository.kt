@@ -80,6 +80,10 @@ class DietRepository @Inject constructor(
 
     suspend fun updateDiet(diet: Diet) = dietDao.updateDiet(diet)
 
+    suspend fun toggleFavourite(diet: Diet) = dietDao.setFavourite(diet.id, !diet.isFavourite)
+
+    fun getFavouriteDiets(): Flow<List<Diet>> = dietDao.getFavouriteDietsByUser(getCurrentUserId())
+
     suspend fun deleteDiet(diet: Diet) = dietDao.deleteDiet(diet)
 
     suspend fun setMealForSlot(dietId: Long, slotType: String, mealId: Long?) {

@@ -64,6 +64,12 @@ interface DietDao {
     @Query("SELECT COUNT(*) FROM diets WHERE userId = :userId")
     suspend fun getDietCountByUser(userId: Long): Int
 
+    @Query("UPDATE diets SET isFavourite = :isFavourite WHERE id = :id")
+    suspend fun setFavourite(id: Long, isFavourite: Boolean)
+
+    @Query("SELECT * FROM diets WHERE userId = :userId AND isFavourite = 1 ORDER BY name ASC")
+    fun getFavouriteDietsByUser(userId: Long): Flow<List<Diet>>
+
     /**
      * Get all diets with meal count and total calories in single query (for a specific user)
      */
@@ -79,7 +85,8 @@ interface DietDao {
                      WHEN mfi.unit = 'TSP' THEN f.caloriesPer100 * COALESCE(f.gramsPerTsp, 5) * mfi.quantity / 100
                      ELSE f.caloriesPer100 * mfi.quantity / 100
                 END
-            ), 0) as totalCalories
+            ), 0) as totalCalories,
+            d.isFavourite
         FROM diets d
         LEFT JOIN diet_meals dm ON d.id = dm.dietId
         LEFT JOIN meals m ON dm.mealId = m.id
@@ -133,7 +140,8 @@ interface DietDao {
                      WHEN mfi.unit = 'TSP' THEN f.fatPer100 * COALESCE(f.gramsPerTsp, 5) * mfi.quantity / 100
                      ELSE f.fatPer100 * mfi.quantity / 100
                 END
-            ), 0) as totalFat
+            ), 0) as totalFat,
+            d.isFavourite
         FROM diets d
         LEFT JOIN diet_meals dm ON d.id = dm.dietId
         LEFT JOIN meals m ON dm.mealId = m.id

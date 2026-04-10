@@ -40,6 +40,7 @@ data class DietDisplayItem(
 
 data class DietsUiState(
     val diets: List<DietDisplayItem> = emptyList(),
+    val favouriteDiets: List<DietDisplayItem> = emptyList(),
     val totalDietCount: Int = 0,
     val allTags: List<Tag> = emptyList(),
     val selectedTagIds: Set<Long> = emptySet(),
@@ -128,6 +129,7 @@ class DietsViewModel @Inject constructor(
 
         DietsUiState(
             diets = filtered,
+            favouriteDiets = diets.filter { it.diet.isFavourite },
             totalDietCount = diets.size,
             allTags = tags,
             selectedTagIds = selectedTags,
@@ -258,5 +260,9 @@ class DietsViewModel @Inject constructor(
 
     fun duplicateDiet(diet: Diet) {
         viewModelScope.launch { dietRepository.duplicateDiet(diet.id, "${diet.name} (copy)") }
+    }
+
+    fun toggleFavourite(diet: Diet) {
+        viewModelScope.launch { dietRepository.toggleFavourite(diet) }
     }
 }

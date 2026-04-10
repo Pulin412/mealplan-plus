@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.GroceryRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.extractShortDietName
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +28,10 @@ data class CalendarUiState(
     val isWeekView: Boolean = true,
     val isLoading: Boolean = false,
     /** Slot types logged today — used for checkbox state when today is selected. */
-    val todayLoggedSlots: Map<String, Boolean> = emptyMap()
+    val todayLoggedSlots: Map<String, Boolean> = emptyMap(),
+    /** Non-null while generating grocery list; navigates to GroceryDetail then clears. */
+    val generatedGroceryListId: Long? = null,
+    val isGeneratingGroceries: Boolean = false
 )
 
 @HiltViewModel
@@ -35,6 +39,7 @@ class CalendarViewModel @Inject constructor(
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository,
     private val dailyLogRepository: DailyLogRepository,
+    private val groceryRepository: GroceryRepository,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -261,5 +266,31 @@ class CalendarViewModel @Inject constructor(
             )
             loadPlansForMonth()
         }
+    }
+
+    fun toggleFavourite(diet: Diet) {
+        viewModelScope.launch {
+            dietRepository.toggleFavourite(diet)
+            // Refresh selectedDiet so the star icon updates immediately
+            val refreshed = dietRepository.getDietById(diet.id)
+            _uiState.update { it.copy(selectedDiet = refreshed ?: it.selectedDiet) }
+        }
+    }
+
+    fun generateGroceriesForDiet() {
+        val diet = _uiState.value.selectedDiet ?: return
+        _uiState.update { it.copy(isGeneratingGroceries = true) }
+        viewModelScope.launch {
+            try {
+                val listId = groceryRepository.generateFromDiet(diet.name, diet.id)
+                _uiState.update { it.copy(generatedGroceryListId = listId, isGeneratingGroceries = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isGeneratingGroceries = false) }
+            }
+        }
+    }
+
+    fun clearGeneratedGroceryListId() {
+        _uiState.update { it.copy(generatedGroceryListId = null) }
     }
 }

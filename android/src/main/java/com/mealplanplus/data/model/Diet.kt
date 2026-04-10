@@ -33,7 +33,10 @@ data class Diet(
     // Sync columns (v19)
     val serverId: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+    // Favourites (v23)
+    @ColumnInfo(defaultValue = "0")
+    val isFavourite: Boolean = false
 )
 
 /**
@@ -93,9 +96,10 @@ data class DietSummary(
     val description: String?,
     val createdAt: Long,
     val mealCount: Int,
-    val totalCalories: Int
+    val totalCalories: Int,
+    val isFavourite: Boolean = false
 ) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false)
+    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false, isFavourite = isFavourite)
 }
 
 /**
@@ -111,7 +115,8 @@ data class DietFullSummary(
     val totalCalories: Int,
     val totalProtein: Int,
     val totalCarbs: Int,
-    val totalFat: Int
+    val totalFat: Int,
+    val isFavourite: Boolean = false
 ) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false)
+    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false, isFavourite = isFavourite)
 }
