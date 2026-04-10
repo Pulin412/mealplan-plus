@@ -762,6 +762,105 @@ object DatabaseModule {
 
     // Migration 21->22: fix food_items that had per-serving values stored as per-100g,
     // and populate gramsPerPiece / gramsPerCup so unit conversions are accurate.
+    private val MIGRATION_23_24 = object : Migration(23, 24) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Populate glycemicIndex for common system foods.
+            // GI scale: Low ≤55, Medium 56–69, High ≥70
+            // Grains & Starches
+            db.execSQL("UPDATE food_items SET glycemicIndex = 64 WHERE name = 'White Rice' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Brown Rice' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Rolled Oats' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Oats' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Oatmeal' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 73 WHERE name = 'White Bread' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 71 WHERE name = 'Whole Wheat Bread' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 71 WHERE name = 'Wholemeal Bread' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 49 WHERE name = 'Pasta' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 49 WHERE name = 'Spaghetti' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 49 WHERE name = 'Penne' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 53 WHERE name = 'Quinoa' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 28 WHERE name = 'Barley' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 81 WHERE name = 'Cornflakes' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 69 WHERE name = 'Couscous' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 78 WHERE name = 'Potato' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 78 WHERE name = 'Boiled Potato' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 44 WHERE name = 'Sweet Potato' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 52 WHERE name = 'Corn' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 52 WHERE name = 'Sweetcorn' AND isSystemFood = 1")
+            // Bread / bakery
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'BB Toast' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Large Tortilla' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 73 WHERE name = 'Oreo Biscuits' AND isSystemFood = 1")
+            // Fruits
+            db.execSQL("UPDATE food_items SET glycemicIndex = 52 WHERE name = 'Banana' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Apple' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 43 WHERE name = 'Orange' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 51 WHERE name = 'Mango' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 72 WHERE name = 'Watermelon' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 46 WHERE name = 'Grapes' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Strawberry' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Strawberries' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 53 WHERE name = 'Blueberry' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 53 WHERE name = 'Blueberries' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 38 WHERE name = 'Pear' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Peach' AND isSystemFood = 1")
+            // Dairy
+            db.execSQL("UPDATE food_items SET glycemicIndex = 27 WHERE name = 'Whole Milk' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 27 WHERE name = 'Milk' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Yogurt' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 11 WHERE name = 'Greek Yogurt' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Cheese Slice' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Cheddar Cheese' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Cottage Cheese' AND isSystemFood = 1")
+            // Proteins (pure proteins have negligible GI)
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Chicken Breast' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Chicken Thigh' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Salmon' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Tuna' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Egg Whole' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Egg White' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Ground Beef' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Turkey Breast' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Whey Protein' AND isSystemFood = 1")
+            // Legumes
+            db.execSQL("UPDATE food_items SET glycemicIndex = 28 WHERE name = 'Chickpeas' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 29 WHERE name = 'Lentils' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Black Beans' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 24 WHERE name = 'Kidney Beans' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Soybeans' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Edamame' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Tofu' AND isSystemFood = 1")
+            // Nuts & seeds
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Almonds' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Walnuts' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Cashews' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 14 WHERE name = 'Peanut Butter' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Chia Seeds' AND isSystemFood = 1")
+            // Oils & fats (no carbs → no GI impact)
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Olive Oil' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Butter' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Coconut Oil' AND isSystemFood = 1")
+            // Sweeteners
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Sugar' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 61 WHERE name = 'Honey' AND isSystemFood = 1")
+            // Beverages
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Black Coffee' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Green Tea' AND isSystemFood = 1")
+            // Vegetables (most are low GI)
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Broccoli' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Spinach' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Kale' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Cauliflower' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Carrot' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Cucumber' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Tomato' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Bell Pepper' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Zucchini' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Mushroom' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Lettuce' AND isSystemFood = 1")
+        }
+    }
+
     private val MIGRATION_22_23 = object : Migration(22, 23) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE diets ADD COLUMN isFavourite INTEGER NOT NULL DEFAULT 0")
@@ -812,7 +911,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
             // Removed fallbackToDestructiveMigration() - this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

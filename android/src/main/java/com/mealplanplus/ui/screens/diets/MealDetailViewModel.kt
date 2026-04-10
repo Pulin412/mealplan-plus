@@ -37,6 +37,8 @@ class MealDetailViewModel @Inject constructor(
         val totalProtein: Double = 0.0,
         val totalCarbs: Double = 0.0,
         val totalFat: Double = 0.0,
+        /** Null when no food in the meal has a GI value set. */
+        val totalGlycemicLoad: Double? = null,
         val isLoading: Boolean = true,
         val error: String? = null
     )
@@ -78,6 +80,7 @@ class MealDetailViewModel @Inject constructor(
                 val instructions = dietWithMeals?.instructions?.get(slotType) ?: ""
                 val slot = DefaultMealSlot.entries.find { it.name == slotType }
                 val foods = mealWithFoods?.items ?: emptyList()
+                val glValues = foods.mapNotNull { f -> f.calculatedGlycemicLoad }
                 _uiState.update {
                     it.copy(
                         slotLabel = slot?.displayName ?: slotType,
@@ -88,6 +91,7 @@ class MealDetailViewModel @Inject constructor(
                         totalProtein = foods.sumOf { f -> f.calculatedProtein },
                         totalCarbs = foods.sumOf { f -> f.calculatedCarbs },
                         totalFat = foods.sumOf { f -> f.calculatedFat },
+                        totalGlycemicLoad = if (glValues.isEmpty()) null else glValues.sum(),
                         isLoading = false
                     )
                 }

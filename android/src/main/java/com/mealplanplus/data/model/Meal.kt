@@ -86,6 +86,16 @@ data class MealWithFoods(
         get() = items.sumOf { it.calculatedCarbs }
     val totalFat: Double
         get() = items.sumOf { it.calculatedFat }
+
+    /**
+     * Total Glycemic Load for this meal. Only sums items that have a GI value set.
+     * Returns null when no food in the meal has GI data.
+     */
+    val totalGlycemicLoad: Double?
+        get() {
+            val loads = items.mapNotNull { it.calculatedGlycemicLoad }
+            return if (loads.isEmpty()) null else loads.sum()
+        }
 }
 
 /**
@@ -109,4 +119,16 @@ data class MealFoodItemWithDetails(
 
     val calculatedFat: Double
         get() = food.calculateFat(mealFoodItem.quantity, mealFoodItem.unit)
+
+    /**
+     * Glycemic Load contribution for this food item at its served quantity.
+     * GL = (GI × carbs_in_serving_grams) / 100
+     * Returns null if this food has no GI data.
+     */
+    val calculatedGlycemicLoad: Double?
+        get() {
+            val gi = food.glycemicIndex ?: return null
+            val carbs = calculatedCarbs
+            return (gi * carbs) / 100.0
+        }
 }

@@ -84,6 +84,16 @@ data class DietWithMeals(
         get() = meals.values.filterNotNull().sumOf { it.totalCarbs }
     val totalFat: Double
         get() = meals.values.filterNotNull().sumOf { it.totalFat }
+
+    /**
+     * Total Glycemic Load for all meals in this diet.
+     * Returns null when no food in any meal has GI data.
+     */
+    val totalGlycemicLoad: Double?
+        get() {
+            val loads = meals.values.filterNotNull().mapNotNull { it.totalGlycemicLoad }
+            return if (loads.isEmpty()) null else loads.sum()
+        }
 }
 
 /**

@@ -182,7 +182,7 @@ fun DietDetailScreen(
                     val totalPro = dwm?.totalProtein?.toInt() ?: 0
                     val totalCarb = dwm?.totalCarbs?.toInt() ?: 0
                     val totalFat = dwm?.totalFat?.toInt() ?: 0
-                    EstimatedTotalsCard(totalCal, totalPro, totalCarb, totalFat)
+                    EstimatedTotalsCard(totalCal, totalPro, totalCarb, totalFat, glycemicLoad = dwm?.totalGlycemicLoad)
                 }
 
                 val slots = slotsToShow(slotFoodItems)
@@ -241,8 +241,17 @@ fun DietDetailScreen(
                     )
                 }
             } else {
-                // View mode: compact Meal Plan-style slot rows (like CalendarScreen)
+                // View mode: macro summary + GL, then compact slot rows
                 if (dwm != null) {
+                    item {
+                        EstimatedTotalsCard(
+                            calories = dwm.totalCalories.toInt(),
+                            protein = dwm.totalProtein.toInt(),
+                            carbs = dwm.totalCarbs.toInt(),
+                            fat = dwm.totalFat.toInt(),
+                            glycemicLoad = dwm.totalGlycemicLoad
+                        )
+                    }
                     item {
                         DietMealSlotsCompact(
                             diet = uiState.diet!!,

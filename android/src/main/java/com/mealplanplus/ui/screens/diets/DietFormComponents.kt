@@ -165,7 +165,8 @@ fun EstimatedTotalsCard(
     calories: Int,
     protein: Int,
     carbs: Int,
-    fat: Int
+    fat: Int,
+    glycemicLoad: Double? = null
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -183,8 +184,65 @@ fun EstimatedTotalsCard(
                 MacroPill(icon = "🔥", value = "$calories", unit = "kcal", color = Color(0xFFE65100))
                 MacroPill(icon = "🍞", value = "${carbs}g", unit = "carbs", color = Color(0xFF1565C0))
                 MacroPill(icon = "💪", value = "${protein}g", unit = "protein", color = Color(0xFF2E7D32))
-                MacroPill(icon = "🔥", value = "${fat}g", unit = "fat", color = Color(0xFF6A1B9A))
+                MacroPill(icon = "🥑", value = "${fat}g", unit = "fat", color = Color(0xFF6A1B9A))
             }
+            if (glycemicLoad != null) {
+                Spacer(Modifier.height(10.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(10.dp))
+                GlycemicLoadSummaryRow(glycemicLoad = glycemicLoad)
+            }
+        }
+    }
+}
+
+private fun glColorDiet(gl: Double): Color = when {
+    gl <= 10.0 -> Color(0xFF2E7D32)
+    gl <= 19.0 -> Color(0xFFF57F17)
+    else       -> Color(0xFFB71C1C)
+}
+
+private fun glLabelDiet(gl: Double): String = when {
+    gl <= 10.0 -> "Low"
+    gl <= 19.0 -> "Medium"
+    else       -> "High"
+}
+
+@Composable
+fun GlycemicLoadSummaryRow(glycemicLoad: Double) {
+    val color = glColorDiet(glycemicLoad)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("⚡", style = MaterialTheme.typography.bodyMedium)
+            Column {
+                Text(
+                    "Glycemic Load",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    glLabelDiet(glycemicLoad),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = color,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = color.copy(alpha = 0.12f)
+        ) {
+            Text(
+                text = String.format("%.1f", glycemicLoad),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
         }
     }
 }

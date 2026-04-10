@@ -242,6 +242,12 @@ fun MealDetailScreen(
                                     TotalMacroCell("🍞", "${uiState.totalCarbs.roundToInt()}g", "carbs", Color(0xFF1565C0))
                                     TotalMacroCell("🥑", "${uiState.totalFat.roundToInt()}g", "fat", Color(0xFF6A1B9A))
                                 }
+                                uiState.totalGlycemicLoad?.let { gl ->
+                                    Spacer(Modifier.height(12.dp))
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    Spacer(Modifier.height(12.dp))
+                                    GlycemicLoadRow(glycemicLoad = gl)
+                                }
                             }
                         }
                     }
@@ -321,6 +327,9 @@ private fun IngredientCheckRow(
                 MacroPill("C ${item.calculatedCarbs.roundToInt()}g", Color(0xFF1565C0))
                 MacroPill("F ${item.calculatedFat.roundToInt()}g", Color(0xFF6A1B9A))
             }
+            item.food.glycemicIndex?.let { gi ->
+                MacroPill("GI $gi", giColor(gi))
+            }
         }
     }
 }
@@ -344,5 +353,62 @@ private fun TotalMacroCell(icon: String, value: String, label: String, color: Co
         Text(icon, style = MaterialTheme.typography.headlineSmall)
         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = color)
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Returns a colour conveying GI level: green (low ≤55), amber (medium 56–69), red (high ≥70). */
+private fun giColor(gi: Int): Color = when {
+    gi <= 55 -> Color(0xFF2E7D32)   // low
+    gi <= 69 -> Color(0xFFF57F17)   // medium
+    else     -> Color(0xFFB71C1C)   // high
+}
+
+/** Returns a colour conveying GL level: green (low ≤10), amber (medium 11–19), red (high ≥20). */
+private fun glColor(gl: Double): Color = when {
+    gl <= 10.0 -> Color(0xFF2E7D32)
+    gl <= 19.0 -> Color(0xFFF57F17)
+    else       -> Color(0xFFB71C1C)
+}
+
+private fun glLabel(gl: Double): String = when {
+    gl <= 10.0 -> "Low GL"
+    gl <= 19.0 -> "Medium GL"
+    else       -> "High GL"
+}
+
+@Composable
+private fun GlycemicLoadRow(glycemicLoad: Double) {
+    val color = glColor(glycemicLoad)
+    val label = glLabel(glycemicLoad)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column {
+            Text(
+                "Glycemic Load",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = color.copy(alpha = 0.12f)
+        ) {
+            Text(
+                text = String.format("%.1f", glycemicLoad),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
     }
 }
