@@ -57,6 +57,9 @@ fun DietsScreen(
                 onNewDiet = onNavigateToAddDiet,
                 onNavigateBack = onNavigateBack,
                 onTagsSettings = viewModel::showTagsManagement,
+                onFavouritesToggle = viewModel::toggleFavouritesFilter,
+                favouriteCount = uiState.favouriteDiets.size,
+                showFavouritesOnly = uiState.showFavouritesOnly,
                 title = "My Diets"
             )
         }
@@ -128,13 +131,16 @@ fun DietsScreen(
                 uiState.diets.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = if (uiState.searchQuery.isBlank() && uiState.selectedTagIds.isEmpty() &&
-                                uiState.foodFilter.isBlank() && uiState.slotFilter.isEmpty())
-                                "No diets yet.\nTap + New Diet to create one!"
-                            else
-                                "No diets match your filters",
+                            text = when {
+                                uiState.showFavouritesOnly -> "No favourite diets yet.\nTap ⭐ on a diet card to mark it."
+                                uiState.searchQuery.isBlank() && uiState.selectedTagIds.isEmpty() &&
+                                    uiState.foodFilter.isBlank() && uiState.slotFilter.isEmpty() ->
+                                    "No diets yet.\nTap + New Diet to create one!"
+                                else -> "No diets match your filters"
+                            },
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 }
@@ -143,58 +149,6 @@ fun DietsScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Favourites section (only shown when filters/search are clear)
-                        if (uiState.favouriteDiets.isNotEmpty() &&
-                            uiState.searchQuery.isBlank() &&
-                            uiState.foodFilter.isBlank() &&
-                            uiState.slotFilter.isEmpty() &&
-                            uiState.selectedTagIds.isEmpty()
-                        ) {
-                            item {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = Color(0xFFFFC107),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        "Favourites",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                            items(uiState.favouriteDiets, key = { "fav_${it.diet.id}" }) { item ->
-                                DietCard(
-                                    item = item,
-                                    onView = { onNavigateToDietDetailView(item.diet.id) },
-                                    onEdit = { onNavigateToDietDetail(item.diet.id) },
-                                    onDuplicate = { viewModel.duplicateDiet(item.diet) },
-                                    onDelete = { viewModel.deleteDiet(item.diet) },
-                                    onFavourite = { viewModel.toggleFavourite(item.diet) }
-                                )
-                            }
-                            item {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                                ) {
-                                    Text(
-                                        "All Diets",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                        }
                         items(uiState.diets, key = { it.diet.id }) { item ->
                             DietCard(
                                 item = item,
@@ -233,6 +187,9 @@ fun DietsTopBar(
     onNewDiet: (() -> Unit)? = null,
     onNavigateBack: () -> Unit,
     onTagsSettings: (() -> Unit)? = null,
+    onFavouritesToggle: (() -> Unit)? = null,
+    favouriteCount: Int = 0,
+    showFavouritesOnly: Boolean = false,
     title: String = "My Diets"
 ) {
     Surface(color = DietGreen, shadowElevation = 4.dp) {
@@ -261,6 +218,26 @@ fun DietsTopBar(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.8f)
                     )
+                }
+                // Favourites filter toggle
+                if (onFavouritesToggle != null) {
+                    IconButton(onClick = onFavouritesToggle) {
+                        BadgedBox(
+                            badge = {
+                                if (favouriteCount > 0 && !showFavouritesOnly) {
+                                    Badge(containerColor = Color(0xFFFFC107)) {
+                                        Text("$favouriteCount", color = Color.Black)
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (showFavouritesOnly) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = if (showFavouritesOnly) "Show all diets" else "Show favourites",
+                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else Color.White
+                            )
+                        }
+                    }
                 }
                 // Tags text button for tag management (optional)
                 if (onTagsSettings != null) {

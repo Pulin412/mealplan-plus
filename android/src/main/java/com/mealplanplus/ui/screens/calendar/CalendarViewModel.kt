@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
-import com.mealplanplus.data.repository.GroceryRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.extractShortDietName
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,9 +28,16 @@ data class CalendarUiState(
     val isLoading: Boolean = false,
     /** Slot types logged today — used for checkbox state when today is selected. */
     val todayLoggedSlots: Map<String, Boolean> = emptyMap(),
-    /** Non-null while generating grocery list; navigates to GroceryDetail then clears. */
-    val generatedGroceryListId: Long? = null,
+    /** Non-null when the grocery snapshot sheet is open for the selected day's diet. */
+    val grocerySnapshot: List<GrocerySnapshotItem>? = null,
     val isGeneratingGroceries: Boolean = false
+)
+
+/** A single aggregated ingredient line for the grocery snapshot sheet. */
+data class GrocerySnapshotItem(
+    val foodName: String,
+    val quantity: Double,
+    val unitLabel: String
 )
 
 @HiltViewModel
@@ -39,7 +45,6 @@ class CalendarViewModel @Inject constructor(
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository,
     private val dailyLogRepository: DailyLogRepository,
-    private val groceryRepository: GroceryRepository,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -277,20 +282,34 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    /** Builds a grocery snapshot in-memory from the selected day's diet — no DB write. */
     fun generateGroceriesForDiet() {
-        val diet = _uiState.value.selectedDiet ?: return
+        val dietWithMeals = _uiState.value.selectedDietWithMeals ?: return
         _uiState.update { it.copy(isGeneratingGroceries = true) }
         viewModelScope.launch {
-            try {
-                val listId = groceryRepository.generateFromDiet(diet.name, diet.id)
-                _uiState.update { it.copy(generatedGroceryListId = listId, isGeneratingGroceries = false) }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isGeneratingGroceries = false) }
+            val aggregated = mutableMapOf<Pair<Long, String>, GrocerySnapshotItem>()
+            for ((_, mealWithFoods) in dietWithMeals.meals) {
+                if (mealWithFoods == null) continue
+                for (item in mealWithFoods.items) {
+                    val key = item.food.id to item.mealFoodItem.unit.name
+                    val existing = aggregated[key]
+                    if (existing != null) {
+                        aggregated[key] = existing.copy(quantity = existing.quantity + item.mealFoodItem.quantity)
+                    } else {
+                        aggregated[key] = GrocerySnapshotItem(
+                            foodName = item.food.name,
+                            quantity = item.mealFoodItem.quantity,
+                            unitLabel = item.mealFoodItem.unit.shortLabel
+                        )
+                    }
+                }
             }
+            val snapshot = aggregated.values.sortedBy { it.foodName.lowercase() }
+            _uiState.update { it.copy(grocerySnapshot = snapshot, isGeneratingGroceries = false) }
         }
     }
 
-    fun clearGeneratedGroceryListId() {
-        _uiState.update { it.copy(generatedGroceryListId = null) }
+    fun clearGrocerySnapshot() {
+        _uiState.update { it.copy(grocerySnapshot = null) }
     }
 }

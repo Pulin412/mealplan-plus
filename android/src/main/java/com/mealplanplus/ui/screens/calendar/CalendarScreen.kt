@@ -48,7 +48,6 @@ fun CalendarScreen(
     onNavigateToLog: (String) -> Unit,
     onNavigateToDietPicker: (String) -> Unit = {},
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
-    onNavigateToGroceryDetail: (Long) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
@@ -65,13 +64,13 @@ fun CalendarScreen(
         }
     }
 
-    // Navigate to grocery detail once the list is generated
-    LaunchedEffect(uiState.generatedGroceryListId) {
-        val listId = uiState.generatedGroceryListId
-        if (listId != null) {
-            viewModel.clearGeneratedGroceryListId()
-            onNavigateToGroceryDetail(listId)
-        }
+    // Grocery snapshot bottom sheet
+    if (uiState.grocerySnapshot != null) {
+        GrocerySnapshotSheet(
+            dietName = uiState.selectedDiet?.name ?: "",
+            items = uiState.grocerySnapshot!!,
+            onDismiss = { viewModel.clearGrocerySnapshot() }
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -122,7 +121,7 @@ fun CalendarScreen(
                 onSlotToggle = { slotType -> viewModel.toggleSlotLogged(slotType) },
                 onNavigateToMealDetail = onNavigateToMealDetail,
                 onToggleFavourite = { diet -> viewModel.toggleFavourite(diet) },
-                onGenerateGroceries = { viewModel.generateGroceriesForDiet() },
+                onShowGroceries = { viewModel.generateGroceriesForDiet() },
                 isGeneratingGroceries = uiState.isGeneratingGroceries
             )
         }
@@ -424,7 +423,7 @@ private fun SelectedDatePanel(
     onSlotToggle: (String) -> Unit = {},
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
     onToggleFavourite: (Diet) -> Unit = {},
-    onGenerateGroceries: () -> Unit = {},
+    onShowGroceries: () -> Unit = {},
     isGeneratingGroceries: Boolean = false
 ) {
     val today = LocalDate.now()
@@ -505,7 +504,7 @@ private fun SelectedDatePanel(
                         }
                         // Grocery list button
                         IconButton(
-                            onClick = onGenerateGroceries,
+                            onClick = onShowGroceries,
                             enabled = !isGeneratingGroceries,
                             modifier = Modifier.size(36.dp)
                         ) {
@@ -978,4 +977,110 @@ fun DietPickerDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GrocerySnapshotSheet(
+    dietName: String,
+    items: List<GrocerySnapshotItem>,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        "Grocery List",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (dietName.isNotBlank()) {
+                        Text(
+                            dietName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = DarkGreen.copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        "${items.size} items",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DarkGreen,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            if (items.isEmpty()) {
+                Box(
+                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No ingredients found for this diet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items.forEach { item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(DarkGreen, CircleShape)
+                            )
+                            Text(
+                                text = item.foodName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            text = "${formatQuantity(item.quantity)} ${item.unitLabel}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                }
+            }
+        }
+    }
+}
+
+private fun formatQuantity(qty: Double): String {
+    val rounded = (qty * 10).toLong().toDouble() / 10
+    return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
 }

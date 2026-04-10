@@ -41,6 +41,7 @@ data class DietDisplayItem(
 data class DietsUiState(
     val diets: List<DietDisplayItem> = emptyList(),
     val favouriteDiets: List<DietDisplayItem> = emptyList(),
+    val showFavouritesOnly: Boolean = false,
     val totalDietCount: Int = 0,
     val allTags: List<Tag> = emptyList(),
     val selectedTagIds: Set<Long> = emptySet(),
@@ -73,14 +74,16 @@ class DietsViewModel @Inject constructor(
     private val _dietsWithMeals = MutableStateFlow(dietDisplayCache.items.value)
     private val _allTags = MutableStateFlow<List<Tag>>(emptyList())
     private val _showTagsDialog = MutableStateFlow(false)
+    private val _showFavouritesOnly = MutableStateFlow(false)
 
     val uiState: StateFlow<DietsUiState> = combine(
         _dietsWithMeals,
         _allTags,
         combine(_selectedTagIds, _tagFilterMode) { ids, mode -> ids to mode },
         combine(_searchQuery, _foodFilter, _slotFilter) { q, f, sl -> Triple(q, f, sl) },
-        combine(_sortOption, _isLoading, _showTagsDialog) { s, l, d -> Triple(s, l, d) }
-    ) { diets, tags, (selectedTags, filterMode), (query, foodFilter, slotFilter), (sort, loading, showDialog) ->
+        combine(_sortOption, _isLoading, combine(_showTagsDialog, _showFavouritesOnly) { d, f -> d to f }) { s, l, (d, f) -> Triple(s, l, d to f) }
+    ) { diets, tags, (selectedTags, filterMode), (query, foodFilter, slotFilter), (sort, loading, dialogToFav) ->
+        val (showDialog, showFavouritesOnly) = dialogToFav
 
         val tagCountMap = diets
             .flatMap { item -> item.tags.map { it.id } }
@@ -89,6 +92,8 @@ class DietsViewModel @Inject constructor(
 
         val filtered = diets
             .filter { item ->
+                if (showFavouritesOnly && !item.diet.isFavourite) return@filter false
+
                 val matchesSearch = query.isBlank() ||
                     item.diet.name.contains(query, ignoreCase = true) ||
                     item.diet.description?.contains(query, ignoreCase = true) == true
@@ -130,6 +135,7 @@ class DietsViewModel @Inject constructor(
         DietsUiState(
             diets = filtered,
             favouriteDiets = diets.filter { it.diet.isFavourite },
+            showFavouritesOnly = showFavouritesOnly,
             totalDietCount = diets.size,
             allTags = tags,
             selectedTagIds = selectedTags,
@@ -264,5 +270,9 @@ class DietsViewModel @Inject constructor(
 
     fun toggleFavourite(diet: Diet) {
         viewModelScope.launch { dietRepository.toggleFavourite(diet) }
+    }
+
+    fun toggleFavouritesFilter() {
+        _showFavouritesOnly.value = !_showFavouritesOnly.value
     }
 }
