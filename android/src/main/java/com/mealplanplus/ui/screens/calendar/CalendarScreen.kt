@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.*
 import com.mealplanplus.ui.components.CalendarDayCell
+import com.mealplanplus.util.toEpochMs
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -104,7 +105,7 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val isPlanCompleted = uiState.plans[uiState.selectedDate.toString()]?.isCompleted ?: false
+            val isPlanCompleted = uiState.plans[uiState.selectedDate.toEpochMs()]?.isCompleted ?: false
 
             // Selected date detail panel
             SelectedDatePanel(
@@ -166,8 +167,8 @@ private fun MealPlanTopBar(onSelectDietForToday: () -> Unit) {
 private fun CalendarCard(
     currentMonth: YearMonth,
     selectedDate: LocalDate,
-    plans: Map<String, Plan>,
-    dietNames: Map<String, String>,
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
     isWeekView: Boolean,
     onDateSelected: (LocalDate) -> Unit,
     onPreviousMonth: () -> Unit,
@@ -334,15 +335,15 @@ private fun LegendItem(color: Color, label: String, isOutline: Boolean = false) 
 private fun WeekRow(
     weekStart: LocalDate,
     selectedDate: LocalDate,
-    plans: Map<String, Plan>,
-    dietNames: Map<String, String>,
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
     onDateSelected: (LocalDate) -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
         for (i in 0..6) {
             val date = weekStart.plusDays(i.toLong())
-            val dateStr = date.toString()
-            val plan = plans[dateStr]
+            val dateMs = date.toEpochMs()
+            val plan = plans[dateMs]
             val hasPlan = plan != null && plan.dietId != null
             CalendarDayCell(
                 day = date.dayOfMonth,
@@ -350,7 +351,7 @@ private fun WeekRow(
                 isToday = date == LocalDate.now(),
                 hasPlan = hasPlan,
                 isCompleted = plan?.isCompleted ?: false,
-                dietName = dietNames[dateStr],
+                dietName = dietNames[dateMs],
                 onClick = { onDateSelected(date) },
                 modifier = Modifier.weight(1f)
             )
@@ -362,8 +363,8 @@ private fun WeekRow(
 private fun MealPlanCalendarGrid(
     month: YearMonth,
     selectedDate: LocalDate,
-    plans: Map<String, Plan>,
-    dietNames: Map<String, String>,
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
     onDateSelected: (LocalDate) -> Unit
 ) {
     val firstDay = month.atDay(1)
@@ -381,13 +382,13 @@ private fun MealPlanCalendarGrid(
 
                     if (dayNumber in 1..daysInMonth) {
                         val date = month.atDay(dayNumber)
-                        val dateStr = date.toString()
+                        val dateMs = date.toEpochMs()
                         val isSelected = date == selectedDate
                         val isToday = date == LocalDate.now()
-                        val plan = plans[dateStr]
+                        val plan = plans[dateMs]
                         val hasPlan = plan != null && plan.dietId != null
                         val isCompleted = plan?.isCompleted ?: false
-                        val dietName = dietNames[dateStr]
+                        val dietName = dietNames[dateMs]
 
                         CalendarDayCell(
                             day = dayNumber,

@@ -21,6 +21,7 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import com.mealplanplus.util.toEpochMs
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -49,9 +50,8 @@ class CalendarViewModelTest {
     private lateinit var viewModel: CalendarViewModel
 
     private val today = LocalDate.now()
-    private val todayStr = today.toString()
     private val testDiet = Diet(id = 1L, userId = 1L, name = "Low-Carb Plan", description = "Under 100g carbs/day")
-    private val testPlan = Plan(userId = 1L, date = todayStr, dietId = 1L, isCompleted = false)
+    private val testPlan = Plan(userId = 1L, date = today.toEpochMs(), dietId = 1L, isCompleted = false)
     private val testDietWithMeals = DietWithMeals(diet = testDiet, meals = emptyMap())
     private val testTag = Tag(id = 1L, userId = 1L, name = "Low Carb", color = "#7B1FA2")
 
@@ -78,7 +78,7 @@ class CalendarViewModelTest {
 
     @Test
     fun `selectDate with plan loads correct diet`() = runTest {
-        coEvery { planRepo.getDietForDate(todayStr) } returns testDiet
+        coEvery { planRepo.getDietForDate(today) } returns testDiet
         coEvery { dietRepo.getDietWithMeals(1L) } returns testDietWithMeals
         coEvery { dietRepo.getTagsForDiet(1L) } returns listOf(testTag)
 
@@ -91,7 +91,7 @@ class CalendarViewModelTest {
 
     @Test
     fun `selectDate with no plan sets null diet`() = runTest {
-        coEvery { planRepo.getDietForDate(todayStr) } returns null
+        coEvery { planRepo.getDietForDate(today) } returns null
 
         viewModel.selectDate(today)
 
@@ -103,13 +103,13 @@ class CalendarViewModelTest {
 
     @Test
     fun `assignDiet updates plan and state optimistically`() = runTest {
-        coEvery { planRepo.setPlanForDate(todayStr, 1L) } returns Unit
+        coEvery { planRepo.setPlanForDate(today, 1L) } returns Unit
         coEvery { dietRepo.getDietWithMeals(1L) } returns testDietWithMeals
 
         viewModel.selectDate(today)
         viewModel.assignDiet(testDiet)
 
-        coVerify { planRepo.setPlanForDate(todayStr, 1L) }
+        coVerify { planRepo.setPlanForDate(today, 1L) }
         val state = viewModel.uiState.value
         assertEquals(testDiet, state.selectedDiet)
         assertFalse(state.showDietPicker)
@@ -118,17 +118,17 @@ class CalendarViewModelTest {
     @Test
     fun `clearPlan removes diet from state`() = runTest {
         // Setup with a plan
-        coEvery { planRepo.getDietForDate(todayStr) } returns testDiet
+        coEvery { planRepo.getDietForDate(today) } returns testDiet
         viewModel.selectDate(today)
 
-        coEvery { planRepo.removePlan(todayStr) } returns Unit
+        coEvery { planRepo.removePlan(today) } returns Unit
         viewModel.clearPlan()
 
-        coVerify { planRepo.removePlan(todayStr) }
+        coVerify { planRepo.removePlan(today) }
         val state = viewModel.uiState.value
         assertNull(state.selectedDiet)
         assertNull(state.selectedDietWithMeals)
-        assertFalse(state.plans.containsKey(todayStr))
+        assertFalse(state.plans.containsKey(today.toEpochMs()))
     }
 
     @Test

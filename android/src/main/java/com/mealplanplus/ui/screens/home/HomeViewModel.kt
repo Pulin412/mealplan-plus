@@ -19,6 +19,8 @@ import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.extractShortDietName
+import com.mealplanplus.util.toEpochMs
+import com.mealplanplus.util.toLocalDate
 import androidx.glance.appwidget.updateAll
 import com.mealplanplus.widget.DietSummaryWidget
 import com.mealplanplus.widget.TodayPlanWidget
@@ -41,15 +43,15 @@ data class TodaySummary(
 
 /** Represents a single slot in Today's Plan */
 data class TodayPlanSlot(
-    val slotType: String,          // e.g. "BREAKFAST"
-    val slotDisplayName: String,   // e.g. "Breakfast"
+    val slotType: String,
+    val slotDisplayName: String,
     val emoji: String,
-    val plannedMealName: String?,  // name of the meal assigned in the diet
-    val plannedMealId: Long?,      // meal id from diet
-    val plannedFoods: List<MealFoodItemWithDetails> = emptyList(), // foods in planned meal (for logging)
-    val isLogged: Boolean,         // true if at least one food was logged for this slot today
-    val dietId: Long? = null,      // dietId for navigating to MealDetailScreen
-    val loggedFoods: List<LoggedFoodWithDetails> = emptyList() // actual logged foods (for custom slots)
+    val plannedMealName: String?,
+    val plannedMealId: Long?,
+    val plannedFoods: List<MealFoodItemWithDetails> = emptyList(),
+    val isLogged: Boolean,
+    val dietId: Long? = null,
+    val loggedFoods: List<LoggedFoodWithDetails> = emptyList()
 )
 
 // Legacy – kept for any screen still referencing it
@@ -68,7 +70,7 @@ enum class WeekDayState { COMPLETED, PLANNED_FUTURE, MISSED, NO_DATA }
 
 data class WeekDayInfo(
     val date: LocalDate,
-    val dietLabel: String?,   // Short name like "M17" or null
+    val dietLabel: String?,
     val state: WeekDayState
 )
 
@@ -82,7 +84,7 @@ data class HomeUiState(
     val latestHba1c: HealthMetric? = null,
     val glucoseHistory: List<HealthMetric> = emptyList(),
     val dayStreak: Int = 0,
-    val weeklyLoggedDates: Set<String> = emptySet(),
+    val weeklyLoggedDates: Set<Long> = emptySet(),
     // Rich slot data from today's diet
     val todayPlanSlots: List<TodayPlanSlot> = emptyList(),
     val hasDietToday: Boolean = false,
@@ -90,14 +92,11 @@ data class HomeUiState(
     val weekDays: List<WeekDayInfo> = emptyList(),
     val weeklyCalories: List<DailyMacroSummary> = emptyList(),
     val currentMonth: YearMonth = YearMonth.now(),
-    val plansForMonth: Map<String, Boolean> = emptyMap(),
-    val dietNamesForMonth: Map<String, String> = emptyMap(),
+    val plansForMonth: Map<Long, Boolean> = emptyMap(),
+    val dietNamesForMonth: Map<Long, String> = emptyMap(),
     val isLoading: Boolean = true,
-    /** Activity data synced from Android Health Connect (steps + calories burned). */
     val activitySummary: ActivitySummary = ActivitySummary(),
-    /** Whether today's plan has been marked as completed. */
     val isTodayCompleted: Boolean = false,
-    /** Pulses true once after finishTodayPlan() so the UI can show a snackbar. */
     val finishCompleted: Boolean = false
 )
 
@@ -119,8 +118,6 @@ class HomeViewModel @Inject constructor(
     private val _weekOffset = MutableStateFlow(0)
     val weekOffset: StateFlow<Int> = _weekOffset.asStateFlow()
 
-    // Tracks the combine job so we cancel it before re-launching on offset change.
-    // Without this, old jobs (different offset) keep emitting and overwrite weekDays.
     private var weekDataJob: Job? = null
 
     init {
@@ -137,7 +134,6 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Observes up to 365 days of logged-food dates and computes an unbounded streak.
-     * Any day with at least one logged food counts — no isCompleted gate.
      */
     private fun loadStreakData() {
         val today = LocalDate.now()
@@ -150,10 +146,6 @@ class HomeViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /**
-     * Fetches today's activity summary from Health Connect once per load/refresh.
-     * Silently no-ops when HC is not installed or permissions are missing.
-     */
     private fun loadActivityData() {
         viewModelScope.launch {
             val summary = healthConnectRepository.getTodayActivity()
@@ -194,8 +186,8 @@ class HomeViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        val today = LocalDate.now().toString()
-        healthRepository.getMetricsForDate(today)
+        val todayMs = LocalDate.now().toEpochMs()
+        healthRepository.getMetricsForDate(todayMs)
             .onEach { metrics ->
                 val weight = metrics.firstOrNull { it.metricType == MetricType.WEIGHT.name }
                 val sugar = metrics.firstOrNull { it.metricType == MetricType.BLOOD_GLUCOSE.name }
@@ -216,26 +208,22 @@ class HomeViewModel @Inject constructor(
         val startDate = endDate.minusDays(6)
         healthRepository.getMetricsByTypeInRange(
             MetricType.BLOOD_GLUCOSE,
-            startDate.toString(),
-            endDate.toString()
+            startDate.toEpochMs(),
+            endDate.toEpochMs()
         ).onEach { history ->
             _uiState.update { it.copy(glucoseHistory = history) }
         }.launchIn(viewModelScope)
     }
 
-    /**
-     * Loads Today's Plan slots from today's assigned diet + any custom slots.
-     * Combines log, plan, and custom-slot flows so home screen stays in sync
-     * with DailyLogScreen.
-     */
     private fun loadTodayPlanSlots() {
-        val todayStr = LocalDate.now().toString()
+        val todayMs = LocalDate.now().toEpochMs()
+        val today = LocalDate.now()
         viewModelScope.launch {
             val userId = AuthPreferences.getUserId(context).first() ?: return@launch
             combine(
-                dailyLogRepository.getLogWithFoods(LocalDate.now()),
-                planRepository.getPlansWithDietNames(todayStr, todayStr),
-                customMealSlotDao.getSlotsForDate(userId, todayStr)
+                dailyLogRepository.getLogWithFoods(today),
+                planRepository.getPlansWithDietNames(today, today),
+                customMealSlotDao.getSlotsForDate(userId, todayMs)
             ) { logWithFoods, plans, customSlots ->
                 Triple(logWithFoods, plans, customSlots)
             }
@@ -265,7 +253,6 @@ class HomeViewModel @Inject constructor(
                                 )
                             } ?: emptyList()
                     } else {
-                        // No diet assigned — show default slots that have logged foods
                         (logWithFoods?.foods ?: emptyList())
                             .filter { !it.loggedFood.slotType.startsWith("CUSTOM_") }
                             .groupBy { it.loggedFood.slotType.uppercase() }
@@ -288,7 +275,6 @@ class HomeViewModel @Inject constructor(
                             }
                     }
 
-                    // Append custom slots (always shown, logged or not)
                     val customTodaySlots = customSlots.map { slot ->
                         val slotType = "CUSTOM_${slot.id}"
                         val isLogged = logWithFoods?.foodsForSlot(slotType)?.isNotEmpty() == true
@@ -319,28 +305,20 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /** Plan a diet for today (called when user picks a diet from DietPickerScreen via HomeScreen). */
     fun planDietForToday(dietId: Long) {
         viewModelScope.launch {
-            planRepository.setPlanForDate(LocalDate.now().toString(), dietId)
-            // flows auto-refresh via combine in loadTodayPlanSlots
+            planRepository.setPlanForDate(LocalDate.now(), dietId)
         }
     }
 
-    /** Toggle a slot: log all planned foods if not logged, clear slot if already logged. */
     fun toggleSlotLogged(slot: TodayPlanSlot) {
         viewModelScope.launch {
             val today = LocalDate.now()
-            // Query the DB directly to avoid acting on stale UI state (prevents double-logging)
             val isCurrentlyLogged = dailyLogRepository.isSlotLogged(today, slot.slotType)
             if (isCurrentlyLogged) {
-                // Un-log: clear all logged foods for this slot
                 dailyLogRepository.clearSlot(today, slot.slotType)
             } else if (slot.plannedFoods.isNotEmpty()) {
-                // Always clear first — makes this operation idempotent even if called concurrently
-                // or if stale duplicate rows exist from a previous bug. No-op when already empty.
                 dailyLogRepository.clearSlot(today, slot.slotType)
-                // Log: insert LoggedFood for each food in the planned meal
                 val timestamp = System.currentTimeMillis()
                 slot.plannedFoods.forEach { foodItem ->
                     dailyLogRepository.logFood(
@@ -352,39 +330,27 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
-            // getLogWithFoods flow auto-refreshes todayPlanSlots and DailyLogScreen
-            // Also push the change to the home-screen widgets immediately
             TodayPlanWidget().updateAll(context)
             DietSummaryWidget().updateAll(context)
         }
     }
 
-    /** Mark today's plan as complete. Triggers a snackbar via [HomeUiState.finishCompleted]. */
     fun finishTodayPlan() {
         viewModelScope.launch {
-            planRepository.completePlan(LocalDate.now().toString())
+            planRepository.completePlan(LocalDate.now())
             _uiState.update { it.copy(finishCompleted = true) }
-            // plan flow auto-refreshes isTodayCompleted via loadTodayPlanSlots combine
         }
     }
 
-    /** Re-open a completed day so slots can be edited again. */
     fun reopenTodayPlan() {
         viewModelScope.launch {
-            planRepository.uncompletePlan(LocalDate.now().toString())
-            // plan flow auto-refreshes isTodayCompleted
+            planRepository.uncompletePlan(LocalDate.now())
         }
     }
 
     fun clearFinishCompleted() { _uiState.update { it.copy(finishCompleted = false) } }
 
-    /**
-     * Loads the 7-day week row with rich colour states and diet labels,
-     * plus weekly logged dates, streak, and month plans.
-     */
     private fun loadWeekData() {
-        // Cancel any previous week data collection (different offset) to avoid
-        // stale flows overwriting weekDays when logged_foods changes
         weekDataJob?.cancel()
 
         val today = LocalDate.now()
@@ -392,15 +358,12 @@ class HomeViewModel @Inject constructor(
         val weekStart = monday.plusWeeks(_weekOffset.value.toLong())
         val weekEnd = weekStart.plusDays(6)
 
-        // Combine: macro summaries (to know which days have calories logged)
-        //          + plans for the week (to know planned/completed state)
         weekDataJob = combine(
             dailyLogRepository.getCompletedDaysCalories(weekStart, weekEnd),
-            planRepository.getPlansWithDietNames(weekStart.toString(), weekEnd.toString())
+            planRepository.getPlansWithDietNames(weekStart, weekEnd)
         ) { calories, plans ->
             val loggedDates = calories.filter { it.calories > 0 }.map { it.date }.toSet()
 
-            // Build diet label map for the week
             val weekDietLabels = plans
                 .filter { it.dietId != null }
                 .mapNotNull { p -> p.dietName?.let { p.date to extractShortDietName(it) } }
@@ -410,27 +373,23 @@ class HomeViewModel @Inject constructor(
 
             val weekDays = (0..6).map { dayIndex ->
                 val date = weekStart.plusDays(dayIndex.toLong())
-                val dateStr = date.toString()
+                val dateMs = date.toEpochMs()
                 val isFuture = date.isAfter(today)
-                val isCompleted = weekPlansMap[dateStr] == true
-                val hasCalories = dateStr in loggedDates
-                val hasplan = weekPlansMap.containsKey(dateStr)
+                val isCompleted = weekPlansMap[dateMs] == true
+                val hasCalories = dateMs in loggedDates
+                val hasplan = weekPlansMap.containsKey(dateMs)
 
                 val state = when {
-                    // Today or past: completed or has logged calories → green
                     !isFuture && (isCompleted || hasCalories) -> WeekDayState.COMPLETED
-                    // Future with plan → orange
                     isFuture && hasplan -> WeekDayState.PLANNED_FUTURE
-                    // Past with a plan but not completed and no calories → red (missed)
                     !isFuture && hasplan && !hasCalories -> WeekDayState.MISSED
-                    // Past no plan and no calories → red (missed)
                     !isFuture && date.isBefore(today) && !hasCalories -> WeekDayState.MISSED
                     else -> WeekDayState.NO_DATA
                 }
 
                 WeekDayInfo(
                     date = date,
-                    dietLabel = weekDietLabels[dateStr],
+                    dietLabel = weekDietLabels[dateMs],
                     state = state
                 )
             }
@@ -447,29 +406,28 @@ class HomeViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Also load full month plans for the calendar section
         loadPlansForMonth()
     }
 
     /**
      * Walks backwards from today until it finds a day with no logged food.
-     * [loggedDates] is the set of date strings ("yyyy-MM-dd") where food was logged.
+     * [loggedDates] is the set of epoch-ms values where food was logged.
      */
-    private fun computeStreak(loggedDates: Set<String>): Int {
+    private fun computeStreak(loggedDates: Set<Long>): Int {
         val today = LocalDate.now()
         var streak = 0
         var i = 0
         while (true) {
-            val date = today.minusDays(i.toLong()).toString()
-            if (date in loggedDates) { streak++; i++ } else break
+            val dateMs = today.minusDays(i.toLong()).toEpochMs()
+            if (dateMs in loggedDates) { streak++; i++ } else break
         }
         return streak
     }
 
     private fun loadPlansForMonth() {
         val month = _uiState.value.currentMonth
-        val startDate = month.atDay(1).toString()
-        val endDate = month.atEndOfMonth().toString()
+        val startDate = month.atDay(1)
+        val endDate = month.atEndOfMonth()
 
         viewModelScope.launch {
             planRepository.getPlansWithDietNames(startDate, endDate).collect { plansWithNames ->
@@ -503,7 +461,6 @@ class HomeViewModel @Inject constructor(
         loadActivityData()
     }
 
-    /** Called from the UI after the user grants Health Connect permissions. */
     fun onHealthConnectPermissionsGranted() {
         loadActivityData()
     }

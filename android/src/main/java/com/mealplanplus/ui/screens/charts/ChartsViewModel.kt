@@ -8,6 +8,7 @@ import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
+import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
@@ -23,16 +24,13 @@ enum class DateRange(val label: String, val days: Int) {
 }
 
 data class ChartsUiState(
-    // Health tab
     val selectedMetricType: MetricType = MetricType.WEIGHT,
     val healthRange: DateRange = DateRange.MONTH,
     val healthMetrics: List<HealthMetric> = emptyList(),
 
-    // Nutrition tab
     val nutritionRange: DateRange = DateRange.WEEK,
     val macroTotals: List<DailyMacroSummary> = emptyList(),
 
-    // Insights tab
     val insightsRange: DateRange = DateRange.MONTH,
     val totalPlans: Int = 0,
     val completedPlans: Int = 0,
@@ -68,16 +66,14 @@ class ChartsViewModel @Inject constructor(
 
         healthJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-
             try {
                 val flow = if (range.days == -1) {
                     healthRepository.getMetricsByType(type)
                 } else {
-                    val endDate = LocalDate.now().toString()
-                    val startDate = LocalDate.now().minusDays(range.days.toLong()).toString()
+                    val endDate = LocalDate.now().toEpochMs()
+                    val startDate = LocalDate.now().minusDays(range.days.toLong()).toEpochMs()
                     healthRepository.getMetricsByTypeInRange(type, startDate, endDate)
                 }
-
                 flow.collect { metrics ->
                     _uiState.update {
                         it.copy(
@@ -134,14 +130,11 @@ class ChartsViewModel @Inject constructor(
 
         insightsJob = viewModelScope.launch {
             try {
-                planRepository.getPlansInRange(startDate.toString(), endDate.toString()).collect { plans ->
+                planRepository.getPlansInRange(startDate, endDate).collect { plans ->
                     val total = plans.size
                     val completed = plans.count { it.isCompleted }
                     _uiState.update {
-                        it.copy(
-                            totalPlans = total,
-                            completedPlans = completed
-                        )
+                        it.copy(totalPlans = total, completedPlans = completed)
                     }
                 }
             } catch (e: Exception) {

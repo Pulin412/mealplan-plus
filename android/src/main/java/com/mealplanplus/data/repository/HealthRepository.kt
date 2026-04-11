@@ -6,6 +6,7 @@ import com.mealplanplus.data.model.CustomMetricType
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -27,7 +28,7 @@ class HealthRepository @Inject constructor(
     suspend fun logMetric(
         type: MetricType,
         value: Double,
-        date: String = LocalDate.now().toString(),
+        date: Long = LocalDate.now().toEpochMs(),
         subType: String? = null,
         secondaryValue: Double? = null,
         notes: String? = null
@@ -48,7 +49,7 @@ class HealthRepository @Inject constructor(
     suspend fun logCustomMetric(
         customTypeId: Long,
         value: Double,
-        date: String = LocalDate.now().toString(),
+        date: Long = LocalDate.now().toEpochMs(),
         notes: String? = null
     ): Long {
         return healthMetricDao.insertMetric(
@@ -67,13 +68,13 @@ class HealthRepository @Inject constructor(
 
     suspend fun deleteMetric(metric: HealthMetric) = healthMetricDao.deleteMetric(metric)
 
-    fun getMetricsForDate(date: String): Flow<List<HealthMetric>> =
+    fun getMetricsForDate(date: Long): Flow<List<HealthMetric>> =
         healthMetricDao.getMetricsForDate(getCurrentUserId(), date)
 
     fun getMetricsByType(type: MetricType): Flow<List<HealthMetric>> =
         healthMetricDao.getMetricsByType(getCurrentUserId(), type.name)
 
-    fun getMetricsByTypeInRange(type: MetricType, startDate: String, endDate: String): Flow<List<HealthMetric>> =
+    fun getMetricsByTypeInRange(type: MetricType, startDate: Long, endDate: Long): Flow<List<HealthMetric>> =
         healthMetricDao.getMetricsByTypeInRange(getCurrentUserId(), type.name, startDate, endDate)
 
     fun getRecentMetrics(limit: Int = 50): Flow<List<HealthMetric>> =

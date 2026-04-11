@@ -25,8 +25,6 @@ class DietRepository @Inject constructor(
 
     fun getDietsByUser(): Flow<List<Diet>> = dietDao.getDietsByUser(getCurrentUserId())
 
-    fun getDietsWithSummary(): Flow<List<DietSummary>> = dietDao.getDietsWithSummaryByUser(getCurrentUserId())
-
     fun getDietsWithFullSummary(): Flow<List<DietFullSummary>> = dietDao.getDietsWithFullSummaryByUser(getCurrentUserId())
 
     suspend fun getDietById(id: Long): Diet? = dietDao.getDietById(id)

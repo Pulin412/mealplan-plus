@@ -19,6 +19,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.mealplanplus.util.toEpochMs
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -87,7 +88,7 @@ class DailyLogViewModel @Inject constructor(
                 logRepository.getLogWithFoods(date)
             }.collect { logWithFoods ->
                 val date = _date.value
-                val plan = planRepository.getPlanForDate(date.toString())
+                val plan = planRepository.getPlanForDate(date)
                 val plannedDiet = plan?.dietId?.let { dietRepository.getDietWithMeals(it) }
                 val comparison = buildComparison(plannedDiet, logWithFoods)
                 _uiState.update {
@@ -106,7 +107,7 @@ class DailyLogViewModel @Inject constructor(
             val userId = AuthPreferences.getUserId(context).first() ?: return@launch
             _date.flatMapLatest { date ->
                 _savedSlotOrder.value = loadSlotOrder(userId, date)
-                customMealSlotDao.getSlotsForDate(userId, date.toString())
+                customMealSlotDao.getSlotsForDate(userId, date.toEpochMs())
             }.collect { slots ->
                 _customSlots.value = slots
             }
@@ -142,7 +143,7 @@ class DailyLogViewModel @Inject constructor(
 
     fun setDateFromString(dateStr: String?) {
         _date.value = dateStr?.let {
-            try { logRepository.parseDate(it) } catch (_: Exception) { LocalDate.now() }
+            try { LocalDate.parse(it) } catch (_: Exception) { LocalDate.now() }
         } ?: LocalDate.now()
     }
 
@@ -159,7 +160,7 @@ class DailyLogViewModel @Inject constructor(
             customMealSlotDao.insert(
                 CustomMealSlot(
                     userId = userId,
-                    date = date.toString(),
+                    date = date.toEpochMs(),
                     name = name.trim(),
                     slotOrder = 99 + _customSlots.value.size
                 )
@@ -226,7 +227,7 @@ class DailyLogViewModel @Inject constructor(
             } ?: _date.value
             val dietWithMeals = dietRepository.getDietWithMeals(dietId)
             if (dietWithMeals != null) {
-                planRepository.setPlanForDate(date.toString(), dietId)
+                planRepository.setPlanForDate(date, dietId)
                 logRepository.applyDiet(date, dietWithMeals)
                 loadPlanForDate(date)
             }
@@ -235,13 +236,13 @@ class DailyLogViewModel @Inject constructor(
     }
 
     private suspend fun loadPlanForDate(date: LocalDate) {
-        val plan = planRepository.getPlanForDate(date.toString())
+        val plan = planRepository.getPlanForDate(date)
         _uiState.update { it.copy(planForDate = plan) }
     }
 
     fun finishPlan() {
         viewModelScope.launch {
-            planRepository.completePlan(_date.value.toString())
+            planRepository.completePlan(_date.value)
             loadPlanForDate(_date.value)
             _uiState.update { it.copy(finishCompleted = true) }
         }
@@ -280,7 +281,7 @@ class DailyLogViewModel @Inject constructor(
     fun clearPlan() {
         viewModelScope.launch {
             logRepository.clearAllFoodsForDate(_date.value)
-            planRepository.removePlan(_date.value.toString())
+            planRepository.removePlan(_date.value)
             loadPlanForDate(_date.value)
             updateWidgetsIfToday()
         }
@@ -288,7 +289,7 @@ class DailyLogViewModel @Inject constructor(
 
     fun reopenPlan() {
         viewModelScope.launch {
-            planRepository.uncompletePlan(_date.value.toString())
+            planRepository.uncompletePlan(_date.value)
             loadPlanForDate(_date.value)
         }
     }

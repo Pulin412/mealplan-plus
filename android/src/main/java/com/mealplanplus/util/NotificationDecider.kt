@@ -82,14 +82,12 @@ object NotificationDecider {
      * A streak is the number of consecutive days ending on [today] where each day
      * has at least one logged entry. If today is not in the list the streak is 0.
      *
-     * @param completedDateStrings Distinct ISO-format date strings ("yyyy-MM-dd") with any calories > 0.
+     * @param completedDates Distinct [LocalDate] values with any calories > 0.
      * @param today The reference date (usually [LocalDate.now]).
      */
-    fun computeStreak(completedDateStrings: List<String>, today: LocalDate): Int {
-        if (completedDateStrings.isEmpty()) return 0
-        val dates = completedDateStrings
-            .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
-            .toSortedSet()
+    fun computeStreak(completedDates: List<LocalDate>, today: LocalDate): Int {
+        if (completedDates.isEmpty()) return 0
+        val dates = completedDates.toSortedSet()
         if (!dates.contains(today)) return 0
         var streak = 0
         var expected = today

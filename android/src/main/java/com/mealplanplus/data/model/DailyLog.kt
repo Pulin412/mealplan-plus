@@ -23,8 +23,8 @@ import androidx.room.PrimaryKey
 )
 data class DailyLog(
     val userId: Long,
-    val date: String,  // Format: yyyy-MM-dd
-    val plannedDietId: Long? = null,  // Default diet for the day
+    val date: Long,  // Epoch milliseconds at midnight UTC (use DateUtils.toEpochMs / toLocalDate)
+    val plannedDietId: Long? = null,
     val notes: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
@@ -54,7 +54,7 @@ data class LoggedFood(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val userId: Long,
-    val logDate: String,  // References DailyLog.date
+    val logDate: Long,  // Epoch ms — references DailyLog.date
     val foodId: Long,
     val quantity: Double,
     val unit: FoodUnit = FoodUnit.GRAM,  // Unit of measurement
@@ -111,7 +111,7 @@ data class DailyLogWithFoods(
  * Daily macro summary for charts
  */
 data class DailyMacroSummary(
-    val date: String,
+    val date: Long,  // Epoch ms
     val calories: Double,
     val protein: Double,
     val carbs: Double,

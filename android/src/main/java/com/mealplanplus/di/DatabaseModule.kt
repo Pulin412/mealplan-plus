@@ -1051,6 +1051,197 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Migrate date columns from TEXT (ISO-8601 'YYYY-MM-DD') to INTEGER (epoch milliseconds).
+     *
+     * Tables affected: daily_logs, logged_foods, plans, grocery_lists,
+     *                  health_metrics, custom_meal_slots
+     *
+     * Conversion: (julianday(col) - julianday('1970-01-01')) * 86400000
+     * This yields midnight UTC epoch ms for any 'YYYY-MM-DD' string, matching
+     * the DateUtils.LocalDate.toEpochMs() semantics used throughout the app.
+     *
+     * SQLite does not support ALTER COLUMN, so each affected table is recreated
+     * in the standard "new → copy → drop → rename" pattern.
+     * PRAGMA foreign_keys is disabled for the duration.
+     */
+    private val MIGRATION_25_26 = object : Migration(25, 26) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("PRAGMA foreign_keys = OFF")
+
+            // ── daily_logs ──────────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE daily_logs_new (
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `plannedDietId` INTEGER,
+                    `notes` TEXT,
+                    `createdAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`userId`, `date`),
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO daily_logs_new
+                SELECT userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       plannedDietId, notes, createdAt
+                FROM daily_logs
+            """.trimIndent())
+            db.execSQL("DROP TABLE daily_logs")
+            db.execSQL("ALTER TABLE daily_logs_new RENAME TO daily_logs")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_daily_logs_userId` ON `daily_logs` (`userId`)")
+
+            // ── logged_foods (child of daily_logs) ──────────────────────────
+            db.execSQL("""
+                CREATE TABLE logged_foods_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `logDate` INTEGER NOT NULL,
+                    `foodId` INTEGER NOT NULL,
+                    `quantity` REAL NOT NULL,
+                    `unit` TEXT NOT NULL,
+                    `slotType` TEXT NOT NULL,
+                    `timestamp` INTEGER,
+                    `notes` TEXT,
+                    FOREIGN KEY(`userId`, `logDate`) REFERENCES `daily_logs`(`userId`, `date`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(`foodId`) REFERENCES `food_items`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO logged_foods_new
+                SELECT id, userId,
+                       CAST((julianday(logDate) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       foodId, quantity, unit, slotType, timestamp, notes
+                FROM logged_foods
+            """.trimIndent())
+            db.execSQL("DROP TABLE logged_foods")
+            db.execSQL("ALTER TABLE logged_foods_new RENAME TO logged_foods")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_logged_foods_userId_logDate` ON `logged_foods` (`userId`, `logDate`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_logged_foods_foodId` ON `logged_foods` (`foodId`)")
+
+            // ── plans ────────────────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE plans_new (
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `dietId` INTEGER,
+                    `notes` TEXT,
+                    `isCompleted` INTEGER NOT NULL,
+                    PRIMARY KEY(`userId`, `date`),
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(`dietId`) REFERENCES `diets`(`id`)
+                        ON UPDATE NO ACTION ON DELETE SET NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO plans_new
+                SELECT userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       dietId, notes, isCompleted
+                FROM plans
+            """.trimIndent())
+            db.execSQL("DROP TABLE plans")
+            db.execSQL("ALTER TABLE plans_new RENAME TO plans")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_plans_userId` ON `plans` (`userId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_plans_dietId` ON `plans` (`dietId`)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_plans_userId_date` ON `plans` (`userId`, `date`)")
+
+            // ── grocery_lists (nullable startDate / endDate) ─────────────────
+            db.execSQL("""
+                CREATE TABLE grocery_lists_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `startDate` INTEGER,
+                    `endDate` INTEGER,
+                    `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    `serverId` TEXT,
+                    `syncedAt` INTEGER,
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO grocery_lists_new
+                SELECT id, userId, name,
+                       CASE WHEN startDate IS NULL THEN NULL
+                            ELSE CAST((julianday(startDate) - julianday('1970-01-01')) * 86400000 AS INTEGER)
+                       END,
+                       CASE WHEN endDate IS NULL THEN NULL
+                            ELSE CAST((julianday(endDate) - julianday('1970-01-01')) * 86400000 AS INTEGER)
+                       END,
+                       createdAt, updatedAt, serverId, syncedAt
+                FROM grocery_lists
+            """.trimIndent())
+            db.execSQL("DROP TABLE grocery_lists")
+            db.execSQL("ALTER TABLE grocery_lists_new RENAME TO grocery_lists")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_grocery_lists_userId` ON `grocery_lists` (`userId`)")
+
+            // ── health_metrics ───────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE health_metrics_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `timestamp` INTEGER NOT NULL,
+                    `metricType` TEXT,
+                    `customTypeId` INTEGER,
+                    `value` REAL NOT NULL,
+                    `secondaryValue` REAL,
+                    `subType` TEXT,
+                    `notes` TEXT,
+                    `serverId` TEXT,
+                    `updatedAt` INTEGER NOT NULL,
+                    `syncedAt` INTEGER,
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO health_metrics_new
+                SELECT id, userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       timestamp, metricType, customTypeId, value, secondaryValue,
+                       subType, notes, serverId, updatedAt, syncedAt
+                FROM health_metrics
+            """.trimIndent())
+            db.execSQL("DROP TABLE health_metrics")
+            db.execSQL("ALTER TABLE health_metrics_new RENAME TO health_metrics")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_userId` ON `health_metrics` (`userId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_date` ON `health_metrics` (`date`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_metricType` ON `health_metrics` (`metricType`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_customTypeId` ON `health_metrics` (`customTypeId`)")
+
+            // ── custom_meal_slots ────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE custom_meal_slots_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `slotOrder` INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO custom_meal_slots_new
+                SELECT id, userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       name, slotOrder
+                FROM custom_meal_slots
+            """.trimIndent())
+            db.execSQL("DROP TABLE custom_meal_slots")
+            db.execSQL("ALTER TABLE custom_meal_slots_new RENAME TO custom_meal_slots")
+
+            db.execSQL("PRAGMA foreign_keys = ON")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -1059,7 +1250,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26)
             // Removed fallbackToDestructiveMigration() - this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

@@ -4,7 +4,6 @@ import androidx.room.*
 import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.DietFullSummary
 import com.mealplanplus.data.model.DietMeal
-import com.mealplanplus.data.model.DietSummary
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -69,34 +68,6 @@ interface DietDao {
 
     @Query("SELECT * FROM diets WHERE userId = :userId AND isFavourite = 1 ORDER BY name ASC")
     fun getFavouriteDietsByUser(userId: Long): Flow<List<Diet>>
-
-    /**
-     * Get all diets with meal count and total calories in single query (for a specific user)
-     */
-    @Query("""
-        SELECT
-            d.id, d.userId, d.name, d.description, d.createdAt,
-            COUNT(DISTINCT dm.slotType) as mealCount,
-            COALESCE(SUM(
-                CASE WHEN mfi.unit = 'GRAM' THEN f.caloriesPer100 * mfi.quantity / 100
-                     WHEN mfi.unit = 'PIECE' THEN f.caloriesPer100 * COALESCE(f.gramsPerPiece, 100) * mfi.quantity / 100
-                     WHEN mfi.unit = 'CUP' THEN f.caloriesPer100 * COALESCE(f.gramsPerCup, 240) * mfi.quantity / 100
-                     WHEN mfi.unit = 'TBSP' THEN f.caloriesPer100 * COALESCE(f.gramsPerTbsp, 15) * mfi.quantity / 100
-                     WHEN mfi.unit = 'TSP' THEN f.caloriesPer100 * COALESCE(f.gramsPerTsp, 5) * mfi.quantity / 100
-                     ELSE f.caloriesPer100 * mfi.quantity / 100
-                END
-            ), 0) as totalCalories,
-            d.isFavourite
-        FROM diets d
-        LEFT JOIN diet_meals dm ON d.id = dm.dietId
-        LEFT JOIN meals m ON dm.mealId = m.id
-        LEFT JOIN meal_food_items mfi ON m.id = mfi.mealId
-        LEFT JOIN food_items f ON mfi.foodId = f.id
-        WHERE d.userId = :userId
-        GROUP BY d.id
-        ORDER BY d.name
-    """)
-    fun getDietsWithSummaryByUser(userId: Long): Flow<List<DietSummary>>
 
     /**
      * Get all diets with full macro summary in single query (for a specific user)

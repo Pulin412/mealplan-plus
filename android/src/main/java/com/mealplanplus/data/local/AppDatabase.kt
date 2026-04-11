@@ -25,7 +25,7 @@ import com.mealplanplus.data.model.*
         GroceryItem::class,
         CustomMealSlot::class
     ],
-    version = 25,
+    version = 26,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

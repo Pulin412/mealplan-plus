@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CustomMealSlotDao {
     @Query("SELECT * FROM custom_meal_slots WHERE userId = :userId AND date = :date ORDER BY slotOrder ASC")
-    fun getSlotsForDate(userId: Long, date: String): Flow<List<CustomMealSlot>>
+    fun getSlotsForDate(userId: Long, date: Long): Flow<List<CustomMealSlot>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(slot: CustomMealSlot): Long

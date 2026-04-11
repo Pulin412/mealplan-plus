@@ -39,8 +39,8 @@ import com.mealplanplus.MainActivity
 import com.mealplanplus.data.model.PlanWithDietName
 import com.mealplanplus.util.WidgetAppearanceState
 import com.mealplanplus.util.WidgetPreferences
+import com.mealplanplus.util.toEpochMs
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JTextStyle
 import java.util.Locale
 
@@ -85,7 +85,6 @@ private fun CalendarWidgetContent(
     prefs: WidgetAppearanceState = WidgetAppearanceState()
 ) {
     val today   = LocalDate.now()
-    val fmt     = DateTimeFormatter.ISO_LOCAL_DATE
     val planMap = weekPlans.associateBy { it.date }
 
     val bgModifier = if (prefs.useDynamic) {
@@ -106,7 +105,7 @@ private fun CalendarWidgetContent(
     ) {
         for (offset in 0..6) {
             val day     = today.plusDays(offset.toLong())
-            val plan    = planMap[day.format(fmt)]
+            val plan    = planMap[day.toEpochMs()]
             val isToday = offset == 0
 
             DayCell(

@@ -13,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.mealplanplus.util.toEpochMs
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -108,17 +109,14 @@ class HealthViewModel @Inject constructor(
 
             val flow: Flow<List<HealthMetric>> = when {
                 state.selectedCustomTypeId != null -> {
+                    val startMs = startDate.toEpochMs()
+                    val endMs = endDate.toEpochMs()
                     healthRepository.getMetricsByCustomType(state.selectedCustomTypeId)
-                        .map { list ->
-                            list.filter {
-                                it.date >= startDate.toString() && it.date <= endDate.toString()
-                            }
-                        }
+                        .map { list -> list.filter { it.date in startMs..endMs } }
                 }
                 state.selectedMetricType != null -> {
-                    // getMetricsByTypeInRange returns ASC; reverse → DESC
                     healthRepository.getMetricsByTypeInRange(
-                        state.selectedMetricType, startDate.toString(), endDate.toString()
+                        state.selectedMetricType, startDate.toEpochMs(), endDate.toEpochMs()
                     ).map { it.reversed() }
                 }
                 else -> flowOf(emptyList())
@@ -296,31 +294,31 @@ class HealthViewModel @Inject constructor(
 
     fun saveAllMetrics() {
         val state = _uiState.value
-        val dateStr = state.logDate.toString()
+        val dateMs = state.logDate.toEpochMs()
         val notes = state.logNotes.ifBlank { null }
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
                 state.logBgValue.toDoubleOrNull()?.let { v ->
                     healthRepository.logMetric(
-                        MetricType.BLOOD_GLUCOSE, v, dateStr,
+                        MetricType.BLOOD_GLUCOSE, v, dateMs,
                         subType = state.logBgSubType, notes = notes
                     )
                 }
                 state.logWeightValue.toDoubleOrNull()?.let { v ->
-                    healthRepository.logMetric(MetricType.WEIGHT, v, dateStr, notes = notes)
+                    healthRepository.logMetric(MetricType.WEIGHT, v, dateMs, notes = notes)
                 }
                 val sys = state.logBpSystolic.toDoubleOrNull()
                 val dia = state.logBpDiastolic.toDoubleOrNull()
                 if (sys != null && dia != null) {
                     healthRepository.logMetric(
-                        MetricType.BLOOD_PRESSURE, sys, dateStr,
+                        MetricType.BLOOD_PRESSURE, sys, dateMs,
                         secondaryValue = dia, notes = notes
                     )
                 }
                 val customId = state.selectedCustomTypeId
                 state.logCustomValue.toDoubleOrNull()?.let { v ->
-                    if (customId != null) healthRepository.logCustomMetric(customId, v, dateStr, notes)
+                    if (customId != null) healthRepository.logCustomMetric(customId, v, dateMs, notes)
                 }
                 _uiState.update { it.copy(showLogSheet = false, isSaving = false) }
                 loadMetrics()

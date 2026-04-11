@@ -51,6 +51,8 @@ import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
+import com.mealplanplus.util.toEpochMs
+import com.mealplanplus.util.toLocalDate
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -1119,7 +1121,7 @@ fun GlucoseChart(history: List<HealthMetric>) {
     val producer = remember(entries) { ChartEntryModelProducer(entries) }
     val labels = remember(sorted) {
         val fmt = DateTimeFormatter.ofPattern("dd/MM")
-        sorted.map { m -> LocalDate.parse(m.date).format(fmt) }
+        sorted.map { m -> m.date.toLocalDate().format(fmt) }
     }
     val xSpacing = remember(sorted.size) { maxOf(1, sorted.size / 4) }
     val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->

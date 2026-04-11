@@ -6,12 +6,13 @@ import com.mealplanplus.data.local.PlanDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.GroceryCategory
+import com.mealplanplus.util.toEpochMs
+import com.mealplanplus.util.toLocalDate
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,8 +23,6 @@ class GroceryRepository @Inject constructor(
     private val dietRepository: DietRepository,
     @ApplicationContext private val context: Context
 ) {
-    private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
-
     private fun getCurrentUserId(): Long = runBlocking {
         AuthPreferences.getUserId(context).first() ?: throw IllegalStateException("Not logged in")
     }
@@ -37,10 +36,7 @@ class GroceryRepository @Inject constructor(
     suspend fun getListWithItemsOnce(listId: Long): GroceryListWithItems? = groceryDao.getListWithItemsOnce(listId)
 
     suspend fun createEmptyList(name: String): Long {
-        val list = GroceryList(
-            userId = getCurrentUserId(),
-            name = name
-        )
+        val list = GroceryList(userId = getCurrentUserId(), name = name)
         return groceryDao.insertList(list)
     }
 
@@ -67,13 +63,7 @@ class GroceryRepository @Inject constructor(
     }
 
     suspend fun addCustomItem(listId: Long, name: String, quantity: Double, unit: FoodUnit, category: String? = GroceryCategory.OTHER): Long {
-        val item = GroceryItem(
-            listId = listId,
-            customName = name,
-            quantity = quantity,
-            unit = unit,
-            category = category
-        )
+        val item = GroceryItem(listId = listId, customName = name, quantity = quantity, unit = unit, category = category)
         return groceryDao.insertItem(item)
     }
 
@@ -83,135 +73,59 @@ class GroceryRepository @Inject constructor(
      * Generate grocery list from planned meals for given dates.
      * Combines quantities for same food items and assigns food categories.
      */
-    suspend fun generateFromDateRange(
-        name: String,
-        dates: List<LocalDate>
-    ): Long {
+    suspend fun generateFromDateRange(name: String, dates: List<LocalDate>): Long {
         val userId = getCurrentUserId()
-        val dateStrings = dates.map { it.format(dateFormatter) }
-        val startDate = dates.minOrNull()?.format(dateFormatter)
-        val endDate = dates.maxOrNull()?.format(dateFormatter)
+        val startDate = dates.minOrNull()?.toEpochMs()
+        val endDate = dates.maxOrNull()?.toEpochMs()
 
         val list = GroceryList(userId = userId, name = name, startDate = startDate, endDate = endDate)
         val listId = groceryDao.insertList(list)
 
         val aggregatedFoods = mutableMapOf<AggregationKey, AggregatedFood>()
 
-        for (dateStr in dateStrings) {
-            val plan = planDao.getPlanForDate(userId, dateStr)
+        for (date in dates) {
+            val plan = planDao.getPlanForDate(userId, date.toEpochMs())
             val dietId = plan?.dietId ?: continue
             val dietWithMeals = dietRepository.getDietWithMeals(dietId) ?: continue
-
-            for ((_, mealWithFoods) in dietWithMeals.meals) {
-                if (mealWithFoods == null) continue
-                for (item in mealWithFoods.items) {
-                    val key = AggregationKey(item.food.id, item.mealFoodItem.unit)
-                    val existing = aggregatedFoods[key]
-                    if (existing != null) {
-                        existing.quantity += item.mealFoodItem.quantity
-                    } else {
-                        aggregatedFoods[key] = AggregatedFood(
-                            foodId = item.food.id,
-                            foodName = item.food.name,
-                            quantity = item.mealFoodItem.quantity,
-                            unit = item.mealFoodItem.unit
-                        )
-                    }
-                }
-            }
+            aggregateMeals(dietWithMeals, aggregatedFoods)
         }
 
-        val groceryItems = aggregatedFoods.values
-            .sortedBy { it.foodName.lowercase() }
-            .mapIndexed { index, agg ->
-                GroceryItem(
-                    listId = listId,
-                    foodId = agg.foodId,
-                    quantity = agg.quantity,
-                    unit = agg.unit,
-                    sortOrder = index,
-                    category = GroceryCategory.categorize(agg.foodName)
-                )
-            }
-
-        if (groceryItems.isNotEmpty()) {
-            groceryDao.insertItems(groceryItems)
-        }
-
+        insertAggregated(aggregatedFoods, listId)
         return listId
     }
 
     /**
      * Regenerate items for an existing list from its original date range.
-     * Deletes current items and re-generates from the same dates.
+     * Deletes current food-linked items and re-generates from the same dates.
      */
     suspend fun regenerateList(listId: Long) {
         val listWithItems = groceryDao.getListWithItemsOnce(listId) ?: return
         val list = listWithItems.list
-        val startDateStr = list.startDate ?: return
-        val endDateStr = list.endDate ?: startDateStr
+        val startMs = list.startDate ?: return
+        val endMs = list.endDate ?: startMs
 
-        val start = LocalDate.parse(startDateStr, dateFormatter)
-        val end = LocalDate.parse(endDateStr, dateFormatter)
+        val start = startMs.toLocalDate()
+        val end = endMs.toLocalDate()
         val dates = generateSequence(start) { d -> if (d < end) d.plusDays(1) else null }.toList()
 
         val userId = getCurrentUserId()
-        val dateStrings = dates.map { it.format(dateFormatter) }
         val aggregatedFoods = mutableMapOf<AggregationKey, AggregatedFood>()
 
-        for (dateStr in dateStrings) {
-            val plan = planDao.getPlanForDate(userId, dateStr)
+        for (date in dates) {
+            val plan = planDao.getPlanForDate(userId, date.toEpochMs())
             val dietId = plan?.dietId ?: continue
             val dietWithMeals = dietRepository.getDietWithMeals(dietId) ?: continue
-
-            for ((_, mealWithFoods) in dietWithMeals.meals) {
-                if (mealWithFoods == null) continue
-                for (item in mealWithFoods.items) {
-                    val key = AggregationKey(item.food.id, item.mealFoodItem.unit)
-                    val existing = aggregatedFoods[key]
-                    if (existing != null) {
-                        existing.quantity += item.mealFoodItem.quantity
-                    } else {
-                        aggregatedFoods[key] = AggregatedFood(
-                            foodId = item.food.id,
-                            foodName = item.food.name,
-                            quantity = item.mealFoodItem.quantity,
-                            unit = item.mealFoodItem.unit
-                        )
-                    }
-                }
-            }
+            aggregateMeals(dietWithMeals, aggregatedFoods)
         }
 
-        // Delete existing items from plan (keep custom items)
-        val existingItems = listWithItems.items
-        existingItems.filter { it.item.foodId != null }.forEach { groceryDao.deleteItemById(it.item.id) }
+        // Delete existing food-linked items (keep custom items)
+        listWithItems.items.filter { it.item.foodId != null }.forEach { groceryDao.deleteItemById(it.item.id) }
 
-        // Insert new items
-        val newItems = aggregatedFoods.values
-            .sortedBy { it.foodName.lowercase() }
-            .mapIndexed { index, agg ->
-                GroceryItem(
-                    listId = listId,
-                    foodId = agg.foodId,
-                    quantity = agg.quantity,
-                    unit = agg.unit,
-                    sortOrder = index,
-                    category = GroceryCategory.categorize(agg.foodName)
-                )
-            }
-
-        if (newItems.isNotEmpty()) {
-            groceryDao.insertItems(newItems)
-        }
-
-        // Update updatedAt timestamp
+        insertAggregated(aggregatedFoods, listId)
         groceryDao.updateList(list.copy(updatedAt = System.currentTimeMillis()))
     }
 
-    /**
-     * Generate grocery list from a single diet
-     */
+    /** Generate grocery list from a single diet. */
     suspend fun generateFromDiet(name: String, dietId: Long): Long {
         val userId = getCurrentUserId()
         val dietWithMeals = dietRepository.getDietWithMeals(dietId)
@@ -221,16 +135,23 @@ class GroceryRepository @Inject constructor(
         val listId = groceryDao.insertList(list)
 
         val aggregatedFoods = mutableMapOf<AggregationKey, AggregatedFood>()
+        aggregateMeals(dietWithMeals, aggregatedFoods)
+        insertAggregated(aggregatedFoods, listId)
+        return listId
+    }
 
+    // ===== Private helpers =====
+
+    private fun aggregateMeals(dietWithMeals: DietWithMeals, acc: MutableMap<AggregationKey, AggregatedFood>) {
         for ((_, mealWithFoods) in dietWithMeals.meals) {
             if (mealWithFoods == null) continue
             for (item in mealWithFoods.items) {
                 val key = AggregationKey(item.food.id, item.mealFoodItem.unit)
-                val existing = aggregatedFoods[key]
+                val existing = acc[key]
                 if (existing != null) {
                     existing.quantity += item.mealFoodItem.quantity
                 } else {
-                    aggregatedFoods[key] = AggregatedFood(
+                    acc[key] = AggregatedFood(
                         foodId = item.food.id,
                         foodName = item.food.name,
                         quantity = item.mealFoodItem.quantity,
@@ -239,8 +160,10 @@ class GroceryRepository @Inject constructor(
                 }
             }
         }
+    }
 
-        val groceryItems = aggregatedFoods.values
+    private suspend fun insertAggregated(aggregatedFoods: Map<AggregationKey, AggregatedFood>, listId: Long) {
+        val items = aggregatedFoods.values
             .sortedBy { it.foodName.lowercase() }
             .mapIndexed { index, agg ->
                 GroceryItem(
@@ -252,15 +175,8 @@ class GroceryRepository @Inject constructor(
                     category = GroceryCategory.categorize(agg.foodName)
                 )
             }
-
-        if (groceryItems.isNotEmpty()) {
-            groceryDao.insertItems(groceryItems)
-        }
-
-        return listId
+        if (items.isNotEmpty()) groceryDao.insertItems(items)
     }
-
-    // ===== Helper classes =====
 
     private data class AggregationKey(val foodId: Long, val unit: FoodUnit)
 

@@ -22,7 +22,7 @@ interface HealthMetricDao {
     suspend fun getMetricById(id: Long): HealthMetric?
 
     @Query("SELECT * FROM health_metrics WHERE userId = :userId AND date = :date ORDER BY timestamp DESC")
-    fun getMetricsForDate(userId: Long, date: String): Flow<List<HealthMetric>>
+    fun getMetricsForDate(userId: Long, date: Long): Flow<List<HealthMetric>>
 
     @Query("SELECT * FROM health_metrics WHERE userId = :userId AND metricType = :type ORDER BY date DESC, timestamp DESC")
     fun getMetricsByType(userId: Long, type: String): Flow<List<HealthMetric>>
@@ -35,7 +35,7 @@ interface HealthMetricDao {
         WHERE userId = :userId AND metricType = :type AND date BETWEEN :startDate AND :endDate
         ORDER BY date ASC, timestamp ASC
     """)
-    fun getMetricsByTypeInRange(userId: Long, type: String, startDate: String, endDate: String): Flow<List<HealthMetric>>
+    fun getMetricsByTypeInRange(userId: Long, type: String, startDate: Long, endDate: Long): Flow<List<HealthMetric>>
 
     @Query("SELECT * FROM health_metrics WHERE userId = :userId ORDER BY date DESC, timestamp DESC LIMIT :limit")
     fun getRecentMetrics(userId: Long, limit: Int = 50): Flow<List<HealthMetric>>

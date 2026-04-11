@@ -1,6 +1,7 @@
 package com.mealplanplus.data.model
 
 import androidx.room.*
+import com.mealplanplus.util.toLocalDate
 
 /**
  * A saved grocery list generated from planned meals
@@ -22,8 +23,8 @@ data class GroceryList(
     val id: Long = 0,
     val userId: Long,
     val name: String,
-    val startDate: String? = null,  // yyyy-MM-dd or null if manual
-    val endDate: String? = null,    // yyyy-MM-dd or null if manual
+    val startDate: Long? = null,  // Epoch ms or null if manual
+    val endDate: Long? = null,    // Epoch ms or null if manual
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     // Sync columns (v19)
@@ -31,11 +32,16 @@ data class GroceryList(
     val syncedAt: Long? = null
 ) {
     val dateRangeDisplay: String?
-        get() = when {
-            startDate != null && endDate != null && startDate == endDate -> startDate
-            startDate != null && endDate != null -> "$startDate to $endDate"
-            startDate != null -> "From $startDate"
-            else -> null
+        get() {
+            val fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            val start = startDate?.toLocalDate()?.format(fmt)
+            val end = endDate?.toLocalDate()?.format(fmt)
+            return when {
+                start != null && end != null && startDate == endDate -> start
+                start != null && end != null -> "$start to $end"
+                start != null -> "From $start"
+                else -> null
+            }
         }
 }
 

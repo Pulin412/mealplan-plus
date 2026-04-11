@@ -9,6 +9,7 @@ import com.mealplanplus.data.local.DietDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.remote.*
 import com.mealplanplus.util.CrashlyticsReporter
+import com.mealplanplus.util.toEpochMs
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -123,7 +124,7 @@ class SyncRepository @Inject constructor(
             if (existing == null) {
                 healthMetricDao.insertHealthMetric(HealthMetric(userId = userId,
                     date = Instant.ofEpochMilli(dto.recordedAt ?: now)
-                        .atOffset(ZoneOffset.UTC).toLocalDate().toString(),
+                        .atOffset(ZoneOffset.UTC).toLocalDate().toEpochMs(),
                     metricType = dto.type, subType = dto.subType, value = dto.value,
                     secondaryValue = dto.secondaryValue, serverId = dto.serverId,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))

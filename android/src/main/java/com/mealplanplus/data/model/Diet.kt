@@ -97,22 +97,6 @@ data class DietWithMeals(
 }
 
 /**
- * Diet summary for list display (single JOIN query result)
- */
-data class DietSummary(
-    val id: Long,
-    val userId: Long,
-    val name: String,
-    val description: String?,
-    val createdAt: Long,
-    val mealCount: Int,
-    val totalCalories: Int,
-    val isFavourite: Boolean = false
-) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false, isFavourite = isFavourite)
-}
-
-/**
  * Diet full summary with all macros (single JOIN query result)
  */
 data class DietFullSummary(

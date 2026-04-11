@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
+import com.mealplanplus.util.toChartLabel
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -402,7 +403,7 @@ fun MetricLineChart(
     }
 
     val dateLabels = remember(metrics) {
-        metrics.map { it.date.takeLast(5) }
+        metrics.map { it.date.toChartLabel() }
     }
 
     val bottomAxisFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
@@ -448,7 +449,7 @@ fun CaloriesLineChart(
     }
 
     val dateLabels = remember(macros) {
-        macros.map { it.date.takeLast(5) }
+        macros.map { it.date.toChartLabel() }
     }
 
     val bottomAxisFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->

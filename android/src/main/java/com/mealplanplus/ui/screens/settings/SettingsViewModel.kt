@@ -21,6 +21,8 @@ import com.mealplanplus.util.CsvExporter
 import com.mealplanplus.util.NotificationAlarmType
 import com.mealplanplus.util.NotificationPreferences
 import com.mealplanplus.util.ThemePreferences
+import com.mealplanplus.util.toEpochMs
+import com.mealplanplus.util.toLocalDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -175,7 +177,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             dailyLogRepository.getLogsByUser().collect { logs ->
                 val logsWithFoods = logs.mapNotNull { log ->
-                    dailyLogRepository.getLogWithFoods(dailyLogRepository.parseDate(log.date))
+                    dailyLogRepository.getLogWithFoods(log.date.toLocalDate())
                         .firstOrNull()
                 }
                 allLogs = logsWithFoods
@@ -504,15 +506,15 @@ class SettingsViewModel @Inject constructor(
      * the local Room database (today's date), if no entry exists for today already.
      */
     private suspend fun syncWeightFromHealthConnect(weightKg: Double) {
-        val today = java.time.LocalDate.now().toString()
-        val existing = healthRepository.getMetricsForDate(today)
+        val todayMs = java.time.LocalDate.now().toEpochMs()
+        val existing = healthRepository.getMetricsForDate(todayMs)
             .first()
             .any { it.metricType == MetricType.WEIGHT.name }
         if (!existing) {
             healthRepository.logMetric(
                 type = MetricType.WEIGHT,
                 value = weightKg,
-                date = today,
+                date = todayMs,
                 notes = "Synced from Health Connect"
             )
         }

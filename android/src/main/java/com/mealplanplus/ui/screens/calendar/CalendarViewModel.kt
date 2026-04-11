@@ -8,6 +8,7 @@ import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.extractShortDietName
+import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -18,17 +19,15 @@ import javax.inject.Inject
 data class CalendarUiState(
     val currentMonth: YearMonth = YearMonth.now(),
     val selectedDate: LocalDate = LocalDate.now(),
-    val plans: Map<String, Plan> = emptyMap(),
-    val dietNames: Map<String, String> = emptyMap(),
+    val plans: Map<Long, Plan> = emptyMap(),          // key = epoch ms
+    val dietNames: Map<Long, String> = emptyMap(),    // key = epoch ms
     val selectedDiet: Diet? = null,
     val selectedDietWithMeals: DietWithMeals? = null,
     val selectedDietTags: List<Tag> = emptyList(),
     val showDietPicker: Boolean = false,
     val isWeekView: Boolean = true,
     val isLoading: Boolean = false,
-    /** Slot types logged today — used for checkbox state when today is selected. */
     val todayLoggedSlots: Map<String, Boolean> = emptyMap(),
-    /** Non-null when the grocery snapshot sheet is open for the selected day's diet. */
     val grocerySnapshot: List<GrocerySnapshotItem>? = null,
     val isGeneratingGroceries: Boolean = false
 )
@@ -55,12 +54,10 @@ class CalendarViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        // If the screen was opened from a widget tap with a specific date, honour it.
         val startDate = savedStateHandle.get<String>("initialDate")
             ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
             ?: LocalDate.now()
 
-        // Pre-set month so loadPlansForMonth() fetches the correct date range.
         if (startDate != LocalDate.now()) {
             _uiState.update {
                 it.copy(
@@ -74,7 +71,6 @@ class CalendarViewModel @Inject constructor(
         observeTodayLog()
     }
 
-    /** Keep today's logged-slot map in sync so checkboxes stay reactive. */
     private fun observeTodayLog() {
         dailyLogRepository.getLogWithFoods(LocalDate.now())
             .onEach { logWithFoods ->
@@ -87,10 +83,6 @@ class CalendarViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /**
-     * Toggle a meal slot logged/unlogged for today.
-     * Only callable when the selected date is today.
-     */
     fun toggleSlotLogged(slotType: String) {
         val dietWithMeals = _uiState.value.selectedDietWithMeals ?: return
         viewModelScope.launch {
@@ -118,9 +110,8 @@ class CalendarViewModel @Inject constructor(
 
     private fun loadPlansForMonth() {
         val month = _uiState.value.currentMonth
-        // Extend ±6 days so weeks that straddle a month boundary are fully covered
-        val startDate = month.atDay(1).minusDays(6).toString()
-        val endDate = month.atEndOfMonth().plusDays(6).toString()
+        val startDate = month.atDay(1).minusDays(6)
+        val endDate = month.atEndOfMonth().plusDays(6)
 
         viewModelScope.launch {
             planRepository.getPlansWithDietNames(startDate, endDate).collect { plansWithNames ->
@@ -138,23 +129,21 @@ class CalendarViewModel @Inject constructor(
     }
 
     private suspend fun refreshSelectedDiet() {
-        val dateStr = _uiState.value.selectedDate.toString()
-        val diet = planRepository.getDietForDate(dateStr)
+        val date = _uiState.value.selectedDate
+        val diet = planRepository.getDietForDate(date)
         _uiState.update { it.copy(selectedDiet = diet) }
         if (diet != null) loadDietDetails(diet.id)
     }
 
     fun selectDate(date: LocalDate) {
-        // If week navigation crosses into a new month, reload plans for that month
         val newMonth = YearMonth.from(date)
         if (newMonth != _uiState.value.currentMonth) {
             _uiState.update { it.copy(currentMonth = newMonth) }
             loadPlansForMonth()
         }
         viewModelScope.launch {
-            val dateStr = date.toString()
             _uiState.update { it.copy(selectedDate = date) }
-            val diet = planRepository.getDietForDate(dateStr)
+            val diet = planRepository.getDietForDate(date)
             _uiState.update { it.copy(selectedDiet = diet, selectedDietWithMeals = null, selectedDietTags = emptyList()) }
             if (diet != null) loadDietDetails(diet.id)
         }
@@ -185,32 +174,25 @@ class CalendarViewModel @Inject constructor(
     fun goToToday() {
         val today = LocalDate.now()
         _uiState.update {
-            it.copy(
-                currentMonth = YearMonth.from(today),
-                selectedDate = today
-            )
+            it.copy(currentMonth = YearMonth.from(today), selectedDate = today)
         }
         loadPlansForMonth()
         selectDate(today)
     }
 
-    fun showDietPicker() {
-        _uiState.update { it.copy(showDietPicker = true) }
-    }
-
-    fun hideDietPicker() {
-        _uiState.update { it.copy(showDietPicker = false) }
-    }
+    fun showDietPicker() { _uiState.update { it.copy(showDietPicker = true) } }
+    fun hideDietPicker() { _uiState.update { it.copy(showDietPicker = false) } }
 
     fun assignDiet(diet: Diet?) {
         viewModelScope.launch {
-            val date = _uiState.value.selectedDate.toString()
+            val date = _uiState.value.selectedDate
+            val dateMs = date.toEpochMs()
             planRepository.setPlanForDate(date, diet?.id)
 
             if (diet != null) {
-                val newPlan = Plan(userId = diet.userId, date = date, dietId = diet.id, isCompleted = false)
-                val updatedPlans = _uiState.value.plans + (date to newPlan)
-                val updatedDietNames = _uiState.value.dietNames + (date to extractShortDietName(diet.name))
+                val newPlan = Plan(userId = diet.userId, date = dateMs, dietId = diet.id, isCompleted = false)
+                val updatedPlans = _uiState.value.plans + (dateMs to newPlan)
+                val updatedDietNames = _uiState.value.dietNames + (dateMs to extractShortDietName(diet.name))
                 _uiState.update {
                     it.copy(
                         plans = updatedPlans,
@@ -221,8 +203,8 @@ class CalendarViewModel @Inject constructor(
                 }
                 loadDietDetails(diet.id)
             } else {
-                val updatedPlans = _uiState.value.plans - date
-                val updatedDietNames = _uiState.value.dietNames - date
+                val updatedPlans = _uiState.value.plans - dateMs
+                val updatedDietNames = _uiState.value.dietNames - dateMs
                 _uiState.update {
                     it.copy(
                         plans = updatedPlans,
@@ -239,10 +221,11 @@ class CalendarViewModel @Inject constructor(
 
     fun clearPlan() {
         viewModelScope.launch {
-            val date = _uiState.value.selectedDate.toString()
+            val date = _uiState.value.selectedDate
+            val dateMs = date.toEpochMs()
             planRepository.removePlan(date)
-            val updatedPlans = _uiState.value.plans - date
-            val updatedDietNames = _uiState.value.dietNames - date
+            val updatedPlans = _uiState.value.plans - dateMs
+            val updatedDietNames = _uiState.value.dietNames - dateMs
             _uiState.update {
                 it.copy(
                     plans = updatedPlans,
@@ -255,7 +238,6 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    /** Assign a diet by id — called when returning from DietPickerScreen via savedStateHandle. */
     fun assignDietById(dietId: Long) {
         viewModelScope.launch {
             val diet = dietRepository.getDietById(dietId) ?: return@launch
@@ -265,10 +247,7 @@ class CalendarViewModel @Inject constructor(
 
     fun copyToDate(targetDate: LocalDate) {
         viewModelScope.launch {
-            planRepository.copyPlanToDate(
-                _uiState.value.selectedDate.toString(),
-                targetDate.toString()
-            )
+            planRepository.copyPlanToDate(_uiState.value.selectedDate, targetDate)
             loadPlansForMonth()
         }
     }
@@ -276,13 +255,11 @@ class CalendarViewModel @Inject constructor(
     fun toggleFavourite(diet: Diet) {
         viewModelScope.launch {
             dietRepository.toggleFavourite(diet)
-            // Refresh selectedDiet so the star icon updates immediately
             val refreshed = dietRepository.getDietById(diet.id)
             _uiState.update { it.copy(selectedDiet = refreshed ?: it.selectedDiet) }
         }
     }
 
-    /** Builds a grocery snapshot in-memory from the selected day's diet — no DB write. */
     fun generateGroceriesForDiet() {
         val dietWithMeals = _uiState.value.selectedDietWithMeals ?: return
         _uiState.update { it.copy(isGeneratingGroceries = true) }

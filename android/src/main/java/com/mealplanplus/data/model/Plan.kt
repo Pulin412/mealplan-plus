@@ -29,10 +29,10 @@ import androidx.room.PrimaryKey
 )
 data class Plan(
     val userId: Long,
-    val date: String,  // ISO format: yyyy-MM-dd
+    val date: Long,  // Epoch ms at midnight UTC
     val dietId: Long?,
     val notes: String? = null,
-    val isCompleted: Boolean = false  // true when user "finishes" the planned diet
+    val isCompleted: Boolean = false
 )
 
 /**
@@ -48,7 +48,7 @@ data class PlanWithDiet(
  */
 data class PlanWithDietName(
     val userId: Long,
-    val date: String,
+    val date: Long,  // Epoch ms
     val dietId: Long?,
     val isCompleted: Boolean,
     val notes: String?,

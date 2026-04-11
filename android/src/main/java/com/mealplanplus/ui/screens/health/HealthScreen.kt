@@ -43,6 +43,8 @@ import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import com.mealplanplus.util.toChartLabel
+import com.mealplanplus.util.toLocalDate
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -445,7 +447,7 @@ fun HealthTrendChart(metrics: List<HealthMetric>, modifier: Modifier = Modifier)
     val modelProducer = remember(entries) { ChartEntryModelProducer(entries) }
     val dateLabels = remember(chartMetrics) {
         val fmt = DateTimeFormatter.ofPattern("dd/MM")
-        chartMetrics.map { m -> LocalDate.parse(m.date).format(fmt) }
+        chartMetrics.map { m -> m.date.toChartLabel("dd/MM") }
     }
     val xSpacing = remember(chartMetrics.size) { maxOf(1, chartMetrics.size / 5) }
     val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ ->
@@ -507,7 +509,7 @@ fun RecentReadingRow(
                         }
                     }
                 }
-                Text(metric.date, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(metric.date.toChartLabel("dd/MM/yyyy"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(36.dp)) {
                 Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
