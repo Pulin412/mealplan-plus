@@ -51,6 +51,12 @@ class DatabaseSeeder @Inject constructor(
     /**
      * Seeds (or re-seeds) system foods from common_foods.json if the stored version
      * does not match [SYSTEM_FOODS_VERSION]. Call once at app startup.
+     *
+     * Safe upsert strategy — never deletes system food rows:
+     *  - Existing system foods are updated in-place (ID preserved → FK refs in
+     *    meal_food_items / logged_foods survive).
+     *  - New foods not yet in the DB are inserted.
+     *  - Foods removed from the JSON are left untouched (still referenced by user data).
      */
     suspend fun seedIfNeeded(context: Context) = withContext(Dispatchers.IO) {
         val storedVersion = context.dataStore.data.first()[SYSTEM_FOODS_VERSION_KEY] ?: 0
@@ -69,8 +75,16 @@ class DatabaseSeeder @Inject constructor(
             val listType = object : TypeToken<List<BundledFood>>() {}.type
             val bundledFoods: List<BundledFood> = gson.fromJson(jsonString, listType)
 
-            val foodItems = bundledFoods.map { food ->
-                FoodItem(
+            // Build a name→id map from existing system foods so we can preserve IDs
+            val existingByName = foodDao.getAllSystemFoods().associateBy { it.name }
+
+            val toUpsert = mutableListOf<FoodItem>()
+            val toInsert = mutableListOf<FoodItem>()
+
+            for (food in bundledFoods) {
+                val existing = existingByName[food.name]
+                val item = FoodItem(
+                    id = existing?.id ?: 0,   // existing ID → update in-place; 0 → auto-increment
                     name = food.name,
                     brand = food.category,
                     caloriesPer100 = food.caloriesPer100,
@@ -84,17 +98,19 @@ class DatabaseSeeder @Inject constructor(
                     glycemicIndex = food.glycemicIndex,
                     isSystemFood = true
                 )
+                if (existing != null) toUpsert.add(item) else toInsert.add(item)
             }
 
-            // Delete only system foods so user-created foods are preserved
-            foodDao.deleteSystemFoods()
-            foodDao.insertAll(foodItems)
+            // UPDATE existing rows in-place (IDs preserved, FK refs survive)
+            if (toUpsert.isNotEmpty()) foodDao.upsertAll(toUpsert)
+            // INSERT brand-new foods
+            if (toInsert.isNotEmpty()) foodDao.insertAll(toInsert)
 
             context.dataStore.edit { prefs ->
                 prefs[SYSTEM_FOODS_VERSION_KEY] = SYSTEM_FOODS_VERSION
             }
 
-            Log.d(TAG, "System foods re-seeded: ${foodItems.size} items (v$SYSTEM_FOODS_VERSION)")
+            Log.d(TAG, "System foods re-seeded: ${toUpsert.size} updated, ${toInsert.size} new (v$SYSTEM_FOODS_VERSION)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to re-seed system foods", e)
         }

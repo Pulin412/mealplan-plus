@@ -48,11 +48,16 @@ interface FoodDao {
     @Query("SELECT COUNT(*) FROM food_items WHERE isSystemFood = 1")
     suspend fun getSystemFoodCount(): Int
 
-    @Query("DELETE FROM food_items WHERE isSystemFood = 1")
-    suspend fun deleteSystemFoods()
+    @Query("SELECT * FROM food_items WHERE isSystemFood = 1")
+    suspend fun getAllSystemFoods(): List<FoodItem>
 
+    /** Insert new system foods only — never replaces existing rows (preserves IDs and FK refs). */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(foods: List<FoodItem>)
+
+    /** Replace (upsert) system foods by ID — used for re-seeding existing rows in-place. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(foods: List<FoodItem>)
 
     @Query("DELETE FROM food_items")
     suspend fun deleteAllFoods()
