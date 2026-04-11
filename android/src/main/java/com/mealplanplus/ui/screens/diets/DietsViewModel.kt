@@ -32,6 +32,8 @@ data class DietDisplayItem(
     val totalProtein: Int = 0,
     val totalCarbs: Int = 0,
     val totalFat: Int = 0,
+    /** Null when no food in the diet has a GI value set. */
+    val totalGlycemicLoad: Double? = null,
     val mealCount: Int = 0,
     val tags: List<Tag> = emptyList(),
     val foodNames: List<String> = emptyList(),
@@ -181,6 +183,7 @@ class DietsViewModel @Inject constructor(
                         totalProtein = summary.totalProtein,
                         totalCarbs = summary.totalCarbs,
                         totalFat = summary.totalFat,
+                        totalGlycemicLoad = summary.totalGlycemicLoad,
                         mealCount = summary.mealCount,
                         tags = tagsMap[summary.id] ?: emptyList(),
                         foodNames = foodNamesMap[summary.id] ?: emptyList(),

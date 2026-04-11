@@ -126,6 +126,8 @@ data class DietFullSummary(
     val totalProtein: Int,
     val totalCarbs: Int,
     val totalFat: Int,
+    /** Null when no food in the diet has a GI value set. */
+    val totalGlycemicLoad: Double? = null,
     val isFavourite: Boolean = false
 ) {
     fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false, isFavourite = isFavourite)

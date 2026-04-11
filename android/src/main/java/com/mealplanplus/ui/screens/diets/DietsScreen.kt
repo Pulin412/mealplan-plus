@@ -504,7 +504,11 @@ fun DietCard(
                         MacroPill(icon = "🔥", value = "${item.totalCalories}", unit = "kcal", color = Color(0xFFE65100))
                         MacroPill(icon = "🍞", value = "${item.totalCarbs}g", unit = "carbs", color = Color(0xFF1565C0))
                         MacroPill(icon = "💪", value = "${item.totalProtein}g", unit = "protein", color = Color(0xFF2E7D32))
-                        MacroPill(icon = "🔥", value = "${item.totalFat}g", unit = "fat", color = Color(0xFF6A1B9A))
+                        MacroPill(icon = "🥑", value = "${item.totalFat}g", unit = "fat", color = Color(0xFF6A1B9A))
+                    }
+                    item.totalGlycemicLoad?.let { gl ->
+                        Spacer(Modifier.height(6.dp))
+                        GlycemicLoadPill(gl)
                     }
                 }
 
@@ -726,3 +730,37 @@ fun ColorPicker(selectedColor: String, onColorSelected: (String) -> Unit) {
 }
 
 private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue
+
+private fun glColor(gl: Double): Color = when {
+    gl <= 10.0 -> Color(0xFF2E7D32)
+    gl <= 19.0 -> Color(0xFFF57F17)
+    else       -> Color(0xFFB71C1C)
+}
+
+private fun glLabel(gl: Double): String = when {
+    gl <= 10.0 -> "Low GL"
+    gl <= 19.0 -> "Med GL"
+    else       -> "High GL"
+}
+
+@Composable
+private fun GlycemicLoadPill(gl: Double) {
+    val color = glColor(gl)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = color.copy(alpha = 0.12f)
+        ) {
+            Text(
+                text = "⚡ ${glLabel(gl)}  ${String.format("%.1f", gl)}",
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = color
+            )
+        }
+    }
+}

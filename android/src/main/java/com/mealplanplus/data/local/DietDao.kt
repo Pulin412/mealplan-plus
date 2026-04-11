@@ -141,6 +141,17 @@ interface DietDao {
                      ELSE f.fatPer100 * mfi.quantity / 100
                 END
             ), 0) as totalFat,
+            SUM(CASE WHEN f.glycemicIndex IS NOT NULL THEN
+                f.glycemicIndex * (
+                    CASE WHEN mfi.unit = 'GRAM' THEN f.carbsPer100 * mfi.quantity / 100.0
+                         WHEN mfi.unit = 'PIECE' THEN f.carbsPer100 * COALESCE(f.gramsPerPiece, 100) * mfi.quantity / 100.0
+                         WHEN mfi.unit = 'CUP' THEN f.carbsPer100 * COALESCE(f.gramsPerCup, 240) * mfi.quantity / 100.0
+                         WHEN mfi.unit = 'TBSP' THEN f.carbsPer100 * COALESCE(f.gramsPerTbsp, 15) * mfi.quantity / 100.0
+                         WHEN mfi.unit = 'TSP' THEN f.carbsPer100 * COALESCE(f.gramsPerTsp, 5) * mfi.quantity / 100.0
+                         ELSE f.carbsPer100 * mfi.quantity / 100.0
+                    END
+                ) / 100.0
+            ELSE NULL END) as totalGlycemicLoad,
             d.isFavourite
         FROM diets d
         LEFT JOIN diet_meals dm ON d.id = dm.dietId
