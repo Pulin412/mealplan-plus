@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -170,22 +171,21 @@ private data class BottomNavItem(
     val route: String
 )
 
+// 6 tabs → 3 left | [+] | 3 right  (symmetric layout)
 private val bottomNavItems = listOf(
-    BottomNavItem("Home", Icons.Filled.Home, Screen.Home.route),
-    BottomNavItem("Meal Plan", Icons.Filled.CalendarMonth, Screen.Calendar.route),
-    BottomNavItem("Diets", Icons.Filled.Restaurant, Screen.Diets.route),
-    BottomNavItem("Health", Icons.Filled.FavoriteBorder, Screen.Health.route),
-    BottomNavItem("Grocery", Icons.Filled.ShoppingCart, Screen.GroceryLists.route)
+    BottomNavItem("Home",     Icons.Filled.Home,          Screen.Home.route),
+    BottomNavItem("Meal Plan",Icons.Filled.CalendarMonth,  Screen.Calendar.route),
+    BottomNavItem("Diets",    Icons.Filled.Restaurant,     Screen.Diets.route),
+    BottomNavItem("Health",   Icons.Filled.FavoriteBorder, Screen.Health.route),
+    BottomNavItem("Grocery",  Icons.Filled.ShoppingCart,   Screen.GroceryLists.route),
+    BottomNavItem("Settings", Icons.Filled.Settings,       Screen.Settings.route)
 )
 
-// Routes where the bottom nav should be visible
-private val bottomNavRoutes = setOf(
-    Screen.Home.route,
-    Screen.Calendar.route,
-    Screen.CalendarWithDate.route,
-    Screen.Diets.route,
-    Screen.Health.route,
-    Screen.GroceryLists.route
+// Only hide the bar on unauthenticated screens
+private val authOnlyRoutes = setOf(
+    Screen.Login.route,
+    Screen.SignUp.route,
+    Screen.ForgotPassword.route
 )
 
 @Composable
@@ -271,7 +271,7 @@ fun MealPlanNavHost(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in bottomNavRoutes
+    val showBottomBar = isLoggedIn == true && currentRoute != null && currentRoute !in authOnlyRoutes
     var showQuickAddSheet by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -772,9 +772,9 @@ private fun BottomNavBar(
     currentRoute: String?,
     onQuickAdd: () -> Unit
 ) {
-    // Split nav items: [Home, MealPlan] | [+] | [Diets, Health, Grocery]
-    val leftItems = bottomNavItems.take(2)
-    val rightItems = bottomNavItems.drop(2)
+    // Split nav items: [Home, Meal Plan, Diets] | [+] | [Health, Grocery, Settings]
+    val leftItems = bottomNavItems.take(3)
+    val rightItems = bottomNavItems.drop(3)
 
     NavigationBar(
         containerColor = Color.White,
@@ -810,8 +810,12 @@ private fun BottomNavBar(
         }
 
         // Centre elevated "+" quick-add button
+        // padding(bottom) shifts the circle up so it aligns visually
+        // with the icon portion of the adjacent NavigationBarItems
         Box(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = 14.dp),
             contentAlignment = Alignment.Center
         ) {
             Box(
