@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.calendar
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -697,6 +698,7 @@ private fun DietDetailSection(
             MealSlotRow(
                 slot = slot,
                 mealName = mealWithFoods?.meal?.name,
+                foods = mealWithFoods?.items ?: emptyList(),
                 showCheckbox = showCheckboxes && hasFoods,
                 isLogged = isLogged,
                 onToggle = if (showCheckboxes && hasFoods) { -> onSlotToggle(slot.name) } else null,
@@ -715,6 +717,7 @@ private fun DietDetailSection(
                 CustomMealSlotRow(
                     displayName = displayName,
                     mealName = mealWithFoods?.meal?.name,
+                    foods = mealWithFoods?.items ?: emptyList(),
                     showCheckbox = showCheckboxes && hasFoods,
                     isLogged = isLogged,
                     onToggle = if (showCheckboxes && hasFoods) { -> onSlotToggle(slotType) } else null,
@@ -763,53 +766,76 @@ private fun MacroTile(
 private fun MealSlotRow(
     slot: DefaultMealSlot,
     mealName: String?,
+    foods: List<MealFoodItemWithDetails> = emptyList(),
     showCheckbox: Boolean = false,
     isLogged: Boolean = false,
     onToggle: (() -> Unit)? = null,
     onTap: (() -> Unit)? = null
 ) {
     val (emoji, tint) = slotEmojiAndColor(slot)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
+    val canExpand = showCheckbox && foods.isNotEmpty()
+    var expanded by remember { mutableStateOf(false) }
+
+    Column {
+        Row(
             modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(tint.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .then(when {
+                    canExpand -> Modifier.clickable { expanded = !expanded }
+                    onTap != null -> Modifier.clickable { onTap() }
+                    else -> Modifier
+                })
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = emoji, fontSize = 18.sp)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(tint.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = emoji, fontSize = 18.sp)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = slot.displayName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = mealName ?: "—",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
+                    color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (canExpand) {
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Hide ingredients" else "Show ingredients",
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            if (showCheckbox) {
+                SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
+            } else if (onTap != null) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "View ingredients",
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = slot.displayName,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = mealName ?: "—",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
-                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        if (showCheckbox) {
-            SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
-        } else if (onTap != null) {
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = "View ingredients",
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(20.dp)
-            )
+
+        AnimatedVisibility(visible = canExpand && expanded) {
+            MealIngredientList(foods = foods, indentDp = 48)
         }
     }
 }
@@ -818,65 +844,134 @@ private fun MealSlotRow(
 private fun CustomMealSlotRow(
     displayName: String,
     mealName: String?,
+    foods: List<MealFoodItemWithDetails> = emptyList(),
     showCheckbox: Boolean = false,
     isLogged: Boolean = false,
     onToggle: (() -> Unit)? = null,
     onTap: (() -> Unit)? = null
 ) {
-    Row(
+    val canExpand = showCheckbox && foods.isNotEmpty()
+    var expanded by remember { mutableStateOf(false) }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(when {
+                    canExpand -> Modifier.clickable { expanded = !expanded }
+                    onTap != null -> Modifier.clickable { onTap() }
+                    else -> Modifier
+                })
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF7B1FA2).copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("⭐", fontSize = 18.sp)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF7B1FA2).copy(alpha = 0.10f)
+                    ) {
+                        Text(
+                            "custom",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF7B1FA2),
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = mealName ?: "—",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
+                    color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (canExpand) {
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Hide ingredients" else "Show ingredients",
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            if (showCheckbox) {
+                SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
+            } else if (onTap != null) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "View ingredients",
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        AnimatedVisibility(visible = canExpand && expanded) {
+            MealIngredientList(foods = foods, indentDp = 48)
+        }
+    }
+}
+
+/**
+ * Compact ingredient list shown below a meal slot row when the user expands it.
+ * [indentDp] aligns the list with the meal name text (past the slot emoji + spacer).
+ */
+@Composable
+private fun MealIngredientList(
+    foods: List<MealFoodItemWithDetails>,
+    indentDp: Int = 48
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(start = indentDp.dp, bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF7B1FA2).copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("⭐", fontSize = 18.sp)
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = displayName,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        foods.forEach { item ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                 )
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFF7B1FA2).copy(alpha = 0.10f)
-                ) {
-                    Text(
-                        "custom",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF7B1FA2),
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                    )
-                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = item.food.name,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "${item.mealFoodItem.quantity.toInt()}g · ${item.calculatedCalories.toInt()} kcal",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
             }
-            Text(
-                text = mealName ?: "—",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (mealName != null) FontWeight.Medium else FontWeight.Normal,
-                color = if (mealName != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        if (showCheckbox) {
-            SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
-        } else if (onTap != null) {
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = "View ingredients",
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }
