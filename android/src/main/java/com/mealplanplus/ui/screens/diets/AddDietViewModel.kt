@@ -83,7 +83,6 @@ class AddDietViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val diet = Diet(
-                    userId = 0,
                     name = state.name.trim(),
                     description = state.description.takeIf { it.isNotBlank() }?.trim()
                 )

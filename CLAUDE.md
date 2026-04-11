@@ -25,7 +25,7 @@ Compose UI  →  @HiltViewModel  →  Repository  →  Room DAO / Retrofit
 
 - **ViewModels** — `@HiltViewModel`, expose `StateFlow<XxxState>` data classes, use `viewModelScope`
 - **Repositories** — `@Singleton`, return `Flow<T>` for reactive observation, suspend funs for writes
-- **Room** — 17 entities, 21 explicit migrations (no destructive fallback ever), schema exported to `android/schemas/`
+- **Room** — 16 entities (v27 target), explicit migrations only (no destructive fallback ever), schema exported to `android/schemas/`. Full schema documented in `docs/DATABASE_SCHEMA.md`.
 - **Compose** — Material 3, dynamic color, single-Activity (`MainActivity`), `NavHost` for all navigation
 - **DataStore** — all user preferences (theme, notifications); shared `"settings"` store in `ThemePreferences.kt`
 
@@ -57,6 +57,19 @@ android/src/main/java/com/mealplanplus/
 
 ---
 
+## Database design
+
+See `docs/DATABASE_SCHEMA.md` for the full schema, ER diagram, slot resolution algorithm, and migration history.
+
+### Key design decisions
+- **`slotType` lives in `diet_slots` / `planned_slots`, not on `Meal`** — a meal is a reusable food collection; which slot it fills is context, not identity.
+- **`user_id` only where strictly needed** — `day_plans`, `daily_logs`, `health_metrics`, `grocery_lists`. Meals and diets are app-global.
+- **Planning vs Logging are separate** — `day_plans`/`planned_slots` = intent; `daily_logs`/`logged_foods` = reality. Streak uses logs only.
+- **All dates stored as `Long` (epoch milliseconds at midnight UTC).** Use `LocalDate.toEpochMs()` and `Long.toLocalDate()` from `util/DateUtils.kt`.
+- **System foods re-seeded by version** (`DataStore` key `systemFoodsVersion`). Uses safe upsert — never deletes existing food rows (preserves FK refs from `meal_foods` and `logged_foods`).
+
+---
+
 ## Hard rules — never break these
 
 1. **No destructive Room migrations.** Always add an explicit `MIGRATION_X_Y` in `DatabaseModule.kt`. The schema files in `android/schemas/` must stay in sync.
@@ -64,6 +77,8 @@ android/src/main/java/com/mealplanplus/
 3. **Firebase used only for:** Authentication, Crashlytics, Remote Config, Analytics — all free-tier only.
 4. **Notifications fire only when the meal slot is not yet logged.** `shouldPostMealAlarm()` in `NotificationAlarmReceiver` enforces this; don't bypass it.
 5. **AlarmManager, not WorkManager, for notifications.** WorkManager is only used for `SyncWorker`. The three old notification workers are deleted — do not re-add them.
+6. **Never delete system food rows during re-seed.** `DatabaseSeeder` uses upsert-only strategy to preserve FK references from `meal_foods` and `logged_foods`.
+7. **`planned_slots` is the source of truth for day planning.** When loading a day, read `planned_slots` first; fall back to `day_plans.template_diet_id`'s `diet_slots` only for slots not yet in `planned_slots`.
 
 ---
 

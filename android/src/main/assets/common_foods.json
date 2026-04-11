@@ -5,7 +5,8 @@
     "caloriesPer100": 130,
     "proteinPer100": 2.7,
     "carbsPer100": 28,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 64
   },
   {
     "name": "Brown Rice (cooked)",
@@ -13,7 +14,8 @@
     "caloriesPer100": 112,
     "proteinPer100": 2.6,
     "carbsPer100": 24,
-    "fatPer100": 0.9
+    "fatPer100": 0.9,
+    "glycemicIndex": 55
   },
   {
     "name": "Basmati Rice (cooked)",
@@ -21,7 +23,8 @@
     "caloriesPer100": 121,
     "proteinPer100": 3.5,
     "carbsPer100": 25,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 50
   },
   {
     "name": "Chapati/Roti",
@@ -29,7 +32,8 @@
     "caloriesPer100": 300,
     "proteinPer100": 8.8,
     "carbsPer100": 45,
-    "fatPer100": 8.8
+    "fatPer100": 8.8,
+    "glycemicIndex": 62
   },
   {
     "name": "Whole Wheat Bread",
@@ -37,7 +41,8 @@
     "caloriesPer100": 250,
     "proteinPer100": 10,
     "carbsPer100": 43.3,
-    "fatPer100": 3.3
+    "fatPer100": 3.3,
+    "glycemicIndex": 71
   },
   {
     "name": "White Bread",
@@ -45,7 +50,8 @@
     "caloriesPer100": 263.3,
     "proteinPer100": 9,
     "carbsPer100": 50,
-    "fatPer100": 3.3
+    "fatPer100": 3.3,
+    "glycemicIndex": 73
   },
   {
     "name": "Oats (dry)",
@@ -53,7 +59,8 @@
     "caloriesPer100": 385,
     "proteinPer100": 13.3,
     "carbsPer100": 67.5,
-    "fatPer100": 6.8
+    "fatPer100": 6.8,
+    "glycemicIndex": 55
   },
   {
     "name": "Quinoa (cooked)",
@@ -61,7 +68,8 @@
     "caloriesPer100": 120,
     "proteinPer100": 4.4,
     "carbsPer100": 21,
-    "fatPer100": 1.9
+    "fatPer100": 1.9,
+    "glycemicIndex": 53
   },
   {
     "name": "Pasta (cooked)",
@@ -69,7 +77,8 @@
     "caloriesPer100": 131,
     "proteinPer100": 5,
     "carbsPer100": 25,
-    "fatPer100": 1.1
+    "fatPer100": 1.1,
+    "glycemicIndex": 49
   },
   {
     "name": "Naan",
@@ -77,7 +86,8 @@
     "caloriesPer100": 291.1,
     "proteinPer100": 9.7,
     "carbsPer100": 50,
-    "fatPer100": 5.7
+    "fatPer100": 5.7,
+    "glycemicIndex": 71
   },
   {
     "name": "Paratha",
@@ -85,7 +95,8 @@
     "caloriesPer100": 325,
     "proteinPer100": 6.3,
     "carbsPer100": 40,
-    "fatPer100": 15
+    "fatPer100": 15,
+    "glycemicIndex": 62
   },
   {
     "name": "Poha (cooked)",
@@ -93,7 +104,8 @@
     "caloriesPer100": 110,
     "proteinPer100": 2.5,
     "carbsPer100": 23,
-    "fatPer100": 0.6
+    "fatPer100": 0.6,
+    "glycemicIndex": 70
   },
   {
     "name": "Upma",
@@ -101,7 +113,8 @@
     "caloriesPer100": 95,
     "proteinPer100": 2.8,
     "carbsPer100": 15,
-    "fatPer100": 2.5
+    "fatPer100": 2.5,
+    "glycemicIndex": 65
   },
   {
     "name": "Idli",
@@ -109,7 +122,8 @@
     "caloriesPer100": 97.5,
     "proteinPer100": 5,
     "carbsPer100": 20,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 69
   },
   {
     "name": "Dosa (plain)",
@@ -117,7 +131,8 @@
     "caloriesPer100": 221.7,
     "proteinPer100": 6.5,
     "carbsPer100": 30,
-    "fatPer100": 8.3
+    "fatPer100": 8.3,
+    "glycemicIndex": 65
   },
   {
     "name": "Puri",
@@ -125,7 +140,8 @@
     "caloriesPer100": 500,
     "proteinPer100": 8.3,
     "carbsPer100": 50,
-    "fatPer100": 30
+    "fatPer100": 30,
+    "glycemicIndex": 70
   },
   {
     "name": "Chicken Breast (cooked)",
@@ -133,7 +149,8 @@
     "caloriesPer100": 165,
     "proteinPer100": 31,
     "carbsPer100": 0,
-    "fatPer100": 3.6
+    "fatPer100": 3.6,
+    "glycemicIndex": 0
   },
   {
     "name": "Chicken Thigh (cooked)",
@@ -141,7 +158,8 @@
     "caloriesPer100": 209,
     "proteinPer100": 26,
     "carbsPer100": 0,
-    "fatPer100": 11
+    "fatPer100": 11,
+    "glycemicIndex": 0
   },
   {
     "name": "Chicken Curry",
@@ -149,7 +167,8 @@
     "caloriesPer100": 146.7,
     "proteinPer100": 12,
     "carbsPer100": 5.3,
-    "fatPer100": 8.7
+    "fatPer100": 8.7,
+    "glycemicIndex": 15
   },
   {
     "name": "Egg (whole, boiled)",
@@ -159,7 +178,8 @@
     "carbsPer100": 1.2,
     "fatPer100": 10.6,
     "gramsPerPiece": 50,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 0
   },
   {
     "name": "Egg White",
@@ -169,7 +189,8 @@
     "carbsPer100": 0.6,
     "fatPer100": 0.3,
     "gramsPerPiece": 35,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 0
   },
   {
     "name": "Egg Omelette",
@@ -177,7 +198,8 @@
     "caloriesPer100": 156.7,
     "proteinPer100": 10.5,
     "carbsPer100": 0.7,
-    "fatPer100": 12.2
+    "fatPer100": 12.2,
+    "glycemicIndex": 0
   },
   {
     "name": "Paneer",
@@ -185,7 +207,8 @@
     "caloriesPer100": 265,
     "proteinPer100": 18,
     "carbsPer100": 1.2,
-    "fatPer100": 21
+    "fatPer100": 21,
+    "glycemicIndex": 0
   },
   {
     "name": "Tofu",
@@ -193,7 +216,8 @@
     "caloriesPer100": 76,
     "proteinPer100": 8,
     "carbsPer100": 1.9,
-    "fatPer100": 4.8
+    "fatPer100": 4.8,
+    "glycemicIndex": 15
   },
   {
     "name": "Fish (rohu, cooked)",
@@ -201,7 +225,8 @@
     "caloriesPer100": 97,
     "proteinPer100": 17,
     "carbsPer100": 0,
-    "fatPer100": 3
+    "fatPer100": 3,
+    "glycemicIndex": 0
   },
   {
     "name": "Salmon (cooked)",
@@ -209,7 +234,8 @@
     "caloriesPer100": 208,
     "proteinPer100": 20,
     "carbsPer100": 0,
-    "fatPer100": 13
+    "fatPer100": 13,
+    "glycemicIndex": 0
   },
   {
     "name": "Tuna (canned)",
@@ -217,7 +243,8 @@
     "caloriesPer100": 116,
     "proteinPer100": 26,
     "carbsPer100": 0,
-    "fatPer100": 0.8
+    "fatPer100": 0.8,
+    "glycemicIndex": 0
   },
   {
     "name": "Prawns (cooked)",
@@ -225,7 +252,8 @@
     "caloriesPer100": 99,
     "proteinPer100": 24,
     "carbsPer100": 0.2,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 0
   },
   {
     "name": "Mutton (cooked)",
@@ -233,7 +261,8 @@
     "caloriesPer100": 294,
     "proteinPer100": 25,
     "carbsPer100": 0,
-    "fatPer100": 21
+    "fatPer100": 21,
+    "glycemicIndex": 0
   },
   {
     "name": "Beef (lean, cooked)",
@@ -241,7 +270,8 @@
     "caloriesPer100": 250,
     "proteinPer100": 26,
     "carbsPer100": 0,
-    "fatPer100": 15
+    "fatPer100": 15,
+    "glycemicIndex": 0
   },
   {
     "name": "Pork (cooked)",
@@ -249,7 +279,8 @@
     "caloriesPer100": 242,
     "proteinPer100": 27,
     "carbsPer100": 0,
-    "fatPer100": 14
+    "fatPer100": 14,
+    "glycemicIndex": 0
   },
   {
     "name": "Dal (Toor/Arhar)",
@@ -257,7 +288,8 @@
     "caloriesPer100": 116,
     "proteinPer100": 7.5,
     "carbsPer100": 20,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 29
   },
   {
     "name": "Dal (Moong)",
@@ -265,7 +297,8 @@
     "caloriesPer100": 105,
     "proteinPer100": 7,
     "carbsPer100": 19,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 31
   },
   {
     "name": "Dal (Chana)",
@@ -273,7 +306,8 @@
     "caloriesPer100": 164,
     "proteinPer100": 9,
     "carbsPer100": 27,
-    "fatPer100": 2.6
+    "fatPer100": 2.6,
+    "glycemicIndex": 36
   },
   {
     "name": "Dal (Masoor)",
@@ -281,7 +315,8 @@
     "caloriesPer100": 116,
     "proteinPer100": 9,
     "carbsPer100": 20,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 29
   },
   {
     "name": "Dal (Urad)",
@@ -289,7 +324,8 @@
     "caloriesPer100": 105,
     "proteinPer100": 7.5,
     "carbsPer100": 18,
-    "fatPer100": 0.5
+    "fatPer100": 0.5,
+    "glycemicIndex": 38
   },
   {
     "name": "Rajma (cooked)",
@@ -297,7 +333,8 @@
     "caloriesPer100": 127,
     "proteinPer100": 8.7,
     "carbsPer100": 23,
-    "fatPer100": 0.5
+    "fatPer100": 0.5,
+    "glycemicIndex": 29
   },
   {
     "name": "Chole/Chickpeas (cooked)",
@@ -305,7 +342,8 @@
     "caloriesPer100": 164,
     "proteinPer100": 9,
     "carbsPer100": 27,
-    "fatPer100": 2.6
+    "fatPer100": 2.6,
+    "glycemicIndex": 28
   },
   {
     "name": "Black Beans (cooked)",
@@ -313,7 +351,8 @@
     "caloriesPer100": 132,
     "proteinPer100": 8.9,
     "carbsPer100": 24,
-    "fatPer100": 0.5
+    "fatPer100": 0.5,
+    "glycemicIndex": 30
   },
   {
     "name": "Lentils (cooked)",
@@ -321,7 +360,8 @@
     "caloriesPer100": 116,
     "proteinPer100": 9,
     "carbsPer100": 20,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 29
   },
   {
     "name": "Peanuts (raw)",
@@ -329,7 +369,8 @@
     "caloriesPer100": 566.7,
     "proteinPer100": 25.7,
     "carbsPer100": 16.7,
-    "fatPer100": 50
+    "fatPer100": 50,
+    "glycemicIndex": 14
   },
   {
     "name": "Soybean (cooked)",
@@ -337,7 +378,8 @@
     "caloriesPer100": 173,
     "proteinPer100": 17,
     "carbsPer100": 10,
-    "fatPer100": 9
+    "fatPer100": 9,
+    "glycemicIndex": 15
   },
   {
     "name": "Milk (whole)",
@@ -346,7 +388,8 @@
     "proteinPer100": 3.2,
     "carbsPer100": 4.8,
     "fatPer100": 3.2,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 27
   },
   {
     "name": "Milk (skimmed)",
@@ -355,7 +398,8 @@
     "proteinPer100": 3.2,
     "carbsPer100": 4.8,
     "fatPer100": 0.1,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 27
   },
   {
     "name": "Milk (toned)",
@@ -364,7 +408,8 @@
     "proteinPer100": 3.2,
     "carbsPer100": 4.8,
     "fatPer100": 1.4,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 27
   },
   {
     "name": "Curd/Yogurt",
@@ -372,7 +417,8 @@
     "caloriesPer100": 60,
     "proteinPer100": 3.5,
     "carbsPer100": 5,
-    "fatPer100": 3.3
+    "fatPer100": 3.3,
+    "glycemicIndex": 36
   },
   {
     "name": "Greek Yogurt",
@@ -380,7 +426,8 @@
     "caloriesPer100": 97,
     "proteinPer100": 9,
     "carbsPer100": 4,
-    "fatPer100": 5
+    "fatPer100": 5,
+    "glycemicIndex": 11
   },
   {
     "name": "Buttermilk/Chaas",
@@ -389,7 +436,8 @@
     "proteinPer100": 1.6,
     "carbsPer100": 2.4,
     "fatPer100": 0.8,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 30
   },
   {
     "name": "Lassi (sweet)",
@@ -398,7 +446,8 @@
     "proteinPer100": 2.5,
     "carbsPer100": 12.5,
     "fatPer100": 2,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 35
   },
   {
     "name": "Cheese (cheddar)",
@@ -406,7 +455,8 @@
     "caloriesPer100": 400,
     "proteinPer100": 23.3,
     "carbsPer100": 1.3,
-    "fatPer100": 33.3
+    "fatPer100": 33.3,
+    "glycemicIndex": 0
   },
   {
     "name": "Cottage Cheese",
@@ -414,7 +464,8 @@
     "caloriesPer100": 98,
     "proteinPer100": 11,
     "carbsPer100": 3.4,
-    "fatPer100": 4.3
+    "fatPer100": 4.3,
+    "glycemicIndex": 10
   },
   {
     "name": "Butter",
@@ -422,7 +473,8 @@
     "caloriesPer100": 720,
     "proteinPer100": 1,
     "carbsPer100": 0,
-    "fatPer100": 80
+    "fatPer100": 80,
+    "glycemicIndex": 0
   },
   {
     "name": "Ghee",
@@ -430,7 +482,8 @@
     "caloriesPer100": 900,
     "proteinPer100": 0,
     "carbsPer100": 0,
-    "fatPer100": 100
+    "fatPer100": 100,
+    "glycemicIndex": 0
   },
   {
     "name": "Apple",
@@ -440,7 +493,8 @@
     "carbsPer100": 14,
     "fatPer100": 0.2,
     "gramsPerPiece": 182,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 36
   },
   {
     "name": "Banana",
@@ -450,7 +504,8 @@
     "carbsPer100": 22.5,
     "fatPer100": 0.3,
     "gramsPerPiece": 118,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 52
   },
   {
     "name": "Orange",
@@ -460,7 +515,8 @@
     "carbsPer100": 12,
     "fatPer100": 0.1,
     "gramsPerPiece": 131,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 43
   },
   {
     "name": "Mango",
@@ -470,7 +526,8 @@
     "carbsPer100": 16.7,
     "fatPer100": 0.4,
     "gramsPerPiece": 200,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 51
   },
   {
     "name": "Papaya",
@@ -480,7 +537,8 @@
     "carbsPer100": 10,
     "fatPer100": 0.3,
     "gramsPerPiece": 300,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 60
   },
   {
     "name": "Watermelon",
@@ -488,7 +546,8 @@
     "caloriesPer100": 30,
     "proteinPer100": 0.6,
     "carbsPer100": 7.5,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 72
   },
   {
     "name": "Grapes",
@@ -496,7 +555,8 @@
     "caloriesPer100": 69,
     "proteinPer100": 0.7,
     "carbsPer100": 18,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 46
   },
   {
     "name": "Pomegranate",
@@ -506,7 +566,8 @@
     "carbsPer100": 19,
     "fatPer100": 1.2,
     "gramsPerPiece": 175,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 53
   },
   {
     "name": "Guava",
@@ -516,7 +577,8 @@
     "carbsPer100": 14,
     "fatPer100": 1,
     "gramsPerPiece": 100,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 24
   },
   {
     "name": "Pineapple",
@@ -524,7 +586,8 @@
     "caloriesPer100": 50,
     "proteinPer100": 0.5,
     "carbsPer100": 13.3,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 59
   },
   {
     "name": "Strawberries",
@@ -532,7 +595,8 @@
     "caloriesPer100": 32,
     "proteinPer100": 0.7,
     "carbsPer100": 8,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 40
   },
   {
     "name": "Blueberries",
@@ -540,7 +604,8 @@
     "caloriesPer100": 57,
     "proteinPer100": 0.7,
     "carbsPer100": 14,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 53
   },
   {
     "name": "Chikoo/Sapota",
@@ -548,7 +613,8 @@
     "caloriesPer100": 83,
     "proteinPer100": 0.4,
     "carbsPer100": 20,
-    "fatPer100": 1.1
+    "fatPer100": 1.1,
+    "glycemicIndex": 50
   },
   {
     "name": "Litchi",
@@ -556,7 +622,8 @@
     "caloriesPer100": 66,
     "proteinPer100": 0.8,
     "carbsPer100": 17,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 50
   },
   {
     "name": "Dates (dried)",
@@ -564,7 +631,8 @@
     "caloriesPer100": 276.7,
     "proteinPer100": 2,
     "carbsPer100": 73.3,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 100
   },
   {
     "name": "Potato (boiled)",
@@ -572,7 +640,8 @@
     "caloriesPer100": 87,
     "proteinPer100": 1.9,
     "carbsPer100": 20,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 78
   },
   {
     "name": "Sweet Potato (boiled)",
@@ -580,7 +649,8 @@
     "caloriesPer100": 86,
     "proteinPer100": 1.6,
     "carbsPer100": 20,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 44
   },
   {
     "name": "Onion",
@@ -588,7 +658,8 @@
     "caloriesPer100": 40,
     "proteinPer100": 1.1,
     "carbsPer100": 9,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 10
   },
   {
     "name": "Tomato",
@@ -596,7 +667,8 @@
     "caloriesPer100": 18,
     "proteinPer100": 0.9,
     "carbsPer100": 4,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 15
   },
   {
     "name": "Carrot",
@@ -604,7 +676,8 @@
     "caloriesPer100": 41,
     "proteinPer100": 0.9,
     "carbsPer100": 10,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 35
   },
   {
     "name": "Cucumber",
@@ -612,7 +685,8 @@
     "caloriesPer100": 15,
     "proteinPer100": 0.7,
     "carbsPer100": 4,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 15
   },
   {
     "name": "Spinach (cooked)",
@@ -620,7 +694,8 @@
     "caloriesPer100": 23,
     "proteinPer100": 2.9,
     "carbsPer100": 4,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 15
   },
   {
     "name": "Cabbage",
@@ -628,7 +703,8 @@
     "caloriesPer100": 25,
     "proteinPer100": 1.3,
     "carbsPer100": 6,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 10
   },
   {
     "name": "Cauliflower",
@@ -636,7 +712,8 @@
     "caloriesPer100": 25,
     "proteinPer100": 2,
     "carbsPer100": 5,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 15
   },
   {
     "name": "Broccoli",
@@ -644,7 +721,8 @@
     "caloriesPer100": 34,
     "proteinPer100": 2.8,
     "carbsPer100": 7,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 10
   },
   {
     "name": "Green Beans",
@@ -652,7 +730,8 @@
     "caloriesPer100": 31,
     "proteinPer100": 1.8,
     "carbsPer100": 7,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 30
   },
   {
     "name": "Peas (green)",
@@ -660,7 +739,8 @@
     "caloriesPer100": 81,
     "proteinPer100": 5.4,
     "carbsPer100": 14,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 40
   },
   {
     "name": "Capsicum/Bell Pepper",
@@ -668,7 +748,8 @@
     "caloriesPer100": 26,
     "proteinPer100": 1,
     "carbsPer100": 6,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 15
   },
   {
     "name": "Brinjal/Eggplant",
@@ -676,7 +757,8 @@
     "caloriesPer100": 25,
     "proteinPer100": 1,
     "carbsPer100": 6,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 15
   },
   {
     "name": "Bhindi/Okra",
@@ -684,7 +766,8 @@
     "caloriesPer100": 33,
     "proteinPer100": 2,
     "carbsPer100": 7,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 20
   },
   {
     "name": "Lauki/Bottle Gourd",
@@ -692,7 +775,8 @@
     "caloriesPer100": 14,
     "proteinPer100": 0.6,
     "carbsPer100": 3,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 10
   },
   {
     "name": "Palak Paneer",
@@ -700,7 +784,8 @@
     "caloriesPer100": 146.7,
     "proteinPer100": 8,
     "carbsPer100": 5.3,
-    "fatPer100": 10.7
+    "fatPer100": 10.7,
+    "glycemicIndex": 15
   },
   {
     "name": "Aloo Gobi",
@@ -708,7 +793,8 @@
     "caloriesPer100": 93.3,
     "proteinPer100": 2,
     "carbsPer100": 12,
-    "fatPer100": 4
+    "fatPer100": 4,
+    "glycemicIndex": 50
   },
   {
     "name": "Mixed Vegetable Curry",
@@ -716,7 +802,8 @@
     "caloriesPer100": 86.7,
     "proteinPer100": 2.7,
     "carbsPer100": 10,
-    "fatPer100": 4
+    "fatPer100": 4,
+    "glycemicIndex": 40
   },
   {
     "name": "Mushroom",
@@ -724,7 +811,8 @@
     "caloriesPer100": 22,
     "proteinPer100": 3.1,
     "carbsPer100": 3,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 10
   },
   {
     "name": "Corn (sweet)",
@@ -732,7 +820,8 @@
     "caloriesPer100": 86,
     "proteinPer100": 3.3,
     "carbsPer100": 19,
-    "fatPer100": 1.4
+    "fatPer100": 1.4,
+    "glycemicIndex": 52
   },
   {
     "name": "Almonds",
@@ -740,7 +829,8 @@
     "caloriesPer100": 576.7,
     "proteinPer100": 21,
     "carbsPer100": 20,
-    "fatPer100": 50
+    "fatPer100": 50,
+    "glycemicIndex": 0
   },
   {
     "name": "Cashews",
@@ -748,7 +838,8 @@
     "caloriesPer100": 553.3,
     "proteinPer100": 18.3,
     "carbsPer100": 30,
-    "fatPer100": 43.3
+    "fatPer100": 43.3,
+    "glycemicIndex": 22
   },
   {
     "name": "Walnuts",
@@ -756,7 +847,8 @@
     "caloriesPer100": 653.3,
     "proteinPer100": 15.3,
     "carbsPer100": 13.3,
-    "fatPer100": 66.7
+    "fatPer100": 66.7,
+    "glycemicIndex": 15
   },
   {
     "name": "Pistachios",
@@ -764,7 +856,8 @@
     "caloriesPer100": 563.3,
     "proteinPer100": 20,
     "carbsPer100": 26.7,
-    "fatPer100": 46.7
+    "fatPer100": 46.7,
+    "glycemicIndex": 15
   },
   {
     "name": "Raisins",
@@ -772,7 +865,8 @@
     "caloriesPer100": 300,
     "proteinPer100": 3,
     "carbsPer100": 80,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 64
   },
   {
     "name": "Flax Seeds",
@@ -780,7 +874,8 @@
     "caloriesPer100": 533.3,
     "proteinPer100": 18,
     "carbsPer100": 26.7,
-    "fatPer100": 42
+    "fatPer100": 42,
+    "glycemicIndex": 35
   },
   {
     "name": "Chia Seeds",
@@ -788,7 +883,8 @@
     "caloriesPer100": 486.7,
     "proteinPer100": 16.7,
     "carbsPer100": 40,
-    "fatPer100": 30.7
+    "fatPer100": 30.7,
+    "glycemicIndex": 35
   },
   {
     "name": "Sunflower Seeds",
@@ -796,7 +892,8 @@
     "caloriesPer100": 583.3,
     "proteinPer100": 20.7,
     "carbsPer100": 20,
-    "fatPer100": 50
+    "fatPer100": 50,
+    "glycemicIndex": 35
   },
   {
     "name": "Olive Oil",
@@ -805,7 +902,8 @@
     "proteinPer100": 0,
     "carbsPer100": 0,
     "fatPer100": 93.3,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 0
   },
   {
     "name": "Coconut Oil",
@@ -814,7 +912,8 @@
     "proteinPer100": 0,
     "carbsPer100": 0,
     "fatPer100": 93.3,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 0
   },
   {
     "name": "Mustard Oil",
@@ -823,7 +922,8 @@
     "proteinPer100": 0,
     "carbsPer100": 0,
     "fatPer100": 93.3,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 0
   },
   {
     "name": "Sunflower Oil",
@@ -832,7 +932,8 @@
     "proteinPer100": 0,
     "carbsPer100": 0,
     "fatPer100": 93.3,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 0
   },
   {
     "name": "Samosa",
@@ -840,7 +941,8 @@
     "caloriesPer100": 327.5,
     "proteinPer100": 5.6,
     "carbsPer100": 37.5,
-    "fatPer100": 17.5
+    "fatPer100": 17.5,
+    "glycemicIndex": 70
   },
   {
     "name": "Pakora/Bhajiya",
@@ -848,7 +950,8 @@
     "caloriesPer100": 350,
     "proteinPer100": 8,
     "carbsPer100": 36,
-    "fatPer100": 20
+    "fatPer100": 20,
+    "glycemicIndex": 65
   },
   {
     "name": "Vada Pav",
@@ -856,7 +959,8 @@
     "caloriesPer100": 193.3,
     "proteinPer100": 4,
     "carbsPer100": 26.7,
-    "fatPer100": 8
+    "fatPer100": 8,
+    "glycemicIndex": 70
   },
   {
     "name": "Pav Bhaji",
@@ -864,7 +968,8 @@
     "caloriesPer100": 175,
     "proteinPer100": 4,
     "carbsPer100": 22.5,
-    "fatPer100": 7.5
+    "fatPer100": 7.5,
+    "glycemicIndex": 65
   },
   {
     "name": "Dhokla",
@@ -872,7 +977,8 @@
     "caloriesPer100": 175,
     "proteinPer100": 6.3,
     "carbsPer100": 27.5,
-    "fatPer100": 5
+    "fatPer100": 5,
+    "glycemicIndex": 40
   },
   {
     "name": "Kachori",
@@ -880,7 +986,8 @@
     "caloriesPer100": 333.3,
     "proteinPer100": 6.7,
     "carbsPer100": 36.7,
-    "fatPer100": 18.3
+    "fatPer100": 18.3,
+    "glycemicIndex": 65
   },
   {
     "name": "Chips/Crisps",
@@ -888,7 +995,8 @@
     "caloriesPer100": 533.3,
     "proteinPer100": 6.7,
     "carbsPer100": 50,
-    "fatPer100": 33.3
+    "fatPer100": 33.3,
+    "glycemicIndex": 70
   },
   {
     "name": "Biscuits (plain)",
@@ -896,7 +1004,8 @@
     "caloriesPer100": 433.3,
     "proteinPer100": 6.7,
     "carbsPer100": 66.7,
-    "fatPer100": 16.7
+    "fatPer100": 16.7,
+    "glycemicIndex": 70
   },
   {
     "name": "Namkeen/Mixture",
@@ -904,7 +1013,8 @@
     "caloriesPer100": 500,
     "proteinPer100": 13.3,
     "carbsPer100": 50,
-    "fatPer100": 30
+    "fatPer100": 30,
+    "glycemicIndex": 60
   },
   {
     "name": "Sugar",
@@ -912,7 +1022,8 @@
     "caloriesPer100": 400,
     "proteinPer100": 0,
     "carbsPer100": 100,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 65
   },
   {
     "name": "Jaggery/Gur",
@@ -920,7 +1031,8 @@
     "caloriesPer100": 385,
     "proteinPer100": 1,
     "carbsPer100": 95,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 84
   },
   {
     "name": "Honey",
@@ -928,7 +1040,8 @@
     "caloriesPer100": 320,
     "proteinPer100": 0.5,
     "carbsPer100": 85,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 61
   },
   {
     "name": "Tea (with milk, sugar)",
@@ -937,7 +1050,8 @@
     "proteinPer100": 1,
     "carbsPer100": 5.3,
     "fatPer100": 1,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 50
   },
   {
     "name": "Coffee (with milk, sugar)",
@@ -946,7 +1060,8 @@
     "proteinPer100": 1,
     "carbsPer100": 6,
     "fatPer100": 1.3,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 50
   },
   {
     "name": "Black Tea",
@@ -955,7 +1070,8 @@
     "proteinPer100": 0,
     "carbsPer100": 0,
     "fatPer100": 0,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 0
   },
   {
     "name": "Black Coffee",
@@ -964,7 +1080,8 @@
     "proteinPer100": 0.2,
     "carbsPer100": 0,
     "fatPer100": 0,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 0
   },
   {
     "name": "Green Tea",
@@ -973,7 +1090,8 @@
     "proteinPer100": 0,
     "carbsPer100": 0,
     "fatPer100": 0,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 0
   },
   {
     "name": "Coconut Water",
@@ -982,7 +1100,8 @@
     "proteinPer100": 0.7,
     "carbsPer100": 3.6,
     "fatPer100": 0.2,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 55
   },
   {
     "name": "Orange Juice",
@@ -991,7 +1110,8 @@
     "proteinPer100": 0.7,
     "carbsPer100": 10.5,
     "fatPer100": 0.2,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 50
   },
   {
     "name": "Mango Shake",
@@ -1000,7 +1120,8 @@
     "proteinPer100": 2,
     "carbsPer100": 14,
     "fatPer100": 2,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 55
   },
   {
     "name": "Banana Shake",
@@ -1009,7 +1130,8 @@
     "proteinPer100": 2.4,
     "carbsPer100": 15.2,
     "fatPer100": 2,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 55
   },
   {
     "name": "Nimbu Pani/Lemonade",
@@ -1018,7 +1140,8 @@
     "proteinPer100": 0,
     "carbsPer100": 5.2,
     "fatPer100": 0,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 40
   },
   {
     "name": "Biryani (chicken)",
@@ -1026,7 +1149,8 @@
     "caloriesPer100": 140,
     "proteinPer100": 7.2,
     "carbsPer100": 16,
-    "fatPer100": 5.2
+    "fatPer100": 5.2,
+    "glycemicIndex": 50
   },
   {
     "name": "Biryani (veg)",
@@ -1034,7 +1158,8 @@
     "caloriesPer100": 112,
     "proteinPer100": 2.8,
     "carbsPer100": 18,
-    "fatPer100": 3.2
+    "fatPer100": 3.2,
+    "glycemicIndex": 50
   },
   {
     "name": "Pulao",
@@ -1042,7 +1167,8 @@
     "caloriesPer100": 110,
     "proteinPer100": 2.5,
     "carbsPer100": 19,
-    "fatPer100": 2.5
+    "fatPer100": 2.5,
+    "glycemicIndex": 55
   },
   {
     "name": "Khichdi",
@@ -1050,7 +1176,8 @@
     "caloriesPer100": 90,
     "proteinPer100": 3,
     "carbsPer100": 16,
-    "fatPer100": 1.5
+    "fatPer100": 1.5,
+    "glycemicIndex": 50
   },
   {
     "name": "Fried Rice",
@@ -1058,7 +1185,8 @@
     "caloriesPer100": 125,
     "proteinPer100": 3,
     "carbsPer100": 17.5,
-    "fatPer100": 5
+    "fatPer100": 5,
+    "glycemicIndex": 65
   },
   {
     "name": "Noodles (veg)",
@@ -1066,7 +1194,8 @@
     "caloriesPer100": 115,
     "proteinPer100": 3,
     "carbsPer100": 19,
-    "fatPer100": 3
+    "fatPer100": 3,
+    "glycemicIndex": 65
   },
   {
     "name": "Pizza (1 slice)",
@@ -1074,7 +1203,8 @@
     "caloriesPer100": 266,
     "proteinPer100": 11,
     "carbsPer100": 33,
-    "fatPer100": 10
+    "fatPer100": 10,
+    "glycemicIndex": 60
   },
   {
     "name": "Burger (veg)",
@@ -1082,7 +1212,8 @@
     "caloriesPer100": 186.7,
     "proteinPer100": 6.7,
     "carbsPer100": 23.3,
-    "fatPer100": 8
+    "fatPer100": 8,
+    "glycemicIndex": 65
   },
   {
     "name": "Burger (chicken)",
@@ -1090,7 +1221,8 @@
     "caloriesPer100": 194.4,
     "proteinPer100": 10,
     "carbsPer100": 19.4,
-    "fatPer100": 8.3
+    "fatPer100": 8.3,
+    "glycemicIndex": 60
   },
   {
     "name": "Sandwich (veg)",
@@ -1098,7 +1230,8 @@
     "caloriesPer100": 166.7,
     "proteinPer100": 5,
     "carbsPer100": 23.3,
-    "fatPer100": 6.7
+    "fatPer100": 6.7,
+    "glycemicIndex": 55
   },
   {
     "name": "Wrap/Roll",
@@ -1106,7 +1239,8 @@
     "caloriesPer100": 186.7,
     "proteinPer100": 8,
     "carbsPer100": 20,
-    "fatPer100": 8
+    "fatPer100": 8,
+    "glycemicIndex": 55
   },
   {
     "name": "Raita",
@@ -1114,7 +1248,8 @@
     "caloriesPer100": 50,
     "proteinPer100": 2.5,
     "carbsPer100": 5,
-    "fatPer100": 2
+    "fatPer100": 2,
+    "glycemicIndex": 30
   },
   {
     "name": "Pickle (mango)",
@@ -1122,7 +1257,8 @@
     "caloriesPer100": 150,
     "proteinPer100": 1,
     "carbsPer100": 15,
-    "fatPer100": 10
+    "fatPer100": 10,
+    "glycemicIndex": 15
   },
   {
     "name": "Papad (roasted)",
@@ -1130,7 +1266,8 @@
     "caloriesPer100": 300,
     "proteinPer100": 20,
     "carbsPer100": 46.7,
-    "fatPer100": 3.3
+    "fatPer100": 3.3,
+    "glycemicIndex": 70
   },
   {
     "name": "Papad (fried)",
@@ -1138,7 +1275,8 @@
     "caloriesPer100": 466.7,
     "proteinPer100": 20,
     "carbsPer100": 46.7,
-    "fatPer100": 26.7
+    "fatPer100": 26.7,
+    "glycemicIndex": 75
   },
   {
     "name": "Chutney (green)",
@@ -1146,7 +1284,8 @@
     "caloriesPer100": 75,
     "proteinPer100": 2.5,
     "carbsPer100": 10,
-    "fatPer100": 2.5
+    "fatPer100": 2.5,
+    "glycemicIndex": 15
   },
   {
     "name": "Chutney (tamarind)",
@@ -1154,7 +1293,8 @@
     "caloriesPer100": 150,
     "proteinPer100": 1,
     "carbsPer100": 35,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 60
   },
   {
     "name": "Salad (mixed)",
@@ -1162,7 +1302,8 @@
     "caloriesPer100": 20,
     "proteinPer100": 1,
     "carbsPer100": 4,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 10
   },
   {
     "name": "Gulab Jamun",
@@ -1170,7 +1311,8 @@
     "caloriesPer100": 350,
     "proteinPer100": 5,
     "carbsPer100": 56,
-    "fatPer100": 12
+    "fatPer100": 12,
+    "glycemicIndex": 70
   },
   {
     "name": "Rasgulla",
@@ -1178,7 +1320,8 @@
     "caloriesPer100": 260,
     "proteinPer100": 6,
     "carbsPer100": 50,
-    "fatPer100": 4
+    "fatPer100": 4,
+    "glycemicIndex": 65
   },
   {
     "name": "Jalebi",
@@ -1186,7 +1329,8 @@
     "caloriesPer100": 320,
     "proteinPer100": 3,
     "carbsPer100": 60,
-    "fatPer100": 8
+    "fatPer100": 8,
+    "glycemicIndex": 80
   },
   {
     "name": "Kheer",
@@ -1194,7 +1338,8 @@
     "caloriesPer100": 150,
     "proteinPer100": 4,
     "carbsPer100": 22,
-    "fatPer100": 5
+    "fatPer100": 5,
+    "glycemicIndex": 55
   },
   {
     "name": "Halwa (sooji)",
@@ -1202,7 +1347,8 @@
     "caloriesPer100": 250,
     "proteinPer100": 3.8,
     "carbsPer100": 37.5,
-    "fatPer100": 10
+    "fatPer100": 10,
+    "glycemicIndex": 65
   },
   {
     "name": "Ladoo (besan)",
@@ -1210,7 +1356,8 @@
     "caloriesPer100": 450,
     "proteinPer100": 7.5,
     "carbsPer100": 50,
-    "fatPer100": 25
+    "fatPer100": 25,
+    "glycemicIndex": 60
   },
   {
     "name": "Ice Cream (vanilla)",
@@ -1218,7 +1365,8 @@
     "caloriesPer100": 207,
     "proteinPer100": 3.5,
     "carbsPer100": 24,
-    "fatPer100": 11
+    "fatPer100": 11,
+    "glycemicIndex": 57
   },
   {
     "name": "Chocolate (dark)",
@@ -1226,7 +1374,8 @@
     "caloriesPer100": 566.7,
     "proteinPer100": 7.3,
     "carbsPer100": 43.3,
-    "fatPer100": 40
+    "fatPer100": 40,
+    "glycemicIndex": 23
   },
   {
     "name": "Cake (chocolate)",
@@ -1234,7 +1383,8 @@
     "caloriesPer100": 350,
     "proteinPer100": 5,
     "carbsPer100": 47.5,
-    "fatPer100": 16.3
+    "fatPer100": 16.3,
+    "glycemicIndex": 60
   },
   {
     "name": "Brownie",
@@ -1242,7 +1392,8 @@
     "caloriesPer100": 440,
     "proteinPer100": 6,
     "carbsPer100": 50,
-    "fatPer100": 24
+    "fatPer100": 24,
+    "glycemicIndex": 50
   },
   {
     "name": "Egg Whole",
@@ -1252,7 +1403,8 @@
     "carbsPer100": 1.2,
     "fatPer100": 10.6,
     "gramsPerPiece": 50,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 0
   },
   {
     "name": "BB Toast",
@@ -1260,7 +1412,8 @@
     "caloriesPer100": 250,
     "proteinPer100": 8.3,
     "carbsPer100": 43.3,
-    "fatPer100": 4
+    "fatPer100": 4,
+    "glycemicIndex": 70
   },
   {
     "name": "Red Apple",
@@ -1268,7 +1421,8 @@
     "caloriesPer100": 52,
     "proteinPer100": 0.3,
     "carbsPer100": 14,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 36
   },
   {
     "name": "Green Apple",
@@ -1276,7 +1430,8 @@
     "caloriesPer100": 52,
     "proteinPer100": 0.3,
     "carbsPer100": 14,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 38
   },
   {
     "name": "Red Bell Pepper",
@@ -1284,7 +1439,8 @@
     "caloriesPer100": 31,
     "proteinPer100": 1,
     "carbsPer100": 6,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 15
   },
   {
     "name": "Yellow Bell Pepper",
@@ -1292,7 +1448,8 @@
     "caloriesPer100": 27,
     "proteinPer100": 1,
     "carbsPer100": 6.3,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 15
   },
   {
     "name": "Pista",
@@ -1300,7 +1457,8 @@
     "caloriesPer100": 560,
     "proteinPer100": 20.3,
     "carbsPer100": 27.3,
-    "fatPer100": 45.3
+    "fatPer100": 45.3,
+    "glycemicIndex": 15
   },
   {
     "name": "Matar",
@@ -1308,7 +1466,8 @@
     "caloriesPer100": 81,
     "proteinPer100": 5.4,
     "carbsPer100": 14.5,
-    "fatPer100": 0.4
+    "fatPer100": 0.4,
+    "glycemicIndex": 40
   },
   {
     "name": "Hot & Sweet Chilli Sauce",
@@ -1316,7 +1475,8 @@
     "caloriesPer100": 100,
     "proteinPer100": 0.7,
     "carbsPer100": 24,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 55
   },
   {
     "name": "Tomato Ketchup",
@@ -1324,7 +1484,8 @@
     "caloriesPer100": 113.3,
     "proteinPer100": 1.3,
     "carbsPer100": 27.3,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 50
   },
   {
     "name": "Zucchini",
@@ -1332,7 +1493,8 @@
     "caloriesPer100": 17,
     "proteinPer100": 1.2,
     "carbsPer100": 3.1,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 15
   },
   {
     "name": "Peanut Butter",
@@ -1340,7 +1502,8 @@
     "caloriesPer100": 586.7,
     "proteinPer100": 25,
     "carbsPer100": 20,
-    "fatPer100": 50.3
+    "fatPer100": 50.3,
+    "glycemicIndex": 14
   },
   {
     "name": "Wheat Flour",
@@ -1348,7 +1511,8 @@
     "caloriesPer100": 340,
     "proteinPer100": 13.2,
     "carbsPer100": 72,
-    "fatPer100": 1.5
+    "fatPer100": 1.5,
+    "glycemicIndex": 70
   },
   {
     "name": "Gram Flour",
@@ -1356,7 +1520,8 @@
     "caloriesPer100": 356,
     "proteinPer100": 22,
     "carbsPer100": 57.8,
-    "fatPer100": 6.7
+    "fatPer100": 6.7,
+    "glycemicIndex": 35
   },
   {
     "name": "Maida",
@@ -1364,7 +1529,8 @@
     "caloriesPer100": 350,
     "proteinPer100": 11,
     "carbsPer100": 74,
-    "fatPer100": 1.2
+    "fatPer100": 1.2,
+    "glycemicIndex": 85
   },
   {
     "name": "Large Tortilla",
@@ -1372,7 +1538,8 @@
     "caloriesPer100": 240,
     "proteinPer100": 6.7,
     "carbsPer100": 40,
-    "fatPer100": 5.8
+    "fatPer100": 5.8,
+    "glycemicIndex": 30
   },
   {
     "name": "French Beans",
@@ -1380,7 +1547,8 @@
     "caloriesPer100": 31,
     "proteinPer100": 1.8,
     "carbsPer100": 7,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 30
   },
   {
     "name": "Chickpea",
@@ -1388,7 +1556,8 @@
     "caloriesPer100": 164,
     "proteinPer100": 8.9,
     "carbsPer100": 27.4,
-    "fatPer100": 2.6
+    "fatPer100": 2.6,
+    "glycemicIndex": 28
   },
   {
     "name": "Black Chickpea",
@@ -1396,7 +1565,8 @@
     "caloriesPer100": 164,
     "proteinPer100": 8.9,
     "carbsPer100": 27.4,
-    "fatPer100": 2.6
+    "fatPer100": 2.6,
+    "glycemicIndex": 30
   },
   {
     "name": "Kharbooja",
@@ -1404,7 +1574,8 @@
     "caloriesPer100": 34,
     "proteinPer100": 0.8,
     "carbsPer100": 8.2,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 65
   },
   {
     "name": "Cantaloupe",
@@ -1412,7 +1583,8 @@
     "caloriesPer100": 34,
     "proteinPer100": 0.8,
     "carbsPer100": 8.2,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 65
   },
   {
     "name": "Pasta Penne",
@@ -1420,7 +1592,8 @@
     "caloriesPer100": 131,
     "proteinPer100": 5,
     "carbsPer100": 25,
-    "fatPer100": 1.1
+    "fatPer100": 1.1,
+    "glycemicIndex": 49
   },
   {
     "name": "Spaghetti",
@@ -1428,7 +1601,8 @@
     "caloriesPer100": 131,
     "proteinPer100": 5,
     "carbsPer100": 25,
-    "fatPer100": 1.1
+    "fatPer100": 1.1,
+    "glycemicIndex": 49
   },
   {
     "name": "Pizza Pasta Sauce",
@@ -1436,7 +1610,8 @@
     "caloriesPer100": 50,
     "proteinPer100": 1.7,
     "carbsPer100": 8,
-    "fatPer100": 1.7
+    "fatPer100": 1.7,
+    "glycemicIndex": 45
   },
   {
     "name": "Pear",
@@ -1446,7 +1621,8 @@
     "carbsPer100": 15.2,
     "fatPer100": 0.1,
     "gramsPerPiece": 178,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 38
   },
   {
     "name": "Kiwi",
@@ -1456,7 +1632,8 @@
     "carbsPer100": 14.7,
     "fatPer100": 0.5,
     "gramsPerPiece": 70,
-    "preferredUnit": "PIECE"
+    "preferredUnit": "PIECE",
+    "glycemicIndex": 53
   },
   {
     "name": "Yellow Moong Dal",
@@ -1464,7 +1641,8 @@
     "caloriesPer100": 347,
     "proteinPer100": 24,
     "carbsPer100": 59.9,
-    "fatPer100": 1.2
+    "fatPer100": 1.2,
+    "glycemicIndex": 38
   },
   {
     "name": "Green Moong",
@@ -1472,7 +1650,8 @@
     "caloriesPer100": 347,
     "proteinPer100": 24,
     "carbsPer100": 59.9,
-    "fatPer100": 1.2
+    "fatPer100": 1.2,
+    "glycemicIndex": 38
   },
   {
     "name": "Chana Dal",
@@ -1480,7 +1659,8 @@
     "caloriesPer100": 360,
     "proteinPer100": 22,
     "carbsPer100": 60,
-    "fatPer100": 5
+    "fatPer100": 5,
+    "glycemicIndex": 36
   },
   {
     "name": "Cheese Slice",
@@ -1488,7 +1668,8 @@
     "caloriesPer100": 340,
     "proteinPer100": 16.5,
     "carbsPer100": 4.5,
-    "fatPer100": 28.5
+    "fatPer100": 28.5,
+    "glycemicIndex": 0
   },
   {
     "name": "Avocado",
@@ -1496,7 +1677,8 @@
     "caloriesPer100": 160,
     "proteinPer100": 2,
     "carbsPer100": 8.5,
-    "fatPer100": 14.7
+    "fatPer100": 14.7,
+    "glycemicIndex": 10
   },
   {
     "name": "Lettuce",
@@ -1504,7 +1686,8 @@
     "caloriesPer100": 15,
     "proteinPer100": 1.4,
     "carbsPer100": 2.9,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 10
   },
   {
     "name": "Beetroot",
@@ -1512,7 +1695,8 @@
     "caloriesPer100": 43,
     "proteinPer100": 1.6,
     "carbsPer100": 9.6,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 61
   },
   {
     "name": "Lauki",
@@ -1520,7 +1704,8 @@
     "caloriesPer100": 14,
     "proteinPer100": 0.6,
     "carbsPer100": 3.4,
-    "fatPer100": 0.1
+    "fatPer100": 0.1,
+    "glycemicIndex": 10
   },
   {
     "name": "Bhindi",
@@ -1528,7 +1713,8 @@
     "caloriesPer100": 33,
     "proteinPer100": 1.9,
     "carbsPer100": 7.5,
-    "fatPer100": 0.2
+    "fatPer100": 0.2,
+    "glycemicIndex": 20
   },
   {
     "name": "Boneless Chicken",
@@ -1536,7 +1722,8 @@
     "caloriesPer100": 165,
     "proteinPer100": 31,
     "carbsPer100": 0,
-    "fatPer100": 3.6
+    "fatPer100": 3.6,
+    "glycemicIndex": 0
   },
   {
     "name": "Black Dates",
@@ -1544,7 +1731,8 @@
     "caloriesPer100": 276.7,
     "proteinPer100": 1.7,
     "carbsPer100": 75,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 100
   },
   {
     "name": "Milk",
@@ -1553,7 +1741,8 @@
     "proteinPer100": 3.2,
     "carbsPer100": 4.8,
     "fatPer100": 3.3,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 27
   },
   {
     "name": "Fresh Cream",
@@ -1561,7 +1750,8 @@
     "caloriesPer100": 340,
     "proteinPer100": 2,
     "carbsPer100": 2.7,
-    "fatPer100": 35
+    "fatPer100": 35,
+    "glycemicIndex": 0
   },
   {
     "name": "Ragi Flour",
@@ -1569,7 +1759,8 @@
     "caloriesPer100": 336,
     "proteinPer100": 7.3,
     "carbsPer100": 72,
-    "fatPer100": 1.3
+    "fatPer100": 1.3,
+    "glycemicIndex": 68
   },
   {
     "name": "Desi Ghee",
@@ -1577,7 +1768,8 @@
     "caloriesPer100": 900,
     "proteinPer100": 0,
     "carbsPer100": 0,
-    "fatPer100": 100
+    "fatPer100": 100,
+    "glycemicIndex": 0
   },
   {
     "name": "Luke Warm Water",
@@ -1595,7 +1787,8 @@
     "proteinPer100": 0.5,
     "carbsPer100": 0.3,
     "fatPer100": 1.2,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 25
   },
   {
     "name": "Whey Isolate",
@@ -1603,7 +1796,8 @@
     "caloriesPer100": 373.3,
     "proteinPer100": 90,
     "carbsPer100": 3,
-    "fatPer100": 1
+    "fatPer100": 1,
+    "glycemicIndex": 30
   },
   {
     "name": "Oreo Biscuits",
@@ -1611,7 +1805,8 @@
     "caloriesPer100": 481.8,
     "proteinPer100": 3.6,
     "carbsPer100": 75.5,
-    "fatPer100": 20.9
+    "fatPer100": 20.9,
+    "glycemicIndex": 70
   },
   {
     "name": "Oats",
@@ -1619,7 +1814,8 @@
     "caloriesPer100": 390,
     "proteinPer100": 17,
     "carbsPer100": 66.3,
-    "fatPer100": 7
+    "fatPer100": 7,
+    "glycemicIndex": 55
   },
   {
     "name": "Maple Syrup",
@@ -1628,7 +1824,8 @@
     "proteinPer100": 0,
     "carbsPer100": 67,
     "fatPer100": 0,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 54
   },
   {
     "name": "Cinnamon Powder",
@@ -1636,7 +1833,8 @@
     "caloriesPer100": 250,
     "proteinPer100": 5,
     "carbsPer100": 80,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 5
   },
   {
     "name": "Raisin",
@@ -1644,7 +1842,8 @@
     "caloriesPer100": 300,
     "proteinPer100": 3,
     "carbsPer100": 79,
-    "fatPer100": 0.7
+    "fatPer100": 0.7,
+    "glycemicIndex": 64
   },
   {
     "name": "Cranberry",
@@ -1652,7 +1851,8 @@
     "caloriesPer100": 46.7,
     "proteinPer100": 0.3,
     "carbsPer100": 12,
-    "fatPer100": 0
+    "fatPer100": 0,
+    "glycemicIndex": 45
   },
   {
     "name": "Raspberry",
@@ -1660,7 +1860,8 @@
     "caloriesPer100": 52,
     "proteinPer100": 1.2,
     "carbsPer100": 12,
-    "fatPer100": 0.7
+    "fatPer100": 0.7,
+    "glycemicIndex": 32
   },
   {
     "name": "Jowar Flour",
@@ -1668,7 +1869,8 @@
     "caloriesPer100": 349,
     "proteinPer100": 10.4,
     "carbsPer100": 72.6,
-    "fatPer100": 1.9
+    "fatPer100": 1.9,
+    "glycemicIndex": 65
   },
   {
     "name": "Veggie Mayo",
@@ -1676,7 +1878,8 @@
     "caloriesPer100": 680,
     "proteinPer100": 0.7,
     "carbsPer100": 1.3,
-    "fatPer100": 75.3
+    "fatPer100": 75.3,
+    "glycemicIndex": 15
   },
   {
     "name": "Roasted Melon Seeds",
@@ -1684,7 +1887,8 @@
     "caloriesPer100": 573.3,
     "proteinPer100": 28.3,
     "carbsPer100": 15.3,
-    "fatPer100": 47.3
+    "fatPer100": 47.3,
+    "glycemicIndex": 35
   },
   {
     "name": "Dahi",
@@ -1692,7 +1896,8 @@
     "caloriesPer100": 60,
     "proteinPer100": 3.5,
     "carbsPer100": 4.7,
-    "fatPer100": 3.3
+    "fatPer100": 3.3,
+    "glycemicIndex": 36
   },
   {
     "name": "Plum",
@@ -1700,7 +1905,8 @@
     "caloriesPer100": 46,
     "proteinPer100": 0.7,
     "carbsPer100": 11.4,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 39
   },
   {
     "name": "Soya Chunks",
@@ -1708,7 +1914,8 @@
     "caloriesPer100": 346.7,
     "proteinPer100": 52,
     "carbsPer100": 33,
-    "fatPer100": 0.7
+    "fatPer100": 0.7,
+    "glycemicIndex": 18
   },
   {
     "name": "Poha Raw",
@@ -1716,7 +1923,8 @@
     "caloriesPer100": 358,
     "proteinPer100": 6.8,
     "carbsPer100": 77,
-    "fatPer100": 2.8
+    "fatPer100": 2.8,
+    "glycemicIndex": 70
   },
   {
     "name": "Black Olives",
@@ -1724,7 +1932,8 @@
     "caloriesPer100": 116.7,
     "proteinPer100": 0.7,
     "carbsPer100": 6,
-    "fatPer100": 11
+    "fatPer100": 11,
+    "glycemicIndex": 15
   },
   {
     "name": "Mayo",
@@ -1732,7 +1941,8 @@
     "caloriesPer100": 680,
     "proteinPer100": 1.3,
     "carbsPer100": 1.3,
-    "fatPer100": 75.3
+    "fatPer100": 75.3,
+    "glycemicIndex": 15
   },
   {
     "name": "Chocolate Ice Cream",
@@ -1740,7 +1950,8 @@
     "caloriesPer100": 216,
     "proteinPer100": 3.8,
     "carbsPer100": 28,
-    "fatPer100": 11
+    "fatPer100": 11,
+    "glycemicIndex": 60
   },
   {
     "name": "Corn Flakes",
@@ -1748,7 +1959,8 @@
     "caloriesPer100": 356.7,
     "proteinPer100": 7.7,
     "carbsPer100": 84,
-    "fatPer100": 0.3
+    "fatPer100": 0.3,
+    "glycemicIndex": 81
   },
   {
     "name": "Sourdough Bread",
@@ -1756,7 +1968,8 @@
     "caloriesPer100": 290,
     "proteinPer100": 11,
     "carbsPer100": 53,
-    "fatPer100": 3.4
+    "fatPer100": 3.4,
+    "glycemicIndex": 54
   },
   {
     "name": "Boiled Rajma",
@@ -1764,7 +1977,8 @@
     "caloriesPer100": 127,
     "proteinPer100": 8.7,
     "carbsPer100": 22.8,
-    "fatPer100": 0.5
+    "fatPer100": 0.5,
+    "glycemicIndex": 29
   },
   {
     "name": "Soy Sauce",
@@ -1773,7 +1987,8 @@
     "proteinPer100": 8,
     "carbsPer100": 5.3,
     "fatPer100": 0,
-    "gramsPerCup": 240
+    "gramsPerCup": 240,
+    "glycemicIndex": 20
   },
   {
     "name": "Chickpea Raw",
@@ -1781,7 +1996,8 @@
     "caloriesPer100": 378,
     "proteinPer100": 20.5,
     "carbsPer100": 63,
-    "fatPer100": 6
+    "fatPer100": 6,
+    "glycemicIndex": 33
   },
   {
     "name": "Fresh Cream Cooking",
@@ -1789,7 +2005,8 @@
     "caloriesPer100": 196.7,
     "proteinPer100": 2.7,
     "carbsPer100": 3.7,
-    "fatPer100": 19
+    "fatPer100": 19,
+    "glycemicIndex": 0
   },
   {
     "name": "Ashwagandha",

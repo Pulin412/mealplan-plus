@@ -53,7 +53,6 @@ class EditMealViewModel @Inject constructor(
                             isLoading = false,
                             name = mealWithFoods.meal.name,
                             description = mealWithFoods.meal.description ?: "",
-                            selectedSlot = mealWithFoods.meal.defaultSlot ?: DefaultMealSlot.BREAKFAST,
                             selectedFoods = selectedFoods
                         )
                     }
@@ -119,10 +118,8 @@ class EditMealViewModel @Inject constructor(
                 // Update meal
                 val meal = Meal(
                     id = mealId,
-                    userId = 0L,  // Will be overwritten by repository
                     name = state.name.trim(),
-                    description = state.description.takeIf { it.isNotBlank() }?.trim(),
-                    slotType = state.selectedSlot.name
+                    description = state.description.takeIf { it.isNotBlank() }?.trim()
                 )
                 mealRepository.updateMeal(meal)
 

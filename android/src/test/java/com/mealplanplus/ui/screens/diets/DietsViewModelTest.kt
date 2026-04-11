@@ -53,7 +53,7 @@ class DietsViewModelTest {
     private fun summary(
         id: Long, name: String, calories: Int = 0, createdAt: Long = id * 1000
     ) = DietFullSummary(
-        id = id, userId = 1, name = name, description = null,
+        id = id, name = name, description = null,
         createdAt = createdAt, mealCount = 0,
         totalCalories = calories, totalProtein = 0, totalCarbs = 0, totalFat = 0
     )

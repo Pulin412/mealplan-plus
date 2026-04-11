@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.mealplanplus.util.toEpochMs
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -24,8 +25,8 @@ import java.util.*
 @Composable
 fun MiniCalendar(
     currentMonth: YearMonth,
-    plansForMonth: Map<String, Boolean>,  // date string → isCompleted
-    dietNames: Map<String, String> = emptyMap(),
+    plansForMonth: Map<Long, Boolean>,  // epoch ms → isCompleted
+    dietNames: Map<Long, String> = emptyMap(),
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onDateSelected: (LocalDate) -> Unit,
@@ -106,11 +107,11 @@ fun MiniCalendar(
 
                         if (dayNumber in 1..daysInMonth) {
                             val date = currentMonth.atDay(dayNumber)
-                            val dateStr = date.toString()
+                            val dateMs = date.toEpochMs()
                             val isToday = date == today
-                            val hasPlan = plansForMonth.containsKey(dateStr)
-                            val isCompleted = plansForMonth[dateStr] ?: false
-                            val dietName = dietNames[dateStr]
+                            val hasPlan = plansForMonth.containsKey(dateMs)
+                            val isCompleted = plansForMonth[dateMs] ?: false
+                            val dietName = dietNames[dateMs]
 
                             CalendarDayCell(
                                 day = dayNumber,

@@ -65,7 +65,7 @@ data class HealthMetric(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val userId: Long,
-    val date: String,  // ISO format: yyyy-MM-dd
+    val date: Long,  // Epoch ms at midnight UTC
     val timestamp: Long = System.currentTimeMillis(),
     val metricType: String?,  // MetricType.name or null for custom
     val customTypeId: Long? = null,  // For custom metrics

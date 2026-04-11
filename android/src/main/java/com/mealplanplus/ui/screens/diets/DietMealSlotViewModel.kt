@@ -70,7 +70,7 @@ class DietMealSlotViewModel @Inject constructor(
 
     private fun loadAvailableMeals() {
         viewModelScope.launch {
-            mealRepository.getMealsByUser().collect { meals ->
+            mealRepository.getAllMeals().collect { meals ->
                 _uiState.update { it.copy(availableMeals = meals) }
             }
         }

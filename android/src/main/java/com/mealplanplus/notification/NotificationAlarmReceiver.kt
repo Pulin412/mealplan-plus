@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import com.mealplanplus.util.toLocalDate
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -135,10 +136,10 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
             .firstOrNull() ?: emptyList()
 
         val streakDays = NotificationDecider.computeStreak(
-            completedDays.map { it.date }, today
+            completedDays.map { it.date.toLocalDate() }, today
         )
         val todayCalories = completedDays
-            .firstOrNull { it.date == today.toString() }?.calories ?: 0.0
+            .firstOrNull { it.date.toLocalDate() == today }?.calories ?: 0.0
 
         if (NotificationDecider.shouldSendStreakAlert(
                 currentHour = 0, // hour check irrelevant — alarm fires at exact time
@@ -166,7 +167,7 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
         val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weekEnd = weekStart.plusDays(6)
         val plans = ep.planRepository()
-            .getPlansWithDietNames(weekStart.toString(), weekEnd.toString())
+            .getPlansWithDietNames(weekStart, weekEnd)
             .firstOrNull() ?: emptyList()
 
         // Alarm fires on Monday — if somehow it fires on another day, skip

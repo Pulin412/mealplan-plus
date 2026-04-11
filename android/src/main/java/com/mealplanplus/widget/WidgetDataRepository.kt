@@ -3,12 +3,12 @@ package com.mealplanplus.widget
 import android.content.Context
 import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.PlanWithDietName
+import com.mealplanplus.util.toEpochMs
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 /**
  * Convenience wrapper used exclusively by Glance widgets to load data.
@@ -21,20 +21,12 @@ class WidgetDataRepository(context: Context) {
     private val logRepo = ep.dailyLogRepository()
     private val dietRepo = ep.dietRepository()
 
-    private val fmt = DateTimeFormatter.ISO_LOCAL_DATE
-
     // ─── Calendar widget ────────────────────────────────────────────────────
 
-    /**
-     * Returns plans for the 7-day window starting today so the calendar
-     * widget can show which diet is assigned to each day.
-     */
     suspend fun getWeekPlans(): List<PlanWithDietName> {
         val today = LocalDate.now()
         val end = today.plusDays(6)
-        return planRepo
-            .getPlansWithDietNames(today.format(fmt), end.format(fmt))
-            .firstOrNull() ?: emptyList()
+        return planRepo.getPlansWithDietNames(today, end).firstOrNull() ?: emptyList()
     }
 
     // ─── Today's plan widget ────────────────────────────────────────────────
@@ -47,13 +39,9 @@ class WidgetDataRepository(context: Context) {
         val mealId: Long?
     )
 
-    /**
-     * Returns the diet + slot list for today so the "Today's Plan" widget
-     * can show checkboxes per meal slot.
-     */
     suspend fun getTodaySlots(): Pair<String?, List<TodaySlot>> {
         val today = LocalDate.now()
-        val plan = planRepo.getPlanForDate(today.format(fmt)) ?: return null to emptyList()
+        val plan = planRepo.getPlanForDate(today) ?: return null to emptyList()
         val dietId = plan.dietId ?: return null to emptyList()
 
         val dietWithMeals = dietRepo.getDietWithMeals(dietId) ?: return null to emptyList()
@@ -61,7 +49,7 @@ class WidgetDataRepository(context: Context) {
         val loggedSlots = logWithFoods?.foods?.map { it.loggedFood.slotType }?.toSet() ?: emptySet()
 
         val slots = dietWithMeals.meals.entries
-            .sortedBy { (_, mwf) -> mwf?.meal?.slotType?.let { slotOrder(it) } ?: Int.MAX_VALUE }
+            .sortedBy { (slotType, _) -> slotOrder(slotType) }
             .map { (slotType, mwf) ->
                 TodaySlot(
                     slotType = slotType,
@@ -79,28 +67,22 @@ class WidgetDataRepository(context: Context) {
 
     data class DietSummaryData(
         val dietName: String,
-        // Goal (from the planned diet)
         val goalCalories: Int,
         val goalProtein: Int,
         val goalCarbs: Int,
         val goalFat: Int,
-        // Consumed today (from daily log)
         val consumedCalories: Int,
         val consumedProtein: Int,
         val consumedCarbs: Int,
         val consumedFat: Int
     )
 
-    /**
-     * Returns today's planned diet goals AND actual consumed macros for the
-     * circular-progress ring widget.
-     */
     suspend fun getTodayDietSummary(): DietSummaryData? {
         val today = LocalDate.now()
-        val plan  = planRepo.getPlanForDate(today.format(fmt)) ?: return null
+        val plan = planRepo.getPlanForDate(today) ?: return null
         val dietId = plan.dietId ?: return null
-        val diet  = dietRepo.getDietWithMeals(dietId) ?: return null
-        val log   = logRepo.getLogWithFoods(today).firstOrNull()
+        val diet = dietRepo.getDietWithMeals(dietId) ?: return null
+        val log = logRepo.getLogWithFoods(today).firstOrNull()
         return DietSummaryData(
             dietName         = diet.diet.name,
             goalCalories     = diet.totalCalories.toInt(),
@@ -116,15 +98,11 @@ class WidgetDataRepository(context: Context) {
 
     // ─── Reactive Flow variants ──────────────────────────────────────────────
 
-    /**
-     * Emits a fresh slot list whenever the logged_foods table changes for today.
-     * Use inside [provideContent] with [collectAsState] so the widget self-updates.
-     */
     fun getTodaySlotsFlow(): Flow<Pair<String?, List<TodaySlot>>> =
         logRepo.getLogWithFoods(LocalDate.now())
             .map { logWithFoods ->
                 val today = LocalDate.now()
-                val plan = planRepo.getPlanForDate(today.format(fmt))
+                val plan = planRepo.getPlanForDate(today)
                     ?: return@map (null to emptyList())
                 val dietId = plan.dietId ?: return@map (null to emptyList())
                 val dietWithMeals = dietRepo.getDietWithMeals(dietId)
@@ -132,9 +110,7 @@ class WidgetDataRepository(context: Context) {
                 val loggedSlots = logWithFoods?.foods
                     ?.map { it.loggedFood.slotType }?.toSet() ?: emptySet()
                 val slots = dietWithMeals.meals.entries
-                    .sortedBy { (_, mwf) ->
-                        mwf?.meal?.slotType?.let { slotOrder(it) } ?: Int.MAX_VALUE
-                    }
+                    .sortedBy { (slotType, _) -> slotOrder(slotType) }
                     .map { (slotType, mwf) ->
                         TodaySlot(
                             slotType    = slotType,
@@ -148,18 +124,13 @@ class WidgetDataRepository(context: Context) {
             }
             .catch { emit(null to emptyList()) }
 
-    /**
-     * Emits fresh diet-summary data whenever the logged_foods table changes for today.
-     * Use inside [provideContent] with [collectAsState] so the widget self-updates.
-     */
     fun getTodayDietSummaryFlow(): Flow<DietSummaryData?> =
         logRepo.getLogWithFoods(LocalDate.now())
             .map { logWithFoods ->
                 val today = LocalDate.now()
-                val plan  = planRepo.getPlanForDate(today.format(fmt))
-                    ?: return@map null
+                val plan = planRepo.getPlanForDate(today) ?: return@map null
                 val dietId = plan.dietId ?: return@map null
-                val diet  = dietRepo.getDietWithMeals(dietId) ?: return@map null
+                val diet = dietRepo.getDietWithMeals(dietId) ?: return@map null
                 DietSummaryData(
                     dietName         = diet.diet.name,
                     goalCalories     = diet.totalCalories.toInt(),
@@ -176,21 +147,14 @@ class WidgetDataRepository(context: Context) {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    /**
-     * Log all foods in a slot to today's daily log (mirrors what the Home screen does).
-     * Clears the slot first so this operation is idempotent — stale widget action parameters
-     * that have isLogged=false when the slot is actually already logged will not create duplicates.
-     */
     suspend fun logSlot(slotType: String) {
         val today = LocalDate.now()
-        val plan = planRepo.getPlanForDate(today.format(fmt)) ?: return
+        val plan = planRepo.getPlanForDate(today) ?: return
         val dietId = plan.dietId ?: return
         val dietWithMeals = dietRepo.getDietWithMeals(dietId) ?: return
         val mwf = dietWithMeals.meals[slotType] ?: return
 
-        // Clear first to prevent duplicate rows if the widget's baked-in isLogged was stale
         logRepo.clearSlot(today, slotType)
-
         mwf.items.forEach { item ->
             logRepo.logFood(
                 date = today,
@@ -202,17 +166,10 @@ class WidgetDataRepository(context: Context) {
         }
     }
 
-    /**
-     * Clear all logged foods for a slot today (un-check).
-     */
     suspend fun clearSlot(slotType: String) {
         logRepo.clearSlot(LocalDate.now(), slotType)
     }
 
-    /**
-     * Toggle a slot: queries the DB directly (never relies on baked-in widget parameters)
-     * so the log/clear direction is always correct even if the pending intent is stale.
-     */
     suspend fun toggleSlot(slotType: String) {
         if (logRepo.isSlotLogged(LocalDate.now(), slotType)) {
             clearSlot(slotType)

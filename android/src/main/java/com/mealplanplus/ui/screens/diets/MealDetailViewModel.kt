@@ -31,11 +31,14 @@ class MealDetailViewModel @Inject constructor(
         val allFoods: List<MealFoodItemWithDetails> = emptyList(),
         val sortedFoods: List<MealFoodItemWithDetails> = emptyList(),
         val checkedFoodIds: Set<Long> = emptySet(),
-        val sortOrder: IngredientSortOrder = IngredientSortOrder.ALPHABETICAL,
+        val sortOrder: IngredientSortOrder = IngredientSortOrder.QUANTITY,
+        val sortAscending: Boolean = true,
         val totalCalories: Double = 0.0,
         val totalProtein: Double = 0.0,
         val totalCarbs: Double = 0.0,
         val totalFat: Double = 0.0,
+        /** Null when no food in the meal has a GI value set. */
+        val totalGlycemicLoad: Double? = null,
         val isLoading: Boolean = true,
         val error: String? = null
     )
@@ -59,9 +62,11 @@ class MealDetailViewModel @Inject constructor(
 
     fun setSortOrder(order: IngredientSortOrder) {
         _uiState.update { state ->
+            val newAscending = if (state.sortOrder == order) !state.sortAscending else true
             state.copy(
                 sortOrder = order,
-                sortedFoods = state.allFoods.sorted(order)
+                sortAscending = newAscending,
+                sortedFoods = state.allFoods.sorted(order, newAscending)
             )
         }
     }
@@ -75,16 +80,18 @@ class MealDetailViewModel @Inject constructor(
                 val instructions = dietWithMeals?.instructions?.get(slotType) ?: ""
                 val slot = DefaultMealSlot.entries.find { it.name == slotType }
                 val foods = mealWithFoods?.items ?: emptyList()
+                val glValues = foods.mapNotNull { f -> f.calculatedGlycemicLoad }
                 _uiState.update {
                     it.copy(
                         slotLabel = slot?.displayName ?: slotType,
                         instructions = instructions,
                         allFoods = foods,
-                        sortedFoods = foods.sorted(IngredientSortOrder.ALPHABETICAL),
+                        sortedFoods = foods.sorted(IngredientSortOrder.QUANTITY, ascending = true),
                         totalCalories = foods.sumOf { f -> f.calculatedCalories },
                         totalProtein = foods.sumOf { f -> f.calculatedProtein },
                         totalCarbs = foods.sumOf { f -> f.calculatedCarbs },
                         totalFat = foods.sumOf { f -> f.calculatedFat },
+                        totalGlycemicLoad = if (glValues.isEmpty()) null else glValues.sum(),
                         isLoading = false
                     )
                 }
@@ -94,8 +101,13 @@ class MealDetailViewModel @Inject constructor(
         }
     }
 
-    private fun List<MealFoodItemWithDetails>.sorted(order: IngredientSortOrder) = when (order) {
-        IngredientSortOrder.ALPHABETICAL -> sortedBy { it.food.name.lowercase() }
-        IngredientSortOrder.QUANTITY -> sortedByDescending { it.mealFoodItem.quantity }
-    }
+    private fun List<MealFoodItemWithDetails>.sorted(order: IngredientSortOrder, ascending: Boolean) =
+        when (order) {
+            IngredientSortOrder.ALPHABETICAL ->
+                if (ascending) sortedBy { it.food.name.lowercase() }
+                else sortedByDescending { it.food.name.lowercase() }
+            IngredientSortOrder.QUANTITY ->
+                if (ascending) sortedBy { it.mealFoodItem.quantity }
+                else sortedByDescending { it.mealFoodItem.quantity }
+        }
 }

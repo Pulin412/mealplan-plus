@@ -308,7 +308,7 @@ fun MealPlanNavHost(
                         )
                     },
                     onNavigateToMealDetail = { dietId, slotType ->
-                        navController.navigate(Screen.MealDetail.createRoute(dietId, slotType))
+                        navController.navigate(Screen.MealDetail.createRoute(dietId, slotType, readOnly = true))
                     },
                     onNavigateToFoods = { navController.navigate(Screen.Foods.route) },
                     onNavigateToMeals = { navController.navigate(Screen.Meals.route) },

@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.*
 import com.mealplanplus.ui.components.CalendarDayCell
+import com.mealplanplus.util.toEpochMs
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -64,6 +65,15 @@ fun CalendarScreen(
         }
     }
 
+    // Grocery snapshot bottom sheet
+    if (uiState.grocerySnapshot != null) {
+        GrocerySnapshotSheet(
+            dietName = uiState.selectedDiet?.name ?: "",
+            items = uiState.grocerySnapshot!!,
+            onDismiss = { viewModel.clearGrocerySnapshot() }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Dark green header
         MealPlanTopBar(
@@ -95,7 +105,7 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val isPlanCompleted = uiState.plans[uiState.selectedDate.toString()]?.isCompleted ?: false
+            val isPlanCompleted = uiState.plans[uiState.selectedDate.toEpochMs()]?.isCompleted ?: false
 
             // Selected date detail panel
             SelectedDatePanel(
@@ -110,7 +120,10 @@ fun CalendarScreen(
                 onRemoveDiet = { viewModel.clearPlan() },
                 onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
                 onSlotToggle = { slotType -> viewModel.toggleSlotLogged(slotType) },
-                onNavigateToMealDetail = onNavigateToMealDetail
+                onNavigateToMealDetail = onNavigateToMealDetail,
+                onToggleFavourite = { diet -> viewModel.toggleFavourite(diet) },
+                onShowGroceries = { viewModel.generateGroceriesForDiet() },
+                isGeneratingGroceries = uiState.isGeneratingGroceries
             )
         }
     }
@@ -154,8 +167,8 @@ private fun MealPlanTopBar(onSelectDietForToday: () -> Unit) {
 private fun CalendarCard(
     currentMonth: YearMonth,
     selectedDate: LocalDate,
-    plans: Map<String, Plan>,
-    dietNames: Map<String, String>,
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
     isWeekView: Boolean,
     onDateSelected: (LocalDate) -> Unit,
     onPreviousMonth: () -> Unit,
@@ -322,15 +335,15 @@ private fun LegendItem(color: Color, label: String, isOutline: Boolean = false) 
 private fun WeekRow(
     weekStart: LocalDate,
     selectedDate: LocalDate,
-    plans: Map<String, Plan>,
-    dietNames: Map<String, String>,
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
     onDateSelected: (LocalDate) -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
         for (i in 0..6) {
             val date = weekStart.plusDays(i.toLong())
-            val dateStr = date.toString()
-            val plan = plans[dateStr]
+            val dateMs = date.toEpochMs()
+            val plan = plans[dateMs]
             val hasPlan = plan != null && plan.dietId != null
             CalendarDayCell(
                 day = date.dayOfMonth,
@@ -338,7 +351,7 @@ private fun WeekRow(
                 isToday = date == LocalDate.now(),
                 hasPlan = hasPlan,
                 isCompleted = plan?.isCompleted ?: false,
-                dietName = dietNames[dateStr],
+                dietName = dietNames[dateMs],
                 onClick = { onDateSelected(date) },
                 modifier = Modifier.weight(1f)
             )
@@ -350,8 +363,8 @@ private fun WeekRow(
 private fun MealPlanCalendarGrid(
     month: YearMonth,
     selectedDate: LocalDate,
-    plans: Map<String, Plan>,
-    dietNames: Map<String, String>,
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
     onDateSelected: (LocalDate) -> Unit
 ) {
     val firstDay = month.atDay(1)
@@ -369,13 +382,13 @@ private fun MealPlanCalendarGrid(
 
                     if (dayNumber in 1..daysInMonth) {
                         val date = month.atDay(dayNumber)
-                        val dateStr = date.toString()
+                        val dateMs = date.toEpochMs()
                         val isSelected = date == selectedDate
                         val isToday = date == LocalDate.now()
-                        val plan = plans[dateStr]
+                        val plan = plans[dateMs]
                         val hasPlan = plan != null && plan.dietId != null
                         val isCompleted = plan?.isCompleted ?: false
-                        val dietName = dietNames[dateStr]
+                        val dietName = dietNames[dateMs]
 
                         CalendarDayCell(
                             day = dayNumber,
@@ -409,7 +422,10 @@ private fun SelectedDatePanel(
     onRemoveDiet: () -> Unit,
     onViewLog: () -> Unit,
     onSlotToggle: (String) -> Unit = {},
-    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> }
+    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
+    onToggleFavourite: (Diet) -> Unit = {},
+    onShowGroceries: () -> Unit = {},
+    isGeneratingGroceries: Boolean = false
 ) {
     val today = LocalDate.now()
     val isToday = date == today
@@ -475,29 +491,59 @@ private fun SelectedDatePanel(
                     }
                 }
 
-                // Action button (right side)
-                when {
-                    isToday && diet != null && isPlanCompleted -> TextButton(onClick = onChangeDiet) {
-                        Text("Change", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                // Right side: diet actions + star + grocery button
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (diet != null) {
+                        // Star / favourite toggle
+                        IconButton(onClick = { onToggleFavourite(diet) }, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                imageVector = if (diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = if (diet.isFavourite) "Remove from favourites" else "Add to favourites",
+                                tint = if (diet.isFavourite) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        // Grocery list button
+                        IconButton(
+                            onClick = onShowGroceries,
+                            enabled = !isGeneratingGroceries,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            if (isGeneratingGroceries) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingCart,
+                                    contentDescription = "View grocery list",
+                                    tint = DarkGreen,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
-                    // Today with an incomplete plan: checkboxes are shown inline — no header button needed
-                    isFuture && diet != null -> Button(
-                        onClick = onChangeDiet,
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("Change", style = MaterialTheme.typography.labelMedium)
+                    when {
+                        isToday && diet != null && isPlanCompleted -> TextButton(onClick = onChangeDiet) {
+                            Text("Change", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        }
+                        // Today with an incomplete plan: checkboxes are shown inline — no header button needed
+                        isFuture && diet != null -> Button(
+                            onClick = onChangeDiet,
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text("Change", style = MaterialTheme.typography.labelMedium)
+                        }
+                        isFuture && diet == null -> Button(
+                            onClick = onAssignDiet,
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text("+ Plan", style = MaterialTheme.typography.labelMedium)
+                        }
+                        // Past dates: diet details are shown read-only inline — no log redirect needed
                     }
-                    isFuture && diet == null -> Button(
-                        onClick = onAssignDiet,
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("+ Plan", style = MaterialTheme.typography.labelMedium)
-                    }
-                    // Past dates: diet details are shown read-only inline — no log redirect needed
                 }
             }
 
@@ -932,4 +978,110 @@ fun DietPickerDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GrocerySnapshotSheet(
+    dietName: String,
+    items: List<GrocerySnapshotItem>,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        "Grocery List",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (dietName.isNotBlank()) {
+                        Text(
+                            dietName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = DarkGreen.copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        "${items.size} items",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DarkGreen,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            if (items.isEmpty()) {
+                Box(
+                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No ingredients found for this diet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items.forEach { item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(DarkGreen, CircleShape)
+                            )
+                            Text(
+                                text = item.foodName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            text = "${formatQuantity(item.quantity)} ${item.unitLabel}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                }
+            }
+        }
+    }
+}
+
+private fun formatQuantity(qty: Double): String {
+    val rounded = (qty * 10).toLong().toDouble() / 10
+    return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
 }

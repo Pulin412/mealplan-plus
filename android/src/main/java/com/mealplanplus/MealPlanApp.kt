@@ -42,9 +42,9 @@ class MealPlanApp : Application() {
         initCrashlytics()
         initRemoteConfig()
         NotificationHelper.createChannel(this)
-        // Seed only if database is empty (first run)
+        // Re-seed system foods whenever the bundled version changes
         applicationScope.launch {
-            databaseSeeder.seedFromFilesIfNeeded(this@MealPlanApp)
+            databaseSeeder.seedIfNeeded(this@MealPlanApp)
         }
         scheduleSyncWork()
         cancelLegacyNotificationWork()

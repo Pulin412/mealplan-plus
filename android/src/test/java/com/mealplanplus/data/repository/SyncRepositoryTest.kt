@@ -41,12 +41,12 @@ class SyncRepositoryTest {
     private val firebaseUid = "firebase-uid-123"
 
     private fun fakeMeal() = Meal(
-        id = 1L, userId = userId, name = "Lunch", slotType = "LUNCH",
+        id = 1L, name = "Lunch",
         updatedAt = 1000L, syncedAt = null
     )
 
     private fun fakeDiet() = Diet(
-        id = 1L, userId = userId, name = "Keto", updatedAt = 1000L, syncedAt = null
+        id = 1L, name = "Keto", updatedAt = 1000L, syncedAt = null
     )
 
     private fun fakeGroceryList() = GroceryList(
@@ -87,8 +87,8 @@ class SyncRepositoryTest {
 
     @Test
     fun push_withUnsyncedMeals_returnsAcceptedCount() = runTest {
-        coEvery { mealDao.getUnsyncedMeals(userId) } returns listOf(fakeMeal())
-        coEvery { dietDao.getUnsyncedDiets(userId) } returns emptyList()
+        coEvery { mealDao.getUnsyncedMeals() } returns listOf(fakeMeal())
+        coEvery { dietDao.getUnsyncedDiets() } returns emptyList()
         coEvery { healthMetricDao.getUnsyncedMetrics(userId) } returns emptyList()
         coEvery { groceryDao.getUnsyncedGroceryLists(userId) } returns emptyList()
         coEvery { api.push(any()) } returns SyncPushResponse(accepted = 1)
@@ -101,8 +101,8 @@ class SyncRepositoryTest {
 
     @Test
     fun push_withNoUnsyncedItems_returnsZeroWithoutCallingApi() = runTest {
-        coEvery { mealDao.getUnsyncedMeals(userId) } returns emptyList()
-        coEvery { dietDao.getUnsyncedDiets(userId) } returns emptyList()
+        coEvery { mealDao.getUnsyncedMeals() } returns emptyList()
+        coEvery { dietDao.getUnsyncedDiets() } returns emptyList()
         coEvery { healthMetricDao.getUnsyncedMetrics(userId) } returns emptyList()
         coEvery { groceryDao.getUnsyncedGroceryLists(userId) } returns emptyList()
 
@@ -115,8 +115,8 @@ class SyncRepositoryTest {
 
     @Test
     fun push_success_logsBreadcrumb() = runTest {
-        coEvery { mealDao.getUnsyncedMeals(userId) } returns listOf(fakeMeal())
-        coEvery { dietDao.getUnsyncedDiets(userId) } returns emptyList()
+        coEvery { mealDao.getUnsyncedMeals() } returns listOf(fakeMeal())
+        coEvery { dietDao.getUnsyncedDiets() } returns emptyList()
         coEvery { healthMetricDao.getUnsyncedMetrics(userId) } returns emptyList()
         coEvery { groceryDao.getUnsyncedGroceryLists(userId) } returns emptyList()
         coEvery { api.push(any()) } returns SyncPushResponse(accepted = 1)
@@ -130,8 +130,8 @@ class SyncRepositoryTest {
 
     @Test
     fun push_apiThrows_returnsFailure() = runTest {
-        coEvery { mealDao.getUnsyncedMeals(userId) } returns listOf(fakeMeal())
-        coEvery { dietDao.getUnsyncedDiets(userId) } returns emptyList()
+        coEvery { mealDao.getUnsyncedMeals() } returns listOf(fakeMeal())
+        coEvery { dietDao.getUnsyncedDiets() } returns emptyList()
         coEvery { healthMetricDao.getUnsyncedMetrics(userId) } returns emptyList()
         coEvery { groceryDao.getUnsyncedGroceryLists(userId) } returns emptyList()
         coEvery { api.push(any()) } throws RuntimeException("server error")
@@ -144,8 +144,8 @@ class SyncRepositoryTest {
     @Test
     fun push_apiThrows_reportsNonFatal() = runTest {
         val exception = RuntimeException("503")
-        coEvery { mealDao.getUnsyncedMeals(userId) } returns listOf(fakeMeal())
-        coEvery { dietDao.getUnsyncedDiets(userId) } returns emptyList()
+        coEvery { mealDao.getUnsyncedMeals() } returns listOf(fakeMeal())
+        coEvery { dietDao.getUnsyncedDiets() } returns emptyList()
         coEvery { healthMetricDao.getUnsyncedMetrics(userId) } returns emptyList()
         coEvery { groceryDao.getUnsyncedGroceryLists(userId) } returns emptyList()
         coEvery { api.push(any()) } throws exception
@@ -163,8 +163,8 @@ class SyncRepositoryTest {
 
     @Test
     fun push_success_doesNotReportNonFatal() = runTest {
-        coEvery { mealDao.getUnsyncedMeals(userId) } returns emptyList()
-        coEvery { dietDao.getUnsyncedDiets(userId) } returns emptyList()
+        coEvery { mealDao.getUnsyncedMeals() } returns emptyList()
+        coEvery { dietDao.getUnsyncedDiets() } returns emptyList()
         coEvery { healthMetricDao.getUnsyncedMetrics(userId) } returns emptyList()
         coEvery { groceryDao.getUnsyncedGroceryLists(userId) } returns emptyList()
 

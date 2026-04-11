@@ -1,0 +1,2424 @@
+{
+  "diets": [
+    {
+      "name": "Diet-1",
+      "meal_type": "REMISSION",
+      "description": "Mix Veg Omelet, Fruit Bowl, Broccoli Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Omelet + BB Toast",
+          "items": [
+            {"food": "Egg Whole", "quantity": 1, "unit": "piece"},
+            {"food": "Egg White", "quantity": 3, "unit": "piece"},
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Red Apple", "quantity": 100, "unit": "g"},
+            {"food": "Watermelon", "quantity": 200, "unit": "g"},
+            {"food": "Almonds", "quantity": 10, "unit": "g"},
+            {"food": "Cashew", "quantity": 10, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Broccoli Mix Veg Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Broccoli", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 100, "unit": "g"},
+            {"food": "Potato", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-2",
+      "meal_type": "REMISSION",
+      "description": "Paneer Corn Stir Fry, Fruit Bowl, Tofu Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Corn Stir Fry + BB Toast",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Corn", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 1, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Watermelon", "quantity": 150, "unit": "g"},
+            {"food": "Red Apple", "quantity": 100, "unit": "g"},
+            {"food": "Blueberry", "quantity": 50, "unit": "g"},
+            {"food": "Strawberry", "quantity": 50, "unit": "g"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"},
+            {"food": "Cashew", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Tofu Veggie Fried Rice",
+          "items": [
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Zucchini", "quantity": 120, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 12, "unit": "g"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"},
+            {"food": "Tofu", "quantity": 100, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-3",
+      "meal_type": "REMISSION",
+      "description": "Potato Egg Bhurji, Peanut Butter Banana, Mix Veg Roti",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Potato Egg Bhurji + BB Toast",
+          "items": [
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Butter", "quantity": 10, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Peanut Butter Banana Sandwich",
+          "items": [
+            {"food": "Peanut Butter", "quantity": 45, "unit": "g"},
+            {"food": "Banana", "quantity": 50, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"},
+            {"food": "Butter", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Mix Veg + Mix Flour Liquid Dough Roti",
+          "items": [
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Cabbage", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 100, "unit": "g"},
+            {"food": "Capsicum", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 12, "unit": "g"},
+            {"food": "Wheat Flour", "quantity": 40, "unit": "g"},
+            {"food": "Gram Flour", "quantity": 20, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-4",
+      "meal_type": "REMISSION",
+      "description": "Mix Veg Omelet Wrap, Fruit Bowl, Paneer Cauliflower Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Omelet Tortilla Wrap",
+          "items": [
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Red Apple", "quantity": 100, "unit": "g"},
+            {"food": "Banana", "quantity": 80, "unit": "g"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Blueberry", "quantity": 40, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Dry Fruits Mix",
+          "items": [
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Cashew", "quantity": 20, "unit": "g"},
+            {"food": "Pista", "quantity": 20, "unit": "g"},
+            {"food": "Walnuts", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Cauliflower Fried Rice",
+          "items": [
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Cauliflower", "quantity": 100, "unit": "g"},
+            {"food": "Mushroom", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "French Beans", "quantity": 80, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-5",
+      "meal_type": "REMISSION",
+      "description": "Chickpea Stir Fry, Fruit Bowl, Egg Fried Pasta",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Chickpea Stir Fry + BB Toast",
+          "items": [
+            {"food": "Chickpea", "quantity": 55, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Zucchini", "quantity": 100, "unit": "g"},
+            {"food": "Capsicum", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 10, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Banana", "quantity": 100, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 100, "unit": "g"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"},
+            {"food": "Cashew", "quantity": 14, "unit": "g"},
+            {"food": "Walnuts", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Egg Mix Veg Fried Pasta",
+          "items": [
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Potato", "quantity": 80, "unit": "g"},
+            {"food": "Broccoli", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 1, "unit": "piece"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Pasta Penne", "quantity": 50, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Post Workout Snack",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Peanut Butter", "quantity": 50, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-6",
+      "meal_type": "REMISSION",
+      "description": "Paneer Bhurji Wrap, Fruit Bowl, Tofu Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Bhurji Tortilla Wrap",
+          "items": [
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Butter", "quantity": 10, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Pear", "quantity": 120, "unit": "g"},
+            {"food": "Kiwi", "quantity": 80, "unit": "g"},
+            {"food": "Grapes", "quantity": 80, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Tofu Mix Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Tofu", "quantity": 100, "unit": "g"},
+            {"food": "Cabbage", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "French Beans", "quantity": 80, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-7",
+      "meal_type": "REMISSION",
+      "description": "Mix Veg Cheese Omelet, Fruit Bowl, Paneer Moong Dal Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Cheese Omelet",
+          "items": [
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 1, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"},
+            {"food": "Cheese Slice", "quantity": 1, "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Kharbooja", "quantity": 200, "unit": "g"},
+            {"food": "Banana", "quantity": 80, "unit": "g"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Cashew", "quantity": 10, "unit": "g"},
+            {"food": "Pista", "quantity": 10, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Moong Dal + Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Yellow Moong Dal", "quantity": 45, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-8",
+      "meal_type": "REMISSION",
+      "description": "Tofu Mix Veg Salad, Fruit Bowl, Potato Mushroom Pasta",
+      "meals": {
+        "BREAKFAST": {
+          "name": "3 Layer Tofu Mix Veg Salad",
+          "items": [
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Tofu", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "BB Toast", "quantity": 3, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"},
+            {"food": "Cheese Slice", "quantity": 2, "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Pear", "quantity": 120, "unit": "g"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Blueberry", "quantity": 40, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Pista", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Potato Mushroom Pasta",
+          "items": [
+            {"food": "Tomato", "quantity": 70, "unit": "g"},
+            {"food": "Onion", "quantity": 70, "unit": "g"},
+            {"food": "Potato", "quantity": 80, "unit": "g"},
+            {"food": "Mushroom", "quantity": 100, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Pasta Penne", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Pizza Pasta Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-9",
+      "meal_type": "REMISSION",
+      "description": "Egg Parantha, Fruit Bowl, Paneer Lauki Chana Dal Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Egg Parantha (Liquid Dough)",
+          "items": [
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Carrot", "quantity": 40, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Maida", "quantity": 20, "unit": "g"},
+            {"food": "Gram Flour", "quantity": 40, "unit": "g"},
+            {"food": "Milk", "quantity": 120, "unit": "ml"},
+            {"food": "Egg Whole", "quantity": 1, "unit": "piece"},
+            {"food": "Egg White", "quantity": 3, "unit": "piece"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Banana", "quantity": 100, "unit": "g"},
+            {"food": "Cantaloupe", "quantity": 140, "unit": "g"},
+            {"food": "Black Dates", "quantity": 50, "unit": "g"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"},
+            {"food": "Cashew", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Lauki Chana Dal Rice",
+          "items": [
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Lauki", "quantity": 140, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 12, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Chana Dal", "quantity": 45, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-10",
+      "meal_type": "REMISSION",
+      "description": "Onion Avocado Omelet, PB Apple Sandwich, Paneer Broccoli Spaghetti",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Onion Avocado Omelet",
+          "items": [
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Avocado", "quantity": 40, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 1, "unit": "piece"},
+            {"food": "Egg White", "quantity": 3, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 1, "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Peanut Butter Apple Sandwich",
+          "items": [
+            {"food": "BB Toast", "quantity": 3, "unit": "piece"},
+            {"food": "Peanut Butter", "quantity": 50, "unit": "g"},
+            {"food": "Red Apple", "quantity": 80, "unit": "g"},
+            {"food": "Butter", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Broccoli Spaghetti",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Broccoli", "quantity": 80, "unit": "g"},
+            {"food": "Carrot", "quantity": 100, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Spaghetti", "quantity": 50, "unit": "g"},
+            {"food": "Spinach", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Pizza Pasta Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-11",
+      "meal_type": "REMISSION",
+      "description": "Paneer Mix Veg Wrap, Fruit Bowl, Roasted Chicken Dal Chawal",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Mix Veg Tortilla Wrap",
+          "items": [
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 2, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Banana", "quantity": 80, "unit": "g"},
+            {"food": "Cantaloupe", "quantity": 150, "unit": "g"},
+            {"food": "Green Apple", "quantity": 100, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Cashew", "quantity": 20, "unit": "g"},
+            {"food": "Walnuts", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea + Pista",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Pista", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Roasted Chicken + Dal Chawal",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 150, "unit": "g"},
+            {"food": "Yellow Moong Dal", "quantity": 45, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-12",
+      "meal_type": "REMISSION",
+      "description": "Mix Veg Omelet Sandwich, Fruit Bowl, Chicken Potato Stir Fry",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Omelet Sandwich",
+          "items": [
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Cabbage", "quantity": 50, "unit": "g"},
+            {"food": "Corn", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 4, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Mango", "quantity": 100, "unit": "g"},
+            {"food": "Red Apple", "quantity": 100, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 180, "unit": "g"},
+            {"food": "Walnuts", "quantity": 20, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea + Pista",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Pista", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Potato Stir Fry + Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 150, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Cabbage", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-13",
+      "meal_type": "REMISSION",
+      "description": "Mix Veg Besan Cheela, Veg Salad, Potato Chickpea Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Besan Cheela",
+          "items": [
+            {"food": "Gram Flour", "quantity": 60, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Carrot", "quantity": 60, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Veg Salad",
+          "items": [
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Cucumber", "quantity": 120, "unit": "g"},
+            {"food": "Onion", "quantity": 20, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Avocado", "quantity": 50, "unit": "g"},
+            {"food": "Lettuce", "quantity": 40, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Walnuts", "quantity": 20, "unit": "g"},
+            {"food": "Cashew", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Potato Chickpea Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Potato", "quantity": 120, "unit": "g"},
+            {"food": "Chickpea", "quantity": 60, "unit": "g"},
+            {"food": "Capsicum", "quantity": 50, "unit": "g"},
+            {"food": "French Beans", "quantity": 80, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-14",
+      "meal_type": "REMISSION",
+      "description": "Mix Veg Omelet, Paneer Stir Fry Wrap, Chicken Broccoli Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Omelet + BB Toast",
+          "items": [
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 14, "unit": "g"},
+            {"food": "Cheese Slice", "quantity": 2, "unit": "piece"},
+            {"food": "BB Toast", "quantity": 3, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Paneer Stir Fry Wrap",
+          "items": [
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Corn", "quantity": 50, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Mango Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Mango", "quantity": 140, "unit": "g"},
+            {"food": "Fresh Cream", "quantity": 40, "unit": "g"},
+            {"food": "Chia Seeds", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Broccoli Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 200, "unit": "g"},
+            {"food": "Broccoli", "quantity": 100, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-15",
+      "meal_type": "REMISSION",
+      "description": "Paneer Besan Cheela, Black Chickpea Chaat, Aloo Bhindi Roti",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Besan Cheela",
+          "items": [
+            {"food": "Gram Flour", "quantity": 60, "unit": "g"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Black Chickpea Chaat",
+          "items": [
+            {"food": "Black Chickpea", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Cucumber", "quantity": 100, "unit": "g"},
+            {"food": "Corn", "quantity": 80, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Apple Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Black Dates", "quantity": 80, "unit": "g"},
+            {"food": "Fresh Cream", "quantity": 40, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Aloo Bhindi + Roti",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Bhindi", "quantity": 100, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Desi Ghee", "quantity": 12, "unit": "g"},
+            {"food": "Wheat Flour", "quantity": 40, "unit": "g"},
+            {"food": "Ragi Flour", "quantity": 20, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-16",
+      "meal_type": "REMISSION",
+      "description": "Mix Veg Omelet, Paneer Mix Veg Salad, Gobi Green Moong Dal Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Omelet + Toast",
+          "items": [
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"},
+            {"food": "Cheese Slice", "quantity": 1, "unit": "piece"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Paneer Mix Veg Salad",
+          "items": [
+            {"food": "Onion", "quantity": 20, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Cucumber", "quantity": 120, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Corn", "quantity": 80, "unit": "g"},
+            {"food": "Beetroot", "quantity": 40, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Banana Shake",
+          "items": [
+            {"food": "Banana", "quantity": 100, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"},
+            {"food": "Cashew", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Gobi Green Moong Dal Curry Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Cauliflower", "quantity": 100, "unit": "g"},
+            {"food": "Green Moong", "quantity": 45, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 14, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-17",
+      "meal_type": "REMISSION",
+      "description": "Paneer Stir Fry Tortilla, PB Sandwich, Egg Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Stir Fry Tortilla",
+          "items": [
+            {"food": "Onion", "quantity": 60, "unit": "g"},
+            {"food": "Tomato", "quantity": 60, "unit": "g"},
+            {"food": "Capsicum", "quantity": 50, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Corn", "quantity": 50, "unit": "g"},
+            {"food": "Cheese Slice", "quantity": 1, "unit": "piece"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Peanut Butter Sandwich",
+          "items": [
+            {"food": "BB Toast", "quantity": 4, "unit": "piece"},
+            {"food": "Peanut Butter", "quantity": 70, "unit": "g"},
+            {"food": "Banana", "quantity": 80, "unit": "g"},
+            {"food": "Butter", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Egg Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Broccoli", "quantity": 80, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M1",
+      "meal_type": "MAINTENANCE",
+      "description": "Mix Veg Paneer Egg Bhurji, Mix Fruit Bowl, Chicken Stir Fry",
+      "meals": {
+        "EARLY_MORNING": {
+          "name": "Chia Seeds",
+          "items": [
+            {"food": "Chia Seeds", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "BREAKFAST": {
+          "name": "Mix Veg Paneer Egg Bhurji",
+          "items": [
+            {"food": "Onion", "quantity": 70, "unit": "g"},
+            {"food": "Tomato", "quantity": 70, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 3, "unit": "piece"},
+            {"food": "Butter", "quantity": 14, "unit": "g"},
+            {"food": "BB Toast", "quantity": 1, "unit": "piece"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Bowl",
+          "items": [
+            {"food": "Papaya", "quantity": 200, "unit": "g"},
+            {"food": "Watermelon", "quantity": 180, "unit": "g"},
+            {"food": "Cantaloupe", "quantity": 180, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Dry Fruits With Tea",
+          "items": [
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Cashew", "quantity": 20, "unit": "g"},
+            {"food": "Pista", "quantity": 20, "unit": "g"},
+            {"food": "Walnuts", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Stir Fry",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 220, "unit": "g"},
+            {"food": "Zucchini", "quantity": 120, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 14, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M2",
+      "meal_type": "MAINTENANCE",
+      "description": "Mashed Potato Sandwiches, Overnight Oats Pudding, Paneer Broccoli Fried Rice",
+      "meals": {
+        "EARLY_MORNING": {
+          "name": "Chia Seeds",
+          "items": [
+            {"food": "Chia Seeds", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "BREAKFAST": {
+          "name": "Mashed Potato Sandwiches",
+          "items": [
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "BB Toast", "quantity": 4, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Cheese Slice", "quantity": 2, "unit": "piece"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Overnight Oats Pudding",
+          "items": [
+            {"food": "Oats", "quantity": 45, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Chia Seeds", "quantity": 8, "unit": "g"},
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Banana", "quantity": 100, "unit": "g"},
+            {"food": "Blueberry", "quantity": 50, "unit": "g"},
+            {"food": "Almonds", "quantity": 10, "unit": "g"},
+            {"food": "Cashew", "quantity": 10, "unit": "g"},
+            {"food": "Raisin", "quantity": 10, "unit": "g"},
+            {"food": "Maple Syrup", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Oreo Milkshake",
+          "items": [
+            {"food": "Almond Milk", "quantity": 150, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Peanut Butter", "quantity": 30, "unit": "g"},
+            {"food": "Oreo Biscuits", "quantity": 3, "unit": "piece"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Broccoli Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Broccoli", "quantity": 100, "unit": "g"},
+            {"food": "Mushroom", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 14, "unit": "g"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M3",
+      "meal_type": "MAINTENANCE",
+      "description": "Zucchini Besan Chilla, Peanut Butter Tortilla Wrap, Paneer Mix Veg Pasta",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Zucchini Besan Chilla",
+          "items": [
+            {"food": "Gram Flour", "quantity": 60, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Zucchini", "quantity": 80, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Dahi", "quantity": 80, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Peanut Butter Tortilla Wrap",
+          "items": [
+            {"food": "Peanut Butter", "quantity": 50, "unit": "g"},
+            {"food": "Banana", "quantity": 100, "unit": "g"},
+            {"food": "Red Apple", "quantity": 80, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Butter", "quantity": 10, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Dates Blueberry Shake",
+          "items": [
+            {"food": "Black Dates", "quantity": 80, "unit": "g"},
+            {"food": "Blueberry", "quantity": 40, "unit": "g"},
+            {"food": "Cranberry", "quantity": 40, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Honey", "quantity": 14, "unit": "g"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"},
+            {"food": "Pista", "quantity": 14, "unit": "g"},
+            {"food": "Cashew", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Mix Veg Pasta",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Broccoli", "quantity": 100, "unit": "g"},
+            {"food": "Mushroom", "quantity": 100, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 14, "unit": "g"},
+            {"food": "Spaghetti", "quantity": 60, "unit": "g"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"},
+            {"food": "Paneer", "quantity": 120, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M4",
+      "meal_type": "MAINTENANCE",
+      "description": "Mix Veg Omelet, Fruit Bowl, Paneer Potato Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Omelet",
+          "items": [
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 4, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Fruit Bowl",
+          "items": [
+            {"food": "Mango", "quantity": 150, "unit": "g"},
+            {"food": "Pear", "quantity": 100, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 150, "unit": "g"},
+            {"food": "Black Dates", "quantity": 50, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Banana Shake",
+          "items": [
+            {"food": "Banana", "quantity": 140, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Chia Seeds", "quantity": 4, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Potato Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "French Beans", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M5",
+      "meal_type": "MAINTENANCE",
+      "description": "Paneer Bhurji Tortilla Wrap, Fruit Bowl, Zucchini Chana Dal Rice Roti",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Bhurji Tortilla Wrap",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 14, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 2, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Fruit Bowl",
+          "items": [
+            {"food": "Pear", "quantity": 120, "unit": "g"},
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 180, "unit": "g"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"},
+            {"food": "Walnuts", "quantity": 14, "unit": "g"},
+            {"food": "Pista", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Berry Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Strawberry", "quantity": 100, "unit": "g"},
+            {"food": "Raspberry", "quantity": 50, "unit": "g"},
+            {"food": "Honey", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Zucchini Chana Dal Rice Roti",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Zucchini", "quantity": 140, "unit": "g"},
+            {"food": "Chana Dal", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Wheat Flour", "quantity": 40, "unit": "g"},
+            {"food": "Jowar Flour", "quantity": 20, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M6",
+      "meal_type": "MAINTENANCE",
+      "description": "Mashed Potato Avocado Sandwich, Oatmeal Chia Pudding, Paneer Veggie Pasta",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mashed Potato Avocado Sandwich",
+          "items": [
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Potato", "quantity": 80, "unit": "g"},
+            {"food": "Avocado", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 4, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"},
+            {"food": "Cheese Slice", "quantity": 2, "unit": "piece"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Oatmeal Chia Pudding",
+          "items": [
+            {"food": "Oats", "quantity": 40, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Chia Seeds", "quantity": 8, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Banana", "quantity": 120, "unit": "g"},
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Honey", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Mango Protein Shake",
+          "items": [
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Almond Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Mango", "quantity": 100, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Veggie Pasta",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Broccoli", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 100, "unit": "g"},
+            {"food": "French Beans", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Pasta Penne", "quantity": 55, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 14, "unit": "g"},
+            {"food": "Veggie Mayo", "quantity": 30, "unit": "g"},
+            {"food": "Pizza Pasta Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M7",
+      "meal_type": "MAINTENANCE",
+      "description": "Egg Cheese Wrap, Mix Fruit Salad, Paneer Aalo Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Egg Cheese Wrap",
+          "items": [
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 1, "unit": "piece"},
+            {"food": "Cheese Slice", "quantity": 1, "unit": "piece"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Cantaloupe", "quantity": 180, "unit": "g"},
+            {"food": "Red Apple", "quantity": 140, "unit": "g"},
+            {"food": "Banana", "quantity": 140, "unit": "g"},
+            {"food": "Almonds", "quantity": 12, "unit": "g"},
+            {"food": "Cashew", "quantity": 12, "unit": "g"},
+            {"food": "Roasted Melon Seeds", "quantity": 8, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Berry Protein Shake",
+          "items": [
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Blueberry", "quantity": 50, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Aalo Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Broccoli", "quantity": 80, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "POST_DINNER": {
+          "name": "Chocolate Ice Cream",
+          "items": [
+            {"food": "Chocolate Ice Cream", "quantity": 100, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M8",
+      "meal_type": "MAINTENANCE",
+      "description": "Egg Veg Bhurji, Paneer Salad Bowl, Chicken Veggie Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Egg Veg Bhurji",
+          "items": [
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Potato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 14, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Paneer Salad Bowl",
+          "items": [
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Cucumber", "quantity": 120, "unit": "g"},
+            {"food": "Corn", "quantity": 50, "unit": "g"},
+            {"food": "Onion", "quantity": 20, "unit": "g"},
+            {"food": "Avocado", "quantity": 50, "unit": "g"},
+            {"food": "Lettuce", "quantity": 40, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Banana Protein Shake",
+          "items": [
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Banana", "quantity": 120, "unit": "g"},
+            {"food": "Black Dates", "quantity": 50, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Veggie Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 150, "unit": "g"},
+            {"food": "Cauliflower", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "French Beans", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 14, "unit": "g"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M9",
+      "meal_type": "MAINTENANCE",
+      "description": "Paneer Bhurji Besan Cheela, Mix Fruit Salad, Chicken Potato Pasta",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Bhurji Besan Cheela",
+          "items": [
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Gram Flour", "quantity": 60, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Pear", "quantity": 120, "unit": "g"},
+            {"food": "Cantaloupe", "quantity": 140, "unit": "g"},
+            {"food": "Almonds", "quantity": 12, "unit": "g"},
+            {"food": "Cashew", "quantity": 12, "unit": "g"},
+            {"food": "Walnuts", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "PRE_WORKOUT": {
+          "name": "Berry Shake",
+          "items": [
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Blueberry", "quantity": 50, "unit": "g"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Potato Pasta",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 120, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Broccoli", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "French Beans", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Pasta Penne", "quantity": 55, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Pizza Pasta Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M10",
+      "meal_type": "MAINTENANCE",
+      "description": "Avocado Omelet BB Toast, Mix Fruit Salad, Paneer Mix Veg Stir Fry",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Avocado Omelet BB Toast",
+          "items": [
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Avocado", "quantity": 50, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 3, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Red Apple", "quantity": 100, "unit": "g"},
+            {"food": "Pear", "quantity": 100, "unit": "g"},
+            {"food": "Cantaloupe", "quantity": 100, "unit": "g"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"},
+            {"food": "Cashew", "quantity": 14, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Mix Veg Stir Fry",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Zucchini", "quantity": 120, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Oats Peanut Butter Shake",
+          "items": [
+            {"food": "Oats", "quantity": 30, "unit": "g"},
+            {"food": "Peanut Butter", "quantity": 40, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 45, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M11",
+      "meal_type": "MAINTENANCE",
+      "description": "Paneer Bhurji Tortilla Wrap, Mix Fruit Salad, Chicken Cabbage Roti",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Bhurji Tortilla Wrap",
+          "items": [
+            {"food": "Onion", "quantity": 70, "unit": "g"},
+            {"food": "Tomato", "quantity": 70, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Watermelon", "quantity": 200, "unit": "g"},
+            {"food": "Plum", "quantity": 80, "unit": "g"},
+            {"food": "Pear", "quantity": 120, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Cabbage Roti",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 140, "unit": "g"},
+            {"food": "Cabbage", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 14, "unit": "g"},
+            {"food": "Wheat Flour", "quantity": 40, "unit": "g"},
+            {"food": "Gram Flour", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Berry Protein Shake",
+          "items": [
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Blueberry", "quantity": 50, "unit": "g"},
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Honey", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M12",
+      "meal_type": "MAINTENANCE",
+      "description": "Paneer Bhurji Sandwich, Chickpea Stir Fry, Spinach Mushroom Curry Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Bhurji Sandwich",
+          "items": [
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 4, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Chickpea Stir Fry",
+          "items": [
+            {"food": "Chickpea Raw", "quantity": 50, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Cucumber", "quantity": 120, "unit": "g"},
+            {"food": "Onion", "quantity": 20, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Spinach Mushroom Curry Rice",
+          "items": [
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Potato", "quantity": 120, "unit": "g"},
+            {"food": "Spinach", "quantity": 100, "unit": "g"},
+            {"food": "Mushroom", "quantity": 100, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Desi Ghee", "quantity": 12, "unit": "g"},
+            {"food": "Fresh Cream Cooking", "quantity": 30, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Fruit Protein Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Banana", "quantity": 120, "unit": "g"},
+            {"food": "Red Apple", "quantity": 120, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M13",
+      "meal_type": "MAINTENANCE",
+      "description": "Mix Veg Paneer Besan Chilla, Peanut Butter Banana Sandwich, Aalo Soya Veg Roti",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Paneer Besan Chilla",
+          "items": [
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 40, "unit": "g"},
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Gram Flour", "quantity": 55, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 10, "unit": "g"},
+            {"food": "Dahi", "quantity": 80, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Peanut Butter Banana Sandwich",
+          "items": [
+            {"food": "Banana", "quantity": 100, "unit": "g"},
+            {"food": "Peanut Butter", "quantity": 50, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"},
+            {"food": "Butter", "quantity": 10, "unit": "g"},
+            {"food": "Honey", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Aalo Soya Veg Roti",
+          "items": [
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Potato", "quantity": 120, "unit": "g"},
+            {"food": "Zucchini", "quantity": 100, "unit": "g"},
+            {"food": "Soya Chunks", "quantity": 20, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Desi Ghee", "quantity": 12, "unit": "g"},
+            {"food": "Wheat Flour", "quantity": 30, "unit": "g"},
+            {"food": "Jowar Flour", "quantity": 30, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Fruit Protein Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 50, "unit": "g"},
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Blueberry", "quantity": 50, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M14",
+      "meal_type": "MAINTENANCE",
+      "description": "3 Layer Egg Sandwich, Mix Fruit Salad Bowl, Chicken Mix Veg Moong Dal Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "3 Layer Egg Sandwich",
+          "items": [
+            {"food": "Egg Whole", "quantity": 1, "unit": "piece"},
+            {"food": "Egg White", "quantity": 3, "unit": "piece"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 50, "unit": "g"},
+            {"food": "Cheese Slice", "quantity": 2, "unit": "piece"},
+            {"food": "BB Toast", "quantity": 3, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad Bowl",
+          "items": [
+            {"food": "Banana", "quantity": 100, "unit": "g"},
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 150, "unit": "g"},
+            {"food": "Blueberry", "quantity": 50, "unit": "g"},
+            {"food": "Almonds", "quantity": 10, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Mix Veg Moong Dal Rice",
+          "items": [
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 140, "unit": "g"},
+            {"food": "Zucchini", "quantity": 100, "unit": "g"},
+            {"food": "Yellow Moong Dal", "quantity": 45, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Dates Protein Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 45, "unit": "g"},
+            {"food": "Black Dates", "quantity": 50, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M15",
+      "meal_type": "MAINTENANCE",
+      "description": "Masala Veggie Poha, Mix Fruit Salad Bowl, Chicken Broccoli Fried Rice",
+      "meals": {
+        "EARLY_MORNING": {
+          "name": "Water + Chia Seeds",
+          "items": [
+            {"food": "Luke Warm Water", "quantity": 1, "unit": "glass"},
+            {"food": "Chia Seeds", "quantity": 10, "unit": "g"}
+          ]
+        },
+        "BREAKFAST": {
+          "name": "Masala Veggie Poha",
+          "items": [
+            {"food": "Poha Raw", "quantity": 60, "unit": "g"},
+            {"food": "Potato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Carrot", "quantity": 50, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Desi Ghee", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad Bowl",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Pear", "quantity": 120, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 180, "unit": "g"},
+            {"food": "Cashew", "quantity": 20, "unit": "g"},
+            {"food": "Walnuts", "quantity": 20, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Broccoli Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 120, "unit": "g"},
+            {"food": "Broccoli", "quantity": 100, "unit": "g"},
+            {"food": "Mushroom", "quantity": 100, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Strawberry Protein Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 45, "unit": "g"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Almonds", "quantity": 14, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M16",
+      "meal_type": "MAINTENANCE",
+      "description": "Mix Veg Omelet Tortilla Wrap, Paneer Lettuce Salad Bowl, Chicken Mix Veg Stir Fry Pasta",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Mix Veg Omelet Tortilla Wrap",
+          "items": [
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Onion", "quantity": 40, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Corn", "quantity": 50, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Paneer Lettuce Salad Bowl",
+          "items": [
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Cucumber", "quantity": 120, "unit": "g"},
+            {"food": "Onion", "quantity": 20, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Corn", "quantity": 50, "unit": "g"},
+            {"food": "Lettuce", "quantity": 40, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Mix Veg Stir Fry Pasta",
+          "items": [
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 120, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Pasta Penne", "quantity": 55, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Pizza Pasta Sauce", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Protein Shake",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 45, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M17",
+      "meal_type": "MAINTENANCE",
+      "description": "Boiled Egg Sandwiches, Banana Peanut Butter Tortilla, Paneer Rajma Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Boiled Egg Sandwiches",
+          "items": [
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Onion", "quantity": 60, "unit": "g"},
+            {"food": "Tomato", "quantity": 60, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Black Olives", "quantity": 20, "unit": "g"},
+            {"food": "Mayo", "quantity": 30, "unit": "g"},
+            {"food": "BB Toast", "quantity": 4, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Banana Peanut Butter Tortilla",
+          "items": [
+            {"food": "Large Tortilla", "quantity": 1, "unit": "piece"},
+            {"food": "Banana", "quantity": 80, "unit": "g"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Peanut Butter", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 8, "unit": "g"},
+            {"food": "Honey", "quantity": 10, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Rajma Fried Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Boiled Rajma", "quantity": 120, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "White Rice", "quantity": 50, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "POST_WORKOUT": {
+          "name": "Dates Protein Shake",
+          "items": [
+            {"food": "Milk", "quantity": 360, "unit": "ml"},
+            {"food": "Whey Isolate", "quantity": 45, "unit": "g"},
+            {"food": "Black Dates", "quantity": 50, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M18",
+      "meal_type": "MAINTENANCE",
+      "description": "Paneer Bhurji Tortilla Wrap, Mix Fruit Salad, Chicken Mix Veg Pasta",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Bhurji Tortilla Wrap",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Corn", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 10, "unit": "g"},
+            {"food": "Large Tortilla", "quantity": 2, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Cantaloupe", "quantity": 140, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 140, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Chicken Mix Veg Pasta",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Boneless Chicken", "quantity": 140, "unit": "g"},
+            {"food": "Mushroom", "quantity": 100, "unit": "g"},
+            {"food": "Carrot", "quantity": 80, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Matar", "quantity": 40, "unit": "g"},
+            {"food": "Pasta Penne", "quantity": 55, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "POST_DINNER": {
+          "name": "Ice Cream Brownie Dessert",
+          "items": [
+            {"food": "Corn Flakes", "quantity": 25, "unit": "g"},
+            {"food": "Chocolate Ice Cream", "quantity": 140, "unit": "g"},
+            {"food": "Brownie", "quantity": 120, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Cashew", "quantity": 20, "unit": "g"},
+            {"food": "Pista", "quantity": 14, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M19",
+      "meal_type": "MAINTENANCE",
+      "description": "Omelet Sourdough Bread Toasts, Mix Fruit Salad, Paneer Zucchini Chana Dal Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Omelet Sourdough Bread Toasts",
+          "items": [
+            {"food": "Sourdough Bread", "quantity": 60, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "Egg White", "quantity": 2, "unit": "piece"},
+            {"food": "Tomato", "quantity": 50, "unit": "g"},
+            {"food": "Onion", "quantity": 50, "unit": "g"},
+            {"food": "Capsicum", "quantity": 50, "unit": "g"},
+            {"food": "Avocado", "quantity": 50, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 200, "unit": "g"},
+            {"food": "Strawberry", "quantity": 80, "unit": "g"},
+            {"food": "Black Dates", "quantity": 80, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Paneer Zucchini Chana Dal Rice",
+          "items": [
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Zucchini", "quantity": 120, "unit": "g"},
+            {"food": "Matar", "quantity": 50, "unit": "g"},
+            {"food": "Chana Dal", "quantity": 45, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M20",
+      "meal_type": "SOS",
+      "description": "Chickpea Potato Chaat (SOS), Mix Fruit Salad, Mix Egg Fried Rice",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Chickpea Potato Chaat",
+          "items": [
+            {"food": "Chickpea Raw", "quantity": 50, "unit": "g"},
+            {"food": "Potato", "quantity": 100, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Cucumber", "quantity": 100, "unit": "g"},
+            {"food": "Red Bell Pepper", "quantity": 40, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Red Apple", "quantity": 120, "unit": "g"},
+            {"food": "Pear", "quantity": 120, "unit": "g"},
+            {"food": "Cantaloupe", "quantity": 140, "unit": "g"},
+            {"food": "Almonds", "quantity": 20, "unit": "g"},
+            {"food": "Blueberry", "quantity": 40, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Mix Egg Fried Rice",
+          "items": [
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Paneer", "quantity": 100, "unit": "g"},
+            {"food": "Broccoli", "quantity": 80, "unit": "g"},
+            {"food": "Mushroom", "quantity": 80, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Egg Whole", "quantity": 2, "unit": "piece"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Olive Oil", "quantity": 12, "unit": "g"},
+            {"food": "Soy Sauce", "quantity": 15, "unit": "ml"},
+            {"food": "Hot & Sweet Chilli Sauce", "quantity": 12, "unit": "g"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Diet-M21",
+      "meal_type": "SOS",
+      "description": "Paneer Bhurji BB Toast (SOS), Mix Fruit Salad, Rajma Rice Jeera Aalo Roti",
+      "meals": {
+        "BREAKFAST": {
+          "name": "Paneer Bhurji BB Toast",
+          "items": [
+            {"food": "Paneer", "quantity": 80, "unit": "g"},
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Yellow Bell Pepper", "quantity": 30, "unit": "g"},
+            {"food": "Butter", "quantity": 12, "unit": "g"},
+            {"food": "BB Toast", "quantity": 2, "unit": "piece"},
+            {"food": "Tomato Ketchup", "quantity": 12, "unit": "g"}
+          ]
+        },
+        "NOON": {
+          "name": "Black Coffee",
+          "items": [
+            {"food": "Black Coffee", "quantity": 1, "unit": "cup"}
+          ]
+        },
+        "LUNCH": {
+          "name": "Mix Fruit Salad",
+          "items": [
+            {"food": "Red Apple", "quantity": 100, "unit": "g"},
+            {"food": "Pear", "quantity": 100, "unit": "g"},
+            {"food": "Kharbooja", "quantity": 180, "unit": "g"}
+          ]
+        },
+        "EVENING": {
+          "name": "Milk Tea",
+          "items": [
+            {"food": "Milk", "quantity": 240, "unit": "ml"}
+          ]
+        },
+        "DINNER": {
+          "name": "Rajma Rice Jeera Aalo Roti",
+          "items": [
+            {"food": "Tomato", "quantity": 80, "unit": "g"},
+            {"food": "Onion", "quantity": 80, "unit": "g"},
+            {"food": "Potato", "quantity": 120, "unit": "g"},
+            {"food": "Boiled Rajma", "quantity": 120, "unit": "g"},
+            {"food": "Capsicum", "quantity": 40, "unit": "g"},
+            {"food": "Mustard Oil", "quantity": 12, "unit": "g"},
+            {"food": "White Rice", "quantity": 45, "unit": "g"},
+            {"food": "Wheat Flour", "quantity": 40, "unit": "g"},
+            {"food": "Jowar Flour", "quantity": 20, "unit": "g"}
+          ]
+        }
+      }
+    }
+  ],
+  "spices": {
+    "MASALA_1": {
+      "name": "Masala-1",
+      "items": [
+        {"spice": "Himalayan Pink Salt", "quantity": 3, "unit": "g"},
+        {"spice": "Ginger"},
+        {"spice": "Garlic"},
+        {"spice": "Green Chilli"},
+        {"spice": "Jeera"},
+        {"spice": "Turmeric"},
+        {"spice": "Dhaniya Powder"},
+        {"spice": "Kitchen King Masala"}
+      ]
+    },
+    "MASALA_2": {
+      "name": "Masala-2",
+      "items": [
+        {"spice": "Himalayan Pink Salt", "quantity": 3, "unit": "g"},
+        {"spice": "Oregano"},
+        {"spice": "Chilli Flakes"},
+        {"spice": "Black Pepper"},
+        {"spice": "Chaat Masala"}
+      ]
+    }
+  },
+  "supplements": {
+    "EARLY_MORNING": {
+      "name": "Early Morning Routine",
+      "items": [
+        {"food": "Luke Warm Water", "quantity": 2, "unit": "glass"}
+      ]
+    },
+    "MORNING_SUPPLEMENTS": {
+      "name": "Morning Supplements",
+      "items": [
+        {"food": "Ashwagandha", "quantity": 500, "unit": "mg"},
+        {"food": "Vitamin E (Evion 400)", "quantity": 1, "unit": "capsule"},
+        {"food": "Shilajeet", "quantity": 500, "unit": "mg"}
+      ]
+    },
+    "POST_DINNER": {
+      "name": "Post Dinner Supplements",
+      "items": [
+        {"food": "Sea Cod Liver Oil", "quantity": 1, "unit": "capsule"},
+        {"food": "Vitamin D3", "quantity": 5000, "unit": "IU"}
+      ]
+    }
+  }
+}

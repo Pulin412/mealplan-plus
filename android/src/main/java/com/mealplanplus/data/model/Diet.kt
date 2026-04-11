@@ -7,40 +7,34 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * A diet template - combines meals for a full day
+ * A diet template — a reusable named collection of meals assigned to slots.
+ *
+ * Diets are app-global (no user_id). The [isSystem] flag distinguishes
+ * built-in diets (e.g. Diet-M1 through Diet-M21) from user-created ones.
  */
-@Entity(
-    tableName = "diets",
-    foreignKeys = [
-        ForeignKey(
-            entity = User::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("userId")]
-)
+@Entity(tableName = "diets")
 data class Diet(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val userId: Long,
     val name: String,
     val description: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(defaultValue = "0")
-    val isSystemDiet: Boolean = false,
-    // Sync columns (v19)
+    val isSystem: Boolean = false,
     val serverId: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+    @ColumnInfo(defaultValue = "0")
+    val isFavourite: Boolean = false
 )
 
 /**
- * Junction table: Diet contains meals for each slot
+ * Junction table: a diet maps slot types to meals.
+ *
+ * Table renamed from diet_meals → diet_slots (v27) to clarify intent.
  */
 @Entity(
-    tableName = "diet_meals",
+    tableName = "diet_slots",
     primaryKeys = ["dietId", "slotType"],
     foreignKeys = [
         ForeignKey(
@@ -60,18 +54,18 @@ data class Diet(
 )
 data class DietMeal(
     val dietId: Long,
-    val slotType: String,  // DefaultMealSlot name
-    val mealId: Long?,  // Can be null if no meal assigned
+    val slotType: String,   // DefaultMealSlot name or free-form custom string
+    val mealId: Long?,      // null = slot exists in template but no meal assigned yet
     val instructions: String? = null
 )
 
 /**
- * Diet with all its meals - for display
+ * Diet with all its meals — for display.
  */
 data class DietWithMeals(
     val diet: Diet,
-    val meals: Map<String, MealWithFoods?>,  // slotType -> meal
-    val instructions: Map<String, String?> = emptyMap()  // slotType -> prep instructions
+    val meals: Map<String, MealWithFoods?>,       // slotType → meal
+    val instructions: Map<String, String?> = emptyMap()  // slotType → prep instructions
 ) {
     val totalCalories: Double
         get() = meals.values.filterNotNull().sumOf { it.totalCalories }
@@ -81,29 +75,23 @@ data class DietWithMeals(
         get() = meals.values.filterNotNull().sumOf { it.totalCarbs }
     val totalFat: Double
         get() = meals.values.filterNotNull().sumOf { it.totalFat }
+
+    /**
+     * Total Glycemic Load for all meals in this diet.
+     * Returns null when no food in any meal has GI data.
+     */
+    val totalGlycemicLoad: Double?
+        get() {
+            val loads = meals.values.filterNotNull().mapNotNull { it.totalGlycemicLoad }
+            return if (loads.isEmpty()) null else loads.sum()
+        }
 }
 
 /**
- * Diet summary for list display (single JOIN query result)
- */
-data class DietSummary(
-    val id: Long,
-    val userId: Long,
-    val name: String,
-    val description: String?,
-    val createdAt: Long,
-    val mealCount: Int,
-    val totalCalories: Int
-) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false)
-}
-
-/**
- * Diet full summary with all macros (single JOIN query result)
+ * Diet full summary with all macros (single JOIN query result).
  */
 data class DietFullSummary(
     val id: Long,
-    val userId: Long,
     val name: String,
     val description: String?,
     val createdAt: Long,
@@ -111,7 +99,9 @@ data class DietFullSummary(
     val totalCalories: Int,
     val totalProtein: Int,
     val totalCarbs: Int,
-    val totalFat: Int
+    val totalFat: Int,
+    val totalGlycemicLoad: Double? = null,
+    val isFavourite: Boolean = false
 ) {
-    fun toDiet() = Diet(id, userId, name, description, createdAt, isSystemDiet = false)
+    fun toDiet() = Diet(id = id, name = name, description = description, createdAt = createdAt, isFavourite = isFavourite)
 }

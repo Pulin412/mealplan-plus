@@ -12,13 +12,13 @@ interface DailyLogDao {
     fun getLogsByUser(userId: Long): Flow<List<DailyLog>>
 
     @Query("SELECT * FROM daily_logs WHERE userId = :userId AND date = :date")
-    suspend fun getLogByDate(userId: Long, date: String): DailyLog?
+    suspend fun getLogByDate(userId: Long, date: Long): DailyLog?
 
     @Query("SELECT * FROM daily_logs WHERE userId = :userId AND date = :date")
-    fun getLogByDateFlow(userId: Long, date: String): Flow<DailyLog?>
+    fun getLogByDateFlow(userId: Long, date: Long): Flow<DailyLog?>
 
     @Query("SELECT * FROM daily_logs WHERE userId = :userId AND date BETWEEN :startDate AND :endDate ORDER BY date DESC")
-    fun getLogsBetweenDates(userId: Long, startDate: String, endDate: String): Flow<List<DailyLog>>
+    fun getLogsBetweenDates(userId: Long, startDate: Long, endDate: Long): Flow<List<DailyLog>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: DailyLog)
@@ -31,10 +31,10 @@ interface DailyLogDao {
 
     // Logged foods
     @Query("SELECT * FROM logged_foods WHERE userId = :userId AND logDate = :date ORDER BY slotType, timestamp")
-    fun getLoggedFoods(userId: Long, date: String): Flow<List<LoggedFood>>
+    fun getLoggedFoods(userId: Long, date: Long): Flow<List<LoggedFood>>
 
     @Query("SELECT * FROM logged_foods WHERE userId = :userId AND logDate = :date AND slotType = :slotType")
-    suspend fun getLoggedFoodsForSlot(userId: Long, date: String, slotType: String): List<LoggedFood>
+    suspend fun getLoggedFoodsForSlot(userId: Long, date: Long, slotType: String): List<LoggedFood>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLoggedFood(food: LoggedFood): Long
@@ -52,10 +52,10 @@ interface DailyLogDao {
     suspend fun deleteLoggedFoodById(id: Long)
 
     @Query("DELETE FROM logged_foods WHERE userId = :userId AND logDate = :date")
-    suspend fun clearLoggedFoods(userId: Long, date: String)
+    suspend fun clearLoggedFoods(userId: Long, date: Long)
 
     @Query("DELETE FROM logged_foods WHERE userId = :userId AND logDate = :date AND slotType = :slotType")
-    suspend fun clearLoggedFoodsForSlot(userId: Long, date: String, slotType: String)
+    suspend fun clearLoggedFoodsForSlot(userId: Long, date: Long, slotType: String)
 
     // Chart data - daily macro totals
     @Query("""
@@ -111,7 +111,7 @@ interface DailyLogDao {
         GROUP BY lf.logDate
         ORDER BY lf.logDate
     """)
-    fun getDailyMacroTotals(userId: Long, startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
+    fun getDailyMacroTotals(userId: Long, startDate: Long, endDate: Long): Flow<List<DailyMacroSummary>>
 
     // Chart data for completed plans only (weekly calories for home screen)
     @Query("""
@@ -138,12 +138,11 @@ interface DailyLogDao {
         GROUP BY p.date
         ORDER BY p.date
     """)
-    fun getCompletedDaysCalories(userId: Long, startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
+    fun getCompletedDaysCalories(userId: Long, startDate: Long, endDate: Long): Flow<List<DailyMacroSummary>>
 
     /**
-     * Returns one row per date (within range) where at least one food was logged,
-     * with calories = row count (always > 0). Used for streak calculation — no
-     * isCompleted filter so logging any food counts.
+     * Returns one row per date (within range) where at least one food was logged.
+     * calories = row count (always > 0). Used for streak calculation.
      */
     @Query("""
         SELECT logDate as date,
@@ -156,7 +155,7 @@ interface DailyLogDao {
         GROUP BY logDate
         ORDER BY logDate DESC
     """)
-    fun getLoggedDates(userId: Long, startDate: String, endDate: String): Flow<List<DailyMacroSummary>>
+    fun getLoggedDates(userId: Long, startDate: Long, endDate: Long): Flow<List<DailyMacroSummary>>
 
     @Query("DELETE FROM logged_foods")
     suspend fun deleteAllLoggedFoods()

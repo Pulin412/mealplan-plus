@@ -27,7 +27,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
-import com.mealplanplus.data.model.CustomMealSlot
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.DietWithMeals
@@ -42,10 +41,8 @@ import kotlin.math.min
 // ── Unified slot model (default + custom) for drag-to-reorder ────────────────
 sealed class LogSlot {
     data class Default(val mealSlot: DefaultMealSlot) : LogSlot()
-    data class Custom(val customSlot: CustomMealSlot) : LogSlot()
     val key: String get() = when (this) {
         is Default -> "default_${mealSlot.name}"
-        is Custom  -> "custom_${customSlot.id}"
     }
 }
 
@@ -73,8 +70,7 @@ fun DailyLogScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val allFoods by viewModel.allFoods.collectAsState()
-    val customSlots by viewModel.customSlots.collectAsState()
-    val savedSlotOrder by viewModel.savedSlotOrder.collectAsState()
+    val savedSlotOrder = emptyList<String>()
     val snackbarHostState = remember { SnackbarHostState() }
     val expandedSlots = remember { mutableStateOf(setOf(DefaultMealSlot.BREAKFAST.name)) }
 
@@ -168,16 +164,8 @@ fun DailyLogScreen(
                                 expandedSlots.value + key
                         },
                         onAddFood = { slot -> viewModel.showFoodPickerFor(slot) },
-                        onAddFoodToCustomSlot = { slot ->
-                            viewModel.setPendingCustomSlot(slot)
-                            onNavigateToFoodPickerForCustomSlot()
-                        },
                         onDeleteFood = { id -> viewModel.deleteLoggedFood(id) },
-                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) },
-                        customSlots = customSlots,
-                        onDeleteCustomSlot = { id -> viewModel.deleteCustomSlot(id) },
-                        onAddCustomSlot = { name -> viewModel.addCustomSlot(name) },
-                        onReorderSlots = { keys, customs -> viewModel.reorderSlots(keys, customs) }
+                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) }
                     )
                     1 -> PlanVsActualTab(comparison = uiState.comparison)
                 }
@@ -190,9 +178,7 @@ fun DailyLogScreen(
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ) {
                 FoodPickerSheetContent(
-                    slotName = uiState.selectedSlot?.displayName
-                        ?: uiState.selectedCustomSlot?.name
-                        ?: "Meal Slot",
+                    slotName = uiState.selectedSlot?.displayName ?: "Meal Slot",
                     foods = allFoods,
                     onLogFood = { foodId, qty -> viewModel.logFood(foodId, qty) },
                     onDismiss = { viewModel.hideFoodPicker() }
@@ -408,13 +394,8 @@ fun DailyLogTab(
     onToggleSlot: (DefaultMealSlot) -> Unit,
     onToggleCustomSlot: (String) -> Unit = {},
     onAddFood: (DefaultMealSlot) -> Unit,
-    onAddFoodToCustomSlot: (CustomMealSlot) -> Unit = {},
     onDeleteFood: (Long) -> Unit,
-    onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null,
-    customSlots: List<CustomMealSlot> = emptyList(),
-    onDeleteCustomSlot: (Long) -> Unit = {},
-    onAddCustomSlot: (String) -> Unit = {},
-    onReorderSlots: (List<String>, List<CustomMealSlot>) -> Unit = { _, _ -> }
+    onToggleSlotLogged: ((DefaultMealSlot) -> Unit)? = null
 ) {
     val mainSlots = setOf(
         DefaultMealSlot.BREAKFAST, DefaultMealSlot.LUNCH,
@@ -434,10 +415,8 @@ fun DailyLogTab(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "all_slots") {
-            // Merge default + custom, restoring saved order if available
-            val unified = remember(slotsToShow, customSlots, savedSlotOrder) {
-                val all = slotsToShow.map { LogSlot.Default(it) } +
-                        customSlots.map { LogSlot.Custom(it) }
+            val unified = remember(slotsToShow, savedSlotOrder) {
+                val all = slotsToShow.map { LogSlot.Default(it) }
                 if (savedSlotOrder.isNotEmpty()) {
                     val byKey = all.associateBy { it.key }
                     val ordered = savedSlotOrder.mapNotNull { byKey[it] }
@@ -473,11 +452,6 @@ fun DailyLogTab(
                             },
                             onDragEnd = {
                                 draggingKey = null; accY = 0f
-                                val allKeys = unified.map { it.key }
-                                val newCustomOrder = unified
-                                    .filterIsInstance<LogSlot.Custom>()
-                                    .map { it.customSlot }
-                                onReorderSlots(allKeys, newCustomOrder)
                             },
                             onDragCancel = { draggingKey = null; accY = 0f }
                         )
@@ -500,70 +474,8 @@ fun DailyLogTab(
                                 dragHandleModifier = dragMod
                             )
                         }
-                        is LogSlot.Custom -> {
-                            val slot = logSlot.customSlot
-                            val customKey = "CUSTOM_${slot.id}"
-                            val customFoods = logWithFoods?.foodsForSlot(customKey) ?: emptyList()
-                            CustomMealSlotCard(
-                                slot = slot,
-                                foods = customFoods,
-                                isExpanded = customKey in expandedSlots,
-                                onToggleExpand = { onToggleCustomSlot(customKey) },
-                                onDelete = { onDeleteCustomSlot(slot.id) },
-                                onAddFood = { onAddFoodToCustomSlot(slot) },
-                                onDeleteFood = onDeleteFood,
-                                modifier = if (isDragging) Modifier.alpha(0.5f) else Modifier,
-                                dragHandleModifier = dragMod
-                            )
-                        }
                     }
                 }
-            }
-        }
-        item {
-            var showAddSlotDialog by remember { mutableStateOf(false) }
-            var newSlotName by remember { mutableStateOf("") }
-
-            OutlinedButton(
-                onClick = { showAddSlotDialog = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Add Meal Slot")
-            }
-
-            if (showAddSlotDialog) {
-                AlertDialog(
-                    onDismissRequest = { showAddSlotDialog = false; newSlotName = "" },
-                    title = { Text("New Meal Slot") },
-                    text = {
-                        OutlinedTextField(
-                            value = newSlotName,
-                            onValueChange = { newSlotName = it },
-                            label = { Text("Slot name") },
-                            singleLine = true
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                if (newSlotName.isNotBlank()) {
-                                    onAddCustomSlot(newSlotName)
-                                    showAddSlotDialog = false
-                                    newSlotName = ""
-                                }
-                            }
-                        ) { Text("Add") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showAddSlotDialog = false; newSlotName = "" }) {
-                            Text("Cancel")
-                        }
-                    }
-                )
             }
         }
         item { Spacer(Modifier.height(80.dp)) }
@@ -896,107 +808,6 @@ fun MacroComparisonRow(label: String, actual: Int, planned: Int, color: Color, u
                     .clip(RoundedCornerShape(3.dp))
                     .background(barColor)
             )
-        }
-    }
-}
-
-// ── Custom Meal Slot Card ─────────────────────────────────────────────────────
-
-@Composable
-fun CustomMealSlotCard(
-    slot: CustomMealSlot,
-    foods: List<LoggedFoodWithDetails> = emptyList(),
-    isExpanded: Boolean = false,
-    onToggleExpand: () -> Unit = {},
-    onDelete: () -> Unit,
-    onAddFood: () -> Unit = {},
-    onDeleteFood: (Long) -> Unit = {},
-    modifier: Modifier = Modifier,
-    dragHandleModifier: Modifier = Modifier
-) {
-    val loggedKcal = foods.sumOf { it.calculatedCalories }.toInt()
-    val subtitle = if (foods.isNotEmpty()) "${foods.size} logged · $loggedKcal kcal" else "Nothing logged"
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onToggleExpand)
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Drag handle — long-press to reorder
-                Icon(
-                    Icons.Default.DragHandle,
-                    contentDescription = "Drag to reorder",
-                    tint = Color(0xFFBBBBBB),
-                    modifier = dragHandleModifier
-                        .size(24.dp)
-                        .padding(end = 4.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFB0BEC5).copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("✦", style = MaterialTheme.typography.titleSmall)
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(slot.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Remove slot",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            AnimatedVisibility(visible = isExpanded) {
-                Column {
-                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                    if (foods.isEmpty()) {
-                        Text(
-                            "No foods logged",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                        )
-                    }
-                    foods.forEach { food ->
-                        FoodRow(food = food, onDelete = { onDeleteFood(food.loggedFood.id) })
-                        HorizontalDivider(color = Color(0xFFF8F8F8), thickness = 0.5.dp)
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        TextButton(onClick = onAddFood) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = TopBarGreen)
-                            Spacer(Modifier.width(4.dp))
-                            Text("Add Food", color = TopBarGreen, style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
-                }
-            }
         }
     }
 }

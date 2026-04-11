@@ -762,6 +762,259 @@ object DatabaseModule {
 
     // Migration 21->22: fix food_items that had per-serving values stored as per-100g,
     // and populate gramsPerPiece / gramsPerCup so unit conversions are accurate.
+    private val MIGRATION_24_25 = object : Migration(24, 25) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Fix: migration 23→24 used wrong food names that didn't match the DB.
+            // This migration uses the exact names from common_foods.json to populate GI.
+            // GI scale: Low ≤55 (green), Medium 56–69 (amber), High ≥70 (red)
+            // Grains
+            db.execSQL("UPDATE food_items SET glycemicIndex = 64 WHERE name = 'White Rice (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Brown Rice (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Basmati Rice (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 62 WHERE name = 'Chapati/Roti' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 71 WHERE name = 'Whole Wheat Bread' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 73 WHERE name = 'White Bread' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Oats (dry)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Oats' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 53 WHERE name = 'Quinoa (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 49 WHERE name = 'Pasta (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 49 WHERE name = 'Pasta Penne' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 49 WHERE name = 'Spaghetti' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 71 WHERE name = 'Naan' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 62 WHERE name = 'Paratha' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Poha (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Poha Raw' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Upma' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 69 WHERE name = 'Idli' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Dosa (plain)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Puri' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'BB Toast' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Wheat Flour' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Gram Flour' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 85 WHERE name = 'Maida' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Large Tortilla' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 68 WHERE name = 'Ragi Flour' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Jowar Flour' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 81 WHERE name = 'Corn Flakes' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 54 WHERE name = 'Sourdough Bread' AND isSystemFood = 1")
+            // Proteins
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Chicken Breast (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Chicken Thigh (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Boneless Chicken' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Chicken Curry' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Egg (whole, boiled)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Egg Whole' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Egg White' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Egg Omelette' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Paneer' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Tofu' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Fish (rohu, cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Salmon (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Tuna (canned)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Prawns (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Mutton (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Beef (lean, cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Pork (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 18 WHERE name = 'Soya Chunks' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Whey Isolate' AND isSystemFood = 1")
+            // Legumes
+            db.execSQL("UPDATE food_items SET glycemicIndex = 29 WHERE name = 'Dal (Toor/Arhar)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 31 WHERE name = 'Dal (Moong)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Dal (Chana)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 29 WHERE name = 'Dal (Masoor)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 38 WHERE name = 'Dal (Urad)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 29 WHERE name = 'Rajma (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 29 WHERE name = 'Boiled Rajma' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 28 WHERE name = 'Chole/Chickpeas (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 28 WHERE name = 'Chickpea' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Black Chickpea' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Black Beans (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 29 WHERE name = 'Lentils (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 14 WHERE name = 'Peanuts (raw)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Soybean (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 38 WHERE name = 'Yellow Moong Dal' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 38 WHERE name = 'Green Moong' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Chana Dal' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 33 WHERE name = 'Chickpea Raw' AND isSystemFood = 1")
+            // Dairy
+            db.execSQL("UPDATE food_items SET glycemicIndex = 27 WHERE name = 'Milk (whole)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 27 WHERE name = 'Milk (skimmed)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 27 WHERE name = 'Milk (toned)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 27 WHERE name = 'Milk' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Curd/Yogurt' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Dahi' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 11 WHERE name = 'Greek Yogurt' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Buttermilk/Chaas' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Lassi (sweet)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Cheese (cheddar)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Cheese Slice' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Cottage Cheese' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Butter' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Ghee' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Fresh Cream' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Fresh Cream Cooking' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 25 WHERE name = 'Almond Milk' AND isSystemFood = 1")
+            // Fruits
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Apple' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 36 WHERE name = 'Red Apple' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 38 WHERE name = 'Green Apple' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 52 WHERE name = 'Banana' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 43 WHERE name = 'Orange' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 51 WHERE name = 'Mango' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Papaya' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 72 WHERE name = 'Watermelon' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 46 WHERE name = 'Grapes' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 53 WHERE name = 'Pomegranate' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 24 WHERE name = 'Guava' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 59 WHERE name = 'Pineapple' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Strawberries' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 53 WHERE name = 'Blueberries' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Chikoo/Sapota' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Litchi' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 100 WHERE name = 'Dates (dried)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 100 WHERE name = 'Black Dates' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 64 WHERE name = 'Raisins' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 64 WHERE name = 'Raisin' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 38 WHERE name = 'Pear' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 53 WHERE name = 'Kiwi' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Avocado' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 45 WHERE name = 'Cranberry' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 32 WHERE name = 'Raspberry' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 39 WHERE name = 'Plum' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Kharbooja' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Cantaloupe' AND isSystemFood = 1")
+            // Vegetables
+            db.execSQL("UPDATE food_items SET glycemicIndex = 78 WHERE name = 'Potato (boiled)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 44 WHERE name = 'Sweet Potato (boiled)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Onion' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Tomato' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Carrot' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Cucumber' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Spinach (cooked)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Cabbage' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Cauliflower' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Broccoli' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Green Beans' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'French Beans' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Peas (green)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Matar' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Capsicum/Bell Pepper' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Red Bell Pepper' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Yellow Bell Pepper' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Brinjal/Eggplant' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 20 WHERE name = 'Bhindi/Okra' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 20 WHERE name = 'Bhindi' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Lauki/Bottle Gourd' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Lauki' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Palak Paneer' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Aloo Gobi' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Mixed Vegetable Curry' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Mushroom' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 52 WHERE name = 'Corn (sweet)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Zucchini' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Lettuce' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 61 WHERE name = 'Beetroot' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Black Olives' AND isSystemFood = 1")
+            // Nuts & Seeds
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Almonds' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 22 WHERE name = 'Cashews' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Walnuts' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Pistachios' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Pista' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Flax Seeds' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Chia Seeds' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Sunflower Seeds' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 35 WHERE name = 'Roasted Melon Seeds' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 14 WHERE name = 'Peanut Butter' AND isSystemFood = 1")
+            // Oils
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Olive Oil' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Coconut Oil' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Mustard Oil' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Sunflower Oil' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0 WHERE name = 'Desi Ghee' AND isSystemFood = 1")
+            // Snacks
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Samosa' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Pakora/Bhajiya' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Vada Pav' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Pav Bhaji' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Dhokla' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Kachori' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Chips/Crisps' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Biscuits (plain)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Namkeen/Mixture' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Oreo Biscuits' AND isSystemFood = 1")
+            // Sweeteners
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Sugar' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 84 WHERE name = 'Jaggery/Gur' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 61 WHERE name = 'Honey' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 54 WHERE name = 'Maple Syrup' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 5  WHERE name = 'Cinnamon Powder' AND isSystemFood = 1")
+            // Beverages
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Tea (with milk, sugar)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Coffee (with milk, sugar)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Black Tea' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Black Coffee' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 0  WHERE name = 'Green Tea' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Coconut Water' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Orange Juice' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Mango Shake' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Banana Shake' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 40 WHERE name = 'Nimbu Pani/Lemonade' AND isSystemFood = 1")
+            // Dishes
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Biryani (chicken)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Biryani (veg)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Pulao' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Khichdi' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Fried Rice' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Noodles (veg)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Pizza (1 slice)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Burger (veg)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Burger (chicken)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Sandwich (veg)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Wrap/Roll' AND isSystemFood = 1")
+            // Sides
+            db.execSQL("UPDATE food_items SET glycemicIndex = 30 WHERE name = 'Raita' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Pickle (mango)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Papad (roasted)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 75 WHERE name = 'Papad (fried)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Chutney (green)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Chutney (tamarind)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 10 WHERE name = 'Salad (mixed)' AND isSystemFood = 1")
+            // Desserts
+            db.execSQL("UPDATE food_items SET glycemicIndex = 70 WHERE name = 'Gulab Jamun' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Rasgulla' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 80 WHERE name = 'Jalebi' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Kheer' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 65 WHERE name = 'Halwa (sooji)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Ladoo (besan)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 57 WHERE name = 'Ice Cream (vanilla)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 23 WHERE name = 'Chocolate (dark)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Cake (chocolate)' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Brownie' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 60 WHERE name = 'Chocolate Ice Cream' AND isSystemFood = 1")
+            // Condiments
+            db.execSQL("UPDATE food_items SET glycemicIndex = 55 WHERE name = 'Hot & Sweet Chilli Sauce' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 50 WHERE name = 'Tomato Ketchup' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 45 WHERE name = 'Pizza Pasta Sauce' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 20 WHERE name = 'Soy Sauce' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Veggie Mayo' AND isSystemFood = 1")
+            db.execSQL("UPDATE food_items SET glycemicIndex = 15 WHERE name = 'Mayo' AND isSystemFood = 1")
+        }
+    }
+
+    private val MIGRATION_23_24 = object : Migration(23, 24) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // No-op: the GI updates in this migration used wrong food names.
+            // Corrected in MIGRATION_24_25.
+        }
+    }
+
+    private val MIGRATION_22_23 = object : Migration(22, 23) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE diets ADD COLUMN isFavourite INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     private val MIGRATION_21_22 = object : Migration(21, 22) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // Egg Whole: stored 78 kcal/egg → correct 155 kcal/100g, gramsPerPiece=50
@@ -798,6 +1051,306 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Migrate date columns from TEXT (ISO-8601 'YYYY-MM-DD') to INTEGER (epoch milliseconds).
+     *
+     * Tables affected: daily_logs, logged_foods, plans, grocery_lists,
+     *                  health_metrics, custom_meal_slots
+     *
+     * Conversion: (julianday(col) - julianday('1970-01-01')) * 86400000
+     * This yields midnight UTC epoch ms for any 'YYYY-MM-DD' string, matching
+     * the DateUtils.LocalDate.toEpochMs() semantics used throughout the app.
+     *
+     * SQLite does not support ALTER COLUMN, so each affected table is recreated
+     * in the standard "new → copy → drop → rename" pattern.
+     * PRAGMA foreign_keys is disabled for the duration.
+     */
+    private val MIGRATION_25_26 = object : Migration(25, 26) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("PRAGMA foreign_keys = OFF")
+
+            // ── daily_logs ──────────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE daily_logs_new (
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `plannedDietId` INTEGER,
+                    `notes` TEXT,
+                    `createdAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`userId`, `date`),
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO daily_logs_new
+                SELECT userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       plannedDietId, notes, createdAt
+                FROM daily_logs
+            """.trimIndent())
+            db.execSQL("DROP TABLE daily_logs")
+            db.execSQL("ALTER TABLE daily_logs_new RENAME TO daily_logs")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_daily_logs_userId` ON `daily_logs` (`userId`)")
+
+            // ── logged_foods (child of daily_logs) ──────────────────────────
+            db.execSQL("""
+                CREATE TABLE logged_foods_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `logDate` INTEGER NOT NULL,
+                    `foodId` INTEGER NOT NULL,
+                    `quantity` REAL NOT NULL,
+                    `unit` TEXT NOT NULL,
+                    `slotType` TEXT NOT NULL,
+                    `timestamp` INTEGER,
+                    `notes` TEXT,
+                    FOREIGN KEY(`userId`, `logDate`) REFERENCES `daily_logs`(`userId`, `date`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(`foodId`) REFERENCES `food_items`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO logged_foods_new
+                SELECT id, userId,
+                       CAST((julianday(logDate) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       foodId, quantity, unit, slotType, timestamp, notes
+                FROM logged_foods
+            """.trimIndent())
+            db.execSQL("DROP TABLE logged_foods")
+            db.execSQL("ALTER TABLE logged_foods_new RENAME TO logged_foods")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_logged_foods_userId_logDate` ON `logged_foods` (`userId`, `logDate`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_logged_foods_foodId` ON `logged_foods` (`foodId`)")
+
+            // ── plans ────────────────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE plans_new (
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `dietId` INTEGER,
+                    `notes` TEXT,
+                    `isCompleted` INTEGER NOT NULL,
+                    PRIMARY KEY(`userId`, `date`),
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(`dietId`) REFERENCES `diets`(`id`)
+                        ON UPDATE NO ACTION ON DELETE SET NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO plans_new
+                SELECT userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       dietId, notes, isCompleted
+                FROM plans
+            """.trimIndent())
+            db.execSQL("DROP TABLE plans")
+            db.execSQL("ALTER TABLE plans_new RENAME TO plans")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_plans_userId` ON `plans` (`userId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_plans_dietId` ON `plans` (`dietId`)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_plans_userId_date` ON `plans` (`userId`, `date`)")
+
+            // ── grocery_lists (nullable startDate / endDate) ─────────────────
+            db.execSQL("""
+                CREATE TABLE grocery_lists_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `startDate` INTEGER,
+                    `endDate` INTEGER,
+                    `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    `serverId` TEXT,
+                    `syncedAt` INTEGER,
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO grocery_lists_new
+                SELECT id, userId, name,
+                       CASE WHEN startDate IS NULL THEN NULL
+                            ELSE CAST((julianday(startDate) - julianday('1970-01-01')) * 86400000 AS INTEGER)
+                       END,
+                       CASE WHEN endDate IS NULL THEN NULL
+                            ELSE CAST((julianday(endDate) - julianday('1970-01-01')) * 86400000 AS INTEGER)
+                       END,
+                       createdAt, updatedAt, serverId, syncedAt
+                FROM grocery_lists
+            """.trimIndent())
+            db.execSQL("DROP TABLE grocery_lists")
+            db.execSQL("ALTER TABLE grocery_lists_new RENAME TO grocery_lists")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_grocery_lists_userId` ON `grocery_lists` (`userId`)")
+
+            // ── health_metrics ───────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE health_metrics_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `timestamp` INTEGER NOT NULL,
+                    `metricType` TEXT,
+                    `customTypeId` INTEGER,
+                    `value` REAL NOT NULL,
+                    `secondaryValue` REAL,
+                    `subType` TEXT,
+                    `notes` TEXT,
+                    `serverId` TEXT,
+                    `updatedAt` INTEGER NOT NULL,
+                    `syncedAt` INTEGER,
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO health_metrics_new
+                SELECT id, userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       timestamp, metricType, customTypeId, value, secondaryValue,
+                       subType, notes, serverId, updatedAt, syncedAt
+                FROM health_metrics
+            """.trimIndent())
+            db.execSQL("DROP TABLE health_metrics")
+            db.execSQL("ALTER TABLE health_metrics_new RENAME TO health_metrics")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_userId` ON `health_metrics` (`userId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_date` ON `health_metrics` (`date`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_metricType` ON `health_metrics` (`metricType`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_health_metrics_customTypeId` ON `health_metrics` (`customTypeId`)")
+
+            // ── custom_meal_slots ────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE custom_meal_slots_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `slotOrder` INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO custom_meal_slots_new
+                SELECT id, userId,
+                       CAST((julianday(`date`) - julianday('1970-01-01')) * 86400000 AS INTEGER),
+                       name, slotOrder
+                FROM custom_meal_slots
+            """.trimIndent())
+            db.execSQL("DROP TABLE custom_meal_slots")
+            db.execSQL("ALTER TABLE custom_meal_slots_new RENAME TO custom_meal_slots")
+
+            db.execSQL("PRAGMA foreign_keys = ON")
+        }
+    }
+
+    /**
+     * v26 → v27: New clean-sheet schema changes.
+     *
+     * Structural:
+     * - meals: drop userId, slotType, customSlotId; add isSystem
+     * - diets: drop userId; rename isSystemDiet → isSystem
+     * - diet_meals → diet_slots (ALTER TABLE RENAME)
+     * - DROP custom_meal_slots (0 rows; table no longer needed)
+     *
+     * Additive:
+     * - CREATE planned_slots  (per-slot day planning)
+     * - CREATE planned_slot_foods  (ad-hoc foods on a slot)
+     *
+     * Data safety: all existing plans, daily_logs, logged_foods, meal_food_items
+     * are untouched. Streak is unaffected.
+     */
+    private val MIGRATION_26_27 = object : Migration(26, 27) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("PRAGMA foreign_keys = OFF")
+
+            // ── 1. Recreate meals — drop userId, slotType, customSlotId; add isSystem ──
+            db.execSQL("""
+                CREATE TABLE meals_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `description` TEXT,
+                    `isSystem` INTEGER NOT NULL,
+                    `serverId` TEXT,
+                    `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    `syncedAt` INTEGER
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO meals_new (id, name, description, isSystem, serverId, createdAt, updatedAt, syncedAt)
+                SELECT id, name, description, 0, serverId, createdAt, updatedAt, syncedAt FROM meals
+            """.trimIndent())
+            db.execSQL("DROP TABLE meals")
+            db.execSQL("ALTER TABLE meals_new RENAME TO meals")
+
+            // ── 2. Recreate diets — drop userId; rename isSystemDiet → isSystem ───────
+            db.execSQL("""
+                CREATE TABLE diets_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `description` TEXT,
+                    `createdAt` INTEGER NOT NULL,
+                    `isSystem` INTEGER NOT NULL DEFAULT 0,
+                    `serverId` TEXT,
+                    `updatedAt` INTEGER NOT NULL,
+                    `syncedAt` INTEGER,
+                    `isFavourite` INTEGER NOT NULL DEFAULT 0
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO diets_new (id, name, description, createdAt, isSystem, serverId, updatedAt, syncedAt, isFavourite)
+                SELECT id, name, description, createdAt, isSystemDiet, serverId, updatedAt, syncedAt, isFavourite FROM diets
+            """.trimIndent())
+            db.execSQL("DROP TABLE diets")
+            db.execSQL("ALTER TABLE diets_new RENAME TO diets")
+
+            // ── 3. Rename diet_meals → diet_slots ────────────────────────────────────
+            db.execSQL("ALTER TABLE diet_meals RENAME TO diet_slots")
+            db.execSQL("DROP INDEX IF EXISTS index_diet_meals_dietId")
+            db.execSQL("DROP INDEX IF EXISTS index_diet_meals_mealId")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_diet_slots_dietId` ON `diet_slots` (`dietId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_diet_slots_mealId` ON `diet_slots` (`mealId`)")
+
+            // ── 4. Create planned_slots ───────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `planned_slots` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `slotType` TEXT NOT NULL,
+                    `mealId` INTEGER,
+                    `sourceDietId` INTEGER,
+                    `instructions` TEXT,
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+                    FOREIGN KEY(`mealId`) REFERENCES `meals`(`id`) ON DELETE SET NULL
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slots_userId_date` ON `planned_slots` (`userId`, `date`)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_planned_slots_userId_date_slotType` ON `planned_slots` (`userId`, `date`, `slotType`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slots_mealId` ON `planned_slots` (`mealId`)")
+
+            // ── 5. Create planned_slot_foods ──────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `planned_slot_foods` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `plannedSlotId` INTEGER NOT NULL,
+                    `foodId` INTEGER NOT NULL,
+                    `quantity` REAL NOT NULL,
+                    `unit` TEXT NOT NULL,
+                    `notes` TEXT,
+                    FOREIGN KEY(`plannedSlotId`) REFERENCES `planned_slots`(`id`) ON DELETE CASCADE,
+                    FOREIGN KEY(`foodId`) REFERENCES `food_items`(`id`) ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slot_foods_plannedSlotId` ON `planned_slot_foods` (`plannedSlotId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slot_foods_foodId` ON `planned_slot_foods` (`foodId`)")
+
+            // ── 6. Drop custom_meal_slots (always 0 rows, table no longer needed) ────
+            db.execSQL("DROP TABLE IF EXISTS custom_meal_slots")
+
+            db.execSQL("PRAGMA foreign_keys = ON")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -806,8 +1359,8 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
-            // Removed fallbackToDestructiveMigration() - this was destroying user data!
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27)
+            // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()
     }
@@ -828,6 +1381,9 @@ object DatabaseModule {
     fun providePlanDao(database: AppDatabase): PlanDao = database.planDao()
 
     @Provides
+    fun providePlannedSlotDao(database: AppDatabase): PlannedSlotDao = database.plannedSlotDao()
+
+    @Provides
     fun provideHealthMetricDao(database: AppDatabase): HealthMetricDao = database.healthMetricDao()
 
     @Provides
@@ -838,7 +1394,4 @@ object DatabaseModule {
 
     @Provides
     fun provideGroceryDao(database: AppDatabase): GroceryDao = database.groceryDao()
-
-    @Provides
-    fun provideCustomMealSlotDao(database: AppDatabase): CustomMealSlotDao = database.customMealSlotDao()
 }

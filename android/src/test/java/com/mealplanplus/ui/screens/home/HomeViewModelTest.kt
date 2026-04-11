@@ -15,6 +15,7 @@ import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.util.toEpochMs
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -145,8 +146,8 @@ class HomeViewModelTest {
 
     @Test
     fun streak_todayOnly_isOne() = runTest {
-        val today = LocalDate.now().toString()
-        val data = listOf(DailyMacroSummary(date = today, calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0))
+        val today = LocalDate.now()
+        val data = listOf(DailyMacroSummary(date = today.toEpochMs(), calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0))
         every { dailyLogRepo.getLoggedDatesForStreak(any(), any()) } returns flowOf(data)
 
         val vm = buildViewModel()
@@ -158,7 +159,7 @@ class HomeViewModelTest {
         val today = LocalDate.now()
         val data = (0..2).map { daysAgo ->
             DailyMacroSummary(
-                date = today.minusDays(daysAgo.toLong()).toString(),
+                date = today.minusDays(daysAgo.toLong()).toEpochMs(),
                 calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0
             )
         }
@@ -173,8 +174,8 @@ class HomeViewModelTest {
         val today = LocalDate.now()
         // Today logged, yesterday not, 2 days ago logged → streak should be 1 (breaks at yesterday)
         val data = listOf(
-            DailyMacroSummary(date = today.toString(), calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0),
-            DailyMacroSummary(date = today.minusDays(2).toString(), calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0)
+            DailyMacroSummary(date = today.toEpochMs(), calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0),
+            DailyMacroSummary(date = today.minusDays(2).toEpochMs(), calories = 1.0, protein = 0.0, carbs = 0.0, fat = 0.0)
         )
         every { dailyLogRepo.getLoggedDatesForStreak(any(), any()) } returns flowOf(data)
 
@@ -198,7 +199,7 @@ class HomeViewModelTest {
     fun weekDays_todayWithCalories_isCompleted() = runTest {
         val today = LocalDate.now()
         val calories = listOf(
-            DailyMacroSummary(date = today.toString(), calories = 1200.0, protein = 0.0, carbs = 0.0, fat = 0.0)
+            DailyMacroSummary(date = today.toEpochMs(), calories = 1200.0, protein = 0.0, carbs = 0.0, fat = 0.0)
         )
         every { dailyLogRepo.getCompletedDaysCalories(any(), any()) } returns flowOf(calories)
 
@@ -242,7 +243,7 @@ class HomeViewModelTest {
         val plans = listOf(
             PlanWithDietName(
                 userId = 1L,
-                date = twoDaysAgo.toString(),
+                date = twoDaysAgo.toEpochMs(),
                 dietId = 5L,
                 isCompleted = false,
                 notes = null,
@@ -265,7 +266,7 @@ class HomeViewModelTest {
         val plans = listOf(
             PlanWithDietName(
                 userId = 1L,
-                date = weekStart.toString(),
+                date = weekStart.toEpochMs(),
                 dietId = 5L,
                 isCompleted = true,
                 notes = null,
@@ -301,7 +302,7 @@ class HomeViewModelTest {
         val plans = listOf(
             PlanWithDietName(
                 userId = 1L,
-                date = today.toString(),
+                date = today.toEpochMs(),
                 dietId = 17L,
                 isCompleted = false,
                 notes = null,
@@ -341,7 +342,7 @@ class HomeViewModelTest {
         every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
         val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
-            date = LocalDate.now().toString(),
+            date = LocalDate.now().toEpochMs(),
             dietId = 42L,
             isCompleted = false,
             notes = null,
@@ -370,7 +371,7 @@ class HomeViewModelTest {
         every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
         val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
-            date = LocalDate.now().toString(),
+            date = LocalDate.now().toEpochMs(),
             dietId = 99L,
             isCompleted = false,
             notes = null,
@@ -405,7 +406,7 @@ class HomeViewModelTest {
         every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
         val fakePlanWithDietName = PlanWithDietName(
             userId = 1L,
-            date = LocalDate.now().toString(),
+            date = LocalDate.now().toEpochMs(),
             dietId = 88L,
             isCompleted = false,
             notes = null,
@@ -425,7 +426,7 @@ class HomeViewModelTest {
     @Test
     fun todayPlanSlots_sortedBySlotOrder() = runTest {
         every { AuthPreferences.getUserId(any()) } returns flowOf(1L)
-        val fakePlanWithDietName = PlanWithDietName(userId = 1L, date = LocalDate.now().toString(), dietId = 77L, isCompleted = false, notes = null, dietName = "Test Diet")
+        val fakePlanWithDietName = PlanWithDietName(userId = 1L, date = LocalDate.now().toEpochMs(), dietId = 77L, isCompleted = false, notes = null, dietName = "Test Diet")
         every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(listOf(fakePlanWithDietName))
 
         val fakeDietWithMeals = mockk<DietWithMeals>(relaxed = true)
@@ -448,9 +449,6 @@ class HomeViewModelTest {
         dietRepository = dietRepo,
         authRepository = authRepo,
         healthConnectRepository = healthConnectRepo,
-        customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true).also { dao ->
-            every { dao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
-        },
         context = context
     )
 }

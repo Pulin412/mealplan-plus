@@ -297,13 +297,17 @@ class NotificationDeciderTest {
     @Test
     fun computeStreak_todayOnly_returnsOne() {
         val today = LocalDate.of(2026, 3, 30)
-        assertEquals(1, NotificationDecider.computeStreak(listOf("2026-03-30"), today))
+        assertEquals(1, NotificationDecider.computeStreak(listOf(today), today))
     }
 
     @Test
     fun computeStreak_threeContinuousDays_returnsThree() {
         val today = LocalDate.of(2026, 3, 30)
-        val dates = listOf("2026-03-28", "2026-03-29", "2026-03-30")
+        val dates = listOf(
+            LocalDate.of(2026, 3, 28),
+            LocalDate.of(2026, 3, 29),
+            LocalDate.of(2026, 3, 30)
+        )
         assertEquals(3, NotificationDecider.computeStreak(dates, today))
     }
 
@@ -311,14 +315,14 @@ class NotificationDeciderTest {
     fun computeStreak_gapYesterday_returnsOne() {
         val today = LocalDate.of(2026, 3, 30)
         // Today logged, yesterday missing, 2 days ago logged → streak = 1
-        val dates = listOf("2026-03-28", "2026-03-30")
+        val dates = listOf(LocalDate.of(2026, 3, 28), LocalDate.of(2026, 3, 30))
         assertEquals(1, NotificationDecider.computeStreak(dates, today))
     }
 
     @Test
     fun computeStreak_yesterdayAndTodayLogged_returnsTwo() {
         val today = LocalDate.of(2026, 3, 30)
-        val dates = listOf("2026-03-29", "2026-03-30")
+        val dates = listOf(LocalDate.of(2026, 3, 29), LocalDate.of(2026, 3, 30))
         assertEquals(2, NotificationDecider.computeStreak(dates, today))
     }
 
@@ -327,7 +331,7 @@ class NotificationDeciderTest {
         // If today is not in the list and yesterday is, streak starts from yesterday
         // but since today has a gap, streak = 0
         val today = LocalDate.of(2026, 3, 30)
-        val dates = listOf("2026-03-29")
+        val dates = listOf(LocalDate.of(2026, 3, 29))
         assertEquals(0, NotificationDecider.computeStreak(dates, today))
     }
 }

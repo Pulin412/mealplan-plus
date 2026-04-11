@@ -6,10 +6,12 @@ import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.Plan
 import com.mealplanplus.data.model.PlanWithDietName
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,43 +24,45 @@ class PlanRepository @Inject constructor(
         AuthPreferences.getUserId(context).first() ?: throw IllegalStateException("Not logged in")
     }
 
-    fun getPlansInRange(startDate: String, endDate: String): Flow<List<Plan>> =
-        planDao.getPlansInRange(getCurrentUserId(), startDate, endDate)
+    fun getPlansInRange(startDate: LocalDate, endDate: LocalDate): Flow<List<Plan>> =
+        planDao.getPlansInRange(getCurrentUserId(), startDate.toEpochMs(), endDate.toEpochMs())
 
-    fun getPlansWithDietNames(startDate: String, endDate: String): Flow<List<PlanWithDietName>> =
-        planDao.getPlansWithDietNames(getCurrentUserId(), startDate, endDate)
+    fun getPlansWithDietNames(startDate: LocalDate, endDate: LocalDate): Flow<List<PlanWithDietName>> =
+        planDao.getPlansWithDietNames(getCurrentUserId(), startDate.toEpochMs(), endDate.toEpochMs())
 
     fun getPlansByUser(): Flow<List<Plan>> = planDao.getPlansByUser(getCurrentUserId())
 
-    suspend fun getPlanForDate(date: String): Plan? = planDao.getPlanForDate(getCurrentUserId(), date)
+    suspend fun getPlanForDate(date: LocalDate): Plan? =
+        planDao.getPlanForDate(getCurrentUserId(), date.toEpochMs())
 
-    suspend fun getDietForDate(date: String): Diet? = planDao.getDietForDate(getCurrentUserId(), date)
+    suspend fun getDietForDate(date: LocalDate): Diet? =
+        planDao.getDietForDate(getCurrentUserId(), date.toEpochMs())
 
-    suspend fun setPlanForDate(date: String, dietId: Long?, notes: String? = null) {
-        planDao.upsertPlan(Plan(userId = getCurrentUserId(), date = date, dietId = dietId, notes = notes))
+    suspend fun setPlanForDate(date: LocalDate, dietId: Long?, notes: String? = null) {
+        planDao.upsertPlan(Plan(userId = getCurrentUserId(), date = date.toEpochMs(), dietId = dietId, notes = notes))
     }
 
-    suspend fun removePlan(date: String) = planDao.deletePlan(getCurrentUserId(), date)
+    suspend fun removePlan(date: LocalDate) = planDao.deletePlan(getCurrentUserId(), date.toEpochMs())
 
-    suspend fun copyPlanToDate(fromDate: String, toDate: String) {
+    suspend fun copyPlanToDate(fromDate: LocalDate, toDate: LocalDate) {
         val userId = getCurrentUserId()
-        val sourcePlan = planDao.getPlanForDate(userId, fromDate)
+        val sourcePlan = planDao.getPlanForDate(userId, fromDate.toEpochMs())
         sourcePlan?.let {
-            planDao.upsertPlan(Plan(userId = userId, date = toDate, dietId = it.dietId, notes = it.notes))
+            planDao.upsertPlan(Plan(userId = userId, date = toDate.toEpochMs(), dietId = it.dietId, notes = it.notes))
         }
     }
 
-    suspend fun completePlan(date: String) {
+    suspend fun completePlan(date: LocalDate) {
         val userId = getCurrentUserId()
-        val plan = planDao.getPlanForDate(userId, date)
+        val plan = planDao.getPlanForDate(userId, date.toEpochMs())
         plan?.let {
             planDao.upsertPlan(it.copy(isCompleted = true))
         }
     }
 
-    suspend fun uncompletePlan(date: String) {
+    suspend fun uncompletePlan(date: LocalDate) {
         val userId = getCurrentUserId()
-        val plan = planDao.getPlanForDate(userId, date)
+        val plan = planDao.getPlanForDate(userId, date.toEpochMs())
         plan?.let {
             planDao.upsertPlan(it.copy(isCompleted = false))
         }

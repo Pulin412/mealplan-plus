@@ -75,7 +75,7 @@ class DietPickerViewModel @Inject constructor(
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getDietsWithSummary().collect { summaries ->
+            dietRepository.getDietsWithFullSummary().collect { summaries ->
                 _isLoading.value = true
                 val dietIds = summaries.map { it.id }
                 val tagsMap = dietRepository.getTagsForDiets(dietIds)

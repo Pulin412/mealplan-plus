@@ -23,6 +23,7 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import com.mealplanplus.util.toEpochMs
 import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -49,7 +50,7 @@ class HealthViewModelTest {
     private lateinit var viewModel: HealthViewModel
 
     private fun metric(id: Long, value: Double, type: MetricType = MetricType.BLOOD_GLUCOSE,
-                       subType: String? = null, date: String = "2026-03-01") =
+                       subType: String? = null, date: Long = LocalDate.of(2026, 3, 1).toEpochMs()) =
         HealthMetric(id = id, userId = 1, date = date, metricType = type.name, value = value, subType = subType)
 
     @Before

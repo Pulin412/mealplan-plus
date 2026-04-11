@@ -51,6 +51,9 @@ fun DietPickerScreen(
                 onNewDiet = null,  // no new diet in picker
                 onNavigateBack = onNavigateBack,
                 onTagsSettings = null,
+                onFavouritesToggle = viewModel::toggleFavouritesFilter,
+                favouriteCount = uiState.favouriteDiets.size,
+                showFavouritesOnly = uiState.showFavouritesOnly,
                 title = "Select Diet"
             )
         }
@@ -112,12 +115,14 @@ fun DietPickerScreen(
                 uiState.diets.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = if (uiState.searchQuery.isBlank() && uiState.selectedTagIds.isEmpty())
-                                "No diets available"
-                            else
-                                "No diets match your filters",
+                            text = when {
+                                uiState.showFavouritesOnly -> "No favourite diets yet.\nTap ⭐ on a diet to mark it."
+                                uiState.searchQuery.isBlank() && uiState.selectedTagIds.isEmpty() -> "No diets available"
+                                else -> "No diets match your filters"
+                            },
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 }

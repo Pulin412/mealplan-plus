@@ -233,13 +233,6 @@ fun PickerMealCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    mealWithFoods.meal.defaultSlot?.let { slot ->
-                        Text(
-                            text = slot.displayName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
                 Text(
                     text = "${mealWithFoods.totalCalories.toInt()} cal",

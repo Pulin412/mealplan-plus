@@ -51,6 +51,8 @@ import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
+import com.mealplanplus.util.toEpochMs
+import com.mealplanplus.util.toLocalDate
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -849,16 +851,18 @@ fun TodaysPlanCard(
                     } else {
                         Button(
                             onClick = onFinishDay,
+                            enabled = allSlotsLogged,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (allSlotsLogged) PrimaryGreen else PrimaryGreen.copy(alpha = 0.6f)
+                                containerColor = PrimaryGreen,
+                                disabledContainerColor = PrimaryGreen.copy(alpha = 0.4f)
                             )
                         ) {
                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                if (allSlotsLogged) "Complete Day" else "Complete Day (${slots.count { it.isLogged }}/${slots.size} logged)",
+                                if (allSlotsLogged) "Complete Day" else "Complete Day (${slots.count { it.isLogged }}/${slots.size} done)",
                                 color = Color.White,
                                 fontSize = 14.sp
                             )
@@ -1117,7 +1121,7 @@ fun GlucoseChart(history: List<HealthMetric>) {
     val producer = remember(entries) { ChartEntryModelProducer(entries) }
     val labels = remember(sorted) {
         val fmt = DateTimeFormatter.ofPattern("dd/MM")
-        sorted.map { m -> LocalDate.parse(m.date).format(fmt) }
+        sorted.map { m -> m.date.toLocalDate().format(fmt) }
     }
     val xSpacing = remember(sorted.size) { maxOf(1, sorted.size / 4) }
     val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->

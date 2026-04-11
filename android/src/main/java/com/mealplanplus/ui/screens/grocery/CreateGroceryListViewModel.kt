@@ -11,6 +11,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.mealplanplus.util.toEpochMs
+import com.mealplanplus.util.toLocalDate
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -164,15 +166,13 @@ class CreateGroceryListViewModel @Inject constructor(
             val startDate = dates.minOrNull()!!
             val endDate = dates.maxOrNull()!!
 
-            planRepository.getPlansWithDietNames(
-                startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
-            ).collect { plans ->
+            planRepository.getPlansWithDietNames(startDate, endDate)
+                .collect { plans ->
                 val previews = plans
-                    .filter { LocalDate.parse(it.date) in dates }
+                    .filter { it.date.toLocalDate() in dates }
                     .map { plan ->
                         PlanPreview(
-                            date = LocalDate.parse(plan.date),
+                            date = plan.date.toLocalDate(),
                             dietName = plan.dietName
                         )
                     }
