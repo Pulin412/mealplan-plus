@@ -211,13 +211,6 @@ fun MealCard(
                         text = mealWithFoods.meal.name,
                         style = MaterialTheme.typography.titleMedium
                     )
-                    mealWithFoods.meal.defaultSlot?.let { slot ->
-                        Text(
-                            text = slot.displayName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
                 Text(
                     text = "${mealWithFoods.totalCalories.toInt()} cal",

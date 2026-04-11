@@ -43,7 +43,7 @@ class DietMealPickerViewModel @Inject constructor(
 
     private fun loadMeals() {
         viewModelScope.launch {
-            mealRepository.getMealsByUser().collect { meals ->
+            mealRepository.getAllMeals().collect { meals ->
                 val mealsWithFoods = meals.map { meal ->
                     mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
                 }
@@ -60,7 +60,7 @@ class DietMealPickerViewModel @Inject constructor(
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getDietsByUser().collect { diets ->
+            dietRepository.getAllDiets().collect { diets ->
                 val dietsWithMeals = diets.mapNotNull { diet ->
                     dietRepository.getDietWithMeals(diet.id)
                 }
@@ -98,15 +98,9 @@ class DietMealPickerViewModel @Inject constructor(
     private fun applyFilters() {
         val state = _uiState.value
         val filtered = state.allMeals.filter { mealWithFoods ->
-            val matchesSearch = state.searchQuery.isBlank() ||
-                    mealWithFoods.meal.name.contains(state.searchQuery, ignoreCase = true) ||
-                    mealWithFoods.items.any { it.food.name.contains(state.searchQuery, ignoreCase = true) }
-
-            val matchesSlot = state.filterSlot == null ||
-                    mealWithFoods.meal.slotType == state.filterSlot ||
-                    mealWithFoods.meal.slotType == "CUSTOM"
-
-            matchesSearch && matchesSlot
+            state.searchQuery.isBlank() ||
+                mealWithFoods.meal.name.contains(state.searchQuery, ignoreCase = true) ||
+                mealWithFoods.items.any { it.food.name.contains(state.searchQuery, ignoreCase = true) }
         }.sortedBy { it.meal.name.lowercase() }
 
         _uiState.update { it.copy(filteredMeals = filtered) }

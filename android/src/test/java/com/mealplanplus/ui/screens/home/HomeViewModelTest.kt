@@ -449,9 +449,6 @@ class HomeViewModelTest {
         dietRepository = dietRepo,
         authRepository = authRepo,
         healthConnectRepository = healthConnectRepo,
-        customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true).also { dao ->
-            every { dao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
-        },
         context = context
     )
 }

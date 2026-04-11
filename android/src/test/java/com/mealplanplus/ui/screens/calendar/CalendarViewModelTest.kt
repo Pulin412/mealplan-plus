@@ -50,7 +50,7 @@ class CalendarViewModelTest {
     private lateinit var viewModel: CalendarViewModel
 
     private val today = LocalDate.now()
-    private val testDiet = Diet(id = 1L, userId = 1L, name = "Low-Carb Plan", description = "Under 100g carbs/day")
+    private val testDiet = Diet(id = 1L, name = "Low-Carb Plan", description = "Under 100g carbs/day")
     private val testPlan = Plan(userId = 1L, date = today.toEpochMs(), dietId = 1L, isCompleted = false)
     private val testDietWithMeals = DietWithMeals(diet = testDiet, meals = emptyMap())
     private val testTag = Tag(id = 1L, userId = 1L, name = "Low Carb", color = "#7B1FA2")
@@ -62,7 +62,7 @@ class CalendarViewModelTest {
         dailyLogRepo = mockk(relaxed = true)
 
         every { planRepo.getPlansWithDietNames(any(), any()) } returns flowOf(emptyList())
-        every { dietRepo.getDietsByUser() } returns flowOf(emptyList())
+        every { dietRepo.getAllDiets() } returns flowOf(emptyList())
         every { dailyLogRepo.getLogWithFoods(any()) } returns flowOf(null)
         coEvery { planRepo.getDietForDate(any()) } returns null
         coEvery { dietRepo.getDietWithMeals(any()) } returns testDietWithMeals

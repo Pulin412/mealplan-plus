@@ -262,11 +262,7 @@ class ProfileViewModel @Inject constructor(
                         val dietDesc = dietJson.optString("description", null)
 
                         val dietId = dietRepository.insertDiet(
-                            Diet(
-                                userId = 0, // overwritten by repository with current user
-                                name = dietName,
-                                description = dietDesc
-                            )
+                            Diet(name = dietName, description = dietDesc)
                         )
 
                         val mealsJson = dietJson.optJSONObject("meals")
@@ -276,11 +272,7 @@ class ProfileViewModel @Inject constructor(
                                 val instructions = mealJson.optString("instructions", null)
 
                                 val mealId = mealRepository.insertMeal(
-                                    Meal(
-                                        userId = 0, // overwritten by repository with current user
-                                        name = "$dietName - $slotKey",
-                                        slotType = slotKey
-                                    )
+                                    Meal(name = "$dietName - $slotKey")
                                 )
 
                                 dietRepository.setMealForSlot(dietId, slotKey, mealId)

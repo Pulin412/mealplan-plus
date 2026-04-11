@@ -214,10 +214,8 @@ class AddMealViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val meal = Meal(
-                    userId = 0L,  // Will be overwritten by repository
                     name = state.name.trim(),
-                    description = state.description.takeIf { it.isNotBlank() }?.trim(),
-                    slotType = state.selectedSlot.name
+                    description = state.description.takeIf { it.isNotBlank() }?.trim()
                 )
                 val mealId = mealRepository.insertMeal(meal)
 

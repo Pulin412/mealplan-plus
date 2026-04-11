@@ -50,7 +50,7 @@ class CalendarViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
-    val diets: StateFlow<List<Diet>> = dietRepository.getDietsByUser()
+    val diets: StateFlow<List<Diet>> = dietRepository.getAllDiets()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
@@ -190,7 +190,8 @@ class CalendarViewModel @Inject constructor(
             planRepository.setPlanForDate(date, diet?.id)
 
             if (diet != null) {
-                val newPlan = Plan(userId = diet.userId, date = dateMs, dietId = diet.id, isCompleted = false)
+                val existingPlan = _uiState.value.plans[dateMs]
+                val newPlan = Plan(userId = existingPlan?.userId ?: 0L, date = dateMs, dietId = diet.id, isCompleted = false)
                 val updatedPlans = _uiState.value.plans + (dateMs to newPlan)
                 val updatedDietNames = _uiState.value.dietNames + (dateMs to extractShortDietName(diet.name))
                 _uiState.update {

@@ -10,7 +10,6 @@ import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.LoggedFoodWithDetails
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import com.mealplanplus.data.model.MetricType
-import com.mealplanplus.data.local.CustomMealSlotDao
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
@@ -107,7 +106,6 @@ class HomeViewModel @Inject constructor(
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository,
     private val authRepository: AuthRepository,
-    private val customMealSlotDao: CustomMealSlotDao,
     private val healthConnectRepository: HealthConnectRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -219,15 +217,13 @@ class HomeViewModel @Inject constructor(
         val todayMs = LocalDate.now().toEpochMs()
         val today = LocalDate.now()
         viewModelScope.launch {
-            val userId = AuthPreferences.getUserId(context).first() ?: return@launch
             combine(
                 dailyLogRepository.getLogWithFoods(today),
-                planRepository.getPlansWithDietNames(today, today),
-                customMealSlotDao.getSlotsForDate(userId, todayMs)
-            ) { logWithFoods, plans, customSlots ->
-                Triple(logWithFoods, plans, customSlots)
+                planRepository.getPlansWithDietNames(today, today)
+            ) { logWithFoods, plans ->
+                Pair(logWithFoods, plans)
             }
-                .onEach { (logWithFoods, plans, customSlots) ->
+                .onEach { (logWithFoods, plans) ->
                     val dietId = plans.firstOrNull { it.dietId != null }?.dietId
 
                     val dietSlots: List<TodayPlanSlot> = if (dietId != null) {
@@ -275,27 +271,11 @@ class HomeViewModel @Inject constructor(
                             }
                     }
 
-                    val customTodaySlots = customSlots.map { slot ->
-                        val slotType = "CUSTOM_${slot.id}"
-                        val isLogged = logWithFoods?.foodsForSlot(slotType)?.isNotEmpty() == true
-                        TodayPlanSlot(
-                            slotType = slotType,
-                            slotDisplayName = slot.name,
-                            emoji = "✦",
-                            plannedMealName = null,
-                            plannedMealId = null,
-                            plannedFoods = emptyList(),
-                            isLogged = isLogged,
-                            dietId = null,
-                            loggedFoods = logWithFoods?.foodsForSlot(slotType) ?: emptyList()
-                        )
-                    }
-
                     val isTodayCompleted = plans.firstOrNull()?.isCompleted == true
 
                     _uiState.update {
                         it.copy(
-                            todayPlanSlots = dietSlots + customTodaySlots,
+                            todayPlanSlots = dietSlots,
                             hasDietToday = dietId != null,
                             isTodayCompleted = isTodayCompleted
                         )

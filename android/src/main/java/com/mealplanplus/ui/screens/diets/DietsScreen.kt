@@ -462,7 +462,7 @@ fun DietCard(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (item.diet.isSystemDiet) {
+                        if (item.diet.isSystem) {
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant

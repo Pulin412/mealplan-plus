@@ -85,9 +85,9 @@ class DailyLogViewModelTest {
     )
     private val mealFoodItem = MealFoodItem(mealId = 1L, foodId = 2L, quantity = 100.0, unit = FoodUnit.GRAM)
     private val mealFoodItemWithDetails = MealFoodItemWithDetails(mealFoodItem, plannedFood)
-    private val meal = Meal(id = 1L, userId = 1L, name = "Breakfast", slotType = "BREAKFAST")
+    private val meal = Meal(id = 1L, name = "Breakfast")
     private val mealWithFoods = MealWithFoods(meal, listOf(mealFoodItemWithDetails)) // totalCalories = 1446
-    private val testDiet = Diet(id = 1L, userId = 1L, name = "Test Diet")
+    private val testDiet = Diet(id = 1L, name = "Test Diet")
     private val testPlan = Plan(userId = 1L, date = todayMs, dietId = 1L, isCompleted = false)
     private val dietWithMeals = DietWithMeals(testDiet, mapOf("BREAKFAST" to mealWithFoods))
 
@@ -103,8 +103,6 @@ class DailyLogViewModelTest {
         every { foodRepository.getAllFoods() } returns flowOf(emptyList())
         coEvery { planRepository.getPlanForDate(any()) } returns testPlan
         coEvery { dietRepository.getDietWithMeals(1L) } returns dietWithMeals
-        val customMealSlotDao = mockk<com.mealplanplus.data.local.CustomMealSlotDao>(relaxed = true)
-        every { customMealSlotDao.getSlotsForDate(any(), any()) } returns flowOf(emptyList())
         val tempDir = java.io.File(System.getProperty("java.io.tmpdir"), "mealplan_test_${System.nanoTime()}")
         tempDir.mkdirs()
         val context = mockk<android.content.Context>(relaxed = true)
@@ -123,7 +121,7 @@ class DailyLogViewModelTest {
         mockkStatic(AppWidgetManager::class)
         every { AppWidgetManager.getInstance(any()) } returns mockk(relaxed = true)
 
-        viewModel = DailyLogViewModel(logRepository, mealRepository, planRepository, dietRepository, foodRepository, customMealSlotDao, context)
+        viewModel = DailyLogViewModel(logRepository, mealRepository, planRepository, dietRepository, foodRepository, context)
     }
 
     @After

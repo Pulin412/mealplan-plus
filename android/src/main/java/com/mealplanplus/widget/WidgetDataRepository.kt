@@ -49,7 +49,7 @@ class WidgetDataRepository(context: Context) {
         val loggedSlots = logWithFoods?.foods?.map { it.loggedFood.slotType }?.toSet() ?: emptySet()
 
         val slots = dietWithMeals.meals.entries
-            .sortedBy { (_, mwf) -> mwf?.meal?.slotType?.let { slotOrder(it) } ?: Int.MAX_VALUE }
+            .sortedBy { (slotType, _) -> slotOrder(slotType) }
             .map { (slotType, mwf) ->
                 TodaySlot(
                     slotType = slotType,
@@ -110,9 +110,7 @@ class WidgetDataRepository(context: Context) {
                 val loggedSlots = logWithFoods?.foods
                     ?.map { it.loggedFood.slotType }?.toSet() ?: emptySet()
                 val slots = dietWithMeals.meals.entries
-                    .sortedBy { (_, mwf) ->
-                        mwf?.meal?.slotType?.let { slotOrder(it) } ?: Int.MAX_VALUE
-                    }
+                    .sortedBy { (slotType, _) -> slotOrder(slotType) }
                     .map { (slotType, mwf) ->
                         TodaySlot(
                             slotType    = slotType,

@@ -101,8 +101,9 @@ class DatabaseSeeder @Inject constructor(
                 if (existing != null) toUpsert.add(item) else toInsert.add(item)
             }
 
-            // UPDATE existing rows in-place (IDs preserved, FK refs survive)
-            if (toUpsert.isNotEmpty()) foodDao.upsertAll(toUpsert)
+            // UPDATE existing rows in-place via SQL UPDATE (IDs preserved, FK refs survive).
+            // Never use INSERT OR REPLACE here — that does DELETE+INSERT and fires ON DELETE CASCADE.
+            if (toUpsert.isNotEmpty()) foodDao.updateAll(toUpsert)
             // INSERT brand-new foods
             if (toInsert.isNotEmpty()) foodDao.insertAll(toInsert)
 

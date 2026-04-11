@@ -234,13 +234,6 @@ fun EnhancedMealCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    mealWithFoods.meal.defaultSlot?.let { slot ->
-                        Text(
-                            text = slot.displayName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -348,11 +341,6 @@ fun MealCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    text = meal.defaultSlot?.displayName ?: "Custom",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
             }
             IconButton(onClick = { showDeleteDialog = true }) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete")

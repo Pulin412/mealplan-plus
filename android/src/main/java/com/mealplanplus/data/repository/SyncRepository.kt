@@ -35,12 +35,12 @@ class SyncRepository @Inject constructor(
 
         val now = System.currentTimeMillis()
 
-        val meals = mealDao.getUnsyncedMeals(userId).map { m ->
+        val meals = mealDao.getUnsyncedMeals().map { m ->
             MealDto(serverId = m.serverId, firebaseUid = firebaseUid, name = m.name,
-                slot = m.slotType, updatedAt = m.updatedAt)
+                slot = "", updatedAt = m.updatedAt)
         }
 
-        val diets = dietDao.getUnsyncedDiets(userId).map { d ->
+        val diets = dietDao.getUnsyncedDiets().map { d ->
             DietDto(serverId = d.serverId, firebaseUid = firebaseUid, name = d.name,
                 description = d.description, updatedAt = d.updatedAt)
         }
@@ -67,10 +67,10 @@ class SyncRepository @Inject constructor(
         Log.d(TAG, "Push accepted=${resp.accepted}")
 
         // Mark as synced
-        mealDao.getUnsyncedMeals(userId).forEach { m ->
+        mealDao.getUnsyncedMeals().forEach { m ->
             mealDao.updateMeal(m.copy(syncedAt = now))
         }
-        dietDao.getUnsyncedDiets(userId).forEach { d ->
+        dietDao.getUnsyncedDiets().forEach { d ->
             dietDao.updateDiet(d.copy(syncedAt = now))
         }
         healthMetricDao.getUnsyncedMetrics(userId).forEach { h ->
@@ -99,10 +99,10 @@ class SyncRepository @Inject constructor(
         resp.meals.forEach { dto ->
             val existing = dto.serverId?.let { mealDao.getMealByServerId(it) }
             if (existing == null) {
-                mealDao.insertMeal(Meal(userId = userId, name = dto.name, slotType = dto.slot,
+                mealDao.insertMeal(Meal(name = dto.name,
                     serverId = dto.serverId, updatedAt = dto.updatedAt ?: now, syncedAt = now))
             } else if ((dto.updatedAt ?: 0L) >= existing.updatedAt) {
-                mealDao.updateMeal(existing.copy(name = dto.name, slotType = dto.slot,
+                mealDao.updateMeal(existing.copy(name = dto.name,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
             }
         }
@@ -110,7 +110,7 @@ class SyncRepository @Inject constructor(
         resp.diets.forEach { dto ->
             val existing = dto.serverId?.let { dietDao.getDietByServerId(it) }
             if (existing == null) {
-                dietDao.insertDiet(Diet(userId = userId, name = dto.name,
+                dietDao.insertDiet(Diet(name = dto.name,
                     description = dto.description, serverId = dto.serverId,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
             } else if ((dto.updatedAt ?: 0L) >= existing.updatedAt) {

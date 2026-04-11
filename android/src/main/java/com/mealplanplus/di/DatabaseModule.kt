@@ -1242,6 +1242,115 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * v26 → v27: New clean-sheet schema changes.
+     *
+     * Structural:
+     * - meals: drop userId, slotType, customSlotId; add isSystem
+     * - diets: drop userId; rename isSystemDiet → isSystem
+     * - diet_meals → diet_slots (ALTER TABLE RENAME)
+     * - DROP custom_meal_slots (0 rows; table no longer needed)
+     *
+     * Additive:
+     * - CREATE planned_slots  (per-slot day planning)
+     * - CREATE planned_slot_foods  (ad-hoc foods on a slot)
+     *
+     * Data safety: all existing plans, daily_logs, logged_foods, meal_food_items
+     * are untouched. Streak is unaffected.
+     */
+    private val MIGRATION_26_27 = object : Migration(26, 27) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("PRAGMA foreign_keys = OFF")
+
+            // ── 1. Recreate meals — drop userId, slotType, customSlotId; add isSystem ──
+            db.execSQL("""
+                CREATE TABLE meals_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `description` TEXT,
+                    `isSystem` INTEGER NOT NULL,
+                    `serverId` TEXT,
+                    `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    `syncedAt` INTEGER
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO meals_new (id, name, description, isSystem, serverId, createdAt, updatedAt, syncedAt)
+                SELECT id, name, description, 0, serverId, createdAt, updatedAt, syncedAt FROM meals
+            """.trimIndent())
+            db.execSQL("DROP TABLE meals")
+            db.execSQL("ALTER TABLE meals_new RENAME TO meals")
+
+            // ── 2. Recreate diets — drop userId; rename isSystemDiet → isSystem ───────
+            db.execSQL("""
+                CREATE TABLE diets_new (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `description` TEXT,
+                    `createdAt` INTEGER NOT NULL,
+                    `isSystem` INTEGER NOT NULL DEFAULT 0,
+                    `serverId` TEXT,
+                    `updatedAt` INTEGER NOT NULL,
+                    `syncedAt` INTEGER,
+                    `isFavourite` INTEGER NOT NULL DEFAULT 0
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO diets_new (id, name, description, createdAt, isSystem, serverId, updatedAt, syncedAt, isFavourite)
+                SELECT id, name, description, createdAt, isSystemDiet, serverId, updatedAt, syncedAt, isFavourite FROM diets
+            """.trimIndent())
+            db.execSQL("DROP TABLE diets")
+            db.execSQL("ALTER TABLE diets_new RENAME TO diets")
+
+            // ── 3. Rename diet_meals → diet_slots ────────────────────────────────────
+            db.execSQL("ALTER TABLE diet_meals RENAME TO diet_slots")
+            db.execSQL("DROP INDEX IF EXISTS index_diet_meals_dietId")
+            db.execSQL("DROP INDEX IF EXISTS index_diet_meals_mealId")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_diet_slots_dietId` ON `diet_slots` (`dietId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_diet_slots_mealId` ON `diet_slots` (`mealId`)")
+
+            // ── 4. Create planned_slots ───────────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `planned_slots` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `slotType` TEXT NOT NULL,
+                    `mealId` INTEGER,
+                    `sourceDietId` INTEGER,
+                    `instructions` TEXT,
+                    FOREIGN KEY(`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+                    FOREIGN KEY(`mealId`) REFERENCES `meals`(`id`) ON DELETE SET NULL
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slots_userId_date` ON `planned_slots` (`userId`, `date`)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_planned_slots_userId_date_slotType` ON `planned_slots` (`userId`, `date`, `slotType`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slots_mealId` ON `planned_slots` (`mealId`)")
+
+            // ── 5. Create planned_slot_foods ──────────────────────────────────────────
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `planned_slot_foods` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `plannedSlotId` INTEGER NOT NULL,
+                    `foodId` INTEGER NOT NULL,
+                    `quantity` REAL NOT NULL,
+                    `unit` TEXT NOT NULL,
+                    `notes` TEXT,
+                    FOREIGN KEY(`plannedSlotId`) REFERENCES `planned_slots`(`id`) ON DELETE CASCADE,
+                    FOREIGN KEY(`foodId`) REFERENCES `food_items`(`id`) ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slot_foods_plannedSlotId` ON `planned_slot_foods` (`plannedSlotId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_slot_foods_foodId` ON `planned_slot_foods` (`foodId`)")
+
+            // ── 6. Drop custom_meal_slots (always 0 rows, table no longer needed) ────
+            db.execSQL("DROP TABLE IF EXISTS custom_meal_slots")
+
+            db.execSQL("PRAGMA foreign_keys = ON")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -1250,8 +1359,8 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26)
-            // Removed fallbackToDestructiveMigration() - this was destroying user data!
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27)
+            // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()
     }
@@ -1272,6 +1381,9 @@ object DatabaseModule {
     fun providePlanDao(database: AppDatabase): PlanDao = database.planDao()
 
     @Provides
+    fun providePlannedSlotDao(database: AppDatabase): PlannedSlotDao = database.plannedSlotDao()
+
+    @Provides
     fun provideHealthMetricDao(database: AppDatabase): HealthMetricDao = database.healthMetricDao()
 
     @Provides
@@ -1282,7 +1394,4 @@ object DatabaseModule {
 
     @Provides
     fun provideGroceryDao(database: AppDatabase): GroceryDao = database.groceryDao()
-
-    @Provides
-    fun provideCustomMealSlotDao(database: AppDatabase): CustomMealSlotDao = database.customMealSlotDao()
 }

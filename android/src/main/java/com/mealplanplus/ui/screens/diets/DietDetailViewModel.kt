@@ -135,7 +135,7 @@ class DietDetailViewModel @Inject constructor(
             val displayName = DefaultMealSlot.fromString(slotType)?.displayName
                 ?: if (slotType.startsWith("CUSTOM:")) slotType.removePrefix("CUSTOM:")
                 else slotType
-            val meal = Meal(userId = 0, name = displayName, slotType = slotType)
+            val meal = Meal(name = displayName)
             val mealId = mealRepository.insertMeal(meal)
             dietRepository.setMealForSlot(dietId, slotType, mealId)
             mealId

@@ -133,7 +133,6 @@ class UserDataSeeder @Inject constructor(
     ): Pair<Boolean, Int> {
         // Create the diet
         val diet = Diet(
-            userId = userId,
             name = seedDiet.name,
             description = seedDiet.description
         )
@@ -169,11 +168,7 @@ class UserDataSeeder @Inject constructor(
         seedMeal: SeedMeal,
         foodMap: Map<String, Long>
     ): Long? {
-        val meal = Meal(
-            userId = userId,
-            name = seedMeal.name,
-            slotType = slotType
-        )
+        val meal = Meal(name = seedMeal.name)
         val mealId = mealDao.insertMeal(meal)
 
         val foodItems = seedMeal.items.mapNotNull { seedItem ->

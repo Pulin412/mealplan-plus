@@ -55,9 +55,13 @@ interface FoodDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(foods: List<FoodItem>)
 
-    /** Replace (upsert) system foods by ID — used for re-seeding existing rows in-place. */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(foods: List<FoodItem>)
+    /**
+     * Update existing system food rows in-place.
+     * Uses @Update (SQL UPDATE) NOT INSERT OR REPLACE, so ON DELETE CASCADE
+     * never fires and FK references in meal_food_items / logged_foods survive.
+     */
+    @Update
+    suspend fun updateAll(foods: List<FoodItem>)
 
     @Query("DELETE FROM food_items")
     suspend fun deleteAllFoods()
