@@ -42,9 +42,9 @@ fun MealDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DetailGreen,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF111111),
+                    navigationIconContentColor = Color(0xFF555555)
                 )
             )
         }

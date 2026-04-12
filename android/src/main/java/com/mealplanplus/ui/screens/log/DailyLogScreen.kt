@@ -216,31 +216,32 @@ fun FoodLogTopBar(
         },
         actions = {
             IconButton(onClick = { onNavigateToDietPicker(uiState.date.toString()) }) {
-                Icon(Icons.Default.DateRange, contentDescription = "Diet", tint = Color.White)
+                Icon(Icons.Default.DateRange, contentDescription = "Diet")
             }
             if (plan != null && !isCompleted) {
                 IconButton(onClick = onClear) {
-                    Icon(Icons.Default.Delete, contentDescription = "Clear", tint = Color.White)
+                    Icon(Icons.Default.Delete, contentDescription = "Clear")
                 }
             }
             if (canFinish) {
                 IconButton(onClick = onFinish) {
-                    Icon(Icons.Default.Check, contentDescription = "Finish", tint = Color.White)
+                    Icon(Icons.Default.Check, contentDescription = "Finish", tint = TopBarGreen)
                 }
             }
             if (isCompleted) {
                 IconButton(onClick = onReopen) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reopen", tint = Color.White)
+                    Icon(Icons.Default.Refresh, contentDescription = "Reopen")
                 }
             }
             if (uiState.date != today) {
-                TextButton(onClick = onToday) { Text("Today", color = Color.White) }
+                TextButton(onClick = onToday) { Text("Today", color = TopBarGreen) }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = TopBarGreen,
-            titleContentColor = Color.White,
-            navigationIconContentColor = Color.White
+            containerColor = Color.White,
+            titleContentColor = Color(0xFF111111),
+            navigationIconContentColor = Color(0xFF555555),
+            actionIconContentColor = Color(0xFF555555)
         )
     )
 }

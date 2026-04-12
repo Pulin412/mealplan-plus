@@ -82,10 +82,10 @@ fun HealthScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BrandGreen,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF111111),
+                    navigationIconContentColor = Color(0xFF555555),
+                    actionIconContentColor = Color(0xFF555555)
                 )
             )
         }

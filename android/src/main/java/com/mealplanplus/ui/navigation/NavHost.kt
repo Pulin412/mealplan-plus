@@ -86,6 +86,7 @@ import com.mealplanplus.ui.screens.diets.DietMealSlotScreen
 import com.mealplanplus.ui.screens.diets.DietMealPickerScreen
 import com.mealplanplus.ui.screens.diets.MealDetailScreen
 import com.mealplanplus.ui.screens.log.DietPickerScreen
+import com.mealplanplus.ui.screens.auth.LandingScreen
 import com.mealplanplus.ui.screens.auth.LoginScreen
 import com.mealplanplus.ui.screens.auth.SignUpScreen
 import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
@@ -106,6 +107,7 @@ import com.mealplanplus.widget.WidgetDeepLink
 private val PrimaryGreen = Color(0xFF2E7D52)
 
 sealed class Screen(val route: String) {
+    object Landing : Screen("landing")
     object Login : Screen("login")
     object SignUp : Screen("signup")
     object Profile : Screen("profile")
@@ -183,6 +185,7 @@ private val bottomNavItems = listOf(
 
 // Only hide the bar on unauthenticated screens
 private val authOnlyRoutes = setOf(
+    Screen.Landing.route,
     Screen.Login.route,
     Screen.SignUp.route,
     Screen.ForgotPassword.route
@@ -209,7 +212,7 @@ fun MealPlanNavHost(
         return
     }
 
-    val startDestination = remember { if (isLoggedIn == true) Screen.Home.route else Screen.Login.route }
+    val startDestination = remember { if (isLoggedIn == true) Screen.Home.route else Screen.Landing.route }
 
     // On logout: restart the activity cleanly so NavHost, ViewModels, and back
     // stack all reset to a fresh state. Avoids Compose Navigation back-stack bugs.
@@ -290,13 +293,20 @@ fun MealPlanNavHost(
             startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Screen.Landing.route) {
+                LandingScreen(
+                    onSignInWithEmail = { navController.navigate(Screen.Login.route) },
+                    onCreateAccount = { navController.navigate(Screen.SignUp.route) }
+                )
+            }
             composable(Screen.Login.route) {
                 LoginScreen(
                     onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
                     onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) },
+                    onNavigateBack = { navController.popBackStack() },
                     onLoginSuccess = {
                         navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                            popUpTo(Screen.Landing.route) { inclusive = true }
                         }
                     }
                 )
@@ -311,7 +321,7 @@ fun MealPlanNavHost(
                     onNavigateToLogin = { navController.popBackStack() },
                     onSignUpSuccess = {
                         navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                            popUpTo(Screen.Landing.route) { inclusive = true }
                         }
                     }
                 )
@@ -822,7 +832,7 @@ private fun BottomNavBar(
                 modifier = Modifier
                     .size(50.dp)
                     .clip(CircleShape)
-                    .background(PrimaryGreen)
+                    .background(Color(0xFF111111))
                     .clickable { onQuickAdd() },
                 contentAlignment = Alignment.Center
             ) {
@@ -830,7 +840,7 @@ private fun BottomNavBar(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Quick add",
                     tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }

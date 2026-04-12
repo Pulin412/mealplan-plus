@@ -192,7 +192,7 @@ fun DietsTopBar(
     showFavouritesOnly: Boolean = false,
     title: String = "My Diets"
 ) {
-    Surface(color = DietGreen, shadowElevation = 4.dp) {
+    Surface(color = Color.White, shadowElevation = 2.dp) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Top row: back + title + settings
             Row(
@@ -202,13 +202,13 @@ fun DietsTopBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF555555))
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = Color(0xFF111111)
                     )
                     Text(
                         text = if (totalCount == shownCount)
@@ -216,7 +216,7 @@ fun DietsTopBar(
                         else
                             "$totalCount diets · $shownCount shown",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = Color(0xFF888888)
                     )
                 }
                 // Favourites filter toggle
@@ -234,7 +234,7 @@ fun DietsTopBar(
                             Icon(
                                 imageVector = if (showFavouritesOnly) Icons.Default.Star else Icons.Default.StarBorder,
                                 contentDescription = if (showFavouritesOnly) "Show all diets" else "Show favourites",
-                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else Color.White
+                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else DietGreen
                             )
                         }
                     }
@@ -244,7 +244,7 @@ fun DietsTopBar(
                     TextButton(onClick = onTagsSettings) {
                         Text(
                             "Tags",
-                            color = Color.White,
+                            color = DietGreen,
                             fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.labelLarge
                         )
@@ -254,8 +254,8 @@ fun DietsTopBar(
                 if (onNewDiet != null) OutlinedButton(
                     onClick = onNewDiet,
                     shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DietGreen),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DietGreen),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
@@ -272,22 +272,22 @@ fun DietsTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search diets...", color = Color.White.copy(alpha = 0.7f)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.7f)) },
+                placeholder = { Text("Search diets...", color = Color(0xFFAAAAAA)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFAAAAAA)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.White)
+                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color(0xFF888888))
                         }
                     }
                 },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color.White.copy(alpha = 0.5f),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                    cursorColor = Color.White
+                    focusedTextColor = Color(0xFF111111),
+                    unfocusedTextColor = Color(0xFF111111),
+                    focusedBorderColor = DietGreen,
+                    unfocusedBorderColor = Color(0xFFDEDEDE),
+                    cursorColor = DietGreen
                 )
             )
         }

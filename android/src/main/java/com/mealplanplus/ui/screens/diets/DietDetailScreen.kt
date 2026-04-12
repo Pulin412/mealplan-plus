@@ -126,10 +126,10 @@ fun DietDetailScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF2E7D52),
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White,
-                        actionIconContentColor = Color.White
+                        containerColor = Color.White,
+                        titleContentColor = Color(0xFF111111),
+                        navigationIconContentColor = Color(0xFF555555),
+                        actionIconContentColor = Color(0xFF555555)
                     )
                 )
             }

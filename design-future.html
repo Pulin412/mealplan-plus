@@ -357,9 +357,10 @@ h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 2
 <body>
 
 <h1>MealPlan+</h1>
-<p class="subtitle">19 screens · All features · Minimalist design</p>
+<p class="subtitle">22 screens · All features · Minimalist design</p>
 
 <div class="group-tabs" id="group-tabs">
+  <div class="gtab" onclick="setGroup('auth')">🔐 Auth</div>
   <div class="gtab active" onclick="setGroup('today')">Today</div>
   <div class="gtab" onclick="setGroup('nutrition')">Nutrition</div>
   <div class="gtab" onclick="setGroup('create')">+ Create</div>
@@ -448,6 +449,13 @@ h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 2
 <script>
 // ─── Screen definitions ───────────────────────────────────────────────
 const groups = {
+  auth: {
+    screens: [
+      { id: 'landing', label: 'Landing' },
+      { id: 'signin', label: 'Sign In' },
+      { id: 'signup', label: 'Sign Up' }
+    ]
+  },
   today: {
     screens: [
       { id: 'home', label: 'Home' },
@@ -501,6 +509,156 @@ const groups = {
 
 // ─── Screen HTML ──────────────────────────────────────────────────────
 const screens = {
+
+// ══ LANDING ══
+landing: `
+<div style="display:flex;flex-direction:column;height:100%;background:#fff;">
+  <!-- Green hero — 54% height -->
+  <div style="flex:0 0 54%;background:linear-gradient(160deg,#1a3d2a 0%,#2e7d52 55%,#3d9463 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 28px;position:relative;overflow:hidden;">
+    <!-- Subtle food grid bg -->
+    <div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(6,1fr);opacity:0.07;font-size:24px;align-items:center;justify-items:center;padding:12px;pointer-events:none;">
+      🥗🍛🥦🍎🥕🫚 🍲🥑🌽🧄🫙🍱 🥩🍅🧅🫐🍳🥜 🌿🥝🫛🧆🍠🫘 🥗🍛🥦🍎🥕🫚
+    </div>
+    <!-- Logo box -->
+    <div style="width:66px;height:66px;border-radius:20px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.25);">🥗</div>
+    <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.8px;">MealPlan+</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.65);margin-top:5px;text-align:center;line-height:1.4;">Your personal nutrition companion.<br>Plan, track &amp; thrive.</div>
+    <!-- Feature pills -->
+    <div style="display:flex;gap:6px;margin-top:16px;flex-wrap:wrap;justify-content:center;">
+      <div style="background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.9);font-weight:600;">🍽 Meal Plans</div>
+      <div style="background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.9);font-weight:600;">📊 Macro Tracking</div>
+      <div style="background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.9);font-weight:600;">🛒 Grocery Lists</div>
+      <div style="background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.9);font-weight:600;">🔥 Streaks</div>
+      <div style="background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.9);font-weight:600;">❤️ Health Metrics</div>
+    </div>
+  </div>
+  <!-- Action area -->
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:22px 24px 26px;gap:11px;background:#fff;">
+    <div style="font-size:16px;font-weight:800;color:#111;letter-spacing:-0.3px;">Start your journey</div>
+    <div style="font-size:11px;color:#BBB;margin-top:-7px;">Free forever · No credit card needed</div>
+    <!-- Sign in with Email -->
+    <div style="width:100%;height:48px;border-radius:13px;background:#111;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;">
+      <span>✉</span> Sign in with Email
+    </div>
+    <!-- Google -->
+    <div style="width:100%;height:48px;border-radius:13px;border:1.5px solid #E0E0E0;background:#fff;color:#333;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
+      <span style="font-weight:900;font-size:15px;color:#4285F4;font-style:normal;">G</span>
+      Continue with Google
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;width:100%;color:#DDD;font-size:11px;"><div style="flex:1;height:1px;background:#EEE;"></div>or<div style="flex:1;height:1px;background:#EEE;"></div></div>
+    <!-- Create account -->
+    <div style="width:100%;height:48px;border-radius:13px;background:#F5F5F5;color:#555;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;">
+      ✦ Create free account
+    </div>
+    <div style="font-size:10px;color:#CCC;margin-top:auto;text-align:center;">By continuing you agree to our Terms &amp; Privacy Policy</div>
+  </div>
+</div>
+`,
+
+// ══ SIGN IN ══
+signin: `
+<div style="display:flex;flex-direction:column;height:100%;background:#fff;">
+  <!-- Green top header -->
+  <div style="background:#2e7d52;padding:36px 22px 22px;">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;color:rgba(255,255,255,0.65);font-size:13px;cursor:pointer;">
+      ← Back
+    </div>
+    <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Welcome back 👋</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:3px;">Sign in to continue to MealPlan+</div>
+  </div>
+  <!-- Form body -->
+  <div style="flex:1;padding:22px 22px 26px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;">
+    <!-- Email -->
+    <div>
+      <div style="font-size:10px;font-weight:800;color:#999;letter-spacing:0.6px;margin-bottom:5px;">EMAIL</div>
+      <div style="height:44px;border-radius:11px;border:1.5px solid #EBEBEB;background:#FAFAFA;padding:0 14px;display:flex;align-items:center;gap:9px;">
+        <span style="font-size:14px;color:#CCC;">✉</span>
+        <span style="font-size:13px;color:#CCC;flex:1;">you@example.com</span>
+      </div>
+    </div>
+    <!-- Password -->
+    <div>
+      <div style="font-size:10px;font-weight:800;color:#999;letter-spacing:0.6px;margin-bottom:5px;">PASSWORD</div>
+      <div style="height:44px;border-radius:11px;border:1.5px solid #EBEBEB;background:#FAFAFA;padding:0 14px;display:flex;align-items:center;gap:9px;">
+        <span style="font-size:14px;color:#CCC;">🔒</span>
+        <span style="font-size:13px;color:#CCC;flex:1;">••••••••</span>
+        <span style="font-size:12px;color:#CCC;">👁</span>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#2e7d52;font-weight:700;text-align:right;margin-top:-8px;">Forgot Password?</div>
+    <!-- Sign in button -->
+    <div style="height:48px;border-radius:13px;background:#111;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;">Sign In →</div>
+    <!-- Divider -->
+    <div style="display:flex;align-items:center;gap:10px;color:#DDD;font-size:11px;"><div style="flex:1;height:1px;background:#EEE;"></div>or<div style="flex:1;height:1px;background:#EEE;"></div></div>
+    <!-- Google -->
+    <div style="height:46px;border-radius:13px;border:1.5px solid #E0E0E0;background:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;color:#333;cursor:pointer;">
+      <span style="font-weight:900;font-size:15px;color:#4285F4;">G</span> Continue with Google
+    </div>
+    <!-- Sign up link -->
+    <div style="font-size:12px;color:#AAA;text-align:center;margin-top:auto;padding-top:4px;">
+      Don't have an account? <span style="color:#2e7d52;font-weight:700;">Create one →</span>
+    </div>
+  </div>
+</div>
+`,
+
+// ══ SIGN UP ══
+signup: `
+<div style="display:flex;flex-direction:column;height:100%;background:#fff;">
+  <!-- Green top header -->
+  <div style="background:#2e7d52;padding:36px 22px 22px;">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;color:rgba(255,255,255,0.65);font-size:13px;cursor:pointer;">
+      ← Back
+    </div>
+    <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Create account ✨</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:3px;">Free forever · Start tracking today</div>
+  </div>
+  <!-- Form body -->
+  <div style="flex:1;padding:22px 22px 26px;display:flex;flex-direction:column;gap:13px;overflow-y:auto;">
+    <!-- Name -->
+    <div>
+      <div style="font-size:10px;font-weight:800;color:#999;letter-spacing:0.6px;margin-bottom:5px;">YOUR NAME</div>
+      <div style="height:44px;border-radius:11px;border:1.5px solid #111;background:#fff;padding:0 14px;display:flex;align-items:center;gap:9px;">
+        <span style="font-size:14px;color:#CCC;">👤</span>
+        <span style="font-size:13px;color:#111;flex:1;">Pulin</span>
+      </div>
+    </div>
+    <!-- Email -->
+    <div>
+      <div style="font-size:10px;font-weight:800;color:#999;letter-spacing:0.6px;margin-bottom:5px;">EMAIL</div>
+      <div style="height:44px;border-radius:11px;border:1.5px solid #EBEBEB;background:#FAFAFA;padding:0 14px;display:flex;align-items:center;gap:9px;">
+        <span style="font-size:14px;color:#CCC;">✉</span>
+        <span style="font-size:13px;color:#CCC;flex:1;">you@example.com</span>
+      </div>
+    </div>
+    <!-- Password -->
+    <div>
+      <div style="font-size:10px;font-weight:800;color:#999;letter-spacing:0.6px;margin-bottom:5px;">PASSWORD</div>
+      <div style="height:44px;border-radius:11px;border:1.5px solid #EBEBEB;background:#FAFAFA;padding:0 14px;display:flex;align-items:center;gap:9px;">
+        <span style="font-size:14px;color:#CCC;">🔒</span>
+        <span style="font-size:13px;color:#CCC;flex:1;">Min. 8 characters</span>
+        <span style="font-size:12px;color:#CCC;">👁</span>
+      </div>
+    </div>
+    <!-- Create account button -->
+    <div style="height:48px;border-radius:13px;background:#111;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-top:4px;">Create Account →</div>
+    <!-- Divider -->
+    <div style="display:flex;align-items:center;gap:10px;color:#DDD;font-size:11px;"><div style="flex:1;height:1px;background:#EEE;"></div>or<div style="flex:1;height:1px;background:#EEE;"></div></div>
+    <!-- Google -->
+    <div style="height:46px;border-radius:13px;border:1.5px solid #E0E0E0;background:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;color:#333;cursor:pointer;">
+      <span style="font-weight:900;font-size:15px;color:#4285F4;">G</span> Sign up with Google
+    </div>
+    <!-- Terms -->
+    <div style="font-size:10px;color:#CCC;text-align:center;line-height:1.5;margin-top:auto;">
+      By creating an account you agree to our<br><span style="color:#2e7d52;font-weight:600;">Terms of Service</span> &amp; <span style="color:#2e7d52;font-weight:600;">Privacy Policy</span>
+    </div>
+    <!-- Sign in link -->
+    <div style="font-size:12px;color:#AAA;text-align:center;">
+      Already have an account? <span style="color:#2e7d52;font-weight:700;">Sign in →</span>
+    </div>
+  </div>
+</div>
+`,
 
 // ══ HOME ══
 home: `
@@ -1611,6 +1769,10 @@ function renderNav() {
 function renderScreen() {
   document.getElementById('screen-content').innerHTML = screens[currentScreen] || '<div style="padding:40px;text-align:center;color:#CCC;">Screen coming soon</div>';
   if (currentScreen === 'calendar') buildCalendar();
+  // Auth screens: hide bottom nav and AI FAB (pre-login)
+  const isAuth = currentGroup === 'auth';
+  document.querySelector('.bottom-nav').style.display = isAuth ? 'none' : '';
+  document.querySelector('.ai-fab').style.display = isAuth ? 'none' : '';
 }
 
 function buildCalendar() {
