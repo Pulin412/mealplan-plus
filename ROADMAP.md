@@ -2,6 +2,8 @@
 
 > Last updated: April 2026  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
+>
+> **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
 
 ---
 
@@ -34,28 +36,38 @@ mealplan-plus/
 
 ---
 
-## Foundation — Android Stability
-> **Goal:** Clean, stable Android app as the v1.0 baseline before sync work begins.
+## Foundation — Android Stability + Design System
+> **Goal:** Clean, stable Android app with a polished minimalist design as the v1.0 baseline before sync work begins.
 
 | GH Issue | Task | Status |
 |---|---|---|
 | [#81](https://github.com/Pulin412/mealplan-plus/issues/81) | Remove `shared/` KMP module dependency from Android | ⬜ Open |
-| [#82](https://github.com/Pulin412/mealplan-plus/issues/82) | Stabilise Room schema — document v29 as clean baseline | ⬜ Open |
-| [#83](https://github.com/Pulin412/mealplan-plus/issues/83) | Merge `feature/quick-add-fab` → `main`, tag as v1.0 | ⬜ Open |
+| [#82](https://github.com/Pulin412/mealplan-plus/issues/82) | Stabilise Room schema — document v30 as clean baseline | ⬜ Open |
+| [#83](https://github.com/Pulin412/mealplan-plus/issues/83) | Merge `feature/quick-add-fab` → `main`, tag as v1.0 | 🔄 Merged · pending tag |
+| [#98](https://github.com/Pulin412/mealplan-plus/issues/98) | Android — Implement minimalist UI redesign across all current screens | ⬜ Open |
 
 ### Foundation Checklist
 - [ ] #81 — Audit `shared/` usage in Android; copy anything needed; remove `:shared` dependency
-- [ ] #82 — Verify schema files up to v29 exist; add `DB_SCHEMA.md`; write idempotency test
-- [ ] #83 — Verify no duplicate data on device; merge branch; tag `v1.0`; push tag
+- [ ] #82 — Verify schema files up to v30 exist; add `DB_SCHEMA.md`; write idempotency test
+- [x] #83 — FAB merged to `main` (f814a49); tag `v1.0` after #81 #82 #98 complete
+- [ ] #98 — Implement `design-future.html` visual language in Compose for all 14 existing screens; extract design tokens to `ui/theme/`; no data layer changes
+
+### Recommended order within Foundation
+1. **#81** (unblock Android build from KMP) — 1–2 days
+2. **#82** (schema docs + idempotency test) — half day
+3. **#98** (UI redesign) — largest item; design spec is done, this is pure Compose work
+4. **Tag v1.0** after all three are green
 
 ### What was fixed to get here
 - DB v27→v28: deduplicated diets + meals (seeder ran multiple times due to missing guard)
 - DB v28→v29: deduplicated food_items (compound-PK tables handled carefully)
+- DB v29→v30: wiped corrupted meal/diet_slot data; `MealSlotReseeder` re-populates from `seed_data.json`
 - `UserDataSeeder`: added `getDietCount() > 0` idempotency guard
 - `JsonDataImporter`: fixed `getExistingDietNames()` — was always returning empty set
 - Quick-Add FAB: central `+` button with slide-up sheet (Add Food, New Meal, New Diet, Log Today)
 - Bottom nav: visible on all authenticated screens; Settings tab added for symmetry
 - Meal filter chips (Breakfast/Lunch/Dinner): now actually filter meals by diet slot assignment
+- `design-future.html`: interactive HTML mockups for all 19 screens across all phases
 
 ---
 
@@ -94,11 +106,12 @@ mealplan-plus/
 
 ## Phase 2 — Workout Logging
 > **Goal:** Add workout tracking alongside nutrition, using the same sync infrastructure.  
-> **Depends on:** Phase 1 sync API deployed
+> **Depends on:** Phase 1 sync API deployed  
+> **Design spec:** `design-future.html` → _Workouts_ group (3 screens: Workout Home, Active Session, Exercise Catalogue)
 
 | GH Issue | Task | Status |
 |---|---|---|
-| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v30 migration) | ⬜ Open |
+| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v31 migration) | ⬜ Open |
 | [#90](https://github.com/Pulin412/mealplan-plus/issues/90) | Android — Workout screens (Log, History, Exercise catalogue) | ⬜ Open |
 | [#91](https://github.com/Pulin412/mealplan-plus/issues/91) | Backend — Workout JPA entities + sync extension | ⬜ Open |
 
@@ -121,7 +134,8 @@ mealplan-plus/
 
 ## Phase 3 — Web App (Next.js PWA)
 > **Goal:** Full-featured web app that works as a PWA on iPhone (replacing the need for an iOS native app).  
-> **Depends on:** Phase 1 backend API deployed and stable
+> **Depends on:** Phase 1 backend API deployed and stable  
+> **Design spec:** `design-future.html` — **all groups apply here**. The web app should share the same design language as the Android redesign (#98). Adapt layout to desktop (sidebar nav) and mobile web (bottom nav), but keep the same tokens, card patterns, and color system.
 
 | GH Issue | Task | Status |
 |---|---|---|
@@ -195,17 +209,28 @@ mealplan-plus/
 ## Dependency Graph
 
 ```
-Foundation
+Foundation (#81, #82, #98 UI redesign)
     └── Phase 1 (Sync API)
-            ├── Phase 2 (Workout)        ← same sync protocol, new domain
-            ├── Phase 3 (Web App)        ← needs backend API + OpenAPI spec
+            ├── Phase 2 (Workout)        ← parallel with Phase 3 · screens spec'd in design-future.html
+            ├── Phase 3 (Web App)        ← same design language as Android (#98) · spec in design-future.html
             │       └── Phase 4 (AI Web) ← needs web UI + pgvector data
-            │               └── Phase 5 (AI Android) ← same backend endpoint
+            │               └── Phase 5 (AI Android) ← same backend endpoint · AI overlay already designed
             └── (pgvector enabled here)
 ```
 
 **Critical path:** Foundation → Phase 1 → Phase 3 → Phase 4 → Phase 5  
 Phase 2 (Workout) can run in parallel with Phase 3 once Phase 1 is done.
+
+### Phase order summary (with redesign)
+
+| Order | Phase | Key dependency | Design work |
+|---|---|---|---|
+| 0 | **Foundation** | — | #98: implement `design-future.html` on Android |
+| 1 | **Phase 1** · Backend Sync | Foundation stable | Backup/Sync/Restore screens (already designed) |
+| 2a | **Phase 2** · Workouts | Phase 1 API live | 3 workout screens already spec'd |
+| 2b | **Phase 3** · Web App | Phase 1 API live | Re-use same design tokens from #98 |
+| 3 | **Phase 4** · AI Web | Phase 1 + Phase 3 | AI overlay already designed |
+| 4 | **Phase 5** · AI Android | Phase 4 backend live | AI overlay already in Android design |
 
 ---
 
