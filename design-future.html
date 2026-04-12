@@ -508,55 +508,136 @@ home: `
   <div style="font-size:20px;font-weight:700;letter-spacing:-0.3px;">Good morning, Pulin</div>
   <div style="font-size:12px;color:#888;margin-top:2px;">Wednesday, 8 Apr · Day 47 of your plan</div>
 </div>
-<div style="display:flex;gap:10px;padding:14px 16px 4px;">
-  <div style="flex:1;background:#fff;border-radius:14px;padding:13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-    <div style="font-size:26px;font-weight:700;letter-spacing:-1px;">47</div>
-    <div style="font-size:11px;color:#888;margin-top:1px;">🔥 Day streak</div>
+
+<!-- Subtle inline stat strip (no cards) -->
+<div style="display:flex;align-items:center;padding:8px 20px 14px;background:#F7F7F7;gap:0;">
+  <div style="display:flex;align-items:center;gap:4px;padding-right:14px;border-right:1px solid #DEDEDE;">
+    <span style="font-size:13px;">🔥</span>
+    <span style="font-size:14px;font-weight:700;letter-spacing:-0.3px;color:#333;">47</span>
+    <span style="font-size:11px;color:#BBB;margin-left:1px;">days</span>
   </div>
-  <div style="flex:1;background:#fff;border-radius:14px;padding:13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-    <div style="font-size:26px;font-weight:700;letter-spacing:-1px;">1,840</div>
-    <div style="font-size:11px;color:#888;margin-top:1px;">⚡ kcal today</div>
+  <div style="display:flex;align-items:center;gap:4px;padding:0 14px;border-right:1px solid #DEDEDE;">
+    <span style="font-size:13px;">⚡</span>
+    <span style="font-size:14px;font-weight:700;letter-spacing:-0.3px;color:#333;">1,380</span>
+    <span style="font-size:11px;color:#BBB;margin-left:1px;">kcal</span>
   </div>
-  <div style="flex:1;background:#fff;border-radius:14px;padding:13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-    <div style="font-size:26px;font-weight:700;letter-spacing:-1px;">38</div>
-    <div style="font-size:11px;color:#888;margin-top:1px;">💪 workouts</div>
+  <div style="display:flex;align-items:center;gap:4px;padding-left:14px;">
+    <span style="font-size:13px;">💪</span>
+    <span style="font-size:14px;font-weight:700;letter-spacing:-0.3px;color:#333;">38</span>
+    <span style="font-size:11px;color:#BBB;margin-left:1px;">sessions</span>
   </div>
 </div>
+
+<!-- Macros card: logged vs Diet-9 planned target -->
 <div class="card">
-  <div class="row" style="margin-bottom:10px;"><span style="font-size:13px;font-weight:700;">Today's macros</span><span class="tag tg">On track</span></div>
-  <div class="macro-row">
-    <div class="macro-item"><div class="macro-val">142g</div><div class="macro-label">Protein</div><div class="macro-bar" style="background:#E8F5EE;"><div class="pf" style="width:78%;background:#2E7D52;"></div></div></div>
-    <div class="macro-item"><div class="macro-val">186g</div><div class="macro-label">Carbs</div><div class="macro-bar" style="background:#FFF0E6;"><div class="pf" style="width:62%;background:#C05200;"></div></div></div>
-    <div class="macro-item"><div class="macro-val">54g</div><div class="macro-label">Fat</div><div class="macro-bar" style="background:#E8EEFF;"><div class="pf" style="width:85%;background:#1E4FBF;"></div></div></div>
-    <div class="macro-item"><div class="macro-val">2.1L</div><div class="macro-label">Water</div><div class="macro-bar" style="background:#E8EEFF;"><div class="pf" style="width:52%;background:#0284C7;"></div></div></div>
+  <div class="row" style="margin-bottom:10px;">
+    <div>
+      <div style="font-size:13px;font-weight:700;">Today vs plan</div>
+      <div style="font-size:10px;color:#AAA;margin-top:1px;">Target from Diet-9 · 1,840 kcal</div>
+    </div>
+    <span class="tag tg">On track</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+        <span style="font-size:12px;font-weight:600;color:#444;">Protein</span>
+        <span style="font-size:11px;color:#AAA;">102 <span style="color:#DDD;">/</span> 142g</span>
+      </div>
+      <div class="pb"><div class="pf" style="width:72%;background:#2E7D52;"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+        <span style="font-size:12px;font-weight:600;color:#444;">Carbs</span>
+        <span style="font-size:11px;color:#AAA;">120 <span style="color:#DDD;">/</span> 186g</span>
+      </div>
+      <div class="pb"><div class="pf" style="width:65%;background:#C05200;"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+        <span style="font-size:12px;font-weight:600;color:#444;">Fat</span>
+        <span style="font-size:11px;color:#AAA;">40 <span style="color:#DDD;">/</span> 54g</span>
+      </div>
+      <div class="pb"><div class="pf" style="width:74%;background:#1E4FBF;"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+        <span style="font-size:12px;font-weight:600;color:#444;">Calories</span>
+        <span style="font-size:11px;color:#AAA;">1,380 <span style="color:#DDD;">/</span> 1,840</span>
+      </div>
+      <div class="pb"><div class="pf" style="width:75%;background:#F59E0B;"></div></div>
+    </div>
   </div>
 </div>
+
+<!-- AI insight strip -->
 <div style="display:flex;align-items:center;gap:9px;background:#fff;border-radius:12px;margin:0 16px 10px;padding:10px 13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:pointer;" onclick="openAI()">
   <div style="width:26px;height:26px;background:#F3EEFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">✦</div>
   <div style="flex:1;font-size:12px;color:#444;line-height:1.4;"><strong>Protein on track</strong> — dinner pairs well with your workout. Tap to ask AI.</div>
   <div style="font-size:15px;color:#CCC;">›</div>
 </div>
-<div class="sec">Today · Diet-9</div>
-<div class="card card-p0">
-  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
-    <div class="slot-dot" style="background:#F59E0B;"></div>
-    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Egg Parantha</div><div style="font-size:11px;color:#AAA;">Breakfast · Logged ✓</div></div>
-    <div style="font-size:12px;font-weight:700;color:#888;">520</div>
-    <div class="slot-check" style="background:#E8F5EE;margin-left:8px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
-  </div>
-  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
-    <div class="slot-dot" style="background:#2E7D52;"></div>
-    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Mix Fruit Bowl</div><div style="font-size:11px;color:#AAA;">Lunch · Logged ✓</div></div>
-    <div style="font-size:12px;font-weight:700;color:#888;">280</div>
-    <div class="slot-check" style="background:#E8F5EE;margin-left:8px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
-  </div>
-  <div class="slot-r">
-    <div class="slot-dot" style="background:#CCC;"></div>
-    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Paneer Lauki Chana Dal Rice</div><div style="font-size:11px;color:#AAA;">Dinner · Not logged</div></div>
-    <div style="font-size:12px;font-weight:700;color:#CCC;">580</div>
-    <div class="slot-check" style="background:#F5F5F5;margin-left:8px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+
+<!-- Today's meals: tap any slot to see ingredients -->
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px 6px;">
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#AAA;">Today · Diet-9</div>
+  <!-- Day completion state machine — tap to toggle in this mockup -->
+  <div style="display:flex;align-items:center;gap:7px;cursor:pointer;" onclick="toggleDayComplete()" title="Tap to see completed state">
+    <div id="day-counter" style="font-size:11px;color:#666;font-weight:600;background:#F0F0F0;padding:3px 9px;border-radius:10px;">2 / 3 logged</div>
+    <div id="day-tick" style="width:22px;height:22px;border-radius:50%;border:2px solid #D4D4D4;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#D4D4D4" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
   </div>
 </div>
+<div class="card card-p0">
+
+  <!-- Breakfast: logged + expanded (tap to collapse) -->
+  <div style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-r" style="cursor:pointer;" onclick="var i=this.nextElementSibling;i.style.display=i.style.display==='none'?'block':'none';">
+      <div class="slot-dot" style="background:#F59E0B;"></div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">Egg Parantha</div>
+        <div style="font-size:11px;color:#2E7D52;margin-top:1px;font-weight:500;">Breakfast · Logged ✓ · tap to see ingredients</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#888;margin-right:8px;">520</div>
+      <div class="slot-check" style="background:#E8F5EE;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+    </div>
+    <div style="padding:0 14px 10px;display:block;">
+      <div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;background:#F8F8F8;border-radius:10px;">
+        <span style="font-size:11px;color:#555;background:#fff;padding:3px 8px;border-radius:8px;border:1px solid #EBEBEB;">Onion 30g</span>
+        <span style="font-size:11px;color:#555;background:#fff;padding:3px 8px;border-radius:8px;border:1px solid #EBEBEB;">Carrot 30g</span>
+        <span style="font-size:11px;color:#555;background:#fff;padding:3px 8px;border-radius:8px;border:1px solid #EBEBEB;">Red Bell Pepper 30g</span>
+        <span style="font-size:11px;color:#555;background:#fff;padding:3px 8px;border-radius:8px;border:1px solid #EBEBEB;">Maida 40g</span>
+        <span style="font-size:11px;color:#555;background:#fff;padding:3px 8px;border-radius:8px;border:1px solid #EBEBEB;">Gram Flour 20g</span>
+        <span style="font-size:11px;color:#555;background:#fff;padding:3px 8px;border-radius:8px;border:1px solid #EBEBEB;">Eggs 2</span>
+        <span style="font-size:11px;color:#555;background:#fff;padding:3px 8px;border-radius:8px;border:1px solid #EBEBEB;">Milk 50ml</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lunch: logged, collapsed -->
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;cursor:pointer;">
+    <div class="slot-dot" style="background:#2E7D52;"></div>
+    <div style="flex:1;">
+      <div style="font-size:13px;font-weight:600;">Mix Fruit Bowl</div>
+      <div style="font-size:11px;color:#2E7D52;margin-top:1px;font-weight:500;">Lunch · Logged ✓</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#888;margin-right:8px;">280</div>
+    <div class="slot-check" style="background:#E8F5EE;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+  </div>
+
+  <!-- Dinner: not logged -->
+  <div class="slot-r" style="cursor:pointer;">
+    <div class="slot-dot" style="background:#CCC;"></div>
+    <div style="flex:1;">
+      <div style="font-size:13px;font-weight:600;">Paneer Lauki Chana Dal Rice</div>
+      <div style="font-size:11px;color:#AAA;margin-top:1px;">Dinner · Not logged yet</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#CCC;margin-right:8px;">580</div>
+    <div class="slot-check" style="background:#F5F5F5;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+  </div>
+</div>
+
+
+<!-- Workout -->
 <div class="sec">Today's workout</div>
 <div class="card" style="display:flex;align-items:center;gap:12px;">
   <div style="font-size:26px;">🏋️</div>
@@ -574,64 +655,141 @@ log: `
   <div style="font-size:14px;font-weight:600;">Today, 8 Apr</div>
   <div style="font-size:18px;color:#CCC;cursor:pointer;">›</div>
 </div>
-<div style="display:flex;background:#fff;border-radius:14px;margin:10px 16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">1,380</div><div style="font-size:10px;color:#AAA;margin-top:1px;">kcal</div></div>
-  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">102g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">protein</div></div>
-  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">140g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">carbs</div></div>
-  <div style="flex:1;padding:12px 8px;text-align:center;"><div style="font-size:17px;font-weight:700;">40g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">fat</div></div>
+
+<!-- Day totals: logged vs planned -->
+<div style="display:flex;background:#fff;border-radius:14px;margin:10px 16px 4px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="flex:1;padding:11px 8px;text-align:center;border-right:1px solid #F0F0F0;">
+    <div style="font-size:16px;font-weight:700;">1,380</div>
+    <div style="font-size:9px;color:#AAA;margin-top:1px;">/ 1,840 kcal</div>
+  </div>
+  <div style="flex:1;padding:11px 8px;text-align:center;border-right:1px solid #F0F0F0;">
+    <div style="font-size:16px;font-weight:700;">102g</div>
+    <div style="font-size:9px;color:#AAA;margin-top:1px;">/ 142g protein</div>
+  </div>
+  <div style="flex:1;padding:11px 8px;text-align:center;border-right:1px solid #F0F0F0;">
+    <div style="font-size:16px;font-weight:700;">120g</div>
+    <div style="font-size:9px;color:#AAA;margin-top:1px;">/ 186g carbs</div>
+  </div>
+  <div style="flex:1;padding:11px 8px;text-align:center;">
+    <div style="font-size:16px;font-weight:700;">40g</div>
+    <div style="font-size:9px;color:#AAA;margin-top:1px;">/ 54g fat</div>
+  </div>
 </div>
-<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+<div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:6px 16px 10px;">
+  <div style="flex:1;height:3px;border-radius:2px;background:#F0F0F0;overflow:hidden;"><div style="width:75%;height:100%;background:#F59E0B;border-radius:2px;"></div></div>
+  <div style="font-size:10px;color:#AAA;flex-shrink:0;white-space:nowrap;">75% of diet plan</div>
+</div>
+
+<!-- NOTE: + button on each slot adds ANY food or meal — not just from the plan -->
+
+<!-- BREAKFAST: logged from plan -->
+<div style="background:#fff;border-radius:14px;margin:0 16px 8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
   <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
-    <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;"></div>
+    <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0;"></div>
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Breakfast</div>
     <div style="font-size:11px;color:#AAA;">520 kcal</div>
-    <div style="font-size:16px;color:#CCC;cursor:pointer;">+</div>
+    <div style="width:24px;height:24px;background:#F5F5F5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;font-weight:700;cursor:pointer;margin-left:6px;">+</div>
   </div>
+  <!-- From plan -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
-    <div><div style="font-size:13px;font-weight:500;">Egg Parantha (Liquid Dough)</div><div style="font-size:11px;color:#AAA;">1 serving</div></div>
+    <div>
+      <div style="font-size:13px;font-weight:500;">Egg Parantha (Liquid Dough)</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+        <span style="font-size:10px;color:#AAA;">From plan · 1 serving</span>
+        <span style="font-size:10px;background:#E8F5EE;color:#2E7D52;padding:1px 6px;border-radius:8px;font-weight:600;">✓</span>
+      </div>
+    </div>
     <div style="font-size:12px;font-weight:700;color:#555;">520</div>
   </div>
+  <!-- + add hint -->
+  <div style="padding:8px 14px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+    <div style="font-size:11px;color:#CCC;">+ Add food or meal to breakfast</div>
+  </div>
 </div>
-<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+
+<!-- NOON -->
+<div style="background:#fff;border-radius:14px;margin:0 16px 8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
   <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
-    <div style="width:7px;height:7px;border-radius:50%;background:#888;"></div>
+    <div style="width:7px;height:7px;border-radius:50%;background:#888;flex-shrink:0;"></div>
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Noon</div>
     <div style="font-size:11px;color:#AAA;">5 kcal</div>
-    <div style="font-size:16px;color:#CCC;cursor:pointer;">+</div>
-  </div>
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;">
-    <div><div style="font-size:13px;font-weight:500;">Black Coffee</div><div style="font-size:11px;color:#AAA;">1 cup</div></div>
-    <div style="font-size:12px;font-weight:700;color:#555;">5</div>
-  </div>
-</div>
-<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
-    <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;"></div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Lunch</div>
-    <div style="font-size:11px;color:#AAA;">280 kcal</div>
-    <div style="font-size:16px;color:#CCC;cursor:pointer;">+</div>
+    <div style="width:24px;height:24px;background:#F5F5F5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;font-weight:700;cursor:pointer;margin-left:6px;">+</div>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
-    <div><div style="font-size:13px;font-weight:500;">Banana</div><div style="font-size:11px;color:#AAA;">100g</div></div>
+    <div>
+      <div style="font-size:13px;font-weight:500;">Black Coffee</div>
+      <div style="font-size:10px;color:#AAA;margin-top:2px;">From plan · 1 cup</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#555;">5</div>
+  </div>
+  <!-- Extra item added outside plan -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;background:#FFFBF4;">
+    <div>
+      <div style="font-size:13px;font-weight:500;">Walnuts</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+        <span style="font-size:10px;color:#AAA;">Not in plan · 15g · added manually</span>
+        <span style="font-size:10px;background:#FFF0E6;color:#C05200;padding:1px 6px;border-radius:8px;font-weight:600;">Extra</span>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#555;">98</div>
+  </div>
+  <div style="padding:8px 14px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+    <div style="font-size:11px;color:#CCC;">+ Add food or meal to noon</div>
+  </div>
+</div>
+
+<!-- LUNCH: logged -->
+<div style="background:#fff;border-radius:14px;margin:0 16px 8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;flex-shrink:0;"></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Lunch</div>
+    <div style="font-size:11px;color:#AAA;">280 kcal</div>
+    <div style="width:24px;height:24px;background:#F5F5F5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;font-weight:700;cursor:pointer;margin-left:6px;">+</div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
+    <div><div style="font-size:13px;font-weight:500;">Banana</div><div style="font-size:10px;color:#AAA;margin-top:2px;">From plan · 100g</div></div>
     <div style="font-size:12px;font-weight:700;color:#555;">89</div>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
-    <div><div style="font-size:13px;font-weight:500;">Cantaloupe</div><div style="font-size:11px;color:#AAA;">140g</div></div>
+    <div><div style="font-size:13px;font-weight:500;">Cantaloupe</div><div style="font-size:10px;color:#AAA;margin-top:2px;">From plan · 140g</div></div>
     <div style="font-size:12px;font-weight:700;color:#555;">48</div>
   </div>
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;">
-    <div><div style="font-size:13px;font-weight:500;">Almonds + Cashew</div><div style="font-size:11px;color:#AAA;">14g + 14g</div></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
+    <div><div style="font-size:13px;font-weight:500;">Almonds + Cashew</div><div style="font-size:10px;color:#AAA;margin-top:2px;">From plan · 14g + 14g</div></div>
     <div style="font-size:12px;font-weight:700;color:#555;">143</div>
   </div>
+  <div style="padding:8px 14px;cursor:pointer;">
+    <div style="font-size:11px;color:#CCC;">+ Add food or meal to lunch</div>
+  </div>
 </div>
-<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;">
-    <div style="width:7px;height:7px;border-radius:50%;background:#7C3AED;"></div>
+
+<!-- DINNER: not logged -->
+<div style="background:#fff;border-radius:14px;margin:0 16px 8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:7px;height:7px;border-radius:50%;background:#7C3AED;flex-shrink:0;"></div>
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Dinner</div>
     <div style="font-size:11px;color:#AAA;">—</div>
-    <div style="font-size:16px;color:#111;font-weight:700;cursor:pointer;">+</div>
+    <div style="width:24px;height:24px;background:#111;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;cursor:pointer;margin-left:6px;">+</div>
   </div>
-  <div style="text-align:center;padding:14px;font-size:12px;color:#CCC;">Not logged yet · tap + to add</div>
+  <!-- Planned but not logged yet — shown as suggestion -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;background:#FAFAFA;">
+    <div>
+      <div style="font-size:13px;font-weight:500;color:#888;">Paneer Lauki Chana Dal Rice</div>
+      <div style="font-size:10px;color:#CCC;margin-top:2px;">From today's plan · 580 kcal · tap + to log</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#CCC;">580</div>
+  </div>
+  <!-- Quick log the planned meal -->
+  <div style="padding:10px 14px;display:flex;gap:8px;">
+    <div style="flex:1;background:#111;border-radius:10px;padding:9px;text-align:center;font-size:12px;font-weight:700;color:#fff;cursor:pointer;">Log planned dinner</div>
+    <div style="background:#F5F5F5;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:600;color:#666;cursor:pointer;white-space:nowrap;">Add different</div>
+  </div>
+</div>
+
+<!-- Sticky "Add anything" context note -->
+<div style="margin:4px 16px 10px;background:#F7F7F7;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:6px;">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#BBB" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <div style="font-size:11px;color:#AAA;line-height:1.4;">The + button adds <strong style="color:#888;">any food or meal</strong> — not just what's in your plan. Anything not in your plan is tagged as "Extra".</div>
 </div>
 <div class="sp"></div>
 `,
@@ -1471,6 +1629,47 @@ function buildCalendar() {
 
 function openAI(){document.getElementById('ai-overlay').classList.add('open');}
 function closeAI(){document.getElementById('ai-overlay').classList.remove('open');}
+
+// Day completion state machine
+let dayComplete = false;
+function toggleDayComplete() {
+  const tick = document.getElementById('day-tick');
+  const counter = document.getElementById('day-counter');
+  if (!tick || !counter) return;
+  dayComplete = !dayComplete;
+  if (dayComplete) {
+    // Transition: counter disappears, tick turns solid green
+    counter.style.display = 'none';
+    tick.style.background = '#2E7D52';
+    tick.style.border = '2px solid #2E7D52';
+    tick.querySelector('svg').setAttribute('stroke', '#fff');
+    tick.title = 'Day complete — tap to roll back';
+    showStreakToast();
+  } else {
+    // Roll back: counter returns, tick goes gray
+    counter.style.display = 'block';
+    tick.style.background = '';
+    tick.style.border = '2px solid #D4D4D4';
+    tick.querySelector('svg').setAttribute('stroke', '#D4D4D4');
+    tick.title = '';
+  }
+}
+function showStreakToast() {
+  const existing = document.getElementById('streak-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'streak-toast';
+  toast.style.cssText = 'position:absolute;bottom:96px;left:50%;transform:translateX(-50%);background:#111;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:20px;white-space:nowrap;z-index:25;animation:toastIn 0.2s ease;pointer-events:none;';
+  toast.innerHTML = '🔥 Streak extended to 48 days';
+  const phone = document.querySelector('.phone-frame');
+  if (phone) { phone.style.position='relative'; phone.appendChild(toast); }
+  setTimeout(() => toast.style.opacity='0', 2200);
+  setTimeout(() => toast.remove(), 2600);
+}
+// Add toast animation to page
+const toastStyle = document.createElement('style');
+toastStyle.textContent = '@keyframes toastIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }';
+document.head.appendChild(toastStyle);
 
 // Init
 renderNav();
