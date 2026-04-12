@@ -53,4 +53,7 @@ interface MealDao {
 
     @Query("SELECT * FROM meals WHERE serverId = :serverId LIMIT 1")
     suspend fun getMealByServerId(serverId: String): Meal?
+
+    @Query("SELECT COUNT(*) FROM meals")
+    suspend fun getMealCount(): Int
 }

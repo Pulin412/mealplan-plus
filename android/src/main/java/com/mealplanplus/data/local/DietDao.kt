@@ -159,6 +159,9 @@ interface DietDao {
     @Query("SELECT name FROM diets")
     suspend fun getAllDietNamesOnce(): List<String>
 
+    @Query("SELECT * FROM diets")
+    suspend fun getAllDietsOnce(): List<Diet>
+
     // Sync helpers
     @Query("SELECT * FROM diets WHERE syncedAt IS NULL OR updatedAt > syncedAt")
     suspend fun getUnsyncedDiets(): List<Diet>

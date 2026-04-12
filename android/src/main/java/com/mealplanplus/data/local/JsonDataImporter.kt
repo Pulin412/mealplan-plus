@@ -325,4 +325,53 @@ class JsonDataImporter @Inject constructor(
             else -> FoodUnit.GRAM
         }
     }
+
+    /**
+     * Re-seeds meals and diet_slots for all diets that already exist in the DB.
+     * Called after a migration that wiped meals/slots due to incorrect deduplication.
+     * Uses seed_data.json as the authoritative source, matching diets by name.
+     * Each diet gets its own meal rows — no cross-diet name deduplication.
+     */
+    suspend fun reseedMealsForExistingDiets(context: Context): Int = withContext(Dispatchers.IO) {
+        try {
+            val json = context.assets.open("data/seed_data.json").use { it.bufferedReader().readText() }
+            val seedData = gson.fromJson(json, SeedData::class.java)
+                ?: return@withContext 0
+
+            val foodMap = buildFoodMap()
+            if (foodMap.isEmpty()) {
+                Log.w(TAG, "No foods in DB — cannot reseed meals")
+                return@withContext 0
+            }
+
+            // Build name → id map from all existing diets
+            val dietMap: Map<String, Long> = dietDao.getAllDietsOnce().associate { it.name to it.id }
+            if (dietMap.isEmpty()) {
+                Log.w(TAG, "No diets in DB — cannot reseed meals")
+                return@withContext 0
+            }
+
+            var mealsCreated = 0
+            for (seedDiet in seedData.diets) {
+                val dietId = dietMap[seedDiet.name]
+                if (dietId == null) {
+                    Log.w(TAG, "Diet '${seedDiet.name}' not found in DB, skipping")
+                } else {
+                    for ((slotType, seedMeal) in seedDiet.meals) {
+                        val mealId = createMealWithFoods(0L, slotType, seedMeal, foodMap)
+                        if (mealId != null) {
+                            dietDao.insertDietMeal(DietMeal(dietId = dietId, slotType = slotType, mealId = mealId))
+                            mealsCreated++
+                        }
+                    }
+                }
+            }
+
+            Log.d(TAG, "reseedMealsForExistingDiets: created $mealsCreated meals/slots")
+            mealsCreated
+        } catch (e: Exception) {
+            Log.e(TAG, "reseedMealsForExistingDiets failed: ${e.message}", e)
+            0
+        }
+    }
 }
