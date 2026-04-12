@@ -91,9 +91,8 @@ fun HomeScreen(
     savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState    by viewModel.uiState.collectAsState()
-    val weekOffset by viewModel.weekOffset.collectAsState()
-    val scope      = rememberCoroutineScope()
+    val uiState = viewModel.uiState.collectAsState().value
+    val scope   = rememberCoroutineScope()
     val context    = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -183,18 +182,6 @@ fun HomeScreen(
                 onFinishDay      = { viewModel.finishTodayPlan() },
                 onReopenDay      = { viewModel.reopenTodayPlan() },
                 modifier         = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ── This week ──────────────────────────────────────────────────
-            ThisWeekCard(
-                weekDays       = uiState.weekDays,
-                weekOffset     = weekOffset,
-                onDayClick     = { date -> onNavigateToLogWithDate(date.toString()) },
-                onPreviousWeek = viewModel::previousWeek,
-                onNextWeek     = viewModel::nextWeek,
-                modifier       = Modifier.padding(horizontal = 16.dp)
             )
 
             Spacer(modifier = Modifier.height(24.dp))

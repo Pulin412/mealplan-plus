@@ -135,14 +135,14 @@ private fun MealPlanTopBar(onSelectDietForToday: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DarkGreen)
+            .background(Color.White)
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
         Text(
-            text = "Meal Plan",
-            color = Color.White,
-            style = MaterialTheme.typography.headlineSmall,
+            text = "Plan",
+            color = Color(0xFF111111),
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.CenterStart)
         )
@@ -150,14 +150,14 @@ private fun MealPlanTopBar(onSelectDietForToday: () -> Unit) {
             onClick = onSelectDietForToday,
             modifier = Modifier.align(Alignment.CenterEnd),
             colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White.copy(alpha = 0.15f),
-                contentColor = Color.White
+                containerColor = Color.Transparent,
+                contentColor = DarkGreen
             ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, DarkGreen),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
             shape = RoundedCornerShape(20.dp)
         ) {
-            Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(14.dp))
+            Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(13.dp))
             Spacer(Modifier.width(4.dp))
             Text("Select Diet", style = MaterialTheme.typography.labelMedium)
         }

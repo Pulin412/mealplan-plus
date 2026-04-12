@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
@@ -36,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +57,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
@@ -166,21 +170,13 @@ sealed class Screen(val route: String) {
     object WidgetSettings : Screen("widget_settings")
 }
 
-// Bottom nav tab definitions
+// Bottom nav tab definitions (4 visible + 1 FAB)
 private data class BottomNavItem(
     val label: String,
     val icon: ImageVector,
-    val route: String
-)
-
-// 6 tabs → 3 left | [+] | 3 right  (symmetric layout)
-private val bottomNavItems = listOf(
-    BottomNavItem("Home",     Icons.Filled.Home,          Screen.Home.route),
-    BottomNavItem("Meal Plan",Icons.Filled.CalendarMonth,  Screen.Calendar.route),
-    BottomNavItem("Diets",    Icons.Filled.Restaurant,     Screen.Diets.route),
-    BottomNavItem("Health",   Icons.Filled.FavoriteBorder, Screen.Health.route),
-    BottomNavItem("Grocery",  Icons.Filled.ShoppingCart,   Screen.GroceryLists.route),
-    BottomNavItem("Settings", Icons.Filled.Settings,       Screen.Settings.route)
+    val route: String,
+    // secondary routes that also make this tab appear selected
+    val ownedRoutePrefix: String? = null
 )
 
 // Only hide the bar on unauthenticated screens
@@ -276,6 +272,7 @@ fun MealPlanNavHost(
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = isLoggedIn == true && currentRoute != null && currentRoute !in authOnlyRoutes
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var showMiscSheet    by remember { mutableStateOf(false) }
 
     Scaffold(
         bottomBar = {
@@ -283,7 +280,8 @@ fun MealPlanNavHost(
                 BottomNavBar(
                     navController = navController,
                     currentRoute = currentRoute,
-                    onQuickAdd = { showQuickAddSheet = true }
+                    onQuickAdd = { showQuickAddSheet = true },
+                    onMisc     = { showMiscSheet = true }
                 )
             }
         }
@@ -774,63 +772,84 @@ fun MealPlanNavHost(
             }
         )
     }
+
+    if (showMiscSheet) {
+        MiscSheet(
+            onDismiss = { showMiscSheet = false },
+            onNavigate = { route ->
+                showMiscSheet = false
+                navController.navigate(route) {
+                    popUpTo(Screen.Home.route) { saveState = true; inclusive = false }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        )
+    }
 }
+
+// ── New minimalist bottom nav (5 slots: Home | Log | + | Plan | Misc) ──────────
+
+private val SelectedNavColor   = Color(0xFF111111)
+private val UnselectedNavColor = Color(0xFFBBBBBB)
+private val NavIndicator       = Color(0xFFF5F5F5)
 
 @Composable
 private fun BottomNavBar(
     navController: NavController,
     currentRoute: String?,
-    onQuickAdd: () -> Unit
+    onQuickAdd: () -> Unit,
+    onMisc: () -> Unit
 ) {
-    // Split nav items: [Home, Meal Plan, Diets] | [+] | [Health, Grocery, Settings]
-    val leftItems = bottomNavItems.take(3)
-    val rightItems = bottomNavItems.drop(3)
+    // Determine which tab is active based on current route
+    val isHomeActive = currentRoute == Screen.Home.route
+    val isLogActive  = currentRoute?.startsWith("daily_log") == true
+    val isPlanActive = currentRoute?.startsWith("calendar") == true
+
+    fun navTo(route: String, isHome: Boolean = false) {
+        navController.navigate(route) {
+            popUpTo(Screen.Home.route) {
+                saveState = !isHome
+                inclusive = false
+            }
+            launchSingleTop = true
+            restoreState = !isHome
+        }
+    }
 
     NavigationBar(
         containerColor = Color.White,
-        contentColor = PrimaryGreen
+        contentColor = SelectedNavColor,
+        tonalElevation = 0.dp,
+        modifier = Modifier.height(64.dp)
     ) {
-        leftItems.forEach { item ->
-            val selected = currentRoute == item.route
-            val isHome = item.route == Screen.Home.route
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    if (!selected || isHome) {
-                        navController.navigate(item.route) {
-                            popUpTo(Screen.Home.route) {
-                                saveState = !isHome
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                            restoreState = !isHome
-                        }
-                    }
-                },
-                icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryGreen,
-                    selectedTextColor = PrimaryGreen,
-                    indicatorColor = Color(0xFFE8F5E9),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
-                )
-            )
-        }
+        // Home
+        NavTab(
+            icon = Icons.Filled.Home,
+            label = "Home",
+            selected = isHomeActive,
+            onClick = { navTo(Screen.Home.route, isHome = true) }
+        )
 
-        // Centre elevated "+" quick-add button
-        // padding(bottom) shifts the circle up so it aligns visually
-        // with the icon portion of the adjacent NavigationBarItems
+        // Log → today's food log
+        NavTab(
+            icon = Icons.Default.Description,
+            label = "Log",
+            selected = isLogActive,
+            onClick = { navTo(Screen.DailyLog.route) }
+        )
+
+        // Centre + FAB
         Box(
             modifier = Modifier
                 .weight(1f)
-                .padding(bottom = 14.dp),
+                .fillMaxHeight()
+                .padding(bottom = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF111111))
                     .clickable { onQuickAdd() },
@@ -840,39 +859,61 @@ private fun BottomNavBar(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Quick add",
                     tint = Color.White,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
 
-        rightItems.forEach { item ->
-            val selected = currentRoute == item.route
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    if (!selected) {
-                        navController.navigate(item.route) {
-                            popUpTo(Screen.Home.route) {
-                                saveState = true
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryGreen,
-                    selectedTextColor = PrimaryGreen,
-                    indicatorColor = Color(0xFFE8F5E9),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
-                )
-            )
-        }
+        // Plan → Calendar
+        NavTab(
+            icon = Icons.Filled.CalendarMonth,
+            label = "Plan",
+            selected = isPlanActive,
+            onClick = { navTo(Screen.Calendar.route) }
+        )
+
+        // Misc → opens bottom sheet
+        NavTab(
+            icon = Icons.Default.Settings,
+            label = "More",
+            selected = false,
+            onClick = onMisc
+        )
     }
+}
+
+@Composable
+private fun RowScope.NavTab(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(22.dp)
+            )
+        },
+        label = {
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+        },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor   = SelectedNavColor,
+            selectedTextColor   = SelectedNavColor,
+            indicatorColor      = NavIndicator,
+            unselectedIconColor = UnselectedNavColor,
+            unselectedTextColor = UnselectedNavColor
+        )
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -949,6 +990,64 @@ private fun QuickAddSheet(
                     modifier = Modifier.weight(1f),
                     onClick = { dismissThenNavigate(Screen.DailyLog.route) }
                 )
+            }
+        }
+    }
+}
+
+// ── Misc "More" bottom sheet ──────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MiscSheet(
+    onDismiss: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    fun go(route: String) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) { onDismiss(); onNavigate(route) }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(top = 4.dp, bottom = 36.dp)
+        ) {
+            Text("More", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
+
+            // 2-column grid of navigation tiles
+            val items = listOf(
+                Triple(Icons.Default.Restaurant,   Color(0xFF2E7D52), "Foods")    to Screen.Foods.route,
+                Triple(Icons.Default.Restaurant,   Color(0xFFE65100), "Meals")    to Screen.Meals.route,
+                Triple(Icons.Default.List,         Color(0xFF1565C0), "Diets")    to Screen.Diets.route,
+                Triple(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health") to Screen.Health.route,
+                Triple(Icons.Default.ShoppingCart, Color(0xFF6A1B9A), "Grocery")  to Screen.GroceryLists.route,
+                Triple(Icons.Default.Settings,     Color(0xFF555555), "Settings") to Screen.Settings.route,
+            )
+
+            items.chunked(3).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowItems.forEach { (iconData, route) ->
+                        val (icon, bg, label) = iconData
+                        QuickAddTile(icon = icon, iconBg = bg, label = label, modifier = Modifier.weight(1f)) { go(route) }
+                    }
+                    // Fill remaining slots if row not full
+                    repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
     }
