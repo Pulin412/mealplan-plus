@@ -1409,6 +1409,105 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * v29: Deduplicate food_items that accumulated via multiple search/import runs.
+     *
+     * For compound-PK tables (meal_food_items, food_tag_cross_refs) the strategy is:
+     *  a. DELETE entries where the canonical food already covers the same row (would PK-conflict).
+     *  b. UPDATE remaining entries to the canonical (min-id) food.
+     * Simple-PK tables (logged_foods, planned_slot_foods, grocery_items) just need UPDATE.
+     * Finally, delete non-canonical food_items rows.
+     * All child-table cascades are no-ops by the time the food DELETE fires.
+     *
+     * No schema change — data cleanup only.
+     */
+    private val MIGRATION_28_29 = object : Migration(28, 29) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // ── meal_food_items (PK: mealId + foodId) ──────────────────────────
+            // a) drop entries that would PK-conflict after re-pointing to canonical food
+            database.execSQL("""
+                DELETE FROM meal_food_items
+                WHERE foodId NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+                  AND EXISTS (
+                      SELECT 1 FROM meal_food_items mfi2
+                      WHERE mfi2.mealId = meal_food_items.mealId
+                        AND mfi2.foodId = (
+                            SELECT MIN(f2.id) FROM food_items f2
+                            WHERE f2.name = (SELECT f1.name FROM food_items f1 WHERE f1.id = meal_food_items.foodId)
+                        )
+                  )
+            """.trimIndent())
+            // b) re-point the rest
+            database.execSQL("""
+                UPDATE meal_food_items
+                SET foodId = (
+                    SELECT MIN(f2.id) FROM food_items f2
+                    WHERE f2.name = (SELECT f1.name FROM food_items f1 WHERE f1.id = meal_food_items.foodId)
+                )
+                WHERE foodId NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+            """.trimIndent())
+
+            // ── food_tag_cross_refs (PK: foodId + tagId) ───────────────────────
+            database.execSQL("""
+                DELETE FROM food_tag_cross_refs
+                WHERE foodId NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+                  AND EXISTS (
+                      SELECT 1 FROM food_tag_cross_refs ftcr2
+                      WHERE ftcr2.tagId = food_tag_cross_refs.tagId
+                        AND ftcr2.foodId = (
+                            SELECT MIN(f2.id) FROM food_items f2
+                            WHERE f2.name = (SELECT f1.name FROM food_items f1 WHERE f1.id = food_tag_cross_refs.foodId)
+                        )
+                  )
+            """.trimIndent())
+            database.execSQL("""
+                UPDATE food_tag_cross_refs
+                SET foodId = (
+                    SELECT MIN(f2.id) FROM food_items f2
+                    WHERE f2.name = (SELECT f1.name FROM food_items f1 WHERE f1.id = food_tag_cross_refs.foodId)
+                )
+                WHERE foodId NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+            """.trimIndent())
+
+            // ── logged_foods ───────────────────────────────────────────────────
+            database.execSQL("""
+                UPDATE logged_foods
+                SET foodId = (
+                    SELECT MIN(f2.id) FROM food_items f2
+                    WHERE f2.name = (SELECT f1.name FROM food_items f1 WHERE f1.id = logged_foods.foodId)
+                )
+                WHERE foodId NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+            """.trimIndent())
+
+            // ── planned_slot_foods ─────────────────────────────────────────────
+            database.execSQL("""
+                UPDATE planned_slot_foods
+                SET foodId = (
+                    SELECT MIN(f2.id) FROM food_items f2
+                    WHERE f2.name = (SELECT f1.name FROM food_items f1 WHERE f1.id = planned_slot_foods.foodId)
+                )
+                WHERE foodId NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+            """.trimIndent())
+
+            // ── grocery_items (nullable foodId) ───────────────────────────────
+            database.execSQL("""
+                UPDATE grocery_items
+                SET foodId = (
+                    SELECT MIN(f2.id) FROM food_items f2
+                    WHERE f2.name = (SELECT f1.name FROM food_items f1 WHERE f1.id = grocery_items.foodId)
+                )
+                WHERE foodId IS NOT NULL
+                  AND foodId NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+            """.trimIndent())
+
+            // ── Delete duplicate food_items (keep min id per name) ────────────
+            database.execSQL("""
+                DELETE FROM food_items
+                WHERE id NOT IN (SELECT MIN(id) FROM food_items GROUP BY name)
+            """.trimIndent())
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -1417,7 +1516,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29)
             // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

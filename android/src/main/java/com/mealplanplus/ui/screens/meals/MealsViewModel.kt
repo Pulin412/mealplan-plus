@@ -20,6 +20,8 @@ data class MealsUiState(
     val allMeals: List<MealWithFoods> = emptyList(),
     val filteredMeals: List<MealWithFoods> = emptyList(),
     val diets: List<DietWithMeals> = emptyList(),
+    /** mealId → set of slotTypes this meal appears in across all diets */
+    val mealSlotTypes: Map<Long, Set<String>> = emptyMap(),
     val expandedDietId: Long? = null,
     val isLoading: Boolean = true
 )
@@ -67,7 +69,17 @@ class MealsViewModel @Inject constructor(
                 val dietsWithMeals = diets.mapNotNull { diet ->
                     dietRepository.getDietWithMeals(diet.id)
                 }
-                _uiState.update { it.copy(diets = dietsWithMeals) }
+                // Build mealId → set of slotTypes it appears in across all diet templates.
+                // Used by applyFilters() to honour the BREAKFAST / LUNCH / DINNER chips.
+                val mealSlotTypes = mutableMapOf<Long, MutableSet<String>>()
+                for (dwm in dietsWithMeals) {
+                    for ((slotType, mealWithFoods) in dwm.meals) {
+                        val mealId = mealWithFoods?.meal?.id ?: continue
+                        mealSlotTypes.getOrPut(mealId) { mutableSetOf() }.add(slotType)
+                    }
+                }
+                _uiState.update { it.copy(diets = dietsWithMeals, mealSlotTypes = mealSlotTypes) }
+                applyFilters()
             }
         }
     }
@@ -97,9 +109,14 @@ class MealsViewModel @Inject constructor(
     private fun applyFilters() {
         val state = _uiState.value
         val filtered = state.allMeals.filter { mealWithFoods ->
-            state.searchQuery.isBlank() ||
+            val matchesSearch = state.searchQuery.isBlank() ||
                 mealWithFoods.meal.name.contains(state.searchQuery, ignoreCase = true) ||
                 mealWithFoods.items.any { it.food.name.contains(state.searchQuery, ignoreCase = true) }
+
+            val matchesSlot = state.filterSlot == null ||
+                state.mealSlotTypes[mealWithFoods.meal.id]?.contains(state.filterSlot) == true
+
+            matchesSearch && matchesSlot
         }.sortedBy { it.meal.name.lowercase() }
 
         _uiState.update { it.copy(filteredMeals = filtered) }
