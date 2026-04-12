@@ -12,3 +12,4 @@ local.properties
 
 # Personal developer seed data — not for distribution
 /developer_data/
+backup_snapshot_*/
