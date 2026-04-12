@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
@@ -103,7 +104,7 @@ import com.mealplanplus.widget.NAV_HOME
 import com.mealplanplus.widget.NAV_LOG_FOR_DATE
 import com.mealplanplus.widget.WidgetDeepLink
 
-private val PrimaryGreen = Color(0xFF2E7D52)
+private val PrimaryGreen = Color(0xFF2E7D52)  // kept for legacy — new code uses theme tokens
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -777,12 +778,12 @@ private fun BottomNavBar(
     val rightItems = bottomNavItems.drop(3)
 
     NavigationBar(
-        containerColor = Color.White,
-        contentColor = PrimaryGreen
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
     ) {
         leftItems.forEach { item ->
             val selected = currentRoute == item.route
-            val isHome = item.route == Screen.Home.route
+            val isHome   = item.route == Screen.Home.route
             NavigationBarItem(
                 selected = selected,
                 onClick = {
@@ -797,21 +798,19 @@ private fun BottomNavBar(
                         }
                     }
                 },
-                icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
+                icon  = { Icon(imageVector = item.icon, contentDescription = item.label) },
+                label = { Text(item.label, fontSize = 11.sp) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryGreen,
-                    selectedTextColor = PrimaryGreen,
-                    indicatorColor = Color(0xFFE8F5E9),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
+                    selectedIconColor   = MaterialTheme.colorScheme.secondary,
+                    selectedTextColor   = MaterialTheme.colorScheme.secondary,
+                    indicatorColor      = MaterialTheme.colorScheme.secondaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
         }
 
-        // Centre elevated "+" quick-add button
-        // padding(bottom) shifts the circle up so it aligns visually
-        // with the icon portion of the adjacent NavigationBarItems
+        // Centre elevated "+" quick-add button — floats above the nav bar
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -822,15 +821,15 @@ private fun BottomNavBar(
                 modifier = Modifier
                     .size(50.dp)
                     .clip(CircleShape)
-                    .background(PrimaryGreen)
+                    .background(MaterialTheme.colorScheme.onSurface)
                     .clickable { onQuickAdd() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector        = Icons.Default.Add,
                     contentDescription = "Quick add",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    tint               = MaterialTheme.colorScheme.surface,
+                    modifier           = Modifier.size(26.dp)
                 )
             }
         }
@@ -851,14 +850,14 @@ private fun BottomNavBar(
                         }
                     }
                 },
-                icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
+                icon  = { Icon(imageVector = item.icon, contentDescription = item.label) },
+                label = { Text(item.label, fontSize = 11.sp) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryGreen,
-                    selectedTextColor = PrimaryGreen,
-                    indicatorColor = Color(0xFFE8F5E9),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
+                    selectedIconColor   = MaterialTheme.colorScheme.secondary,
+                    selectedTextColor   = MaterialTheme.colorScheme.secondary,
+                    indicatorColor      = MaterialTheme.colorScheme.secondaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
         }
@@ -885,9 +884,9 @@ private fun QuickAddSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        sheetState       = sheetState,
+        containerColor   = MaterialTheme.colorScheme.surface,
+        shape            = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -957,7 +956,7 @@ private fun QuickAddTile(
             .height(96.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
