@@ -1362,10 +1362,9 @@ object DatabaseModule {
      *     → meal_food_items cascade automatically.
      *  3. Delete duplicate diets (keep lowest id per name).
      *     → diet_tags and diet_slots cascade automatically.
-     *  4. Remove planned_slots that reference diets deleted in step 3.
-     *     → planned_slot_foods cascade automatically.
      *
      * No schema change — only data cleanup.
+     * planned_slots.sourceDietId is informational-only (no FK) so no cleanup needed there.
      */
     private val MIGRATION_27_28 = object : Migration(27, 28) {
         override fun migrate(database: SupportSQLiteDatabase) {
@@ -1403,13 +1402,10 @@ object DatabaseModule {
                 WHERE id NOT IN (SELECT MIN(id) FROM diets GROUP BY name)
             """.trimIndent())
 
-            // Step 4: remove planned_slots for diets that no longer exist
-            // planned_slot_foods deleted via ON DELETE CASCADE on planned_slots
-            database.execSQL("""
-                DELETE FROM planned_slots
-                WHERE dietId IS NOT NULL
-                  AND dietId NOT IN (SELECT id FROM diets)
-            """.trimIndent())
+            // Note: planned_slots.sourceDietId is informational-only (no FK),
+            // so no cleanup is needed for planned_slots after diet deduplication.
+            // planned_slots.mealId already re-pointed to canonical meals in step 1b,
+            // and ON DELETE SET_NULL on that FK handles any remaining orphans.
         }
     }
 
