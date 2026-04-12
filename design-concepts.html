@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MealPlan+ Design Concepts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+    min-height: 100vh;
+  }
+
+  /* ── Top controls ── */
+  .controls {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+    padding: 12px 24px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .controls h1 { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; }
+  .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid transparent; transition: all .18s;
+    background: #2a2a2a; color: #aaa;
+  }
+  .pill.active { background: #1a7a4a; border-color: #2ecc71; color: #fff; }
+  .pill:hover:not(.active) { border-color: #555; color: #fff; }
+  .sep { color: #444; font-size: 18px; }
+  .screen-label { font-size: 12px; color: #666; }
+
+  /* ── Main canvas area ── */
+  .canvas { padding-top: 80px; display: flex; justify-content: center; align-items: flex-start; gap: 40px; padding-bottom: 60px; flex-wrap: wrap; }
+
+  /* ── Phone frame ── */
+  .phone {
+    width: 390px; min-height: 844px;
+    border-radius: 50px; overflow: hidden;
+    border: 10px solid #2a2a2a;
+    box-shadow: 0 40px 80px rgba(0,0,0,.6), inset 0 0 0 2px #3a3a3a;
+    position: relative; flex-shrink: 0;
+    display: none;
+  }
+  .phone.visible { display: block; }
+  .phone-label {
+    text-align: center; font-size: 11px; font-weight: 700;
+    color: #555; letter-spacing: 1px; text-transform: uppercase;
+    margin-top: 14px;
+  }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+
+  /* ── Status bar ── */
+  .status-bar {
+    height: 44px; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+
+  /* ── Screen content fills remaining height ── */
+  .screen { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+
+  /* ── Bottom nav ── */
+  .bottom-nav {
+    height: 82px; display: flex; align-items: center;
+    padding: 0 8px 8px; position: relative; flex-shrink: 0;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding: 8px 0; cursor: pointer;
+    font-size: 10px; font-weight: 600;
+  }
+  .nav-icon { font-size: 20px; line-height: 1; }
+  .nav-fab-wrap { flex: 1; display: flex; justify-content: center; align-items: center; margin-top: -24px; }
+  .nav-fab {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 300; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  }
+
+  /* ──────────────────────────────────────────
+     THEME A — MINIMAL / LIGHT
+  ────────────────────────────────────────── */
+  .theme-a .phone { border-color: #ddd; box-shadow: 0 40px 80px rgba(0,0,0,.25), inset 0 0 0 2px #ccc; }
+  .theme-a .status-bar { background: #f8f8f8; color: #111; }
+  .theme-a .screen { background: #f2f2f7; }
+  .theme-a .bottom-nav { background: #fff; border-top: 1px solid #e5e5e5; }
+  .theme-a .nav-item { color: #aaa; }
+  .theme-a .nav-item.active { color: #1a7a4a; }
+  .theme-a .nav-fab { background: #1a7a4a; color: #fff; }
+
+  /* Home — Theme A */
+  .theme-a .home-header {
+    background: #fff; padding: 20px 20px 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .theme-a .home-greeting { font-size: 13px; color: #888; margin-bottom: 2px; }
+  .theme-a .home-name { font-size: 22px; font-weight: 700; color: #111; }
+  .theme-a .streak-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff8e1; border: 1px solid #fde68a;
+    border-radius: 20px; padding: 4px 12px; margin-top: 10px;
+    font-size: 12px; font-weight: 600; color: #92400e;
+  }
+  .theme-a .section-title { font-size: 13px; font-weight: 700; color: #888; padding: 16px 20px 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .theme-a .macro-row { display: flex; gap: 10px; padding: 0 20px 16px; }
+  .theme-a .macro-card {
+    flex: 1; background: #fff; border-radius: 16px; padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .theme-a .macro-val { font-size: 18px; font-weight: 700; }
+  .theme-a .macro-lbl { font-size: 10px; color: #999; margin-top: 2px; }
+  .theme-a .macro-bar { height: 3px; border-radius: 2px; margin-top: 8px; background: #f0f0f0; }
+  .theme-a .macro-fill { height: 100%; border-radius: 2px; }
+  .theme-a .slot-card {
+    background: #fff; margin: 0 20px 10px; border-radius: 16px;
+    padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .theme-a .slot-icon {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+  }
+  .theme-a .slot-name { font-size: 13px; font-weight: 700; color: #111; }
+  .theme-a .slot-meal { font-size: 12px; color: #888; margin-top: 1px; }
+  .theme-a .slot-cal { font-size: 12px; font-weight: 700; color: #1a7a4a; margin-left: auto; }
+
+  /* ──────────────────────────────────────────
+     THEME B — DARK / VIBRANT
+  ────────────────────────────────────────── */
+  .theme-b .phone { border-color: #222; }
+  .theme-b .status-bar { background: #0a0a0a; color: #fff; }
+  .theme-b .screen { background: #0a0a0a; }
+  .theme-b .bottom-nav { background: #111; border-top: 1px solid #222; }
+  .theme-b .nav-item { color: #555; }
+  .theme-b .nav-item.active { color: #00e676; }
+  .theme-b .nav-fab { background: linear-gradient(135deg, #00e676, #00b248); color: #000; }
+
+  .theme-b .home-header { background: #111; padding: 20px 20px 16px; }
+  .theme-b .home-greeting { font-size: 13px; color: #555; margin-bottom: 2px; }
+  .theme-b .home-name { font-size: 22px; font-weight: 700; color: #fff; }
+  .theme-b .streak-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #1a1a00; border: 1px solid #444400;
+    border-radius: 20px; padding: 4px 12px; margin-top: 10px;
+    font-size: 12px; font-weight: 600; color: #ffd600;
+  }
+  .theme-b .section-title { font-size: 13px; font-weight: 700; color: #444; padding: 16px 20px 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .theme-b .macro-row { display: flex; gap: 10px; padding: 0 20px 16px; }
+  .theme-b .macro-card {
+    flex: 1; background: #111; border-radius: 16px; padding: 14px;
+    border: 1px solid #222;
+  }
+  .theme-b .macro-val { font-size: 18px; font-weight: 700; color: #fff; }
+  .theme-b .macro-lbl { font-size: 10px; color: #555; margin-top: 2px; }
+  .theme-b .macro-bar { height: 3px; border-radius: 2px; margin-top: 8px; background: #222; }
+  .theme-b .macro-fill { height: 100%; border-radius: 2px; }
+  .theme-b .slot-card {
+    background: #111; margin: 0 20px 10px; border-radius: 16px;
+    padding: 14px 16px; border: 1px solid #222;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .theme-b .slot-icon {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+  }
+  .theme-b .slot-name { font-size: 13px; font-weight: 700; color: #fff; }
+  .theme-b .slot-meal { font-size: 12px; color: #555; margin-top: 1px; }
+  .theme-b .slot-cal { font-size: 12px; font-weight: 700; color: #00e676; margin-left: auto; }
+
+  /* ──────────────────────────────────────────
+     THEME C — EARTHY / WARM
+  ────────────────────────────────────────── */
+  .theme-c .phone { border-color: #c8b89a; box-shadow: 0 40px 80px rgba(0,0,0,.3), inset 0 0 0 2px #b8a88a; }
+  .theme-c .status-bar { background: #2d1f0e; color: #f5e6d0; }
+  .theme-c .screen { background: #f5ede0; }
+  .theme-c .bottom-nav { background: #2d1f0e; border-top: 1px solid #4a3020; }
+  .theme-c .nav-item { color: #6b4c2a; }
+  .theme-c .nav-item.active { color: #e8a040; }
+  .theme-c .nav-fab { background: #e8a040; color: #2d1f0e; }
+
+  .theme-c .home-header { background: #2d1f0e; padding: 20px 20px 20px; }
+  .theme-c .home-greeting { font-size: 13px; color: #a08060; margin-bottom: 2px; }
+  .theme-c .home-name { font-size: 22px; font-weight: 700; color: #f5e6d0; }
+  .theme-c .streak-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(232,160,64,.15); border: 1px solid rgba(232,160,64,.4);
+    border-radius: 20px; padding: 4px 12px; margin-top: 10px;
+    font-size: 12px; font-weight: 600; color: #e8a040;
+  }
+  .theme-c .section-title { font-size: 13px; font-weight: 700; color: #a08060; padding: 16px 20px 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .theme-c .macro-row { display: flex; gap: 10px; padding: 0 20px 16px; }
+  .theme-c .macro-card {
+    flex: 1; background: #fff8f0; border-radius: 16px; padding: 14px;
+    border: 1px solid #e8d8c0;
+  }
+  .theme-c .macro-val { font-size: 18px; font-weight: 700; color: #2d1f0e; }
+  .theme-c .macro-lbl { font-size: 10px; color: #a08060; margin-top: 2px; }
+  .theme-c .macro-bar { height: 3px; border-radius: 2px; margin-top: 8px; background: #e8d8c0; }
+  .theme-c .macro-fill { height: 100%; border-radius: 2px; }
+  .theme-c .slot-card {
+    background: #fff8f0; margin: 0 20px 10px; border-radius: 16px;
+    padding: 14px 16px; border: 1px solid #e8d8c0;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .theme-c .slot-icon {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+  }
+  .theme-c .slot-name { font-size: 13px; font-weight: 700; color: #2d1f0e; }
+  .theme-c .slot-meal { font-size: 12px; color: #a08060; margin-top: 1px; }
+  .theme-c .slot-cal { font-size: 12px; font-weight: 700; color: #c06820; margin-left: auto; }
+
+  /* ── Diets screen shared ── */
+  .diet-card {
+    margin: 0 20px 10px; border-radius: 16px; padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .diet-name { font-size: 15px; font-weight: 700; }
+  .diet-desc { font-size: 12px; margin-top: -4px; }
+  .diet-macros { display: flex; gap: 8px; margin-top: 4px; }
+  .macro-badge { padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .diet-tag-row { display: flex; gap: 6px; }
+  .diet-tag { padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+
+  .theme-a .diet-card { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .theme-a .diet-name { color: #111; }
+  .theme-a .diet-desc { color: #888; }
+  .theme-a .macro-badge { background: #f0f0f0; color: #444; }
+  .theme-a .macro-badge.cal { background: #e8f5e9; color: #1a7a4a; }
+  .theme-a .diet-tag { background: #e3f2fd; color: #1565c0; }
+
+  .theme-b .diet-card { background: #111; border: 1px solid #222; }
+  .theme-b .diet-name { color: #fff; }
+  .theme-b .diet-desc { color: #555; }
+  .theme-b .macro-badge { background: #1a1a1a; color: #888; }
+  .theme-b .macro-badge.cal { background: #00200f; color: #00e676; }
+  .theme-b .diet-tag { background: #1a1a2e; color: #6c8ebf; }
+
+  .theme-c .diet-card { background: #fff8f0; border: 1px solid #e8d8c0; }
+  .theme-c .diet-name { color: #2d1f0e; }
+  .theme-c .diet-desc { color: #a08060; }
+  .theme-c .macro-badge { background: #f0e8d8; color: #6b4c2a; }
+  .theme-c .macro-badge.cal { background: #fff0d0; color: #c06820; }
+  .theme-c .diet-tag { background: #f0e0d0; color: #8b4513; }
+
+  /* ── Scrollable area ── */
+  .scroll { overflow-y: auto; flex: 1; }
+  .scroll::-webkit-scrollbar { width: 0; }
+
+  /* ── Filter chips ── */
+  .chip-row { display: flex; gap: 8px; padding: 12px 20px 4px; overflow-x: auto; }
+  .chip-row::-webkit-scrollbar { height: 0; }
+  .chip {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    white-space: nowrap; cursor: pointer; flex-shrink: 0;
+  }
+  .theme-a .chip { background: #f0f0f0; color: #888; }
+  .theme-a .chip.active { background: #1a7a4a; color: #fff; }
+  .theme-b .chip { background: #1a1a1a; color: #555; border: 1px solid #222; }
+  .theme-b .chip.active { background: #00e676; color: #000; }
+  .theme-c .chip { background: #f0e8d8; color: #a08060; }
+  .theme-c .chip.active { background: #e8a040; color: #2d1f0e; }
+
+  /* ── Search bar ── */
+  .search-bar {
+    display: flex; align-items: center; gap: 8px;
+    margin: 14px 20px 4px; border-radius: 14px; padding: 10px 14px;
+    font-size: 13px;
+  }
+  .theme-a .search-bar { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); color: #888; }
+  .theme-b .search-bar { background: #111; border: 1px solid #222; color: #444; }
+  .theme-c .search-bar { background: #fff8f0; border: 1px solid #e8d8c0; color: #a08060; }
+
+  /* ── Page title ── */
+  .page-title { font-size: 26px; font-weight: 800; padding: 16px 20px 0; }
+  .theme-a .page-title { color: #111; }
+  .theme-b .page-title { color: #fff; }
+  .theme-c .page-title { color: #2d1f0e; }
+
+  /* ── Calendar strip ── */
+  .cal-strip { display: flex; gap: 6px; padding: 12px 20px; overflow-x: auto; }
+  .cal-strip::-webkit-scrollbar { height: 0; }
+  .cal-day {
+    width: 44px; min-width: 44px; height: 58px; border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    cursor: pointer;
+  }
+  .cal-day-name { font-size: 10px; font-weight: 700; }
+  .cal-day-num { font-size: 16px; font-weight: 800; }
+  .cal-dot { width: 5px; height: 5px; border-radius: 50%; }
+
+  .theme-a .cal-day { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); color: #888; }
+  .theme-a .cal-day.today { background: #1a7a4a; color: #fff; }
+  .theme-a .cal-day.logged { color: #444; }
+  .theme-a .cal-dot { background: #1a7a4a; }
+  .theme-a .cal-day.today .cal-dot { background: #fff; }
+
+  .theme-b .cal-day { background: #111; border: 1px solid #222; color: #555; }
+  .theme-b .cal-day.today { background: #00e676; color: #000; border-color: #00e676; }
+  .theme-b .cal-day.logged { color: #888; }
+  .theme-b .cal-dot { background: #00e676; }
+  .theme-b .cal-day.today .cal-dot { background: #000; }
+
+  .theme-c .cal-day { background: #fff8f0; border: 1px solid #e8d8c0; color: #a08060; }
+  .theme-c .cal-day.today { background: #e8a040; color: #2d1f0e; border-color: #e8a040; }
+  .theme-c .cal-day.logged { color: #6b4c2a; }
+  .theme-c .cal-dot { background: #e8a040; }
+  .theme-c .cal-day.today .cal-dot { background: #2d1f0e; }
+
+  /* ── Divider line ── */
+  .theme-a .divider { height: 1px; background: #f0f0f0; margin: 4px 0; }
+  .theme-b .divider { height: 1px; background: #1a1a1a; margin: 4px 0; }
+  .theme-c .divider { height: 1px; background: #e8d8c0; margin: 4px 0; }
+
+  /* ── Theme label badge ── */
+  .theme-badge {
+    position: absolute; top: 12px; right: 12px;
+    padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: 700;
+    pointer-events: none; z-index: 10;
+  }
+  .theme-a .theme-badge { background: #e8f5e9; color: #1a7a4a; }
+  .theme-b .theme-badge { background: #00200f; color: #00e676; }
+  .theme-c .theme-badge { background: #fff0d0; color: #c06820; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h1>MealPlan+ Design Concepts</h1>
+  <span class="sep">|</span>
+  <div class="pill-group" id="theme-pills">
+    <div class="pill active" onclick="setTheme('all')">All 3 Themes</div>
+    <div class="pill" onclick="setTheme('a')">A — Minimal</div>
+    <div class="pill" onclick="setTheme('b')">B — Dark</div>
+    <div class="pill" onclick="setTheme('c')">C — Earthy</div>
+  </div>
+  <span class="sep">|</span>
+  <div class="pill-group" id="screen-pills">
+    <div class="pill active" onclick="setScreen('home')">Home</div>
+    <div class="pill" onclick="setScreen('diets')">Diets</div>
+    <div class="pill" onclick="setScreen('calendar')">Calendar</div>
+  </div>
+</div>
+
+<div class="canvas" id="canvas"></div>
+
+<script>
+let currentTheme = 'all';
+let currentScreen = 'home';
+
+const themes = [
+  { id: 'a', name: 'Minimal / Clean', sub: 'Light mode, soft green, iOS-inspired' },
+  { id: 'b', name: 'Dark / Vibrant', sub: 'Pure black, neon green, high contrast' },
+  { id: 'c', name: 'Earthy / Warm', sub: 'Dark header, sand tones, warm amber' },
+];
+
+function setTheme(t) {
+  currentTheme = t;
+  document.querySelectorAll('#theme-pills .pill').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  render();
+}
+function setScreen(s) {
+  currentScreen = s;
+  document.querySelectorAll('#screen-pills .pill').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  render();
+}
+
+function buildNavBar(theme, activeIdx) {
+  const items = [
+    { icon: '🏠', label: 'Home' },
+    { icon: '📅', label: 'Plan' },
+    { icon: '🥗', label: 'Diets' },
+    { icon: '', label: '' }, // FAB
+    { icon: '❤️', label: 'Health' },
+    { icon: '🛒', label: 'Grocery' },
+    { icon: '⚙️', label: 'Settings' },
+  ];
+  return `
+    <div class="bottom-nav">
+      ${items.map((item, i) => {
+        if (i === 3) return `<div class="nav-fab-wrap"><div class="nav-fab">+</div></div>`;
+        return `<div class="nav-item ${i === activeIdx ? 'active' : ''}">
+          <span class="nav-icon">${item.icon}</span>
+          <span>${item.label}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function buildStatusBar(theme) {
+  const time = theme === 'b' ? '9:41' : '9:41';
+  const textColor = theme === 'b' ? '#fff' : theme === 'c' ? '#f5e6d0' : '#111';
+  return `<div class="status-bar">
+    <span style="font-weight:700">${time}</span>
+    <div class="status-icons">
+      <span>●●●</span><span>WiFi</span><span>⬛</span>
+    </div>
+  </div>`;
+}
+
+function buildHomeScreen(theme) {
+  const t = `theme-${theme}`;
+  const calories = theme === 'b' ? '#00e676' : theme === 'c' ? '#c06820' : '#1a7a4a';
+  return `
+    <div class="screen">
+      <div class="home-header">
+        <div class="home-greeting">Good morning 🌤</div>
+        <div class="home-name">Pulin</div>
+        <div class="streak-pill">🔥 14-day streak</div>
+      </div>
+      <div class="scroll">
+        <div class="section-title">Today's Macros</div>
+        <div class="macro-row">
+          <div class="macro-card">
+            <div class="macro-val" style="color:${calories}">1,240</div>
+            <div class="macro-lbl">CALORIES</div>
+            <div class="macro-bar"><div class="macro-fill" style="width:62%;background:${calories}"></div></div>
+          </div>
+          <div class="macro-card">
+            <div class="macro-val">84g</div>
+            <div class="macro-lbl">PROTEIN</div>
+            <div class="macro-bar"><div class="macro-fill" style="width:70%;background:#5c6bc0"></div></div>
+          </div>
+          <div class="macro-card">
+            <div class="macro-val">140g</div>
+            <div class="macro-lbl">CARBS</div>
+            <div class="macro-bar"><div class="macro-fill" style="width:45%;background:#ef8c00"></div></div>
+          </div>
+        </div>
+        <div class="section-title">Today's Meals</div>
+        <div class="slot-card">
+          <div class="slot-icon" style="background:${theme==='b'?'#00200f':theme==='c'?'#fff0d0':'#e8f5e9'}">☀️</div>
+          <div>
+            <div class="slot-name">Breakfast</div>
+            <div class="slot-meal">Oatmeal Bowl with Berries</div>
+          </div>
+          <div class="slot-cal">380 kcal</div>
+        </div>
+        <div class="slot-card">
+          <div class="slot-icon" style="background:${theme==='b'?'#1a1000':'#fff8e1'}">🌤</div>
+          <div>
+            <div class="slot-name">Lunch</div>
+            <div class="slot-meal">Grilled Salmon & Quinoa</div>
+          </div>
+          <div class="slot-cal">520 kcal</div>
+        </div>
+        <div class="slot-card">
+          <div class="slot-icon" style="background:${theme==='b'?'#1a0010':'#fce4ec'}">🌙</div>
+          <div>
+            <div class="slot-name">Dinner</div>
+            <div class="slot-meal">Not logged yet</div>
+          </div>
+          <div class="slot-cal" style="color:${theme==='b'?'#ff5252':theme==='c'?'#c06820':'#999'}">—</div>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+      ${buildNavBar(theme, 0)}
+    </div>`;
+}
+
+function buildDietsScreen(theme) {
+  const t = `theme-${theme}`;
+  return `
+    <div class="screen">
+      <div class="scroll">
+        <div class="page-title">My Diets</div>
+        <div class="search-bar">🔍 Search diets...</div>
+        <div class="chip-row">
+          <div class="chip active">All</div>
+          <div class="chip">Remission</div>
+          <div class="chip">Maintenance</div>
+          <div class="chip">SOS</div>
+          <div class="chip">★ Favourites</div>
+        </div>
+        <div style="padding: 4px 20px 8px; font-size: 12px; color: ${theme==='b'?'#555':theme==='c'?'#a08060':'#999'}">3 diets</div>
+
+        <div class="diet-card">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="diet-name">Remission Plan</div>
+            <span style="font-size:18px">★</span>
+          </div>
+          <div class="diet-desc">Low-residue, anti-inflammatory meals for active remission phase</div>
+          <div class="diet-macros">
+            <div class="macro-badge cal">1,800 kcal</div>
+            <div class="macro-badge">P 90g</div>
+            <div class="macro-badge">C 220g</div>
+            <div class="macro-badge">F 60g</div>
+          </div>
+          <div class="diet-tag-row">
+            <div class="diet-tag">Remission</div>
+            <div class="diet-tag">3 meals</div>
+          </div>
+        </div>
+
+        <div class="diet-card">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="diet-name">Maintenance Diet</div>
+            <span style="font-size:18px">☆</span>
+          </div>
+          <div class="diet-desc">Balanced daily nutrition for stable health maintenance</div>
+          <div class="diet-macros">
+            <div class="macro-badge cal">2,100 kcal</div>
+            <div class="macro-badge">P 110g</div>
+            <div class="macro-badge">C 260g</div>
+            <div class="macro-badge">F 70g</div>
+          </div>
+          <div class="diet-tag-row">
+            <div class="diet-tag">Maintenance</div>
+            <div class="diet-tag">3 meals</div>
+          </div>
+        </div>
+
+        <div class="diet-card">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="diet-name">SOS Protocol</div>
+            <span style="font-size:18px">☆</span>
+          </div>
+          <div class="diet-desc">Gentle, easily digestible foods during flare-up periods</div>
+          <div class="diet-macros">
+            <div class="macro-badge cal">1,400 kcal</div>
+            <div class="macro-badge">P 65g</div>
+            <div class="macro-badge">C 180g</div>
+            <div class="macro-badge">F 40g</div>
+          </div>
+          <div class="diet-tag-row">
+            <div class="diet-tag">SOS</div>
+            <div class="diet-tag">3 meals</div>
+          </div>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+      ${buildNavBar(theme, 2)}
+    </div>`;
+}
+
+function buildCalendarScreen(theme) {
+  const days = ['M','T','W','T','F','S','S'];
+  const dates = [6,7,8,9,10,11,12];
+  const logged = [0,1,2,4]; // indices with dot
+  const calStrip = days.map((d,i) => `
+    <div class="cal-day ${i===2?'today':'logged'}">
+      <span class="cal-day-name">${d}</span>
+      <span class="cal-day-num">${dates[i]}</span>
+      ${logged.includes(i) ? '<div class="cal-dot"></div>' : '<div style="width:5px;height:5px"></div>'}
+    </div>`).join('');
+
+  const calColor = theme === 'b' ? '#00e676' : theme === 'c' ? '#e8a040' : '#1a7a4a';
+  const slotBg = theme === 'b' ? '#111' : theme === 'c' ? '#fff8f0' : '#fff';
+  const slotBorder = theme === 'b' ? '1px solid #222' : theme === 'c' ? '1px solid #e8d8c0' : '1px solid #f0f0f0';
+  const textMain = theme === 'b' ? '#fff' : theme === 'c' ? '#2d1f0e' : '#111';
+  const textSub = theme === 'b' ? '#555' : theme === 'c' ? '#a08060' : '#888';
+  const sectionBg = theme === 'b' ? '#0a0a0a' : theme === 'c' ? '#f5ede0' : '#f2f2f7';
+
+  return `
+    <div class="screen">
+      <div class="page-title">Meal Plan</div>
+      <div class="cal-strip">${calStrip}</div>
+      <div class="divider"></div>
+      <div class="scroll">
+        <div style="padding:14px 20px 6px;font-size:13px;font-weight:700;color:${textSub};text-transform:uppercase;letter-spacing:.5px">Wed, Apr 9 — Remission Plan</div>
+
+        <!-- Breakfast slot -->
+        <div style="background:${slotBg};margin:0 20px 10px;border-radius:16px;padding:14px 16px;border:${slotBorder}">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="font-size:18px">☀️</span>
+            <span style="font-size:13px;font-weight:700;color:${textMain}">Breakfast</span>
+            <span style="font-size:12px;font-weight:700;color:${calColor};margin-left:auto">380 kcal</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;color:${textMain}">Oatmeal Bowl with Berries</div>
+          <!-- Ingredients expanded -->
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px">
+            ${[['Rolled Oats','80g'],['Blueberries','60g'],['Banana','1 piece'],['Almond Milk','200ml']].map(([n,q]) => `
+              <div style="display:flex;justify-content:space-between;padding:5px 10px;background:${theme==='b'?'#1a1a1a':theme==='c'?'#f0e8d8':'#f8f8f8'};border-radius:8px;font-size:12px">
+                <span style="color:${textMain}">${n}</span>
+                <span style="color:${calColor};font-weight:700">${q}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- Lunch slot -->
+        <div style="background:${slotBg};margin:0 20px 10px;border-radius:16px;padding:14px 16px;border:${slotBorder}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">🌤</span>
+            <span style="font-size:13px;font-weight:700;color:${textMain}">Lunch</span>
+            <span style="font-size:12px;font-weight:700;color:${calColor};margin-left:auto">520 kcal</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;color:${textMain};margin-top:8px">Grilled Salmon & Quinoa</div>
+          <div style="font-size:12px;color:${textSub};margin-top:3px">Tap to expand ingredients</div>
+        </div>
+
+        <!-- Dinner slot -->
+        <div style="background:${slotBg};margin:0 20px 10px;border-radius:16px;padding:14px 16px;border:${slotBorder};opacity:.6">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">🌙</span>
+            <span style="font-size:13px;font-weight:700;color:${textMain}">Dinner</span>
+            <span style="font-size:12px;color:${textSub};margin-left:auto">Not planned</span>
+          </div>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+      ${buildNavBar(theme, 1)}
+    </div>`;
+}
+
+function buildPhone(theme, screen) {
+  const t = `theme-${theme}`;
+  const themeMeta = themes.find(x => x.id === theme);
+  let content = '';
+  if (screen === 'home') content = buildHomeScreen(theme);
+  else if (screen === 'diets') content = buildDietsScreen(theme);
+  else if (screen === 'calendar') content = buildCalendarScreen(theme);
+
+  return `
+    <div class="phone-wrap">
+      <div class="phone ${t} visible" style="position:relative">
+        <div class="theme-badge">${themeMeta.name}</div>
+        ${buildStatusBar(theme)}
+        ${content}
+      </div>
+      <div class="phone-label" style="color:${theme==='b'?'#444':theme==='c'?'#8b6040':'#888'}">${themeMeta.sub}</div>
+    </div>`;
+}
+
+function render() {
+  const canvas = document.getElementById('canvas');
+  const visibleThemes = currentTheme === 'all' ? ['a','b','c'] : [currentTheme];
+  canvas.innerHTML = visibleThemes.map(t => buildPhone(t, currentScreen)).join('');
+}
+
+render();
+</script>
+</body>
+</html>

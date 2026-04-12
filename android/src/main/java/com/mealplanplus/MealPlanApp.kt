@@ -5,6 +5,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mealplanplus.data.local.DatabaseSeeder
+import com.mealplanplus.data.local.MealSlotReseeder
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.mealplanplus.notification.NotificationAlarmBootstrapper
 import com.mealplanplus.util.AnalyticsManager
@@ -27,6 +28,9 @@ class MealPlanApp : Application() {
     lateinit var databaseSeeder: DatabaseSeeder
 
     @Inject
+    lateinit var mealSlotReseeder: MealSlotReseeder
+
+    @Inject
     lateinit var crashlyticsReporter: CrashlyticsReporter
 
     @Inject
@@ -45,6 +49,8 @@ class MealPlanApp : Application() {
         // Re-seed system foods whenever the bundled version changes
         applicationScope.launch {
             databaseSeeder.seedIfNeeded(this@MealPlanApp)
+            // Re-seed meal slots if wiped by MIGRATION_29_30 (incorrect deduplication fix)
+            mealSlotReseeder.reseedIfNeeded(this@MealPlanApp)
         }
         scheduleSyncWork()
         cancelLegacyNotificationWork()

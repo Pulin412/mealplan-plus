@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MealPlan+ — Complete Design</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  background: #EBEBEB;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 60px;
+  color: #111;
+}
+h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 2px; }
+.subtitle { font-size: 12px; color: #888; margin-bottom: 20px; }
+
+/* ── Group tabs ── */
+.group-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  justify-content: center; margin-bottom: 14px;
+}
+.gtab {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1.5px solid #D4D4D4; background: #fff;
+  font-size: 12px; font-weight: 500; color: #666; cursor: pointer;
+  transition: all 0.12s;
+}
+.gtab.active { background: #111; color: #fff; border-color: #111; }
+.gtab:hover:not(.active) { border-color: #999; color: #111; }
+
+/* ── Screen nav ── */
+.screen-nav {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px; flex-wrap: wrap; justify-content: center;
+}
+.snav {
+  padding: 5px 12px; border-radius: 16px;
+  border: 1px solid #D8D8D8; background: #fff;
+  font-size: 11px; font-weight: 500; color: #777; cursor: pointer;
+  transition: all 0.12s;
+}
+.snav.active { background: #333; color: #fff; border-color: #333; }
+.snav:hover:not(.active) { border-color: #888; color: #111; }
+.phase-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 10px; vertical-align: middle; margin-left: 3px;
+}
+.phase-1 { background: #E8F5EE; color: #2E7D52; }
+.phase-2 { background: #E8EEFF; color: #1E4FBF; }
+.phase-4 { background: #F3EEFF; color: #7C3AED; }
+
+/* ── Phone frame ── */
+.phone-frame {
+  width: 375px; min-height: 812px;
+  background: #F7F7F7;
+  border-radius: 44px;
+  overflow: hidden;
+  box-shadow: 0 28px 70px rgba(0,0,0,0.16), 0 4px 10px rgba(0,0,0,0.07);
+  position: relative;
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(0,0,0,0.07);
+}
+.status-bar {
+  height: 44px; background: #fff;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 24px 0 28px; flex-shrink: 0;
+}
+.status-time { font-size: 15px; font-weight: 600; }
+.status-icons { display: flex; gap: 5px; align-items: center; }
+.status-icons svg { width: 15px; height: 15px; }
+.dynamic-island {
+  position: absolute; top: 11px; left: 50%;
+  transform: translateX(-50%);
+  width: 118px; height: 32px;
+  background: #000; border-radius: 18px; z-index: 5;
+}
+.screen-content { flex: 1; overflow-y: auto; background: #F7F7F7; }
+.bottom-nav {
+  height: 80px; background: #fff;
+  border-top: 1px solid #EBEBEB;
+  display: flex; align-items: center;
+  justify-content: space-around;
+  padding: 0 6px 14px; flex-shrink: 0;
+}
+.ni { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 5px 8px; border-radius: 10px; }
+.ni svg { width: 21px; height: 21px; stroke: #BBB; }
+.ni span { font-size: 10px; font-weight: 500; color: #BBB; }
+.ni.on svg { stroke: #111; }
+.ni.on span { color: #111; }
+.fab-nav {
+  width: 50px; height: 50px; background: #111; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2); cursor: pointer; margin-bottom: 8px;
+}
+.fab-nav svg { width: 20px; height: 20px; stroke: #fff; }
+
+/* ── AI floating button ── */
+.ai-fab {
+  position: absolute; bottom: 92px; right: 14px;
+  width: 42px; height: 42px; background: #7C3AED;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.35);
+  cursor: pointer; z-index: 20; transition: transform 0.14s;
+}
+.ai-fab:hover { transform: scale(1.08); }
+.ai-fab svg { width: 18px; height: 18px; stroke: #fff; }
+
+/* ── AI overlay ── */
+.ai-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.42);
+  z-index: 30; display: none; align-items: flex-end;
+  border-radius: 44px; overflow: hidden;
+}
+.ai-overlay.open { display: flex; }
+.ai-sheet {
+  width: 100%; background: #fff;
+  border-radius: 22px 22px 0 0;
+  display: flex; flex-direction: column;
+  max-height: 76%; animation: slideUp 0.2s ease;
+}
+@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+.sheet-handle { width: 34px; height: 4px; background: #E0E0E0; border-radius: 2px; margin: 9px auto 0; flex-shrink: 0; }
+.ai-sheet-head {
+  padding: 10px 16px 10px; border-bottom: 1px solid #F0F0F0;
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.ai-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+.ai-dot { width: 7px; height: 7px; border-radius: 50%; background: #7C3AED; }
+.ai-close { font-size: 18px; color: #BBB; cursor: pointer; }
+.chat-area { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.bubble-ai {
+  background: #F5F5F5; border-radius: 4px 16px 16px 16px;
+  padding: 10px 13px; max-width: 90%; font-size: 13px; line-height: 1.5; color: #111;
+}
+.bubble-user {
+  background: #111; border-radius: 16px 16px 4px 16px;
+  padding: 10px 13px; max-width: 82%; font-size: 13px; line-height: 1.5;
+  color: #fff; align-self: flex-end;
+}
+.ai-chips { display: flex; gap: 6px; padding: 0 14px 8px; flex-wrap: wrap; flex-shrink: 0; }
+.ai-chip {
+  padding: 5px 11px; border: 1.5px solid #E8E8E8;
+  border-radius: 16px; font-size: 11px; font-weight: 500; color: #555; cursor: pointer; background: #fff;
+}
+.chat-input-row {
+  background: #fff; border-top: 1px solid #EBEBEB;
+  padding: 8px 14px; display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+}
+.chat-input {
+  flex: 1; background: #F5F5F5; border: none; border-radius: 20px;
+  padding: 9px 14px; font-size: 13px; color: #888;
+}
+.chat-send-btn {
+  width: 36px; height: 36px; background: #111; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.chat-send-btn svg { width: 14px; height: 14px; stroke: #fff; }
+
+/* ── Common layout bits ── */
+.sh { padding: 14px 20px 10px; background: #fff; }
+.sh-title { font-size: 25px; font-weight: 700; letter-spacing: -0.4px; }
+.sh-sub { font-size: 12px; color: #888; margin-top: 2px; }
+.sec { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #AAA; padding: 14px 20px 6px; }
+.card {
+  background: #fff; border-radius: 14px;
+  margin: 0 16px 10px; padding: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.card-p0 { padding: 0; overflow: hidden; }
+.row { display: flex; align-items: center; justify-content: space-between; }
+.tag { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 16px; font-size: 10px; font-weight: 700; }
+.tg { background: #E8F5EE; color: #2E7D52; }
+.tb { background: #E8EEFF; color: #1E4FBF; }
+.to { background: #FFF0E6; color: #C05200; }
+.tp { background: #F3EEFF; color: #7C3AED; }
+.tgr { background: #F0F0F0; color: #666; }
+.divl { height: 1px; background: #F5F5F5; }
+.pb { height: 4px; background: #F0F0F0; border-radius: 2px; margin-top: 7px; overflow: hidden; }
+.pf { height: 100%; border-radius: 2px; }
+.sp { height: 16px; }
+.search-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin: 8px 16px 10px; background: #fff;
+  border-radius: 12px; padding: 10px 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.search-bar svg { width: 16px; height: 16px; stroke: #BBB; flex-shrink: 0; }
+.search-bar span { font-size: 14px; color: #BBB; }
+.chips-row { display: flex; gap: 7px; padding: 2px 16px 12px; overflow-x: auto; }
+.chips-row::-webkit-scrollbar { display: none; }
+.chip {
+  padding: 5px 13px; border-radius: 16px; white-space: nowrap;
+  font-size: 12px; font-weight: 500; cursor: pointer; flex-shrink: 0;
+  border: 1px solid #E8E8E8; background: #fff; color: #555;
+}
+.chip.on { background: #111; color: #fff; border-color: #111; }
+
+/* list item rows */
+.li { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.li-icon {
+  width: 38px; height: 38px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.li-title { font-size: 14px; font-weight: 600; }
+.li-sub { font-size: 11px; color: #AAA; margin-top: 1px; }
+.li-right { margin-left: auto; text-align: right; flex-shrink: 0; }
+.li-val { font-size: 14px; font-weight: 700; }
+.li-unit { font-size: 10px; color: #AAA; }
+
+/* slot rows */
+.slot-r { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+.slot-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.slot-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #AAA; width: 64px; flex-shrink: 0; }
+.slot-meal { font-size: 13px; font-weight: 600; flex: 1; }
+.slot-empty { font-size: 13px; color: #CCC; font-style: italic; }
+.slot-cal { font-size: 12px; color: #AAA; margin-left: auto; }
+.slot-check { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* form inputs */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 6px; }
+.form-input {
+  width: 100%; background: #F7F7F7; border: 1.5px solid #EBEBEB;
+  border-radius: 10px; padding: 11px 14px; font-size: 14px; color: #111;
+}
+.form-input.focus { border-color: #111; background: #fff; }
+.form-btn {
+  width: 100%; background: #111; color: #fff; border: none;
+  border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-top: 4px;
+}
+.form-btn-outline {
+  width: 100%; background: #fff; color: #111; border: 1.5px solid #E0E0E0;
+  border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;
+  cursor: pointer; margin-top: 8px;
+}
+
+/* macro strip */
+.macro-row { display: flex; gap: 0; }
+.macro-item { flex: 1; text-align: center; padding: 12px 8px; border-right: 1px solid #F5F5F5; }
+.macro-item:last-child { border-right: none; }
+.macro-val { font-size: 17px; font-weight: 700; }
+.macro-label { font-size: 10px; color: #AAA; margin-top: 1px; }
+.macro-bar { height: 3px; border-radius: 1.5px; margin: 5px 10px 0; }
+
+/* settings rows */
+.setting-row {
+  display: flex; align-items: center; padding: 14px 16px; gap: 12px;
+  border-bottom: 1px solid #F8F8F8; cursor: pointer;
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.setting-icon svg { width: 16px; height: 16px; }
+.setting-title { font-size: 14px; font-weight: 500; flex: 1; }
+.setting-value { font-size: 13px; color: #AAA; }
+.setting-arrow { font-size: 16px; color: #CCC; margin-left: 4px; }
+.toggle { width: 44px; height: 26px; background: #E0E0E0; border-radius: 13px; position: relative; cursor: pointer; transition: background 0.2s; }
+.toggle.on { background: #2E7D52; }
+.toggle-knob { position: absolute; width: 22px; height: 22px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+.toggle.on .toggle-knob { left: 20px; }
+
+/* health metric */
+.metric-card { background: #fff; border-radius: 14px; margin: 0 16px 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.chart-area { height: 80px; padding: 10px 16px 0; display: flex; align-items: flex-end; gap: 4px; }
+.bar-col { flex: 1; background: #F0F0F0; border-radius: 3px 3px 0 0; position: relative; }
+.bar-col.hl { background: #111; }
+.bar-label { text-align: center; font-size: 9px; color: #CCC; padding: 4px 0; }
+.chart-row { display: flex; padding: 0 16px; }
+.chart-row .bar-label { flex: 1; }
+
+/* grocery */
+.grocery-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #F8F8F8; }
+.grocery-item:last-child { border-bottom: none; }
+.g-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #DDD; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.g-check.done { background: #2E7D52; border-color: #2E7D52; }
+.g-name { font-size: 14px; font-weight: 500; flex: 1; }
+.g-name.done { text-decoration: line-through; color: #BBB; }
+.g-qty { font-size: 12px; color: #AAA; }
+
+/* workout */
+.workout-stat-row { display: flex; gap: 10px; padding: 0 16px; margin-bottom: 10px; }
+.ws { flex: 1; background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.ws-val { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+.ws-label { font-size: 10px; color: #AAA; margin-top: 1px; }
+.ex-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; }
+.ex-ico { width: 38px; height: 38px; background: #F5F5F5; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.ex-name { font-size: 14px; font-weight: 600; }
+.ex-det { font-size: 11px; color: #AAA; margin-top: 1px; }
+.ex-sets { margin-left: auto; font-size: 12px; font-weight: 700; color: #888; background: #F5F5F5; padding: 4px 9px; border-radius: 7px; }
+
+/* streak dots */
+.streak-dots { display: flex; gap: 4px; padding: 0 20px; margin-bottom: 16px; }
+.sd { flex: 1; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.sd-label { font-size: 9px; font-weight: 700; color: #CCC; }
+.sd.done { background: #111; }
+.sd.done .sd-label { color: #fff; }
+.sd.today { background: #2E7D52; }
+.sd.today .sd-label { color: #fff; }
+.sd.miss { background: #FFE8E8; }
+.sd.miss .sd-label { color: #E53E3E; }
+
+/* mini cal */
+.mini-cal { background: #fff; border-radius: 14px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-month { font-size: 14px; font-weight: 700; }
+.cal-arrows { display: flex; gap: 8px; font-size: 16px; color: #CCC; }
+.cal-dh { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin-bottom: 4px; }
+.cal-dh span { font-size: 9px; font-weight: 700; color: #CCC; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cd { aspect-ratio:1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 7px; cursor: pointer; }
+.cd-n { font-size: 12px; font-weight: 500; }
+.cd-dot { width: 4px; height: 4px; border-radius: 50%; margin-top: 1px; }
+.cd.today { background: #111; }
+.cd.today .cd-n { color: #fff; font-weight: 700; }
+.cd.emp .cd-n { color: #DDD; }
+
+/* active workout screen */
+.aw-header { background: #111; padding: 20px 20px 16px; }
+.aw-exercise { font-size: 22px; font-weight: 700; color: #fff; }
+.aw-set { font-size: 14px; color: #888; margin-top: 3px; }
+.aw-timer { font-size: 44px; font-weight: 200; color: #fff; text-align: center; padding: 20px 0 10px; letter-spacing: -1px; }
+.set-log-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
+.set-num { width: 28px; height: 28px; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.set-done { background: #2E7D52; }
+.set-field { flex: 1; background: #F7F7F7; border-radius: 8px; padding: 9px 12px; font-size: 14px; font-weight: 600; text-align: center; border: none; }
+.set-x { font-size: 14px; color: #CCC; font-weight: 700; }
+.aw-next { display: flex; align-items: center; padding: 14px 16px; gap: 10px; background: #fff; border-top: 1px solid #F0F0F0; }
+
+/* backup screen */
+.backup-status { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: #E8F5EE; border-radius: 12px; margin: 0 16px 10px; }
+.backup-status svg { width: 20px; height: 20px; stroke: #2E7D52; flex-shrink: 0; }
+.backup-status-text { font-size: 13px; color: #2E7D52; font-weight: 500; }
+.backup-option { display: flex; align-items: center; padding: 14px; gap: 12px; border-bottom: 1px solid #F5F5F5; cursor: pointer; }
+.backup-option:last-child { border-bottom: none; }
+.backup-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.backup-icon svg { width: 18px; height: 18px; }
+.backup-title { font-size: 14px; font-weight: 600; }
+.backup-sub { font-size: 11px; color: #AAA; margin-top: 1px; }
+
+/* Phase watermark */
+.phase-mark {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; margin-left: 6px; vertical-align: middle;
+}
+
+</style>
+</head>
+<body>
+
+<h1>MealPlan+</h1>
+<p class="subtitle">19 screens · All features · Minimalist design</p>
+
+<div class="group-tabs" id="group-tabs">
+  <div class="gtab active" onclick="setGroup('today')">Today</div>
+  <div class="gtab" onclick="setGroup('nutrition')">Nutrition</div>
+  <div class="gtab" onclick="setGroup('create')">+ Create</div>
+  <div class="gtab" onclick="setGroup('plan')">Plan</div>
+  <div class="gtab" onclick="setGroup('workouts')">Workouts ●</div>
+  <div class="gtab" onclick="setGroup('health')">Health</div>
+  <div class="gtab" onclick="setGroup('settings')">Settings</div>
+</div>
+
+<div class="screen-nav" id="screen-nav"></div>
+
+<!-- PHONE -->
+<div class="phone-frame">
+  <div class="dynamic-island"></div>
+  <div class="status-bar">
+    <span class="status-time">9:41</span>
+    <div class="status-icons">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"><path d="M1.42 9a16 16 0 0 1 21.16 0M5 12.55a11 11 0 0 1 14.08 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v3"/></svg>
+    </div>
+  </div>
+
+  <div class="screen-content" id="screen-content"></div>
+
+  <!-- Floating AI button -->
+  <div class="ai-fab" onclick="openAI()" title="AI Coach">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+  </div>
+
+  <!-- AI Overlay -->
+  <div class="ai-overlay" id="ai-overlay" onclick="if(event.target===this)closeAI()">
+    <div class="ai-sheet">
+      <div class="sheet-handle"></div>
+      <div class="ai-sheet-head">
+        <div class="ai-title"><div class="ai-dot"></div>AI Coach <span class="phase-mark tp">Phase 4/5</span></div>
+        <div class="ai-close" onclick="closeAI()">✕</div>
+      </div>
+      <div class="chat-area">
+        <div class="bubble-ai">Hi! Your protein is on track today (142g est.) and tonight's Paneer Lauki Chana Dal Rice is a solid post-workout choice. What can I help with?</div>
+        <div class="bubble-user">What should I eat before my upper body workout?</div>
+        <div class="bubble-ai">A banana from your planned lunch works great — quick carbs, easy to digest, and it fits your remission diet. Have it 20–30 min before.</div>
+      </div>
+      <div class="ai-chips">
+        <div class="ai-chip">Analyse last week</div>
+        <div class="ai-chip">Today's nutrients</div>
+        <div class="ai-chip">Suggest snack</div>
+      </div>
+      <div class="chat-input-row">
+        <div class="chat-input">Ask about your diet or workout...</div>
+        <div class="chat-send-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="ni on" onclick="setGroup('today')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </div>
+    <div class="ni" onclick="setGroup('nutrition')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>Log</span>
+    </div>
+    <div class="fab-nav" style="margin-bottom:8px;" onclick="setGroup('create')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+    <div class="ni" onclick="setGroup('plan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Plan</span>
+    </div>
+    <div class="ni" onclick="setGroup('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+  <span style="font-size:11px; color:#888; background:#fff; padding:4px 10px; border-radius:10px; border:1px solid #E8E8E8;">● Workouts = Phase 2</span>
+  <span style="font-size:11px; color:#888; background:#fff; padding:4px 10px; border-radius:10px; border:1px solid #E8E8E8;">✦ AI Coach = Phase 4/5 · always reachable via purple button</span>
+</div>
+
+<script>
+// ─── Screen definitions ───────────────────────────────────────────────
+const groups = {
+  today: {
+    screens: [
+      { id: 'home', label: 'Home' },
+      { id: 'log', label: 'Log Today' }
+    ]
+  },
+  nutrition: {
+    screens: [
+      { id: 'foods', label: 'Foods' },
+      { id: 'meals', label: 'Meals' },
+      { id: 'meal-detail', label: 'Meal Detail' },
+      { id: 'diets', label: 'Diets' },
+      { id: 'diet-detail', label: 'Diet Detail' }
+    ]
+  },
+  create: {
+    screens: [
+      { id: 'add-food', label: 'Add Food' },
+      { id: 'add-meal', label: 'Add Meal' },
+      { id: 'add-diet', label: 'Add Diet' }
+    ]
+  },
+  plan: {
+    screens: [
+      { id: 'calendar', label: 'Calendar' },
+      { id: 'plan-day', label: 'Day Detail' }
+    ]
+  },
+  workouts: {
+    screens: [
+      { id: 'workout-home', label: 'Workouts', phase: 2 },
+      { id: 'active-session', label: 'Active Session', phase: 2 },
+      { id: 'exercise-cat', label: 'Exercise Catalogue', phase: 2 }
+    ]
+  },
+  health: {
+    screens: [
+      { id: 'metrics', label: 'Health Metrics' },
+      { id: 'grocery', label: 'Grocery List' },
+      { id: 'streak', label: 'Streak & Stats' }
+    ]
+  },
+  settings: {
+    screens: [
+      { id: 'settings', label: 'Settings' },
+      { id: 'backup', label: 'Backup & Restore', phase: 1 },
+      { id: 'sync', label: 'Sync Status', phase: 1 }
+    ]
+  }
+};
+
+// ─── Screen HTML ──────────────────────────────────────────────────────
+const screens = {
+
+// ══ HOME ══
+home: `
+<div class="sh" style="background:#F7F7F7; padding:14px 20px 0;">
+  <div style="font-size:20px;font-weight:700;letter-spacing:-0.3px;">Good morning, Pulin</div>
+  <div style="font-size:12px;color:#888;margin-top:2px;">Wednesday, 8 Apr · Day 47 of your plan</div>
+</div>
+<div style="display:flex;gap:10px;padding:14px 16px 4px;">
+  <div style="flex:1;background:#fff;border-radius:14px;padding:13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="font-size:26px;font-weight:700;letter-spacing:-1px;">47</div>
+    <div style="font-size:11px;color:#888;margin-top:1px;">🔥 Day streak</div>
+  </div>
+  <div style="flex:1;background:#fff;border-radius:14px;padding:13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="font-size:26px;font-weight:700;letter-spacing:-1px;">1,840</div>
+    <div style="font-size:11px;color:#888;margin-top:1px;">⚡ kcal today</div>
+  </div>
+  <div style="flex:1;background:#fff;border-radius:14px;padding:13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <div style="font-size:26px;font-weight:700;letter-spacing:-1px;">38</div>
+    <div style="font-size:11px;color:#888;margin-top:1px;">💪 workouts</div>
+  </div>
+</div>
+<div class="card">
+  <div class="row" style="margin-bottom:10px;"><span style="font-size:13px;font-weight:700;">Today's macros</span><span class="tag tg">On track</span></div>
+  <div class="macro-row">
+    <div class="macro-item"><div class="macro-val">142g</div><div class="macro-label">Protein</div><div class="macro-bar" style="background:#E8F5EE;"><div class="pf" style="width:78%;background:#2E7D52;"></div></div></div>
+    <div class="macro-item"><div class="macro-val">186g</div><div class="macro-label">Carbs</div><div class="macro-bar" style="background:#FFF0E6;"><div class="pf" style="width:62%;background:#C05200;"></div></div></div>
+    <div class="macro-item"><div class="macro-val">54g</div><div class="macro-label">Fat</div><div class="macro-bar" style="background:#E8EEFF;"><div class="pf" style="width:85%;background:#1E4FBF;"></div></div></div>
+    <div class="macro-item"><div class="macro-val">2.1L</div><div class="macro-label">Water</div><div class="macro-bar" style="background:#E8EEFF;"><div class="pf" style="width:52%;background:#0284C7;"></div></div></div>
+  </div>
+</div>
+<div style="display:flex;align-items:center;gap:9px;background:#fff;border-radius:12px;margin:0 16px 10px;padding:10px 13px;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:pointer;" onclick="openAI()">
+  <div style="width:26px;height:26px;background:#F3EEFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">✦</div>
+  <div style="flex:1;font-size:12px;color:#444;line-height:1.4;"><strong>Protein on track</strong> — dinner pairs well with your workout. Tap to ask AI.</div>
+  <div style="font-size:15px;color:#CCC;">›</div>
+</div>
+<div class="sec">Today · Diet-9</div>
+<div class="card card-p0">
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#F59E0B;"></div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Egg Parantha</div><div style="font-size:11px;color:#AAA;">Breakfast · Logged ✓</div></div>
+    <div style="font-size:12px;font-weight:700;color:#888;">520</div>
+    <div class="slot-check" style="background:#E8F5EE;margin-left:8px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#2E7D52;"></div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Mix Fruit Bowl</div><div style="font-size:11px;color:#AAA;">Lunch · Logged ✓</div></div>
+    <div style="font-size:12px;font-weight:700;color:#888;">280</div>
+    <div class="slot-check" style="background:#E8F5EE;margin-left:8px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+  </div>
+  <div class="slot-r">
+    <div class="slot-dot" style="background:#CCC;"></div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Paneer Lauki Chana Dal Rice</div><div style="font-size:11px;color:#AAA;">Dinner · Not logged</div></div>
+    <div style="font-size:12px;font-weight:700;color:#CCC;">580</div>
+    <div class="slot-check" style="background:#F5F5F5;margin-left:8px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+  </div>
+</div>
+<div class="sec">Today's workout</div>
+<div class="card" style="display:flex;align-items:center;gap:12px;">
+  <div style="font-size:26px;">🏋️</div>
+  <div style="flex:1;"><div style="font-size:13px;font-weight:700;">Upper Body Strength</div><div style="font-size:11px;color:#AAA;margin-top:2px;">6 exercises · ~45 min</div><div class="pb" style="margin-top:7px;"><div class="pf" style="width:0%;background:#1E4FBF;"></div></div></div>
+  <span class="tag tb" style="flex-shrink:0;">Start</span>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ LOG TODAY ══
+log: `
+<div class="sh"><div class="sh-title">Food Log</div></div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:#fff;border-bottom:1px solid #F5F5F5;">
+  <div style="font-size:18px;color:#CCC;cursor:pointer;">‹</div>
+  <div style="font-size:14px;font-weight:600;">Today, 8 Apr</div>
+  <div style="font-size:18px;color:#CCC;cursor:pointer;">›</div>
+</div>
+<div style="display:flex;background:#fff;border-radius:14px;margin:10px 16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">1,380</div><div style="font-size:10px;color:#AAA;margin-top:1px;">kcal</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">102g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">protein</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">140g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">carbs</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;"><div style="font-size:17px;font-weight:700;">40g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">fat</div></div>
+</div>
+<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;"></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Breakfast</div>
+    <div style="font-size:11px;color:#AAA;">520 kcal</div>
+    <div style="font-size:16px;color:#CCC;cursor:pointer;">+</div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
+    <div><div style="font-size:13px;font-weight:500;">Egg Parantha (Liquid Dough)</div><div style="font-size:11px;color:#AAA;">1 serving</div></div>
+    <div style="font-size:12px;font-weight:700;color:#555;">520</div>
+  </div>
+</div>
+<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:7px;height:7px;border-radius:50%;background:#888;"></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Noon</div>
+    <div style="font-size:11px;color:#AAA;">5 kcal</div>
+    <div style="font-size:16px;color:#CCC;cursor:pointer;">+</div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;">
+    <div><div style="font-size:13px;font-weight:500;">Black Coffee</div><div style="font-size:11px;color:#AAA;">1 cup</div></div>
+    <div style="font-size:12px;font-weight:700;color:#555;">5</div>
+  </div>
+</div>
+<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;"></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Lunch</div>
+    <div style="font-size:11px;color:#AAA;">280 kcal</div>
+    <div style="font-size:16px;color:#CCC;cursor:pointer;">+</div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
+    <div><div style="font-size:13px;font-weight:500;">Banana</div><div style="font-size:11px;color:#AAA;">100g</div></div>
+    <div style="font-size:12px;font-weight:700;color:#555;">89</div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #F8F8F8;">
+    <div><div style="font-size:13px;font-weight:500;">Cantaloupe</div><div style="font-size:11px;color:#AAA;">140g</div></div>
+    <div style="font-size:12px;font-weight:700;color:#555;">48</div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;">
+    <div><div style="font-size:13px;font-weight:500;">Almonds + Cashew</div><div style="font-size:11px;color:#AAA;">14g + 14g</div></div>
+    <div style="font-size:12px;font-weight:700;color:#555;">143</div>
+  </div>
+</div>
+<div style="background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;">
+    <div style="width:7px;height:7px;border-radius:50%;background:#7C3AED;"></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;flex:1;">Dinner</div>
+    <div style="font-size:11px;color:#AAA;">—</div>
+    <div style="font-size:16px;color:#111;font-weight:700;cursor:pointer;">+</div>
+  </div>
+  <div style="text-align:center;padding:14px;font-size:12px;color:#CCC;">Not logged yet · tap + to add</div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ FOODS ══
+foods: `
+<div class="sh"><div class="sh-title">Foods</div><div class="sh-sub">Catalogue · 280+ items</div></div>
+<div class="search-bar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Search foods...</span></div>
+<div class="chips-row">
+  <div class="chip on">All</div>
+  <div class="chip">Favourites</div>
+  <div class="chip">Recent</div>
+  <div class="chip">Protein</div>
+  <div class="chip">Fruits</div>
+  <div class="chip">Grains</div>
+</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFF8E6;">🥚</div>
+    <div style="flex:1;"><div class="li-title">Egg Whole</div><div class="li-sub">Poultry</div></div>
+    <div class="li-right"><div class="li-val">155</div><div class="li-unit">kcal/100g</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F0F8FF;">🥛</div>
+    <div style="flex:1;"><div class="li-title">Milk</div><div class="li-sub">Dairy · 240ml = 1 cup</div></div>
+    <div class="li-right"><div class="li-val">61</div><div class="li-unit">kcal/100ml</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F5F5F5;">🧀</div>
+    <div style="flex:1;"><div class="li-title">Paneer</div><div class="li-sub">Dairy</div></div>
+    <div class="li-right"><div class="li-val">265</div><div class="li-unit">kcal/100g</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFF0F0;">🍎</div>
+    <div style="flex:1;"><div class="li-title">Red Apple</div><div class="li-sub">Fruits</div></div>
+    <div class="li-right"><div class="li-val">52</div><div class="li-unit">kcal/100g</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F5FFF5;">🥦</div>
+    <div style="flex:1;"><div class="li-title">Broccoli</div><div class="li-sub">Vegetables</div></div>
+    <div class="li-right"><div class="li-val">34</div><div class="li-unit">kcal/100g</div></div>
+  </div>
+  <div class="li">
+    <div class="li-icon" style="background:#FFFBF0;">🍌</div>
+    <div style="flex:1;"><div class="li-title">Banana</div><div class="li-sub">Fruits</div></div>
+    <div class="li-right"><div class="li-val">89</div><div class="li-unit">kcal/100g</div></div>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ MEALS ══
+meals: `
+<div class="sh"><div class="sh-title">Meals</div><div class="sh-sub">73 meals across all diets</div></div>
+<div class="search-bar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Search meals...</span></div>
+<div class="chips-row">
+  <div class="chip on">All</div>
+  <div class="chip">Breakfast</div>
+  <div class="chip">Lunch</div>
+  <div class="chip">Dinner</div>
+  <div class="chip">Snacks</div>
+</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFF8E6;">🍳</div>
+    <div style="flex:1;"><div class="li-title">Egg Parantha (Liquid Dough)</div><div class="li-sub">9 ingredients · Breakfast</div></div>
+    <div class="li-right"><div class="li-val">520</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F0FFF0;">🥗</div>
+    <div style="flex:1;"><div class="li-title">Mix Fruit Bowl</div><div class="li-sub">5 ingredients · Lunch</div></div>
+    <div class="li-right"><div class="li-val">280</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F5F0FF;">🍛</div>
+    <div style="flex:1;"><div class="li-title">Paneer Lauki Chana Dal Rice</div><div class="li-sub">8 ingredients · Dinner</div></div>
+    <div class="li-right"><div class="li-val">580</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F0F8FF;">☕</div>
+    <div style="flex:1;"><div class="li-title">Black Coffee</div><div class="li-sub">1 ingredient · Noon</div></div>
+    <div class="li-right"><div class="li-val">5</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li">
+    <div class="li-icon" style="background:#FFF5F0;">🌯</div>
+    <div style="flex:1;"><div class="li-title">Paneer Bhurji Tortilla Wrap</div><div class="li-sub">8 ingredients · Breakfast</div></div>
+    <div class="li-right"><div class="li-val">490</div><div class="li-unit">kcal</div></div>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ MEAL DETAIL ══
+'meal-detail': `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">‹</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Meal Detail</div>
+</div>
+<div class="sh">
+  <div class="sh-title">Mix Fruit Bowl</div>
+  <div style="display:flex;gap:6px;margin-top:6px;">
+    <span class="tag tg">Lunch</span>
+    <span class="tag tgr">Diet-9</span>
+  </div>
+</div>
+<div style="display:flex;background:#fff;border-radius:14px;margin:8px 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">280</div><div style="font-size:10px;color:#AAA;margin-top:1px;">kcal</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">6g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">protein</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">58g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">carbs</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;"><div style="font-size:17px;font-weight:700;">4g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">fat</div></div>
+</div>
+<div class="sec">Ingredients</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFFBF0;">🍌</div>
+    <div style="flex:1;"><div class="li-title">Banana</div><div class="li-sub">100g</div></div>
+    <div class="li-right"><div class="li-val">89</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFF5F0;">🍈</div>
+    <div style="flex:1;"><div class="li-title">Cantaloupe</div><div class="li-sub">140g</div></div>
+    <div class="li-right"><div class="li-val">48</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F5F5F5;">🌑</div>
+    <div style="flex:1;"><div class="li-title">Black Dates</div><div class="li-sub">50g</div></div>
+    <div class="li-right"><div class="li-val">134</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFF8E6;">🌰</div>
+    <div style="flex:1;"><div class="li-title">Almonds</div><div class="li-sub">14g</div></div>
+    <div class="li-right"><div class="li-val">82</div><div class="li-unit">kcal</div></div>
+  </div>
+  <div class="li">
+    <div class="li-icon" style="background:#FFF8E6;">🌰</div>
+    <div style="flex:1;"><div class="li-title">Cashew</div><div class="li-sub">14g</div></div>
+    <div class="li-right"><div class="li-val">79</div><div class="li-unit">kcal</div></div>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ DIETS ══
+diets: `
+<div class="sh"><div class="sh-title">Diets</div><div class="sh-sub">38 diet plans · Remission · Maintenance · SOS</div></div>
+<div class="search-bar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Search diets...</span></div>
+<div class="chips-row">
+  <div class="chip on">All</div>
+  <div class="chip">Remission</div>
+  <div class="chip">Maintenance</div>
+  <div class="chip">SOS</div>
+  <div class="chip">Favourites ♥</div>
+</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#E8F5EE;">🥗</div>
+    <div style="flex:1;"><div class="li-title">Diet-9</div><div class="li-sub">Egg Parantha, Fruit Bowl, Paneer Lauki...</div></div>
+    <div class="li-right"><span class="tag tg" style="margin-bottom:4px;">Remission</span><div class="li-unit">5 slots</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFF0E6;">🍱</div>
+    <div style="flex:1;"><div class="li-title">Diet-M1</div><div class="li-sub">Paneer Egg Bhurji, Fruit Bowl, Chicken...</div></div>
+    <div class="li-right"><span class="tag to" style="margin-bottom:4px;">Maintenance</span><div class="li-unit">6 slots</div></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F0F8FF;">🥙</div>
+    <div style="flex:1;"><div class="li-title">Diet-1</div><div class="li-sub">Mix Veg Omelet, Fruit Bowl, Broccoli...</div></div>
+    <div class="li-right"><span class="tag tg" style="margin-bottom:4px;">Remission</span><div class="li-unit">5 slots</div></div>
+  </div>
+  <div class="li">
+    <div class="li-icon" style="background:#FFF8E6;">🍲</div>
+    <div style="flex:1;"><div class="li-title">Diet-M20</div><div class="li-sub">Chickpea Potato Chaat, Mix Fruit, Egg Rice</div></div>
+    <div class="li-right"><span class="tag tb" style="margin-bottom:4px;">SOS</span><div class="li-unit">4 slots</div></div>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ DIET DETAIL ══
+'diet-detail': `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">‹</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Diet Detail</div>
+  <span class="tag tg">Remission</span>
+</div>
+<div class="sh">
+  <div class="sh-title">Diet-9</div>
+  <div style="font-size:12px;color:#888;margin-top:3px;">Egg Parantha, Fruit Bowl, Paneer Lauki Chana Dal Rice</div>
+</div>
+<div style="display:flex;background:#fff;border-radius:14px;margin:0 16px 10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">1,840</div><div style="font-size:10px;color:#AAA;margin-top:1px;">kcal</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">142g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">protein</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid #F0F0F0;"><div style="font-size:17px;font-weight:700;">186g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">carbs</div></div>
+  <div style="flex:1;padding:12px 8px;text-align:center;"><div style="font-size:17px;font-weight:700;">54g</div><div style="font-size:10px;color:#AAA;margin-top:1px;">fat</div></div>
+</div>
+<div class="sec">Meal Slots</div>
+<div class="card card-p0">
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;cursor:pointer;">
+    <div class="slot-dot" style="background:#F59E0B;"></div>
+    <div class="slot-label">Breakfast</div>
+    <div style="flex:1;"><div class="slot-meal">Egg Parantha (Liquid Dough)</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Onion · Carrot · Red Bell Pepper · Maida · Gram Flour · Milk · Eggs</div></div>
+    <div class="slot-cal">520</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#888;"></div>
+    <div class="slot-label">Noon</div>
+    <div style="flex:1;"><div class="slot-meal">Black Coffee</div></div>
+    <div class="slot-cal">5</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;cursor:pointer;">
+    <div class="slot-dot" style="background:#2E7D52;"></div>
+    <div class="slot-label">Lunch</div>
+    <div style="flex:1;"><div class="slot-meal">Mix Fruit Bowl</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Banana · Cantaloupe · Black Dates · Almonds · Cashew</div></div>
+    <div class="slot-cal">280</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#FBBF24;"></div>
+    <div class="slot-label">Evening</div>
+    <div style="flex:1;"><div class="slot-meal">Milk Tea</div></div>
+    <div class="slot-cal">120</div>
+  </div>
+  <div class="slot-r">
+    <div class="slot-dot" style="background:#7C3AED;"></div>
+    <div class="slot-label">Dinner</div>
+    <div style="flex:1;"><div class="slot-meal">Paneer Lauki Chana Dal Rice</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Onion · Tomato · Paneer · Lauki · Matar · Mustard Oil · Rice · Chana Dal</div></div>
+    <div class="slot-cal">580</div>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ ADD FOOD ══
+'add-food': `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">✕</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Add Food</div>
+</div>
+<div class="sh"><div class="sh-sub">Add to your food catalogue</div></div>
+<div style="padding:0 16px;">
+  <div class="form-group"><div class="form-label">Food name *</div><div class="form-input focus">Avocado</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div class="form-group"><div class="form-label">Calories (per 100g)</div><div class="form-input">160</div></div>
+    <div class="form-group"><div class="form-label">Protein (g)</div><div class="form-input">2</div></div>
+    <div class="form-group"><div class="form-label">Carbs (g)</div><div class="form-input">9</div></div>
+    <div class="form-group"><div class="form-label">Fat (g)</div><div class="form-input">15</div></div>
+  </div>
+  <div class="form-group"><div class="form-label">Category</div><div class="form-input" style="color:#AAA;">Fruits / Vegetables / Grains...</div></div>
+  <div style="display:flex;align-items:center;gap:10px;background:#F7F7F7;border-radius:12px;padding:12px;margin-bottom:14px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+    <div style="flex:1;font-size:13px;color:#555;font-weight:500;">Scan barcode to auto-fill</div>
+    <span class="tag tgr" style="font-size:11px;">Scan</span>
+  </div>
+  <button class="form-btn">Save Food</button>
+  <button class="form-btn-outline">Search Online (USDA / OpenFoodFacts)</button>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ ADD MEAL ══
+'add-meal': `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">✕</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Create Meal</div>
+</div>
+<div class="sh"><div class="sh-sub">Combine foods into a meal</div></div>
+<div style="padding:0 16px;">
+  <div class="form-group"><div class="form-label">Meal name *</div><div class="form-input focus">Paneer Corn Stir Fry</div></div>
+</div>
+<div class="sec">Ingredients</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#F5F5F5;">🧀</div>
+    <div style="flex:1;"><div class="li-title">Paneer</div></div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <div style="background:#F0F0F0;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;">100g</div>
+      <div style="font-size:16px;color:#CCC;cursor:pointer;">✕</div>
+    </div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFFEF0;">🌽</div>
+    <div style="flex:1;"><div class="li-title">Corn</div></div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <div style="background:#F0F0F0;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;">80g</div>
+      <div style="font-size:16px;color:#CCC;cursor:pointer;">✕</div>
+    </div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;">
+    <div class="li-icon" style="background:#FFF0F0;">🌶️</div>
+    <div style="flex:1;"><div class="li-title">Red Bell Pepper</div></div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <div style="background:#F0F0F0;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;">50g</div>
+      <div style="font-size:16px;color:#CCC;cursor:pointer;">✕</div>
+    </div>
+  </div>
+  <div style="padding:12px 16px;display:flex;align-items:center;gap:8px;cursor:pointer;">
+    <div style="width:34px;height:34px;background:#F0F0F0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#888;">+</div>
+    <div style="font-size:13px;color:#888;font-weight:500;">Search & add ingredient...</div>
+  </div>
+</div>
+<div style="padding:0 16px;margin-top:4px;">
+  <div style="display:flex;gap:10px;background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);margin-bottom:14px;">
+    <div style="flex:1;text-align:center;"><div style="font-size:16px;font-weight:700;">490</div><div style="font-size:10px;color:#AAA;">kcal</div></div>
+    <div style="flex:1;text-align:center;border-left:1px solid #F0F0F0;"><div style="font-size:16px;font-weight:700;">32g</div><div style="font-size:10px;color:#AAA;">protein</div></div>
+    <div style="flex:1;text-align:center;border-left:1px solid #F0F0F0;"><div style="font-size:16px;font-weight:700;">28g</div><div style="font-size:10px;color:#AAA;">carbs</div></div>
+    <div style="flex:1;text-align:center;border-left:1px solid #F0F0F0;"><div style="font-size:16px;font-weight:700;">18g</div><div style="font-size:10px;color:#AAA;">fat</div></div>
+  </div>
+  <button class="form-btn">Save Meal</button>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ ADD DIET ══
+'add-diet': `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">✕</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Create Diet</div>
+</div>
+<div class="sh"><div class="sh-sub">Assign meals to slots for a full day plan</div></div>
+<div style="padding:0 16px;">
+  <div class="form-group"><div class="form-label">Diet name *</div><div class="form-input focus">My Custom Diet</div></div>
+  <div class="form-group">
+    <div class="form-label">Type</div>
+    <div style="display:flex;gap:8px;margin-top:2px;">
+      <div style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #111;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">Remission</div>
+      <div style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #E0E0E0;text-align:center;font-size:13px;color:#AAA;cursor:pointer;">Maintenance</div>
+      <div style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #E0E0E0;text-align:center;font-size:13px;color:#AAA;cursor:pointer;">SOS</div>
+    </div>
+  </div>
+  <div class="form-group"><div class="form-label">Description</div><div class="form-input" style="color:#AAA;">Brief description of this diet plan...</div></div>
+</div>
+<div class="sec">Assign Meals to Slots</div>
+<div class="card card-p0">
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;cursor:pointer;">
+    <div class="slot-dot" style="background:#F59E0B;"></div>
+    <div class="slot-label">Breakfast</div>
+    <div style="flex:1;font-size:13px;font-weight:600;">Paneer Corn Stir Fry</div>
+    <div style="font-size:13px;color:#CCC;">›</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;cursor:pointer;">
+    <div class="slot-dot" style="background:#888;"></div>
+    <div class="slot-label">Noon</div>
+    <div style="flex:1;font-size:13px;font-style:italic;color:#CCC;">Tap to assign a meal</div>
+    <div style="font-size:13px;color:#CCC;">+</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;cursor:pointer;">
+    <div class="slot-dot" style="background:#2E7D52;"></div>
+    <div class="slot-label">Lunch</div>
+    <div style="flex:1;font-size:13px;font-style:italic;color:#CCC;">Tap to assign a meal</div>
+    <div style="font-size:13px;color:#CCC;">+</div>
+  </div>
+  <div class="slot-r" style="cursor:pointer;">
+    <div class="slot-dot" style="background:#7C3AED;"></div>
+    <div class="slot-label">Dinner</div>
+    <div style="flex:1;font-size:13px;font-style:italic;color:#CCC;">Tap to assign a meal</div>
+    <div style="font-size:13px;color:#CCC;">+</div>
+  </div>
+</div>
+<div style="padding:0 16px;"><button class="form-btn">Save Diet</button></div>
+<div class="sp"></div>
+`,
+
+// ══ CALENDAR ══
+calendar: `
+<div class="sh"><div class="sh-title">Plan</div></div>
+<div class="mini-cal">
+  <div class="cal-head">
+    <div class="cal-month">April 2026</div>
+    <div class="cal-arrows"><span>‹</span><span>›</span></div>
+  </div>
+  <div class="cal-dh">
+    <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+  </div>
+  <div class="cal-grid" id="cal-grid-main"></div>
+  <div style="display:flex;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #F5F5F5;">
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;"></div><div style="font-size:10px;color:#888;">Diet planned</div></div>
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:7px;height:7px;border-radius:50%;background:#1E4FBF;"></div><div style="font-size:10px;color:#888;">Workout</div></div>
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:7px;height:7px;border-radius:50%;background:#E53E3E;"></div><div style="font-size:10px;color:#888;">Missed log</div></div>
+  </div>
+</div>
+<div class="sec">Upcoming</div>
+<div class="card card-p0">
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:36px;text-align:center;flex-shrink:0;"><div style="font-size:9px;color:#AAA;font-weight:700;">WED</div><div style="font-size:16px;font-weight:700;line-height:1;">8</div></div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Diet-9</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Egg Parantha · Fruit Bowl · Paneer Lauki</div></div>
+    <span class="tag tg">Today</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:36px;text-align:center;flex-shrink:0;"><div style="font-size:9px;color:#AAA;font-weight:700;">THU</div><div style="font-size:16px;font-weight:700;line-height:1;">9</div></div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Diet-10</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Onion Avocado Omelet · PB Apple Sandwich</div></div>
+    <span class="tag tb">Leg day</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #F5F5F5;">
+    <div style="width:36px;text-align:center;flex-shrink:0;"><div style="font-size:9px;color:#AAA;font-weight:700;">FRI</div><div style="font-size:16px;font-weight:700;line-height:1;">10</div></div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Diet-11</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Paneer Mix Veg Wrap · Roasted Chicken</div></div>
+    <span class="tag tgr">Rest</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
+    <div style="width:36px;text-align:center;flex-shrink:0;"><div style="font-size:9px;color:#AAA;font-weight:700;">SAT</div><div style="font-size:16px;font-weight:700;line-height:1;color:#CCC;">11</div></div>
+    <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#CCC;">Not planned</div><div style="font-size:11px;color:#DDD;margin-top:1px;">Tap to assign a diet</div></div>
+    <span class="tag to" style="cursor:pointer;">+ Plan</span>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ PLAN DAY ══
+'plan-day': `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">‹</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Day Detail</div>
+  <div style="font-size:13px;color:#888;font-weight:500;">Wed, 8 Apr</div>
+</div>
+<div class="sh">
+  <div class="sh-title">Diet-9</div>
+  <div style="font-size:12px;color:#888;margin-top:2px;">1,840 kcal · Upper Body Strength workout</div>
+  <div style="display:flex;gap:6px;margin-top:6px;"><span class="tag tg">Remission</span><span class="tag tb">Workout planned</span></div>
+</div>
+<div class="sec">Meal Slots</div>
+<div class="card card-p0">
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#F59E0B;"></div>
+    <div class="slot-label">Breakfast</div>
+    <div style="flex:1;"><div class="slot-meal">Egg Parantha (Liquid Dough)</div><div style="font-size:11px;color:#AAA;margin-top:1px;">9 ingredients</div></div>
+    <div class="slot-cal">520</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#888;"></div>
+    <div class="slot-label">Noon</div>
+    <div class="slot-meal" style="flex:1;">Black Coffee</div>
+    <div class="slot-cal">5</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#2E7D52;"></div>
+    <div class="slot-label">Lunch</div>
+    <div style="flex:1;"><div class="slot-meal">Mix Fruit Bowl</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Banana · Cantaloupe · Black Dates · Almonds · Cashew</div></div>
+    <div class="slot-cal">280</div>
+  </div>
+  <div class="slot-r" style="border-bottom:1px solid #F5F5F5;">
+    <div class="slot-dot" style="background:#FBBF24;"></div>
+    <div class="slot-label">Evening</div>
+    <div class="slot-meal" style="flex:1;">Milk Tea</div>
+    <div class="slot-cal">120</div>
+  </div>
+  <div class="slot-r">
+    <div class="slot-dot" style="background:#7C3AED;"></div>
+    <div class="slot-label">Dinner</div>
+    <div style="flex:1;"><div class="slot-meal">Paneer Lauki Chana Dal Rice</div><div style="font-size:11px;color:#AAA;margin-top:1px;">8 ingredients</div></div>
+    <div class="slot-cal">580</div>
+  </div>
+</div>
+<div class="sec">Workout</div>
+<div class="card" style="display:flex;align-items:center;gap:12px;">
+  <div style="font-size:26px;">🏋️</div>
+  <div style="flex:1;"><div style="font-size:13px;font-weight:700;">Upper Body Strength</div><div style="font-size:11px;color:#AAA;margin-top:2px;">6 exercises · ~45 min</div></div>
+  <span class="tag tb" style="flex-shrink:0;">View</span>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ WORKOUT HOME ══ (Phase 2)
+'workout-home': `
+<div class="sh"><div class="sh-title">Workouts <span class="phase-mark tb">Phase 2</span></div></div>
+<div class="workout-stat-row" style="margin-top:8px;">
+  <div class="ws"><div class="ws-val">4</div><div class="ws-label">This week</div></div>
+  <div class="ws"><div class="ws-val">186</div><div class="ws-label">Minutes</div></div>
+  <div class="ws"><div class="ws-val">1,240</div><div class="ws-label">kcal burned</div></div>
+</div>
+<div style="background:#111;border-radius:14px;margin:0 16px 10px;padding:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;">
+  <div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Today's session</div>
+    <div style="font-size:17px;font-weight:700;margin-top:4px;">Upper Body Strength</div>
+    <div style="font-size:11px;color:#888;margin-top:2px;">6 exercises · est. 45 min</div>
+  </div>
+  <div style="background:#fff;color:#111;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">▶ Start</div>
+</div>
+<div class="sec">Today's plan</div>
+<div class="card card-p0">
+  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico">🏋️</div><div><div class="ex-name">Bench Press</div><div class="ex-det">Chest · Strength</div></div><div class="ex-sets">4 × 10</div></div>
+  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico">💪</div><div><div class="ex-name">Pull-ups</div><div class="ex-det">Back · Strength</div></div><div class="ex-sets">4 × 8</div></div>
+  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico">🤸</div><div><div class="ex-name">Shoulder Press</div><div class="ex-det">Shoulders · Strength</div></div><div class="ex-sets">3 × 12</div></div>
+  <div class="ex-item"><div class="ex-ico">🧘</div><div><div class="ex-name">Tricep Dips</div><div class="ex-det">Arms · Strength</div></div><div class="ex-sets">3 × 15</div></div>
+</div>
+<div class="sec">Recent sessions</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div style="width:34px;text-align:center;"><div style="font-size:9px;color:#AAA;font-weight:700;">TUE</div><div style="font-size:15px;font-weight:700;">7</div></div><div style="flex:1;padding-left:4px;"><div class="li-title">Lower Body + Core</div><div class="li-sub">52 min</div></div><div class="li-right"><div class="li-val" style="font-size:12px;">340 kcal</div></div></div>
+  <div class="li"><div style="width:34px;text-align:center;"><div style="font-size:9px;color:#AAA;font-weight:700;">SUN</div><div style="font-size:15px;font-weight:700;">5</div></div><div style="flex:1;padding-left:4px;"><div class="li-title">Full Body HIIT</div><div class="li-sub">35 min</div></div><div class="li-right"><div class="li-val" style="font-size:12px;">410 kcal</div></div></div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ ACTIVE SESSION ══ (Phase 2)
+'active-session': `
+<div class="aw-header">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <span class="phase-mark tb" style="font-size:10px;">Phase 2</span>
+    <div style="font-size:12px;color:#888;font-weight:500;">3 / 6 done</div>
+  </div>
+  <div class="aw-exercise">Shoulder Press</div>
+  <div class="aw-set">Set 2 of 3 · 12 reps · 20kg</div>
+  <div style="background:rgba(255,255,255,0.1);border-radius:6px;height:4px;margin-top:12px;overflow:hidden;"><div style="width:50%;height:100%;background:#fff;border-radius:6px;"></div></div>
+</div>
+<div class="aw-timer">01:24</div>
+<div class="sec">Sets</div>
+<div class="card card-p0">
+  <div class="set-log-row" style="border-bottom:1px solid #F5F5F5;">
+    <div class="set-num set-done">1</div>
+    <div class="set-field">20 kg</div>
+    <div class="set-x">×</div>
+    <div class="set-field">12</div>
+    <div style="font-size:14px;color:#2E7D52;font-weight:700;flex-shrink:0;">✓</div>
+  </div>
+  <div class="set-log-row" style="border-bottom:1px solid #F5F5F5;background:#FAFAFA;">
+    <div class="set-num" style="background:#111;">2</div>
+    <div class="set-field" style="background:#fff;border:1.5px solid #111;">20 kg</div>
+    <div class="set-x">×</div>
+    <div class="set-field" style="background:#fff;border:1.5px solid #111;">12</div>
+    <div style="width:24px;flex-shrink:0;"></div>
+  </div>
+  <div class="set-log-row">
+    <div class="set-num" style="background:#E0E0E0;color:#AAA;">3</div>
+    <div class="set-field" style="color:#CCC;">— kg</div>
+    <div class="set-x" style="color:#DDD;">×</div>
+    <div class="set-field" style="color:#CCC;">—</div>
+    <div style="width:24px;flex-shrink:0;"></div>
+  </div>
+</div>
+<div class="aw-next">
+  <div style="font-size:11px;color:#AAA;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">Next up</div>
+  <div style="flex:1;padding-left:8px;font-size:13px;font-weight:600;">Tricep Dips · 3 × 15</div>
+</div>
+<div style="padding:0 16px 16px;display:flex;gap:10px;">
+  <button class="form-btn-outline" style="flex:1;margin-top:0;padding:10px;">Skip</button>
+  <button class="form-btn" style="flex:2;margin-top:0;padding:10px;">Log Set ✓</button>
+</div>
+`,
+
+// ══ EXERCISE CATALOGUE ══ (Phase 2)
+'exercise-cat': `
+<div class="sh"><div class="sh-title">Exercises <span class="phase-mark tb">Phase 2</span></div><div class="sh-sub">Catalogue · 120+ exercises</div></div>
+<div class="search-bar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Search exercises...</span></div>
+<div class="chips-row">
+  <div class="chip on">All</div>
+  <div class="chip">Strength</div>
+  <div class="chip">Cardio</div>
+  <div class="chip">Flexibility</div>
+  <div class="chip">Core</div>
+</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">🏋️</div><div style="flex:1;"><div class="li-title">Bench Press</div><div class="li-sub">Chest · Strength · Barbell</div></div><span class="tag tb">Strength</span></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">💪</div><div style="flex:1;"><div class="li-title">Pull-ups</div><div class="li-sub">Back · Strength · Bodyweight</div></div><span class="tag tb">Strength</span></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">🦵</div><div style="flex:1;"><div class="li-title">Barbell Squat</div><div class="li-sub">Legs · Strength · Barbell</div></div><span class="tag tb">Strength</span></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">🏃</div><div style="flex:1;"><div class="li-title">Treadmill Run</div><div class="li-sub">Cardio · Machine</div></div><span class="tag tgr">Cardio</span></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">🧘</div><div style="flex:1;"><div class="li-title">Plank</div><div class="li-sub">Core · Bodyweight</div></div><span class="tag tgr">Core</span></div>
+  <div class="li"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">🚴</div><div style="flex:1;"><div class="li-title">Cycling</div><div class="li-sub">Cardio · Machine</div></div><span class="tag tgr">Cardio</span></div>
+</div>
+<div style="padding:0 16px;margin-top:2px;"><button class="form-btn-outline" style="margin-top:0;">+ Add custom exercise</button></div>
+<div class="sp"></div>
+`,
+
+// ══ HEALTH METRICS ══
+metrics: `
+<div class="sh"><div class="sh-title">Health</div></div>
+<div class="sec">Last 7 days · Weight</div>
+<div class="metric-card">
+  <div class="chart-area">
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;"><div class="bar-col" style="height:60px;"></div><div class="bar-label">M</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;"><div class="bar-col" style="height:65px;"></div><div class="bar-label">T</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;"><div class="bar-col" style="height:58px;"></div><div class="bar-label">W</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;"><div class="bar-col" style="height:62px;"></div><div class="bar-label">T</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;"><div class="bar-col" style="height:55px;"></div><div class="bar-label">F</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;"><div class="bar-col" style="height:60px;"></div><div class="bar-label">S</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;"><div class="bar-col hl" style="height:63px;"></div><div class="bar-label" style="font-weight:700;color:#111;">T</div></div>
+  </div>
+  <div style="padding:10px 16px 14px;display:flex;align-items:center;justify-content:space-between;">
+    <div><div style="font-size:22px;font-weight:700;letter-spacing:-0.5px;">72.4 kg</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Today · ↓0.3 kg this week</div></div>
+    <span class="tag tg">On track</span>
+  </div>
+</div>
+<div class="sec">All metrics</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="li-icon" style="background:#FFF0E6;">⚖️</div><div style="flex:1;"><div class="li-title">Weight</div><div class="li-sub">Last logged: today</div></div><div class="li-right"><div class="li-val">72.4</div><div class="li-unit">kg</div></div></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="li-icon" style="background:#E8F5EE;">💊</div><div style="flex:1;"><div class="li-title">GI Score (Crohn's)</div><div class="li-sub">Self-reported · today</div></div><div class="li-right"><div class="li-val">2</div><div class="li-unit">/10</div></div></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="li-icon" style="background:#F3EEFF;">⚡</div><div style="flex:1;"><div class="li-title">Energy Level</div><div class="li-sub">Self-reported · today</div></div><div class="li-right"><div class="li-val">8</div><div class="li-unit">/10</div></div></div>
+  <div class="li"><div class="li-icon" style="background:#F0F8FF;">😴</div><div style="flex:1;"><div class="li-title">Sleep</div><div class="li-sub">Last logged: yesterday</div></div><div class="li-right"><div class="li-val">7.5</div><div class="li-unit">hrs</div></div></div>
+</div>
+<div style="padding:0 16px;"><button class="form-btn-outline" style="margin-top:0;">+ Log metric</button></div>
+<div class="sp"></div>
+`,
+
+// ══ GROCERY ══
+grocery: `
+<div class="sh"><div class="sh-title">Grocery List</div><div class="sh-sub">Auto-generated from Diet-9 to Diet-11</div></div>
+<div style="display:flex;align-items:center;gap:10px;padding:6px 16px 10px;">
+  <span class="tag tg">14 items</span>
+  <span class="tag tgr">3 bought</span>
+  <div style="margin-left:auto;font-size:12px;color:#888;font-weight:500;cursor:pointer;">Clear bought</div>
+</div>
+<div class="sec">Vegetables</div>
+<div class="card card-p0">
+  <div class="grocery-item"><div class="g-check done"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div class="g-name done">Onion</div><div class="g-qty">300g</div></div>
+  <div class="grocery-item"><div class="g-check done"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div class="g-name done">Tomato</div><div class="g-qty">250g</div></div>
+  <div class="grocery-item"><div class="g-check"></div><div class="g-name">Lauki</div><div class="g-qty">200g</div></div>
+  <div class="grocery-item"><div class="g-check"></div><div class="g-name">Broccoli</div><div class="g-qty">150g</div></div>
+  <div class="grocery-item" style="border-bottom:none;"><div class="g-check"></div><div class="g-name">Capsicum</div><div class="g-qty">100g</div></div>
+</div>
+<div class="sec">Dairy & Protein</div>
+<div class="card card-p0">
+  <div class="grocery-item"><div class="g-check done"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div class="g-name done">Paneer</div><div class="g-qty">300g</div></div>
+  <div class="grocery-item"><div class="g-check"></div><div class="g-name">Eggs</div><div class="g-qty">6 pieces</div></div>
+  <div class="grocery-item" style="border-bottom:none;"><div class="g-check"></div><div class="g-name">Milk</div><div class="g-qty">500ml</div></div>
+</div>
+<div class="sec">Grains & Dry</div>
+<div class="card card-p0">
+  <div class="grocery-item"><div class="g-check"></div><div class="g-name">White Rice</div><div class="g-qty">150g</div></div>
+  <div class="grocery-item"><div class="g-check"></div><div class="g-name">Chana Dal</div><div class="g-qty">90g</div></div>
+  <div class="grocery-item" style="border-bottom:none;"><div class="g-check"></div><div class="g-name">Gram Flour</div><div class="g-qty">120g</div></div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ STREAK ══
+streak: `
+<div class="sh"><div class="sh-title">Streak & Stats</div></div>
+<div class="card">
+  <div class="row" style="margin-bottom:12px;">
+    <div><div style="font-size:36px;font-weight:700;letter-spacing:-1px;">47</div><div style="font-size:12px;color:#888;">Day streak 🔥</div></div>
+    <div style="text-align:right;"><div style="font-size:22px;font-weight:700;">62</div><div style="font-size:12px;color:#888;">Best ever</div></div>
+  </div>
+  <div style="font-size:11px;color:#AAA;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">This week</div>
+  <div class="streak-dots">
+    <div class="sd done"><div class="sd-label">M</div></div>
+    <div class="sd done"><div class="sd-label">T</div></div>
+    <div class="sd today"><div class="sd-label">W</div></div>
+    <div class="sd"><div class="sd-label" style="color:#DDD;">T</div></div>
+    <div class="sd"><div class="sd-label" style="color:#DDD;">F</div></div>
+    <div class="sd"><div class="sd-label" style="color:#DDD;">S</div></div>
+    <div class="sd"><div class="sd-label" style="color:#DDD;">S</div></div>
+  </div>
+</div>
+<div class="sec">Monthly overview · April</div>
+<div class="card" style="padding-top:10px;">
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+    ${Array.from({length:30}, (_,i) => {
+      const d = i+1;
+      const done = d < 8;
+      const today = d === 8;
+      return `<div style="aspect-ratio:1;border-radius:5px;display:flex;align-items:center;justify-content:center;background:${today?'#111':done?'#E8F5EE':'#F5F5F5'};"><span style="font-size:10px;font-weight:${today?'700':'500'};color:${today?'#fff':done?'#2E7D52':'#CCC'};">${d}</span></div>`;
+    }).join('')}
+  </div>
+  <div style="display:flex;gap:12px;margin-top:10px;">
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:#E8F5EE;"></div><div style="font-size:10px;color:#888;">Logged</div></div>
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:#111;"></div><div style="font-size:10px;color:#888;">Today</div></div>
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:#F5F5F5;"></div><div style="font-size:10px;color:#888;">Upcoming</div></div>
+  </div>
+</div>
+<div class="sec">All-time stats</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px;">
+  <div class="card" style="margin:0;"><div style="font-size:22px;font-weight:700;">234</div><div style="font-size:11px;color:#AAA;margin-top:2px;">Total days logged</div></div>
+  <div class="card" style="margin:0;"><div style="font-size:22px;font-weight:700;">38</div><div style="font-size:11px;color:#AAA;margin-top:2px;">Workouts done</div></div>
+  <div class="card" style="margin:0;"><div style="font-size:22px;font-weight:700;">1,840</div><div style="font-size:11px;color:#AAA;margin-top:2px;">Avg kcal/day</div></div>
+  <div class="card" style="margin:0;"><div style="font-size:22px;font-weight:700;">136g</div><div style="font-size:11px;color:#AAA;margin-top:2px;">Avg protein/day</div></div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ SETTINGS ══
+settings: `
+<div class="sh"><div class="sh-title">Settings</div></div>
+<div class="sec">Profile</div>
+<div class="card card-p0">
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#F5F5F5;"><svg viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+    <div class="setting-title">Pulin Thakkar</div>
+    <div class="setting-value">pulin@...</div>
+    <div class="setting-arrow">›</div>
+  </div>
+</div>
+<div class="sec">Notifications</div>
+<div class="card card-p0">
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#FFF8E6;"><svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+    <div class="setting-title">Breakfast reminder</div>
+    <div class="setting-value">7:30 AM</div>
+    <div class="toggle on"><div class="toggle-knob"></div></div>
+  </div>
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#F0F8FF;"><svg viewBox="0 0 24 24" fill="none" stroke="#0284C7" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+    <div class="setting-title">Lunch reminder</div>
+    <div class="setting-value">12:30 PM</div>
+    <div class="toggle on"><div class="toggle-knob"></div></div>
+  </div>
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#F3EEFF;"><svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+    <div class="setting-title">Dinner reminder</div>
+    <div class="setting-value">7:00 PM</div>
+    <div class="toggle on"><div class="toggle-knob"></div></div>
+  </div>
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#F0F0F0;"><svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+    <div class="setting-title">Streak reminder</div>
+    <div class="setting-value">9:00 PM</div>
+    <div class="toggle"><div class="toggle-knob"></div></div>
+  </div>
+</div>
+<div class="sec">App</div>
+<div class="card card-p0">
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#F0F0F0;"><svg viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+    <div class="setting-title">Theme</div>
+    <div class="setting-value">Light</div>
+    <div class="setting-arrow">›</div>
+  </div>
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#E8F5EE;"><svg viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+    <div class="setting-title">Backup & Restore</div>
+    <div style="display:flex;align-items:center;gap:4px;"><span class="phase-mark" style="background:#E8F5EE;color:#2E7D52;font-size:9px;padding:2px 6px;">Phase 1</span></div>
+    <div class="setting-arrow">›</div>
+  </div>
+  <div class="setting-row">
+    <div class="setting-icon" style="background:#E8EEFF;"><svg viewBox="0 0 24 24" fill="none" stroke="#1E4FBF" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
+    <div class="setting-title">Sync Status</div>
+    <div style="display:flex;align-items:center;gap:4px;"><span class="phase-mark" style="background:#E8EEFF;color:#1E4FBF;font-size:9px;padding:2px 6px;">Phase 1</span></div>
+    <div class="setting-arrow">›</div>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ BACKUP ══ (Phase 1)
+backup: `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">‹</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Backup & Restore <span class="phase-mark" style="background:#E8F5EE;color:#2E7D52;font-size:10px;">Phase 1</span></div>
+</div>
+<div class="sh"><div class="sh-sub">Your data is backed up to the cloud</div></div>
+<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#E8F5EE;border-radius:12px;margin:0 16px 10px;">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  <div><div style="font-size:13px;font-weight:600;color:#2E7D52;">Last backup: Today 9:30 AM</div><div style="font-size:11px;color:#5A9977;margin-top:1px;">All data synced to backend</div></div>
+</div>
+<div class="sec">Backup options</div>
+<div class="card card-p0">
+  <div class="backup-option">
+    <div class="backup-icon" style="background:#E8F5EE;"><svg viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+    <div style="flex:1;"><div class="backup-title">Backup now</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Push all local data to backend</div></div>
+    <span class="tag tg">Sync</span>
+  </div>
+  <div class="backup-option">
+    <div class="backup-icon" style="background:#E8EEFF;"><svg viewBox="0 0 24 24" fill="none" stroke="#1E4FBF" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+    <div style="flex:1;"><div class="backup-title">Restore from cloud</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Pull latest from backend to device</div></div>
+    <span class="tag tb">Restore</span>
+  </div>
+  <div class="backup-option">
+    <div class="backup-icon" style="background:#FFF8E6;"><svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+    <div style="flex:1;"><div class="backup-title">Export as JSON</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Save seed_data.json to device</div></div>
+    <span class="tag to">Export</span>
+  </div>
+  <div class="backup-option" style="border-bottom:none;">
+    <div class="backup-icon" style="background:#F0F0F0;"><svg viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+    <div style="flex:1;"><div class="backup-title">Import JSON</div><div style="font-size:11px;color:#AAA;margin-top:1px;">Import seed_data.json from files</div></div>
+    <span class="tag tgr">Import</span>
+  </div>
+</div>
+<div class="sp"></div>
+`,
+
+// ══ SYNC STATUS ══ (Phase 1)
+sync: `
+<div style="display:flex;align-items:center;padding:10px 16px 0;gap:8px;background:#fff;">
+  <div style="font-size:20px;color:#AAA;cursor:pointer;">‹</div>
+  <div style="font-size:15px;font-weight:700;flex:1;">Sync Status <span class="phase-mark" style="background:#E8EEFF;color:#1E4FBF;font-size:10px;">Phase 1</span></div>
+</div>
+<div class="sh"><div class="sh-sub">Cloud sync · Last-write-wins</div></div>
+<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#E8EEFF;border-radius:12px;margin:0 16px 10px;">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E4FBF" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+  <div><div style="font-size:13px;font-weight:600;color:#1E4FBF;">Synced · 9:30 AM today</div><div style="font-size:11px;color:#6080C0;margin-top:1px;">All 234 records up to date</div></div>
+</div>
+<div class="sec">Sync summary</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="li-icon" style="background:#E8F5EE;">🥗</div><div style="flex:1;"><div class="li-title">Diets & Meals</div><div class="li-sub">38 diets · 150 meal slots</div></div><span class="tag tg">Synced</span></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="li-icon" style="background:#FFF0E6;">📋</div><div style="flex:1;"><div class="li-title">Daily Logs</div><div class="li-sub">234 days logged</div></div><span class="tag tg">Synced</span></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="li-icon" style="background:#F3EEFF;">📊</div><div style="flex:1;"><div class="li-title">Health Metrics</div><div class="li-sub">68 entries</div></div><span class="tag tg">Synced</span></div>
+  <div class="li"><div class="li-icon" style="background:#F0F8FF;">📅</div><div style="flex:1;"><div class="li-title">Plan / Calendar</div><div class="li-sub">2 pending changes</div></div><span class="tag to">Pending</span></div>
+</div>
+<div class="sec">Recent activity</div>
+<div class="card card-p0">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div style="font-size:22px;">↑</div><div style="flex:1;padding-left:4px;"><div class="li-title" style="font-size:13px;">Pushed 3 food log entries</div><div class="li-sub">Today, 9:30 AM</div></div></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div style="font-size:22px;">↓</div><div style="flex:1;padding-left:4px;"><div class="li-title" style="font-size:13px;">Pulled 0 new records</div><div class="li-sub">Today, 9:30 AM</div></div></div>
+  <div class="li"><div style="font-size:22px;">↑</div><div style="flex:1;padding-left:4px;"><div class="li-title" style="font-size:13px;">Pushed health metric (weight)</div><div class="li-sub">Yesterday, 8:15 PM</div></div></div>
+</div>
+<div class="sp"></div>
+`
+};
+
+// ─── State ────────────────────────────────────────────────────────────
+let currentGroup = 'today';
+let currentScreen = 'home';
+
+function setGroup(g) {
+  currentGroup = g;
+  currentScreen = groups[g].screens[0].id;
+  renderNav();
+  renderScreen();
+  document.querySelectorAll('.gtab').forEach(el => el.classList.toggle('active', el.textContent.trim().replace(' ●','') === g.charAt(0).toUpperCase()+g.slice(1) || el.onclick.toString().includes("'"+g+"'")));
+}
+
+function setScreen(id) {
+  currentScreen = id;
+  renderScreen();
+  renderNav();
+}
+
+function renderNav() {
+  const g = groups[currentGroup];
+  document.getElementById('screen-nav').innerHTML = g.screens.map(s =>
+    `<div class="snav${s.id===currentScreen?' active':''}" onclick="setScreen('${s.id}')">${s.label}${s.phase?`<span class="phase-badge phase-${s.phase}">P${s.phase}</span>`:''}</div>`
+  ).join('');
+}
+
+function renderScreen() {
+  document.getElementById('screen-content').innerHTML = screens[currentScreen] || '<div style="padding:40px;text-align:center;color:#CCC;">Screen coming soon</div>';
+  if (currentScreen === 'calendar') buildCalendar();
+}
+
+function buildCalendar() {
+  const grid = document.getElementById('cal-grid-main');
+  if (!grid) return;
+  const off = 2, days = 30, planDays = new Set([1,2,3,4,6,7,8,9,10,11,13,14,15,16,17,18,20,21,22,23,24,25,27,28,29,30]);
+  const woDays = new Set([4,5,7,8,10,12,14,15,17,19,21,22,24,26,28]);
+  let h = Array.from({length:off},(_,i)=>`<div class="cd emp"><div class="cd-n" style="color:#DDD;">${29+i}</div><div class="cd-dot"></div></div>`).join('');
+  for(let d=1;d<=days;d++){
+    const iT=d===8, hP=planDays.has(d), hW=woDays.has(d);
+    const dc=iT?'#transparent':hP&&hW?'#7C3AED':hP?'#2E7D52':hW?'#1E4FBF':'transparent';
+    h+=`<div class="cd${iT?' today':''}" onclick="setScreen('plan-day')"><div class="cd-n">${d}</div><div class="cd-dot" style="background:${iT?'transparent':dc};"></div></div>`;
+  }
+  grid.innerHTML=h;
+}
+
+function openAI(){document.getElementById('ai-overlay').classList.add('open');}
+function closeAI(){document.getElementById('ai-overlay').classList.remove('open');}
+
+// Init
+renderNav();
+renderScreen();
+
+// Fix group tab active state
+document.querySelectorAll('.gtab').forEach(el=>{
+  el.addEventListener('click',function(){
+    document.querySelectorAll('.gtab').forEach(e=>e.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
