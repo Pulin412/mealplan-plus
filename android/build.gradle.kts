@@ -33,6 +33,14 @@ android {
         debug {
             isMinifyEnabled = false
             isShrinkResources = false
+            // Separate app ID → installs alongside the stable release as a distinct app
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = " (Dev)"
+            resValue("string", "app_name", "MealPlan+ Dev")
+            // google-services.json only registers com.mealplanplus; tell the plugin
+            // to look up the base package name (strip the .dev suffix) so Firebase
+            // Auth / Crashlytics still initialise correctly in dev builds.
+            manifestPlaceholders["appAuthRedirectScheme"] = "com.mealplanplus"
         }
         release {
             isMinifyEnabled = true
