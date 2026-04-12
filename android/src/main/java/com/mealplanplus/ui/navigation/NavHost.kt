@@ -1043,7 +1043,7 @@ private fun MiscSheet(
                 ) {
                     rowItems.forEach { (iconData, route) ->
                         val (icon, bg, label) = iconData
-                        QuickAddTile(icon = icon, iconBg = bg, label = label, modifier = Modifier.weight(1f)) { go(route) }
+                        QuickAddTile(icon = icon, iconBg = bg, label = label, onClick = { go(route) }, modifier = Modifier.weight(1f))
                     }
                     // Fill remaining slots if row not full
                     repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
