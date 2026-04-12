@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,12 +37,36 @@ import java.time.format.TextStyle
 import java.util.*
 import kotlin.math.roundToInt
 
-private val DarkGreen = Color(0xFF2E7D52)
-private val LightGreenBg = Color(0xFFE8F5E9)
-private val YellowBg = Color(0xFFFFFDE7)
+// ── Design tokens ────────────────────────────────────────────────────────────
+private val DarkGreen      = Color(0xFF2E7D52)
+private val BgPage         = Color(0xFFF7F7F7)
+private val CardBg         = Color.White
+private val TextPrimary    = Color(0xFF111111)
+private val TextSecondary  = Color(0xFF888888)
+private val TextMuted      = Color(0xFFAAAAAA)
+private val TagPurple      = Color(0xFF7B1FA2)
+
+// Slot dot colours (matching Log screen)
+private fun planSlotColor(slotName: String): Color = when (slotName.uppercase()) {
+    "BREAKFAST"    -> Color(0xFFF59E0B)
+    "NOON"         -> Color(0xFF888888)
+    "LUNCH"        -> Color(0xFF2E7D52)
+    "DINNER"       -> Color(0xFF7C3AED)
+    "EVENING_SNACK"-> Color(0xFF2196F3)
+    "EARLY_MORNING"-> Color(0xFF607D8B)
+    "MID_MORNING"  -> Color(0xFFF59E0B)
+    "PRE_WORKOUT"  -> Color(0xFFF44336)
+    "EVENING"      -> Color(0xFF3F51B5)
+    "POST_WORKOUT" -> Color(0xFF009688)
+    "POST_DINNER"  -> Color(0xFF607D8B)
+    else           -> Color(0xFF888888)
+}
+
+// Legacy aliases
+private val LightGreenBg  = Color(0xFFE8F5E9)
+private val YellowBg      = Color(0xFFFFFDE7)
 private val PlannedYellow = Color(0xFFFFF9C4)
-private val CompletedGreen = Color(0xFF2E7D52)
-private val TagPurple = Color(0xFF7B1FA2)
+private val CompletedGreen = DarkGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,8 +100,7 @@ fun CalendarScreen(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Dark green header
+    Column(modifier = Modifier.fillMaxSize().background(BgPage)) {
         MealPlanTopBar(
             onSelectDietForToday = {
                 viewModel.selectDate(LocalDate.now())
@@ -84,48 +108,53 @@ fun CalendarScreen(
             }
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            // Calendar card
-            CalendarCard(
-                currentMonth = uiState.currentMonth,
-                selectedDate = uiState.selectedDate,
-                plans = uiState.plans,
-                dietNames = uiState.dietNames,
-                isWeekView = uiState.isWeekView,
-                onDateSelected = { viewModel.selectDate(it) },
-                onPreviousMonth = { viewModel.goToPreviousMonth() },
-                onNextMonth = { viewModel.goToNextMonth() },
-                onToggleView = { viewModel.toggleView() }
-            )
+            // ── Mini calendar ──────────────────────────────────────────────
+            item {
+                PlanMiniCalendar(
+                    currentMonth = uiState.currentMonth,
+                    selectedDate = uiState.selectedDate,
+                    plans = uiState.plans,
+                    onDateSelected = { viewModel.selectDate(it) },
+                    onPreviousMonth = { viewModel.goToPreviousMonth() },
+                    onNextMonth = { viewModel.goToNextMonth() }
+                )
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // ── Upcoming list ──────────────────────────────────────────────
+            item {
+                UpcomingSection(
+                    plans = uiState.plans,
+                    dietNames = uiState.dietNames,
+                    selectedDate = uiState.selectedDate,
+                    onDaySelected = { viewModel.selectDate(it) },
+                    onAssignDiet = { date -> onNavigateToDietPicker(date.toString()) }
+                )
+            }
 
-            val isPlanCompleted = uiState.plans[uiState.selectedDate.toEpochMs()]?.isCompleted ?: false
-
-            // Selected date detail panel
-            SelectedDatePanel(
-                date = uiState.selectedDate,
-                diet = uiState.selectedDiet,
-                dietWithMeals = uiState.selectedDietWithMeals,
-                tags = uiState.selectedDietTags,
-                isPlanCompleted = isPlanCompleted,
-                todayLoggedSlots = uiState.todayLoggedSlots,
-                onAssignDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
-                onChangeDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
-                onRemoveDiet = { viewModel.clearPlan() },
-                onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
-                onSlotToggle = { slotType -> viewModel.toggleSlotLogged(slotType) },
-                onNavigateToMealDetail = onNavigateToMealDetail,
-                onToggleFavourite = { diet -> viewModel.toggleFavourite(diet) },
-                onShowGroceries = { viewModel.generateGroceriesForDiet() },
-                isGeneratingGroceries = uiState.isGeneratingGroceries
-            )
+            // ── Selected day detail ────────────────────────────────────────
+            item {
+                val isPlanCompleted = uiState.plans[uiState.selectedDate.toEpochMs()]?.isCompleted ?: false
+                PlanDayDetail(
+                    date = uiState.selectedDate,
+                    diet = uiState.selectedDiet,
+                    dietWithMeals = uiState.selectedDietWithMeals,
+                    tags = uiState.selectedDietTags,
+                    isPlanCompleted = isPlanCompleted,
+                    todayLoggedSlots = uiState.todayLoggedSlots,
+                    onAssignDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
+                    onChangeDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
+                    onRemoveDiet = { viewModel.clearPlan() },
+                    onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
+                    onSlotToggle = { slotType -> viewModel.toggleSlotLogged(slotType) },
+                    onToggleFavourite = { diet -> viewModel.toggleFavourite(diet) },
+                    onShowGroceries = { viewModel.generateGroceriesForDiet() },
+                    isGeneratingGroceries = uiState.isGeneratingGroceries
+                )
+            }
         }
     }
 }
@@ -164,6 +193,259 @@ private fun MealPlanTopBar(onSelectDietForToday: () -> Unit) {
     }
 }
 
+// ── Mini Calendar ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun PlanMiniCalendar(
+    currentMonth: YearMonth,
+    selectedDate: LocalDate,
+    plans: Map<Long, Plan>,
+    onDateSelected: (LocalDate) -> Unit,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit
+) {
+    val monthLabel = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = 10.dp, bottom = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Month header row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "‹",
+                    fontSize = 20.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable(onClick = onPreviousMonth).padding(4.dp)
+                )
+                Text(
+                    text = monthLabel,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "›",
+                    fontSize = 20.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable(onClick = onNextMonth).padding(4.dp)
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Day-of-week headers
+            Row(modifier = Modifier.fillMaxWidth()) {
+                listOf("M", "T", "W", "T", "F", "S", "S").forEach { d ->
+                    Text(
+                        text = d,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextMuted
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // Calendar grid
+            PlanCalendarGrid(
+                month = currentMonth,
+                selectedDate = selectedDate,
+                plans = plans,
+                onDateSelected = onDateSelected
+            )
+
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = Color(0xFFF5F5F5))
+            Spacer(Modifier.height(10.dp))
+
+            // Legend
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                PlanLegendDot(Color(0xFF2E7D52), "Diet planned")
+                PlanLegendDot(Color(0xFF1E4FBF), "Workout")
+                PlanLegendDot(Color(0xFFE53E3E), "Missed log")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanLegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(color))
+        Text(label, fontSize = 10.sp, color = TextSecondary)
+    }
+}
+
+@Composable
+private fun PlanCalendarGrid(
+    month: YearMonth,
+    selectedDate: LocalDate,
+    plans: Map<Long, Plan>,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    val today       = LocalDate.now()
+    val firstDay    = month.atDay(1)
+    val startOffset = firstDay.dayOfWeek.value - 1
+    val daysInMonth = month.lengthOfMonth()
+    val totalCells  = startOffset + daysInMonth
+    val rows        = (totalCells + 6) / 7
+
+    Column {
+        for (row in 0 until rows) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                for (col in 0..6) {
+                    val dayNumber = row * 7 + col - startOffset + 1
+                    if (dayNumber in 1..daysInMonth) {
+                        val date   = month.atDay(dayNumber)
+                        val dateMs = date.toEpochMs()
+                        val plan   = plans[dateMs]
+                        val hasPlan = plan != null && plan.dietId != null
+                        CalendarDayCell(
+                            day        = dayNumber,
+                            isSelected = date == selectedDate,
+                            isToday    = date == today,
+                            hasPlan    = hasPlan,
+                            isCompleted = plan?.isCompleted ?: false,
+                            isPast     = date.isBefore(today),
+                            onClick    = { onDateSelected(date) },
+                            modifier   = Modifier.weight(1f)
+                        )
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Upcoming Section ──────────────────────────────────────────────────────────
+
+@Composable
+private fun UpcomingSection(
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
+    selectedDate: LocalDate,
+    onDaySelected: (LocalDate) -> Unit,
+    onAssignDiet: (LocalDate) -> Unit
+) {
+    val today     = LocalDate.now()
+    val upcoming  = (0..6).map { today.plusDays(it.toLong()) }
+    val dayFmt    = java.time.format.DateTimeFormatter.ofPattern("EEE").withLocale(Locale.getDefault())
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 4.dp)) {
+        Text(
+            text = "UPCOMING",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.8.sp,
+            color = TextSecondary,
+            modifier = Modifier.padding(bottom = 8.dp, top = 4.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBg),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            upcoming.forEachIndexed { index, date ->
+                val dateMs   = date.toEpochMs()
+                val plan     = plans[dateMs]
+                val hasPlan  = plan != null && plan.dietId != null
+                val dietName = dietNames[dateMs]
+                val isToday  = date == today
+                val isSelected = date == selectedDate
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (isSelected) Color(0xFFF7F7F7) else Color.Transparent)
+                        .clickable { onDaySelected(date) }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Date column
+                    Column(
+                        modifier = Modifier.width(36.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = date.format(dayFmt).uppercase(),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextMuted,
+                            letterSpacing = 0.3.sp
+                        )
+                        Text(
+                            text = date.dayOfMonth.toString(),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (!hasPlan && !isToday) TextMuted else TextPrimary,
+                            lineHeight = 18.sp
+                        )
+                    }
+
+                    // Diet info
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (hasPlan && dietName != null) {
+                            Text(dietName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                            // Meal preview from dietNames if available, otherwise empty
+                            Text("Tap to see meals", fontSize = 11.sp, color = TextMuted, modifier = Modifier.padding(top = 1.dp))
+                        } else {
+                            Text("Not planned", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
+                            Text("Tap to assign a diet", fontSize = 11.sp, color = Color(0xFFDDDDDD), modifier = Modifier.padding(top = 1.dp))
+                        }
+                    }
+
+                    // Tag / action
+                    when {
+                        isToday -> Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFE8F5EE))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text("Today", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkGreen)
+                        }
+                        !hasPlan -> Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF5F5F5))
+                                .clickable { onAssignDiet(date) }
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text("+ Plan", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFC05200))
+                        }
+                    }
+                }
+
+                if (index < upcoming.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                        color = Color(0xFFF5F5F5)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Keep the old CalendarCard name as a no-op so nothing else breaks
 @Composable
 private fun CalendarCard(
     currentMonth: YearMonth,
@@ -176,12 +458,25 @@ private fun CalendarCard(
     onNextMonth: () -> Unit,
     onToggleView: () -> Unit
 ) {
-    // For week view, track which week's Monday we're showing (start of week containing selectedDate)
+    // Replaced by PlanMiniCalendar — kept for compile compatibility
+    PlanMiniCalendar(currentMonth, selectedDate, plans, onDateSelected, onPreviousMonth, onNextMonth)
+}
+
+@Composable
+private fun __OldCalendarCardInternals_Unused(
+    currentMonth: YearMonth,
+    selectedDate: LocalDate,
+    plans: Map<Long, Plan>,
+    dietNames: Map<Long, String>,
+    isWeekView: Boolean,
+    onDateSelected: (LocalDate) -> Unit,
+    onToggleView: () -> Unit
+) {
+    // Legacy internals removed
     val weekStart = remember(selectedDate) {
-        val dow = (selectedDate.dayOfWeek.value - 1).toLong() // Monday=0
+        val dow = (selectedDate.dayOfWeek.value - 1).toLong()
         selectedDate.minusDays(dow)
     }
-    // Derive header label from week view context
     val headerText = if (isWeekView) {
         val weekEnd = weekStart.plusDays(6)
         if (weekStart.month == weekEnd.month)
@@ -201,13 +496,11 @@ private fun CalendarCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Header row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Prev arrow: navigate week (week view) or hidden (month view)
                 if (isWeekView) {
                     IconButton(
                         onClick = { onDateSelected(selectedDate.minusWeeks(1)) },
@@ -218,15 +511,8 @@ private fun CalendarCard(
                 } else {
                     Spacer(Modifier.width(32.dp))
                 }
-
-                Text(
-                    text = headerText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
+                Text(text = headerText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Next arrow: navigate week (week view) or hidden (month view)
                     if (isWeekView) {
                         IconButton(
                             onClick = { onDateSelected(selectedDate.plusWeeks(1)) },
@@ -235,7 +521,6 @@ private fun CalendarCard(
                             Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    // Toggle pill: label shows what you'll switch TO
                     Box(
                         modifier = Modifier
                             .border(1.dp, DarkGreen, RoundedCornerShape(16.dp))
@@ -244,12 +529,7 @@ private fun CalendarCard(
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.CalendarMonth,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = DarkGreen
-                            )
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(14.dp), tint = DarkGreen)
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 text = if (isWeekView) "Month" else "Week",
@@ -306,10 +586,8 @@ private fun CalendarCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
             ) {
-                LegendItem(color = CompletedGreen, label = "Completed")
-                LegendItem(color = Color(0xFFFFC107), label = "Planned")
-                LegendItem(color = DarkGreen, label = "Today", isOutline = true)
-                LegendItem(color = MaterialTheme.colorScheme.outlineVariant, label = "No plan")
+                // Dead code — kept here only so the outer closing braces remain balanced:
+                @Suppress("UNUSED_EXPRESSION") Unit
             }
         }
     }
@@ -352,7 +630,6 @@ private fun WeekRow(
                 isToday = date == LocalDate.now(),
                 hasPlan = hasPlan,
                 isCompleted = plan?.isCompleted ?: false,
-                dietName = dietNames[dateMs],
                 onClick = { onDateSelected(date) },
                 modifier = Modifier.weight(1f)
             )
@@ -397,7 +674,7 @@ private fun MealPlanCalendarGrid(
                             isToday = isToday,
                             hasPlan = hasPlan,
                             isCompleted = isCompleted,
-                            dietName = dietName,
+                            isPast = date.isBefore(LocalDate.now()),
                             onClick = { onDateSelected(date) },
                             modifier = Modifier.weight(1f)
                         )
@@ -409,6 +686,298 @@ private fun MealPlanCalendarGrid(
         }
     }
 }
+
+// ── Plan Day Detail ───────────────────────────────────────────────────────────
+
+@Composable
+private fun PlanDayDetail(
+    date: LocalDate,
+    diet: Diet?,
+    dietWithMeals: DietWithMeals?,
+    tags: List<Tag>,
+    isPlanCompleted: Boolean = false,
+    todayLoggedSlots: Map<String, Boolean> = emptyMap(),
+    onAssignDiet: () -> Unit,
+    onChangeDiet: () -> Unit,
+    onRemoveDiet: () -> Unit,
+    onViewLog: () -> Unit,
+    onSlotToggle: (String) -> Unit = {},
+    onToggleFavourite: (Diet) -> Unit = {},
+    onShowGroceries: () -> Unit = {},
+    isGeneratingGroceries: Boolean = false
+) {
+    val today   = LocalDate.now()
+    val isToday = date == today
+    val isPast  = date.isBefore(today)
+    val isFuture = date.isAfter(today)
+    val dateFmt = java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM")
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 8.dp)) {
+        // Section label
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "DAY DETAIL · ${date.format(dateFmt).uppercase()}",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.8.sp,
+                color = TextSecondary
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (diet != null) {
+                    IconButton(onClick = { onToggleFavourite(diet) }, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            if (diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = null,
+                            tint = if (diet.isFavourite) Color(0xFFFFC107) else TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    IconButton(onClick = onShowGroceries, enabled = !isGeneratingGroceries, modifier = Modifier.size(32.dp)) {
+                        if (isGeneratingGroceries) CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        else Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBg),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column {
+                // Diet name header
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text(
+                        text = diet?.name ?: "No diet planned",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (diet != null) TextPrimary else TextMuted
+                    )
+                    if (diet != null && dietWithMeals != null) {
+                        Text(
+                            text = "${dietWithMeals.totalCalories.roundToInt()} kcal",
+                            fontSize = 12.sp,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    if (tags.isNotEmpty()) {
+                        Row(modifier = Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            tags.take(2).forEach { tag ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFE8F5EE))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(tag.name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkGreen)
+                                }
+                            }
+                        }
+                    }
+
+                    // Action buttons row
+                    if (isFuture || (isToday && (diet == null || isPlanCompleted))) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (diet == null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(TextPrimary)
+                                        .clickable(onClick = onAssignDiet)
+                                        .padding(horizontal = 16.dp, vertical = 9.dp)
+                                ) {
+                                    Text("+ Assign diet", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFFF5F5F5))
+                                        .clickable(onClick = onChangeDiet)
+                                        .padding(horizontal = 14.dp, vertical = 9.dp)
+                                ) {
+                                    Text("Change", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF666666))
+                                }
+                                if (isFuture) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFFFEEEEE))
+                                            .clickable(onClick = onRemoveDiet)
+                                            .padding(horizontal = 14.dp, vertical = 9.dp)
+                                    ) {
+                                        Text("Remove", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFE53E3E))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (diet != null && dietWithMeals != null) {
+                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    // Macro row — inline, matching design
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        PlanMacroCell("${dietWithMeals.totalCalories.roundToInt()}", "kcal")
+                        PlanMacroCell("${dietWithMeals.totalProtein.roundToInt()}g", "protein")
+                        PlanMacroCell("${dietWithMeals.totalCarbs.roundToInt()}g", "carbs")
+                        PlanMacroCell("${dietWithMeals.totalFat.roundToInt()}g", "fat", isLast = true)
+                    }
+                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    // Meal slots
+                    val showCheckboxes = isToday && !isPlanCompleted
+                    PlanDietSlots(
+                        diet = diet,
+                        dietWithMeals = dietWithMeals,
+                        showCheckboxes = showCheckboxes,
+                        slotLoggedState = if (showCheckboxes) todayLoggedSlots else emptyMap(),
+                        onSlotToggle = onSlotToggle
+                    )
+                } else if (diet == null && (isToday || isFuture)) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text("Select a diet above to plan this day.", fontSize = 13.sp, color = TextMuted, textAlign = TextAlign.Center)
+                    }
+                } else if (diet != null) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = DarkGreen, modifier = Modifier.size(24.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.PlanMacroCell(value: String, label: String, isLast: Boolean = false) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Text(label, fontSize = 10.sp, color = TextMuted, modifier = Modifier.padding(top = 1.dp))
+    }
+}
+
+@Composable
+private fun PlanDietSlots(
+    diet: Diet,
+    dietWithMeals: DietWithMeals,
+    showCheckboxes: Boolean,
+    slotLoggedState: Map<String, Boolean>,
+    onSlotToggle: (String) -> Unit
+) {
+    Column {
+        DefaultMealSlot.entries.forEach { slot ->
+            val mealWithFoods = dietWithMeals.meals[slot.name]
+            if (mealWithFoods != null) {
+                val isLogged = slotLoggedState[slot.name.uppercase()] == true
+                PlanSlotRow(
+                    slotName = slot.displayName,
+                    slotColor = planSlotColor(slot.name),
+                    mealName = mealWithFoods.meal?.name,
+                    foods = mealWithFoods.items,
+                    kcal = mealWithFoods.items.sumOf { it.calculatedCalories }.toInt(),
+                    showCheckbox = showCheckboxes && mealWithFoods.items.isNotEmpty(),
+                    isLogged = isLogged,
+                    onToggle = if (showCheckboxes) { -> onSlotToggle(slot.name) } else null
+                )
+                HorizontalDivider(color = Color(0xFFF5F5F5))
+            }
+        }
+        // Custom slots
+        dietWithMeals.meals.entries
+            .filter { it.key.startsWith("CUSTOM:") }
+            .sortedBy { it.key }
+            .forEach { (slotType, mealWithFoods) ->
+                if (mealWithFoods != null) {
+                    val displayName = slotType.removePrefix("CUSTOM:")
+                    val isLogged = slotLoggedState[slotType.uppercase()] == true
+                    PlanSlotRow(
+                        slotName = displayName,
+                        slotColor = Color(0xFF888888),
+                        mealName = mealWithFoods.meal?.name,
+                        foods = mealWithFoods.items,
+                        kcal = mealWithFoods.items.sumOf { it.calculatedCalories }.toInt(),
+                        showCheckbox = showCheckboxes && mealWithFoods.items.isNotEmpty(),
+                        isLogged = isLogged,
+                        onToggle = if (showCheckboxes) { -> onSlotToggle(slotType) } else null
+                    )
+                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                }
+            }
+    }
+}
+
+@Composable
+private fun PlanSlotRow(
+    slotName: String,
+    slotColor: Color,
+    mealName: String?,
+    foods: List<MealFoodItemWithDetails>,
+    kcal: Int,
+    showCheckbox: Boolean,
+    isLogged: Boolean,
+    onToggle: (() -> Unit)?
+) {
+    val ingredientPreview = foods.take(5).joinToString(" · ") { it.food.name }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Dot
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(slotColor)
+        )
+        // Slot label (fixed 64dp)
+        Text(
+            text = slotName.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.4.sp,
+            color = TextMuted,
+            modifier = Modifier.width(64.dp),
+            maxLines = 1
+        )
+        // Meal name + ingredient preview
+        Column(modifier = Modifier.weight(1f)) {
+            if (mealName != null) {
+                Text(mealName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (ingredientPreview.isNotEmpty()) {
+                    Text(ingredientPreview, fontSize = 11.sp, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 1.dp))
+                }
+            } else {
+                Text("—", fontSize = 13.sp, color = TextMuted)
+            }
+        }
+        // Calories
+        if (kcal > 0) {
+            Text("$kcal", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Medium)
+        }
+        // Checkbox toggle
+        if (showCheckbox) {
+            SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
+        }
+    }
+}
+
+// ── Legacy SelectedDatePanel alias ───────────────────────────────────────────
 
 @Composable
 private fun SelectedDatePanel(

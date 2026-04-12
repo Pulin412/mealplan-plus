@@ -4,25 +4,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Plan status colors
-val PlanCompletedColor = Color(0xFF4CAF50)  // Green
-val PlanPendingColor = Color(0xFFFFC107)    // Yellow/Amber
+// Plan status dot colours
+val PlanCompletedColor = Color(0xFF2E7D52)  // green – logged/completed
+val PlanPendingColor   = Color(0xFF2E7D52)  // green – planned (same dot colour)
+val PlanMissedColor    = Color(0xFFE53E3E)  // red   – past, was planned, not completed
 
 /**
- * Shared calendar day cell component for both full calendar and mini calendar
+ * Calendar day cell — rounded square (6 dp corners).
+ * Today   → black background, white bold number, no dot.
+ * Selected (not today) → light-grey background.
+ * Has plan → small 4 dp coloured dot below the number.
+ * No plan  → plain muted number, no dot.
  */
 @Composable
 fun CalendarDayCell(
@@ -31,36 +34,34 @@ fun CalendarDayCell(
     isToday: Boolean,
     hasPlan: Boolean,
     isCompleted: Boolean = false,
+    isPast: Boolean = false,
     compact: Boolean = false,
     dietName: String? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bgColor = when {
-        isSelected -> MaterialTheme.colorScheme.primary
-        isToday -> if (compact) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
-        hasPlan && isCompleted -> PlanCompletedColor
-        hasPlan && !isCompleted -> PlanPendingColor
-        else -> Color.Transparent
+        isToday    -> Color(0xFF111111)
+        isSelected -> Color(0xFFF0F0F0)
+        else       -> Color.Transparent
     }
-    val textColor = when {
-        isSelected -> MaterialTheme.colorScheme.onPrimary
-        isToday -> if (compact) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
-        hasPlan && isCompleted -> Color.White
-        hasPlan && !isCompleted -> Color.Black
-        else -> MaterialTheme.colorScheme.onSurface
+    val numberColor = when {
+        isToday    -> Color.White
+        !hasPlan && isPast -> Color(0xFFCCCCCC)
+        !hasPlan   -> Color(0xFF888888)
+        else       -> Color(0xFF111111)
     }
-
-    val padding: Dp = if (compact) 1.dp else 2.dp
-    val textStyle: TextStyle = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodyMedium
-    val dietNameSize = if (compact) 6.sp else 8.sp
-    val dotSize: Dp = if (compact) 3.dp else 4.dp
+    val dotColor = when {
+        !hasPlan              -> Color.Transparent
+        isPast && !isCompleted -> PlanMissedColor   // missed log
+        else                  -> PlanCompletedColor  // planned or completed
+    }
 
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .padding(padding)
-            .clip(CircleShape)
+            .padding(2.dp)
+            .clip(RoundedCornerShape(6.dp))
             .background(bgColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -71,24 +72,21 @@ fun CalendarDayCell(
         ) {
             Text(
                 text = day.toString(),
-                style = textStyle,
-                color = textColor
+                fontSize = if (isToday) 13.sp else 12.sp,
+                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
+                color = numberColor
             )
-            if (hasPlan && dietName != null) {
-                Text(
-                    text = dietName,
-                    fontSize = dietNameSize,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor.copy(alpha = 0.8f),
-                    maxLines = 1
-                )
-            } else if (hasPlan) {
+            if (hasPlan && !isToday) {
+                Spacer(Modifier.height(2.dp))
                 Box(
                     modifier = Modifier
-                        .size(dotSize)
+                        .size(4.dp)
                         .clip(CircleShape)
-                        .background(textColor.copy(alpha = 0.6f))
+                        .background(dotColor)
                 )
+            } else {
+                // Keep height consistent whether dot shows or not
+                Spacer(Modifier.height(6.dp))
             }
         }
     }
