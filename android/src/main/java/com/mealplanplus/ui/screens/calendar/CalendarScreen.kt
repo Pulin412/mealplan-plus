@@ -38,16 +38,16 @@ import java.util.*
 import kotlin.math.roundToInt
 
 // ── Design tokens ────────────────────────────────────────────────────────────
-private val DarkGreen      = Color(0xFF2E7D52)
-private val BgPage         = Color(0xFFF7F7F7)
-private val CardBg         = Color.White
-private val TextPrimary    = Color(0xFF111111)
-private val TextSecondary  = Color(0xFF888888)
-private val TextMuted      = Color(0xFFAAAAAA)
-private val TagPurple      = Color(0xFF7B1FA2)
+internal val DarkGreen      = Color(0xFF2E7D52)
+internal val BgPage         = Color(0xFFF7F7F7)
+internal val CardBg         = Color.White
+internal val TextPrimary    = Color(0xFF111111)
+internal val TextSecondary  = Color(0xFF888888)
+internal val TextMuted      = Color(0xFFAAAAAA)
+internal val TagPurple      = Color(0xFF7B1FA2)
 
 // Slot dot colours (matching Log screen)
-private fun planSlotColor(slotName: String): Color = when (slotName.uppercase()) {
+internal fun planSlotColor(slotName: String): Color = when (slotName.uppercase()) {
     "BREAKFAST"    -> Color(0xFFF59E0B)
     "NOON"         -> Color(0xFF888888)
     "LUNCH"        -> Color(0xFF2E7D52)
@@ -75,6 +75,7 @@ fun CalendarScreen(
     onNavigateToLog: (String) -> Unit,
     onNavigateToDietPicker: (String) -> Unit = {},
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
+    onNavigateToDayDetail: (LocalDate) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
@@ -118,7 +119,10 @@ fun CalendarScreen(
                     currentMonth = uiState.currentMonth,
                     selectedDate = uiState.selectedDate,
                     plans = uiState.plans,
-                    onDateSelected = { viewModel.selectDate(it) },
+                    onDateSelected = { date ->
+                        viewModel.selectDate(date)
+                        onNavigateToDayDetail(date)
+                    },
                     onPreviousMonth = { viewModel.goToPreviousMonth() },
                     onNextMonth = { viewModel.goToNextMonth() }
                 )
@@ -130,29 +134,11 @@ fun CalendarScreen(
                     plans = uiState.plans,
                     dietNames = uiState.dietNames,
                     selectedDate = uiState.selectedDate,
-                    onDaySelected = { viewModel.selectDate(it) },
+                    onDaySelected = { date ->
+                        viewModel.selectDate(date)
+                        onNavigateToDayDetail(date)
+                    },
                     onAssignDiet = { date -> onNavigateToDietPicker(date.toString()) }
-                )
-            }
-
-            // ── Selected day detail ────────────────────────────────────────
-            item {
-                val isPlanCompleted = uiState.plans[uiState.selectedDate.toEpochMs()]?.isCompleted ?: false
-                PlanDayDetail(
-                    date = uiState.selectedDate,
-                    diet = uiState.selectedDiet,
-                    dietWithMeals = uiState.selectedDietWithMeals,
-                    tags = uiState.selectedDietTags,
-                    isPlanCompleted = isPlanCompleted,
-                    todayLoggedSlots = uiState.todayLoggedSlots,
-                    onAssignDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
-                    onChangeDiet = { onNavigateToDietPicker(uiState.selectedDate.toString()) },
-                    onRemoveDiet = { viewModel.clearPlan() },
-                    onViewLog = { onNavigateToLog(uiState.selectedDate.toString()) },
-                    onSlotToggle = { slotType -> viewModel.toggleSlotLogged(slotType) },
-                    onToggleFavourite = { diet -> viewModel.toggleFavourite(diet) },
-                    onShowGroceries = { viewModel.generateGroceriesForDiet() },
-                    isGeneratingGroceries = uiState.isGeneratingGroceries
                 )
             }
         }
@@ -690,7 +676,7 @@ private fun MealPlanCalendarGrid(
 // ── Plan Day Detail ───────────────────────────────────────────────────────────
 
 @Composable
-private fun PlanDayDetail(
+internal fun PlanDayDetail(
     date: LocalDate,
     diet: Diet?,
     dietWithMeals: DietWithMeals?,
@@ -856,7 +842,7 @@ private fun PlanDayDetail(
 }
 
 @Composable
-private fun RowScope.PlanMacroCell(value: String, label: String, isLast: Boolean = false) {
+internal fun RowScope.PlanMacroCell(value: String, label: String, isLast: Boolean = false) {
     Column(
         modifier = Modifier
             .weight(1f)
@@ -869,7 +855,7 @@ private fun RowScope.PlanMacroCell(value: String, label: String, isLast: Boolean
 }
 
 @Composable
-private fun PlanDietSlots(
+internal fun PlanDietSlots(
     diet: Diet,
     dietWithMeals: DietWithMeals,
     showCheckboxes: Boolean,
@@ -919,7 +905,7 @@ private fun PlanDietSlots(
 }
 
 @Composable
-private fun PlanSlotRow(
+internal fun PlanSlotRow(
     slotName: String,
     slotColor: Color,
     mealName: String?,
@@ -1547,7 +1533,7 @@ private fun MealIngredientList(
 
 /** Green filled circle with checkmark when logged, empty gray circle when not. */
 @Composable
-private fun SlotCheckCircle(isLogged: Boolean, onToggle: (() -> Unit)? = null) {
+internal fun SlotCheckCircle(isLogged: Boolean, onToggle: (() -> Unit)? = null) {
     if (isLogged) {
         Box(
             modifier = Modifier
@@ -1646,7 +1632,7 @@ fun DietPickerDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GrocerySnapshotSheet(
+internal fun GrocerySnapshotSheet(
     dietName: String,
     items: List<GrocerySnapshotItem>,
     onDismiss: () -> Unit
@@ -1745,7 +1731,7 @@ private fun GrocerySnapshotSheet(
     }
 }
 
-private fun formatQuantity(qty: Double): String {
+internal fun formatQuantity(qty: Double): String {
     val rounded = (qty * 10).toLong().toDouble() / 10
     return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
 }

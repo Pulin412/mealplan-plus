@@ -16,16 +16,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // Plan status dot colours
-val PlanCompletedColor = Color(0xFF2E7D52)  // green – logged/completed
-val PlanPendingColor   = Color(0xFF2E7D52)  // green – planned (same dot colour)
-val PlanMissedColor    = Color(0xFFE53E3E)  // red   – past, was planned, not completed
+val PlanCompletedColor = Color(0xFF2E7D52)  // green – planned/completed
+val PlanPendingColor   = Color(0xFF2E7D52)  // green – pending plan
+val PlanMissedColor    = Color(0xFFE53E3E)  // red   – past, not completed
 
 /**
- * Calendar day cell — rounded square (6 dp corners).
- * Today   → black background, white bold number, no dot.
- * Selected (not today) → light-grey background.
- * Has plan → small 4 dp coloured dot below the number.
- * No plan  → plain muted number, no dot.
+ * Calendar day cell — rounded square (6 dp corners) matching the design .cd style.
+ *
+ * - Today   → solid black (#111) background, white bold number, no dot.
+ * - Selected (not today) → light-grey (#F0F0F0) background.
+ * - Has plan → 5 dp coloured dot below the number (green = planned, red = past missed).
+ * - No plan  → muted grey number, no dot — but same total height as a dot row.
  */
 @Composable
 fun CalendarDayCell(
@@ -35,8 +36,6 @@ fun CalendarDayCell(
     hasPlan: Boolean,
     isCompleted: Boolean = false,
     isPast: Boolean = false,
-    compact: Boolean = false,
-    dietName: String? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -46,15 +45,16 @@ fun CalendarDayCell(
         else       -> Color.Transparent
     }
     val numberColor = when {
-        isToday    -> Color.White
-        !hasPlan && isPast -> Color(0xFFCCCCCC)
-        !hasPlan   -> Color(0xFF888888)
-        else       -> Color(0xFF111111)
+        isToday                    -> Color.White
+        !hasPlan && isPast         -> Color(0xFFCCCCCC)
+        !hasPlan                   -> Color(0xFF888888)
+        else                       -> Color(0xFF111111)
     }
+    // Green for all planned/completed; red only if past and not completed (missed)
     val dotColor = when {
-        !hasPlan              -> Color.Transparent
-        isPast && !isCompleted -> PlanMissedColor   // missed log
-        else                  -> PlanCompletedColor  // planned or completed
+        !hasPlan                   -> Color.Transparent
+        isPast && !isCompleted     -> PlanMissedColor
+        else                       -> PlanCompletedColor
     }
 
     Box(
@@ -72,22 +72,19 @@ fun CalendarDayCell(
         ) {
             Text(
                 text = day.toString(),
-                fontSize = if (isToday) 13.sp else 12.sp,
+                fontSize = 12.sp,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
-                color = numberColor
+                color = numberColor,
+                lineHeight = 14.sp
             )
-            if (hasPlan && !isToday) {
-                Spacer(Modifier.height(2.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
-            } else {
-                // Keep height consistent whether dot shows or not
-                Spacer(Modifier.height(6.dp))
-            }
+            // Always reserve dot-row height so numbers stay vertically centered
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(if (hasPlan && !isToday) dotColor else Color.Transparent)
+            )
         }
     }
 }

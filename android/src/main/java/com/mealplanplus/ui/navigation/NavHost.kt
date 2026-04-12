@@ -78,6 +78,7 @@ import com.mealplanplus.ui.screens.diets.DietDetailScreen
 import androidx.compose.material.icons.filled.Restaurant
 import com.mealplanplus.ui.screens.log.DailyLogScreen
 import com.mealplanplus.ui.screens.log.LogMealPickerScreen
+import com.mealplanplus.ui.screens.calendar.CalendarDayDetailScreen
 import com.mealplanplus.ui.screens.calendar.CalendarScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.charts.ChartsScreen
@@ -154,6 +155,9 @@ sealed class Screen(val route: String) {
     object Calendar : Screen("calendar")
     object CalendarWithDate : Screen("calendar_date/{initialDate}") {
         fun createRoute(date: String) = "calendar_date/$date"
+    }
+    object PlanDayDetail : Screen("plan_day/{initialDate}") {
+        fun createRoute(date: String) = "plan_day/$date"
     }
     object Health : Screen("health")
     object Charts : Screen("charts")
@@ -664,6 +668,9 @@ fun MealPlanNavHost(
                     onNavigateToMealDetail = { dietId, slotType ->
                         navController.navigate(Screen.MealDetail.createRoute(dietId, slotType, readOnly = true))
                     },
+                    onNavigateToDayDetail = { date ->
+                        navController.navigate(Screen.PlanDayDetail.createRoute(date.toString()))
+                    },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
@@ -683,6 +690,24 @@ fun MealPlanNavHost(
                     },
                     onNavigateToMealDetail = { dietId, slotType ->
                         navController.navigate(Screen.MealDetail.createRoute(dietId, slotType, readOnly = true))
+                    },
+                    onNavigateToDayDetail = { date ->
+                        navController.navigate(Screen.PlanDayDetail.createRoute(date.toString()))
+                    },
+                    savedStateHandle = backStackEntry.savedStateHandle
+                )
+            }
+            composable(
+                route = Screen.PlanDayDetail.route,
+                arguments = listOf(navArgument("initialDate") { type = NavType.StringType })
+            ) { backStackEntry ->
+                CalendarDayDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToDietPicker = { date ->
+                        navController.navigate(Screen.DietPicker.createRoute(date))
+                    },
+                    onNavigateToLog = { date ->
+                        navController.navigate(Screen.DailyLogWithDate.createRoute(date))
                     },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
