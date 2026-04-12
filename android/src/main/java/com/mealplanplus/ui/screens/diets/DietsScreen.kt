@@ -32,8 +32,7 @@ import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.Tag
 import com.mealplanplus.ui.components.TagChip
 
-// Same brand green — kept as local alias so usages don't need to change
-private val DietGreen      = Color(0xFF2E7D52)
+private val DietGreen = Color(0xFF2E7D52)
 private val DietGreenLight = Color(0xFFE8F5EE)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -193,7 +192,7 @@ fun DietsTopBar(
     showFavouritesOnly: Boolean = false,
     title: String = "My Diets"
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 1.dp) {
+    Surface(color = DietGreen, shadowElevation = 4.dp) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Top row: back + title + settings
             Row(
@@ -203,22 +202,21 @@ fun DietsTopBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back",
-                         tint = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text  = title,
+                        text = title,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Color.White
                     )
                     Text(
-                        text  = if (totalCount == shownCount)
+                        text = if (totalCount == shownCount)
                             "$totalCount diets"
                         else
                             "$totalCount diets · $shownCount shown",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color.White.copy(alpha = 0.8f)
                     )
                 }
                 // Favourites filter toggle
@@ -236,7 +234,7 @@ fun DietsTopBar(
                             Icon(
                                 imageVector = if (showFavouritesOnly) Icons.Default.Star else Icons.Default.StarBorder,
                                 contentDescription = if (showFavouritesOnly) "Show all diets" else "Show favourites",
-                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else Color.White
                             )
                         }
                     }
@@ -246,7 +244,7 @@ fun DietsTopBar(
                     TextButton(onClick = onTagsSettings) {
                         Text(
                             "Tags",
-                            color      = DietGreen,
+                            color = Color.White,
                             fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.labelLarge
                         )
@@ -255,9 +253,9 @@ fun DietsTopBar(
                 // + New Diet pill button (optional)
                 if (onNewDiet != null) OutlinedButton(
                     onClick = onNewDiet,
-                    shape   = RoundedCornerShape(50),
-                    colors  = ButtonDefaults.outlinedButtonColors(contentColor = DietGreen),
-                    border  = androidx.compose.foundation.BorderStroke(1.dp, DietGreen),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(36.dp)
                 ) {

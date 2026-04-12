@@ -46,13 +46,13 @@ sealed class LogSlot {
     }
 }
 
-// ── Colours (updated to minimalist palette) ──────────────────────────────────
-private val CaloriesColor = Color(0xFF2E7D52)
-private val CarbsColor    = Color(0xFFC05200)
-private val ProteinColor  = Color(0xFF1E4FBF)
-private val FatColor      = Color(0xFF7C3AED)
-private val OverColor     = Color(0xFFC05200)
-private val TopBarGreen   = Color(0xFF2E7D52)  // kept for remaining usages
+// ── Colours ─────────────────────────────────────────────────────────────────
+private val TopBarGreen = Color(0xFF2E7D52)
+private val CaloriesColor = Color(0xFF4CAF50)
+private val CarbsColor = Color(0xFFFF9800)
+private val ProteinColor = Color(0xFF2196F3)
+private val FatColor = Color(0xFFE91E63)
+private val OverColor = Color(0xFFFF9800)
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -216,34 +216,31 @@ fun FoodLogTopBar(
         },
         actions = {
             IconButton(onClick = { onNavigateToDietPicker(uiState.date.toString()) }) {
-                Icon(Icons.Default.DateRange, contentDescription = "Diet")
+                Icon(Icons.Default.DateRange, contentDescription = "Diet", tint = Color.White)
             }
             if (plan != null && !isCompleted) {
                 IconButton(onClick = onClear) {
-                    Icon(Icons.Default.Delete, contentDescription = "Clear")
+                    Icon(Icons.Default.Delete, contentDescription = "Clear", tint = Color.White)
                 }
             }
             if (canFinish) {
                 IconButton(onClick = onFinish) {
-                    Icon(Icons.Default.Check, contentDescription = "Finish", tint = CaloriesColor)
+                    Icon(Icons.Default.Check, contentDescription = "Finish", tint = Color.White)
                 }
             }
             if (isCompleted) {
                 IconButton(onClick = onReopen) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reopen")
+                    Icon(Icons.Default.Refresh, contentDescription = "Reopen", tint = Color.White)
                 }
             }
             if (uiState.date != today) {
-                TextButton(onClick = onToday) {
-                    Text("Today", fontWeight = FontWeight.SemiBold)
-                }
+                TextButton(onClick = onToday) { Text("Today", color = Color.White) }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor            = MaterialTheme.colorScheme.surface,
-            titleContentColor         = MaterialTheme.colorScheme.onSurface,
-            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-            actionIconContentColor    = MaterialTheme.colorScheme.onSurfaceVariant
+            containerColor = TopBarGreen,
+            titleContentColor = Color.White,
+            navigationIconContentColor = Color.White
         )
     )
 }
@@ -276,21 +273,19 @@ fun DateNavigatorPill(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onPrevious) {
-                Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous day",
-                     tint = MaterialTheme.colorScheme.secondary)
+                Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous day", tint = TopBarGreen)
             }
             Text(
-                text       = label,
-                style      = MaterialTheme.typography.bodyMedium,
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color      = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             IconButton(onClick = onNext, enabled = !isToday) {
                 Icon(
                     Icons.Default.KeyboardArrowRight,
                     contentDescription = "Next day",
-                    tint = if (isToday) MaterialTheme.colorScheme.outlineVariant
-                           else MaterialTheme.colorScheme.secondary
+                    tint = if (isToday) MaterialTheme.colorScheme.outlineVariant else TopBarGreen
                 )
             }
         }
