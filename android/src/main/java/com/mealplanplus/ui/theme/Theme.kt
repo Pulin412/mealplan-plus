@@ -12,64 +12,66 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// Minimalist light scheme — near-black primary, #F7F7F7 background, white cards
 private val LightColorScheme = lightColorScheme(
-    primary = Teal40,
-    onPrimary = Color.White,
-    primaryContainer = Teal90,
-    onPrimaryContainer = Teal10,
-    secondary = Green40,
-    onSecondary = Color.White,
-    secondaryContainer = Green90,
-    onSecondaryContainer = Green10,
-    tertiary = Orange40,
-    onTertiary = Color.White,
-    tertiaryContainer = Orange90,
-    onTertiaryContainer = Orange10,
-    error = Red40,
-    onError = Color.White,
-    errorContainer = Red90,
-    onErrorContainer = Red10,
-    background = Grey99,
-    onBackground = Grey10,
-    surface = Grey99,
-    onSurface = Grey10,
-    surfaceVariant = GreyVariant90,
-    onSurfaceVariant = GreyVariant30,
-    outline = GreyVariant50,
-    outlineVariant = GreyVariant80
+    primary              = AppOnSurface,          // #111
+    onPrimary            = Color.White,
+    primaryContainer     = TagGreyBg,             // #F0F0F0
+    onPrimaryContainer   = AppOnSurface,
+    secondary            = StatusSuccess,          // #2E7D52
+    onSecondary          = Color.White,
+    secondaryContainer   = TagGreenBg,            // #E8F5EE
+    onSecondaryContainer = TagGreenText,
+    tertiary             = AIAccent,              // #7C3AED
+    onTertiary           = Color.White,
+    tertiaryContainer    = TagPurpleBg,           // #F3EEFF
+    onTertiaryContainer  = TagPurpleText,
+    error                = StatusError,
+    onError              = Color.White,
+    errorContainer       = Color(0xFFFFE8E8),
+    onErrorContainer     = StatusError,
+    background           = AppBackground,         // #F7F7F7
+    onBackground         = AppOnSurface,
+    surface              = AppSurface,            // #FFFFFF
+    onSurface            = AppOnSurface,
+    surfaceVariant       = Color(0xFFF5F5F5),
+    onSurfaceVariant     = AppMuted,              // #888
+    outline              = AppBorder,             // #DEDEDE
+    outlineVariant       = AppDivider             // #EBEBEB
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Teal80,
-    onPrimary = Teal20,
-    primaryContainer = Teal30,
-    onPrimaryContainer = Teal90,
-    secondary = Green80,
-    onSecondary = Green20,
-    secondaryContainer = Green30,
-    onSecondaryContainer = Green90,
-    tertiary = Orange80,
-    onTertiary = Orange20,
-    tertiaryContainer = Orange30,
-    onTertiaryContainer = Orange90,
-    error = Red80,
-    onError = Red20,
-    errorContainer = Red30,
-    onErrorContainer = Red90,
-    background = Grey10,
-    onBackground = Grey90,
-    surface = Grey10,
-    onSurface = Grey90,
-    surfaceVariant = GreyVariant30,
-    onSurfaceVariant = GreyVariant80,
-    outline = GreyVariant60,
-    outlineVariant = GreyVariant30
+    primary              = Color(0xFFE8E8E8),
+    onPrimary            = Color(0xFF1A1A1A),
+    primaryContainer     = Color(0xFF2A2A2A),
+    onPrimaryContainer   = Color(0xFFE8E8E8),
+    secondary            = Color(0xFF4CAF80),
+    onSecondary          = Color(0xFF003320),
+    secondaryContainer   = Color(0xFF1A3D2A),
+    onSecondaryContainer = Color(0xFF4CAF80),
+    tertiary             = Color(0xFF9B72CF),
+    onTertiary           = Color(0xFF1A0A2A),
+    tertiaryContainer    = Color(0xFF2A1A3A),
+    onTertiaryContainer  = Color(0xFF9B72CF),
+    error                = Red80,
+    onError              = Red20,
+    errorContainer       = Red30,
+    onErrorContainer     = Red90,
+    background           = Color(0xFF121212),
+    onBackground         = Color(0xFFE8E8E8),
+    surface              = Color(0xFF1E1E1E),
+    onSurface            = Color(0xFFE8E8E8),
+    surfaceVariant       = Color(0xFF2A2A2A),
+    onSurfaceVariant     = Color(0xFFAAAAAA),
+    outline              = Color(0xFF444444),
+    outlineVariant       = Color(0xFF333333)
 )
 
 @Composable
 fun MealPlanPlusTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    // Dynamic color disabled — it would override the minimalist design palette
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -78,22 +80,23 @@ fun MealPlanPlusTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else      -> LightColorScheme
     }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            // Transparent status bar — content draws behind it
+            window.statusBarColor = Color.Transparent.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography,
-        shapes = AppShapes,
-        content = content
+        typography  = AppTypography,
+        shapes      = AppShapes,
+        content     = content
     )
 }
