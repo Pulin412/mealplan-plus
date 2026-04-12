@@ -1351,6 +1351,68 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * v28: Deduplicate diets and meals that accumulated due to missing idempotency
+     * guards in UserDataSeeder and JsonDataImporter.
+     *
+     * Strategy:
+     *  1. Re-point diet_slots / planned_slots to the canonical (min-id) meal per name,
+     *     so FK references survive meal deduplication.
+     *  2. Delete duplicate meals (keep lowest id per name).
+     *     → meal_food_items cascade automatically.
+     *  3. Delete duplicate diets (keep lowest id per name).
+     *     → diet_tags and diet_slots cascade automatically.
+     *  4. Remove planned_slots that reference diets deleted in step 3.
+     *     → planned_slot_foods cascade automatically.
+     *
+     * No schema change — only data cleanup.
+     */
+    private val MIGRATION_27_28 = object : Migration(27, 28) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // Step 1a: re-point diet_slots.mealId to canonical meal
+            database.execSQL("""
+                UPDATE diet_slots
+                SET mealId = (
+                    SELECT MIN(m2.id) FROM meals m2
+                    WHERE m2.name = (SELECT m1.name FROM meals m1 WHERE m1.id = diet_slots.mealId)
+                )
+                WHERE mealId IS NOT NULL
+            """.trimIndent())
+
+            // Step 1b: re-point planned_slots.mealId to canonical meal (if any data)
+            database.execSQL("""
+                UPDATE planned_slots
+                SET mealId = (
+                    SELECT MIN(m2.id) FROM meals m2
+                    WHERE m2.name = (SELECT m1.name FROM meals m1 WHERE m1.id = planned_slots.mealId)
+                )
+                WHERE mealId IS NOT NULL
+            """.trimIndent())
+
+            // Step 2: delete duplicate meals, keep min(id) per name
+            // meal_food_items deleted via ON DELETE CASCADE
+            database.execSQL("""
+                DELETE FROM meals
+                WHERE id NOT IN (SELECT MIN(id) FROM meals GROUP BY name)
+            """.trimIndent())
+
+            // Step 3: delete duplicate diets, keep min(id) per name
+            // diet_tags and diet_slots deleted via ON DELETE CASCADE
+            database.execSQL("""
+                DELETE FROM diets
+                WHERE id NOT IN (SELECT MIN(id) FROM diets GROUP BY name)
+            """.trimIndent())
+
+            // Step 4: remove planned_slots for diets that no longer exist
+            // planned_slot_foods deleted via ON DELETE CASCADE on planned_slots
+            database.execSQL("""
+                DELETE FROM planned_slots
+                WHERE dietId IS NOT NULL
+                  AND dietId NOT IN (SELECT id FROM diets)
+            """.trimIndent())
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -1359,7 +1421,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28)
             // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

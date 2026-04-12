@@ -50,6 +50,13 @@ class UserDataSeeder @Inject constructor(
      * Call this after user sign-up.
      */
     suspend fun seedUserData(context: Context, userId: Long) = withContext(Dispatchers.IO) {
+        // Idempotency guard: skip if diets already exist in the database.
+        // Without this, re-sign-ins or auth replays would duplicate all seed data.
+        val existingCount = dietDao.getDietCount()
+        if (existingCount > 0) {
+            Log.d(TAG, "Skipping seed — $existingCount diets already in database")
+            return@withContext
+        }
         Log.d(TAG, "Starting user data seed for userId=$userId")
 
         // 1. Create default tags

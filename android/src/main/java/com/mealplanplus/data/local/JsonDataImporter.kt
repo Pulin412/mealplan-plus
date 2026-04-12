@@ -199,12 +199,7 @@ class JsonDataImporter @Inject constructor(
     }
 
     private suspend fun getExistingDietNames(userId: Long): MutableSet<String> {
-        val count = dietDao.getDietCount()
-        if (count == 0) return mutableSetOf()
-
-        // We need a suspend function to get diet names
-        // For now, use empty set and let duplicates be handled during import
-        return mutableSetOf()
+        return dietDao.getAllDietNamesOnce().toMutableSet()
     }
 
     private suspend fun getOrCreateTags(userId: Long, diets: List<SeedDiet>): Map<String, Long> {
