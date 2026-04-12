@@ -1,17 +1,29 @@
-# MealPlan+ — Android Project Context
+# MealPlan+ — Project Context
+
+> See **ROADMAP.md** for the full multi-phase plan and GitHub issue tracking.
 
 ## What this app does
 Offline-first meal planning and food logging app. Users log meals by slot (BREAKFAST / LUNCH / DINNER), track health metrics, browse/create diets, get shopping lists, and receive smart notifications when they haven't logged a meal yet.
 
 ---
 
+## Architecture Direction (agreed)
+- **Android** and **Web App** are fully independent codebases — no shared Kotlin code
+- **Backend** (Spring Boot) is the source of truth and shared layer for both clients
+- **`shared/` KMP module** is being disconnected (see issue #81) — do not add new code to it
+- **iOS** is replaced by a Next.js PWA that works on iPhone Safari
+- **AI**: Spring AI + PgVectorStore on the backend; Gemini Nano on-device for Android offline use
+
+---
+
 ## Module layout
 | Module | Role |
 |--------|------|
-| `android/` | Android app (Kotlin, Compose, Room, Hilt) — primary focus |
-| `shared/` | Kotlin Multiplatform library shared with iOS (SQLDelight, Ktor) |
-| `ios/` | iOS SwiftUI app consuming the shared KMP framework |
-| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres |
+| `android/` | Android app (Kotlin, Compose, Room, Hilt) — **fully self-contained** |
+| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector |
+| `webapp/` | Next.js 14 + TypeScript PWA — **not yet created, Phase 3** |
+| `shared/` | KMP module — **being disconnected, do not add code here** |
+| `ios/` | SwiftUI app — **superseded by PWA, no new work** |
 
 ---
 
