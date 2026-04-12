@@ -147,40 +147,33 @@ fun DailyLogScreen(
                 onPrevious = { viewModel.goToPreviousDay() },
                 onNext = { viewModel.goToNextDay() }
             )
-            LogMacroSummary(
-                comparison = uiState.comparison,
-                selectedTab = uiState.selectedTab,
-                onTabSelected = { viewModel.setSelectedTab(it) }
-            )
+            LogMacroSummary(comparison = uiState.comparison)
             if (uiState.isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = TopBarGreen)
                 }
             } else {
-                when (uiState.selectedTab) {
-                    0 -> DailyLogTab(
-                        logWithFoods = uiState.logWithFoods,
-                        plannedDiet = uiState.plannedDiet,
-                        expandedSlots = expandedSlots.value,
-                        savedSlotOrder = savedSlotOrder,
-                        onToggleSlot = { slot ->
-                            expandedSlots.value = if (slot.name in expandedSlots.value)
-                                expandedSlots.value - slot.name
-                            else
-                                expandedSlots.value + slot.name
-                        },
-                        onToggleCustomSlot = { key ->
-                            expandedSlots.value = if (key in expandedSlots.value)
-                                expandedSlots.value - key
-                            else
-                                expandedSlots.value + key
-                        },
-                        onAddFood = { slot -> viewModel.showFoodPickerFor(slot) },
-                        onDeleteFood = { id -> viewModel.deleteLoggedFood(id) },
-                        onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) }
-                    )
-                    1 -> PlanVsActualTab(comparison = uiState.comparison)
-                }
+                DailyLogTab(
+                    logWithFoods = uiState.logWithFoods,
+                    plannedDiet = uiState.plannedDiet,
+                    expandedSlots = expandedSlots.value,
+                    savedSlotOrder = savedSlotOrder,
+                    onToggleSlot = { slot ->
+                        expandedSlots.value = if (slot.name in expandedSlots.value)
+                            expandedSlots.value - slot.name
+                        else
+                            expandedSlots.value + slot.name
+                    },
+                    onToggleCustomSlot = { key ->
+                        expandedSlots.value = if (key in expandedSlots.value)
+                            expandedSlots.value - key
+                        else
+                            expandedSlots.value + key
+                    },
+                    onAddFood = { slot -> viewModel.showFoodPickerFor(slot) },
+                    onDeleteFood = { id -> viewModel.deleteLoggedFood(id) },
+                    onToggleSlotLogged = { slot -> viewModel.toggleSlotLogged(slot) }
+                )
             }
         }
 
@@ -229,40 +222,32 @@ fun FoodLogTopBar(
             )
         },
         navigationIcon = {
-            IconButton(onClick = onNavigateBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextSecondary)
+            IconButton(onClick = onNavigateBack, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextMuted, modifier = Modifier.size(18.dp))
             }
         },
         actions = {
-            IconButton(onClick = { onNavigateToDietPicker(uiState.date.toString()) }) {
-                Icon(Icons.Default.DateRange, contentDescription = "Select diet", tint = TextSecondary)
-            }
+            // Remove diet plan from this day
             if (plan != null && !isCompleted) {
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Default.Delete, contentDescription = "Clear", tint = TextSecondary)
+                IconButton(onClick = onClear, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.DeleteOutline, contentDescription = "Remove diet", tint = TextMuted, modifier = Modifier.size(18.dp))
                 }
             }
-            if (canFinish) {
-                IconButton(onClick = onFinish) {
-                    Icon(Icons.Default.Check, contentDescription = "Finish", tint = TopBarGreen)
+            // Mark day complete / reopen
+            when {
+                canFinish -> IconButton(onClick = onFinish, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.CheckCircleOutline, contentDescription = "Complete day", tint = TopBarGreen, modifier = Modifier.size(18.dp))
                 }
-            }
-            if (isCompleted) {
-                IconButton(onClick = onReopen) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reopen", tint = TextSecondary)
-                }
-            }
-            if (uiState.date != today) {
-                TextButton(onClick = onToday) {
-                    Text("Today", color = TopBarGreen, style = MaterialTheme.typography.labelLarge)
+                isCompleted -> IconButton(onClick = onReopen, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Reopen", tint = TextMuted, modifier = Modifier.size(18.dp))
                 }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = CardBg,
             titleContentColor = TextPrimary,
-            navigationIconContentColor = TextSecondary,
-            actionIconContentColor = TextSecondary
+            navigationIconContentColor = TextMuted,
+            actionIconContentColor = TextMuted
         )
     )
 }
@@ -321,8 +306,8 @@ fun DateNavigatorPill(date: LocalDate, onPrevious: () -> Unit, onNext: () -> Uni
 @Composable
 fun LogMacroSummary(
     comparison: MacroComparison,
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit
+    selectedTab: Int = 0,
+    onTabSelected: (Int) -> Unit = {}
 ) {
     val calsPercent = if (comparison.plannedCalories > 0)
         (comparison.actualCalories.toFloat() / comparison.plannedCalories * 100).toInt().coerceAtMost(100)
@@ -332,40 +317,27 @@ fun LogMacroSummary(
     else 0f
 
     Column {
-        // 4-column stat row
+        // 4-column stat row + progress bar — single unified card
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(top = 10.dp, bottom = 0.dp),
-            shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp, bottomStart = 0.dp, bottomEnd = 0.dp),
+                .padding(top = 10.dp, bottom = 6.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = CardBg),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
                 LogMacroCell(comparison.actualCalories.toString(), "/ ${comparison.plannedCalories} kcal")
                 LogMacroCell("${comparison.actualProtein}g", "/ ${comparison.plannedProtein}g protein")
                 LogMacroCell("${comparison.actualCarbs}g", "/ ${comparison.plannedCarbs}g carbs")
                 LogMacroCell("${comparison.actualFat}g", "/ ${comparison.plannedFat}g fat", isLast = true)
             }
-        }
-        // Progress bar strip
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 4.dp),
-            shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 14.dp, bottomEnd = 14.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBg),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 14.dp)
+                    .padding(bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -387,24 +359,10 @@ fun LogMacroSummary(
                 Text(
                     text = "$calsPercent% of diet plan",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted,
-                    fontWeight = FontWeight.Normal
+                    color = TextMuted
                 )
             }
         }
-
-        // Tab toggle – compact pill
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 2.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFFF0F0F0)),
-        ) {
-            LogTabButton("Daily Log", selectedTab == 0, Modifier.weight(1f)) { onTabSelected(0) }
-            LogTabButton("Plan vs Actual", selectedTab == 1, Modifier.weight(1f)) { onTabSelected(1) }
-        }
-        Spacer(Modifier.height(4.dp))
     }
 }
 
@@ -443,30 +401,10 @@ private fun RowScope.LogMacroCell(
     }
 }
 
-@Composable
-private fun LogTabButton(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .padding(3.dp)
-            .clip(RoundedCornerShape(17.dp))
-            .background(if (selected) TextPrimary else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(vertical = 7.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (selected) Color.White else TextSecondary,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-        )
-    }
-}
-
 // Keep old alias so any lingering callers compile
 @Composable
 fun MacroSummaryCard(comparison: MacroComparison, selectedTab: Int, onTabSelected: (Int) -> Unit) =
-    LogMacroSummary(comparison, selectedTab, onTabSelected)
+    LogMacroSummary(comparison)
 
 @Composable
 fun MacroTile(label: String, actual: Int, unit: String, planned: Int, color: Color) {
