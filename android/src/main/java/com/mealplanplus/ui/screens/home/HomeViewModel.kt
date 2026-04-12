@@ -96,7 +96,8 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val activitySummary: ActivitySummary = ActivitySummary(),
     val isTodayCompleted: Boolean = false,
-    val finishCompleted: Boolean = false
+    val finishCompleted: Boolean = false,
+    val todayDietName: String? = null
 )
 
 @HiltViewModel
@@ -272,12 +273,14 @@ class HomeViewModel @Inject constructor(
                     }
 
                     val isTodayCompleted = plans.firstOrNull()?.isCompleted == true
+                    val todayDietName = plans.firstOrNull { it.dietId != null }?.dietName
 
                     _uiState.update {
                         it.copy(
                             todayPlanSlots = dietSlots,
                             hasDietToday = dietId != null,
-                            isTodayCompleted = isTodayCompleted
+                            isTodayCompleted = isTodayCompleted,
+                            todayDietName = todayDietName
                         )
                     }
                 }

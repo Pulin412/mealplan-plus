@@ -169,19 +169,20 @@ fun HomeScreen(
 
             // ── Today's meals ──────────────────────────────────────────────
             TodayMealsSection(
-                slots            = uiState.todayPlanSlots,
-                hasDietToday     = uiState.hasDietToday,
-                isTodayCompleted = uiState.isTodayCompleted,
+                slots              = uiState.todayPlanSlots,
+                hasDietToday       = uiState.hasDietToday,
+                isTodayCompleted   = uiState.isTodayCompleted,
+                todayDietName      = uiState.todayDietName,
                 onPlanOrChangeDiet = onNavigateToDietPickerForToday,
-                onSlotToggle     = { slot -> viewModel.toggleSlotLogged(slot) },
-                onSlotTap        = { slot ->
+                onSlotToggle       = { slot -> viewModel.toggleSlotLogged(slot) },
+                onSlotTap          = { slot ->
                     val dId = slot.dietId
                     if (dId != null && slot.plannedMealId != null)
                         onNavigateToMealDetail(dId, slot.slotType)
                 },
-                onFinishDay      = { viewModel.finishTodayPlan() },
-                onReopenDay      = { viewModel.reopenTodayPlan() },
-                modifier         = Modifier.padding(horizontal = 16.dp)
+                onFinishDay        = { viewModel.finishTodayPlan() },
+                onReopenDay        = { viewModel.reopenTodayPlan() },
+                modifier           = Modifier.padding(horizontal = 16.dp)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -462,7 +463,8 @@ fun TodayMealsSection(
     onSlotTap: (TodayPlanSlot) -> Unit,
     onFinishDay: () -> Unit,
     onReopenDay: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    todayDietName: String? = null
 ) {
     val loggedCount = slots.count { it.isLogged }
     val totalCount  = slots.size
@@ -478,7 +480,7 @@ fun TodayMealsSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "TODAY",
+                text = if (!todayDietName.isNullOrBlank()) "TODAY · $todayDietName" else "TODAY",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 0.8.sp,
@@ -641,12 +643,12 @@ fun NewTodaySlotRow(
         "DINNER"      -> SlotDinner
         else          -> SlotDefault
     }
-    val canToggle    = slot.plannedFoods.isNotEmpty() || slot.isLogged
+    val canToggle      = slot.plannedFoods.isNotEmpty() || slot.isLogged
     val hasLoggedFoods = slot.loggedFoods.isNotEmpty()
-    val hasPlanFoods = slot.plannedFoods.isNotEmpty()
+    val hasPlanFoods   = slot.plannedFoods.isNotEmpty()
+    val hasFoodsToShow = hasLoggedFoods || hasPlanFoods
     var expanded by remember(slot.slotType, slot.loggedFoods.size) { mutableStateOf(false) }
 
-    // Calorie count from planned foods or logged foods
     val calories = when {
         slot.isLogged && hasLoggedFoods ->
             slot.loggedFoods.sumOf { it.calculatedCalories.toInt() }
@@ -660,10 +662,7 @@ fun NewTodaySlotRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    when {
-                        onTap != null    -> onTap()
-                        hasLoggedFoods || hasPlanFoods -> expanded = !expanded
-                    }
+                    if (hasFoodsToShow) expanded = !expanded
                 }
                 .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -686,8 +685,14 @@ fun NewTodaySlotRow(
                     color = if (slot.isLogged) TextPrimary else Color(0xFF444444)
                 )
                 val subtitle = when {
-                    slot.isLogged -> "${slot.slotDisplayName} · Logged ✓" + if (hasLoggedFoods) " · tap to see" else ""
-                    slot.plannedMealName != null -> "${slot.slotDisplayName} · Not logged yet"
+                    slot.isLogged && hasFoodsToShow ->
+                        "${slot.slotDisplayName} · Logged ✓ · tap to see ingredients"
+                    slot.isLogged ->
+                        "${slot.slotDisplayName} · Logged ✓"
+                    slot.plannedMealName != null && hasPlanFoods ->
+                        "${slot.slotDisplayName} · Not logged · tap to see ingredients"
+                    slot.plannedMealName != null ->
+                        "${slot.slotDisplayName} · Not logged yet"
                     else -> slot.slotDisplayName
                 }
                 Text(
@@ -738,16 +743,16 @@ fun NewTodaySlotRow(
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
-            val foods = if (hasLoggedFoods) slot.loggedFoods.map { "${it.food.name} ${it.loggedFood.quantity.toInt()}${it.loggedFood.unit.name.take(1).lowercase()}" }
-                        else slot.plannedFoods.map { "${it.food.name} ${it.mealFoodItem.quantity.toInt()}${it.mealFoodItem.unit.name.take(1).lowercase()}" }
+            val foods = if (hasLoggedFoods)
+                slot.loggedFoods.map { "${it.food.name} · ${it.loggedFood.quantity.toInt()}${it.loggedFood.unit.name.take(1).lowercase()}" }
+            else
+                slot.plannedFoods.map { "${it.food.name} · ${it.mealFoodItem.quantity.toInt()}${it.mealFoodItem.unit.name.take(1).lowercase()}" }
             if (foods.isNotEmpty()) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 28.dp, end = 14.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        .padding(start = 28.dp, end = 14.dp, bottom = 12.dp)
                 ) {
-                    // Wrap chips manually (FlowRow unavailable without ExperimentalApi, use wrapping Column+Row)
                     IngredientChips(foods)
                 }
             }
