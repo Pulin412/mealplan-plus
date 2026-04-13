@@ -2,6 +2,7 @@ package com.mealplanplus.ui.screens.health
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -44,6 +46,11 @@ import com.patrykandpatrick.vico.core.entry.entryOf
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import com.mealplanplus.util.toChartLabel
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
 import com.mealplanplus.util.toLocalDate
 import java.time.LocalDate
 
@@ -59,24 +66,25 @@ fun HealthScreen(
     var customTypeToDelete by remember { mutableStateOf<CustomMetricType?>(null) }
 
     Scaffold(
+        containerColor = Color(0xFFF7F7F7),
         topBar = {
             TopAppBar(
-                title = { Text("Health Metrics") },
+                title = { Text("Health", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF111111))
                     }
                 },
                 actions = {
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = { viewModel.showLogSheet() },
-                        modifier = Modifier.padding(end = 8.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f),
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
+                        modifier = Modifier.padding(end = 8.dp).height(32.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF111111)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDDDDD))
                     ) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("Log Reading", style = MaterialTheme.typography.labelMedium)
                     }
@@ -84,8 +92,8 @@ fun HealthScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White,
                     titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF555555),
-                    actionIconContentColor = Color(0xFF555555)
+                    navigationIconContentColor = Color(0xFF111111),
+                    actionIconContentColor = Color(0xFF111111)
                 )
             )
         }
@@ -110,54 +118,39 @@ fun HealthScreen(
             // Metric type tabs
             item {
                 LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(MetricType.entries.toList()) { type ->
-                        FilterChip(
+                        HealthFilterChip(
+                            label = type.displayName,
                             selected = uiState.selectedMetricType == type && uiState.selectedCustomTypeId == null,
-                            onClick = { viewModel.selectMetricType(type) },
-                            label = { Text(type.displayName) }
+                            onClick = { viewModel.selectMetricType(type) }
                         )
                     }
                     items(customTypes) { customType ->
-                        FilterChip(
+                        HealthFilterChip(
+                            label = customType.name,
                             selected = uiState.selectedCustomTypeId == customType.id,
                             onClick = { viewModel.selectCustomType(customType.id) },
-                            label = { Text(customType.name) },
                             modifier = Modifier.combinedClickable(
                                 onClick = { viewModel.selectCustomType(customType.id) },
                                 onLongClick = { customTypeToDelete = customType }
                             )
                         )
                     }
-                    // Activity tab — Health Connect data
                     item {
-                        FilterChip(
+                        HealthFilterChip(
+                            label = "🏃 Activity",
                             selected = uiState.isActivityTabSelected,
-                            onClick = { viewModel.selectActivityTab() },
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("🏃")
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Activity")
-                                }
-                            }
+                            onClick = { viewModel.selectActivityTab() }
                         )
                     }
                     item {
-                        FilterChip(
+                        HealthFilterChip(
+                            label = "+ Add Metric",
                             selected = false,
-                            onClick = { viewModel.showAddCustomTypeDialog() },
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Add, null, modifier = Modifier.size(14.dp))
-                                    Spacer(Modifier.width(2.dp))
-                                    Text("Add Metric")
-                                }
-                            }
+                            onClick = { viewModel.showAddCustomTypeDialog() }
                         )
                     }
                 }
@@ -366,7 +359,7 @@ fun HealthScreen(
                     viewModel.deleteCustomType(type)
                     customTypeToDelete = null
                 }) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                    Text("Remove", color = TextDestructive)
                 }
             },
             dismissButton = {
@@ -380,15 +373,15 @@ fun HealthScreen(
 fun BgSummaryCard(label: String, value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        colors = CardDefaults.cardColors(containerColor = DesignGreenLight)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = TextSecondary.copy(alpha = 0.7f))
             Spacer(Modifier.height(4.dp))
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
         }
     }
 }
@@ -400,9 +393,9 @@ fun MetricStatCard(label: String, value: String, unit: String, modifier: Modifie
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            if (unit.isNotBlank()) Text(unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = DesignGreen)
+            if (unit.isNotBlank()) Text(unit, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
         }
     }
 }
@@ -512,7 +505,7 @@ fun RecentReadingRow(
                 Text(metric.date.toChartLabel("dd/MM/yyyy"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp), tint = TextDestructive)
             }
         }
     }
@@ -525,7 +518,7 @@ fun RecentReadingRow(
             text = { Text("Delete this reading?") },
             confirmButton = {
                 TextButton(onClick = { onDelete(); showDeleteDialog = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Delete", color = TextDestructive)
                 }
             },
             dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
@@ -681,7 +674,7 @@ fun LogReadingSheet(
         )
 
         uiState.error?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it, color = TextDestructive, style = MaterialTheme.typography.bodySmall)
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -760,7 +753,7 @@ fun AddCustomTypeDialog(
                         singleLine = true, modifier = Modifier.weight(1f)
                     )
                 }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                error?.let { Text(it, color = TextDestructive, style = MaterialTheme.typography.bodySmall) }
             }
         },
         confirmButton = {
@@ -801,15 +794,15 @@ private fun PeriodNavigator(
                     onClick = { onViewTypeChange(type) },
                     modifier = Modifier.weight(1f).height(34.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
+                        containerColor = if (selected) DesignGreenLight
                                          else Color.Transparent,
-                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                                       else MaterialTheme.colorScheme.onSurface
+                        contentColor = if (selected) TextPrimary
+                                       else TextSecondary
                     ),
                     border = ButtonDefaults.outlinedButtonBorder.copy(
                         brush = androidx.compose.ui.graphics.SolidColor(
-                            if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outline
+                            if (selected) DesignGreen
+                            else Color(0xFFE0E0E0)
                         )
                     ),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
@@ -1036,7 +1029,7 @@ private fun ActivityDayRow(day: ActivityDaySummary) {
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(DesignGreenLight),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1044,13 +1037,13 @@ private fun ActivityDayRow(day: ActivityDaySummary) {
                     day.date.dayOfMonth.toString(),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = TextPrimary,
                     lineHeight = 16.sp
                 )
                 Text(
                     day.date.month.name.take(3),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    color = TextSecondary.copy(alpha = 0.7f),
                     lineHeight = 14.sp
                 )
             }
@@ -1079,3 +1072,27 @@ private fun ActivityDayRow(day: ActivityDaySummary) {
 private fun formatHealthValue(value: Double): String =
     if (value == value.toLong().toDouble()) value.toLong().toString()
     else String.format("%.1f", value)
+
+@Composable
+private fun HealthFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) Color(0xFF111111) else Color.White)
+            .border(1.dp, if (selected) Color(0xFF111111) else Color(0xFFE8E8E8), RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) Color.White else Color(0xFF555555)
+        )
+    }
+}

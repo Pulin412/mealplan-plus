@@ -20,6 +20,7 @@ import com.mealplanplus.ui.screens.diets.DietsTopBar
 import com.mealplanplus.ui.screens.diets.DietsViewModel
 import com.mealplanplus.ui.screens.diets.TagFilterRow
 import java.time.LocalDate
+import com.mealplanplus.ui.theme.BgPage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +63,7 @@ fun DietPickerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F5F5))
+                .background(BgPage)
         ) {
             // Tag filter row
             TagFilterRow(

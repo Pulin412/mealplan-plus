@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.foods
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,11 +14,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.repository.UsdaFoodResult
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +40,7 @@ fun AddFoodScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
                 title = { Text("Add Food") },
@@ -42,17 +49,14 @@ fun AddFoodScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
@@ -177,7 +181,7 @@ fun AddFoodScreen(
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = Color.White
                     )
                 } else {
                     Text("Save Food")
@@ -243,7 +247,7 @@ fun UsdaSearchModal(
             Text(
                 "Search for generic foods like rice, chicken, apple, etc.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = TextSecondary
             )
 
             Spacer(Modifier.height(16.dp))
@@ -277,7 +281,7 @@ fun UsdaSearchModal(
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = Color.White
                     )
                 } else {
                     Text("Search")
@@ -316,12 +320,12 @@ fun UsdaSearchModal(
                                 Icons.Default.Search,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = TextSecondary
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 "Search for foods above",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary
                             )
                         }
                     }
@@ -372,20 +376,20 @@ fun UsdaFoodResultCard(
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Per ${food.servingSize.toInt()}${food.servingUnit}: ${food.calories.toInt()} cal | P:${food.protein.toInt()}g C:${food.carbs.toInt()}g F:${food.fat.toInt()}g",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = DesignGreen
                 )
             }
             Icon(
                 Icons.Default.Add,
                 contentDescription = "Copy",
-                tint = MaterialTheme.colorScheme.primary
+                tint = DesignGreen
             )
         }
     }

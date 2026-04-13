@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.log
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.MealWithFoods
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,29 +54,27 @@ fun LogMealPickerScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     val slot = DefaultMealSlot.entries.find { it.name == slotType }
-                    Text("Add ${slot?.displayName ?: "Meal"}")
+                    Text("Add ${slot?.displayName ?: "Meal"}", color = TextPrimary)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
         ) {
             // Search bar

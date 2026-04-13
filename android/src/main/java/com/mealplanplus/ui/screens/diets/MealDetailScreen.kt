@@ -20,8 +20,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import kotlin.math.roundToInt
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TextSecondary
 
-private val DetailGreen = Color(0xFF2E7D52)
+private val DetailGreen = DesignGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +36,7 @@ fun MealDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
                 title = { Text(uiState.slotLabel, fontWeight = FontWeight.Bold) },
@@ -69,7 +73,7 @@ fun MealDetailScreen(
                     Text(
                         "No meal added to this slot yet.",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
             }
@@ -77,31 +81,31 @@ fun MealDetailScreen(
             else -> {
                 LazyColumn(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .background(Color(0xFFF5F5F5)),
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(BgPage),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     // Instructions card
                     if (uiState.instructions.isNotBlank()) {
-                        item {
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                elevation = CardDefaults.cardElevation(2.dp),
-                                modifier = Modifier.fillMaxWidth()
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(0.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        "Instructions",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = DetailGreen,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                Text(
+                                    "INSTRUCTIONS",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFAAAAAA),
+                                    fontWeight = FontWeight.Medium
+                                )
                                     Text(
                                         text = uiState.instructions,
                                         style = MaterialTheme.typography.bodyMedium,
@@ -115,9 +119,9 @@ fun MealDetailScreen(
                     // Ingredients header + sort chips
                     item {
                         Card(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(2.dp),
+                            elevation = CardDefaults.cardElevation(0.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
@@ -129,10 +133,10 @@ fun MealDetailScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        "Ingredients",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = DetailGreen,
-                                        fontWeight = FontWeight.Bold
+                                        "INGREDIENTS",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFFAAAAAA),
+                                        fontWeight = FontWeight.Medium
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         val alphaLabel = if (uiState.sortOrder == IngredientSortOrder.ALPHABETICAL) {
@@ -173,7 +177,7 @@ fun MealDetailScreen(
                                                 Text(
                                                     "$checkedCount of $totalCount prepared",
                                                     style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = TextSecondary
                                                 )
                                                 if (checkedCount > 0) {
                                                     Text(
@@ -220,17 +224,17 @@ fun MealDetailScreen(
                     // Totals card
                     item {
                         Card(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(2.dp),
+                            elevation = CardDefaults.cardElevation(0.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    "Totals",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = DetailGreen,
-                                    fontWeight = FontWeight.Bold
+                                    "TOTALS",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFAAAAAA),
+                                    fontWeight = FontWeight.Medium
                                 )
                                 Spacer(Modifier.height(14.dp))
                                 Row(
@@ -264,8 +268,9 @@ private fun SortChip(label: String, selected: Boolean, onClick: () -> Unit) {
         onClick = onClick,
         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = DetailGreen,
-            selectedLabelColor = Color.White
+            selectedContainerColor = Color(0xFF111111),
+            selectedLabelColor = Color.White,
+            labelColor = Color(0xFF555555)
         ),
         shape = RoundedCornerShape(8.dp)
     )
@@ -292,7 +297,7 @@ private fun IngredientCheckRow(
                 onCheckedChange = { onToggle() },
                 colors = CheckboxDefaults.colors(
                     checkedColor = DetailGreen,
-                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    uncheckedColor = TextSecondary
                 )
             )
         }
@@ -305,13 +310,13 @@ private fun IngredientCheckRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textDecoration = if (!readOnly && checked) TextDecoration.LineThrough else TextDecoration.None,
-                color = if (!readOnly && checked) MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (!readOnly && checked) TextSecondary
                         else MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "${item.mealFoodItem.quantity.toInt()} ${item.mealFoodItem.unit.shortLabel}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = TextSecondary
             )
         }
 
@@ -352,7 +357,7 @@ private fun TotalMacroCell(icon: String, value: String, label: String, color: Co
     ) {
         Text(icon, style = MaterialTheme.typography.headlineSmall)
         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = color)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
     }
 }
 
@@ -389,7 +394,7 @@ private fun GlycemicLoadRow(glycemicLoad: Double) {
             Text(
                 "Glycemic Load",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = TextSecondary
             )
             Text(
                 label,

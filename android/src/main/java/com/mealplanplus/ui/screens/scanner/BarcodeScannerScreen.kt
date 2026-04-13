@@ -7,6 +7,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -25,6 +26,9 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 import com.mealplanplus.data.model.FoodItem
 import java.util.concurrent.Executors
 
@@ -47,25 +51,23 @@ fun BarcodeScannerScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Scan Barcode") },
+                title = { Text("Scan Barcode", color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
         ) {
             when {

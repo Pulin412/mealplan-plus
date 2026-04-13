@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,9 +32,13 @@ import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.Tag
 import com.mealplanplus.ui.components.TagChip
-
-private val DietGreen = Color(0xFF2E7D52)
-private val DietGreenLight = Color(0xFFE8F5EE)
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +53,7 @@ fun DietsScreen(
     var showAdvancedFilters by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             DietsTopBar(
                 totalCount = uiState.totalDietCount,
@@ -68,7 +74,7 @@ fun DietsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
+                .background(BgPage)
         ) {
             // Tag filter row
             TagFilterRow(
@@ -93,7 +99,7 @@ fun DietsScreen(
                 Text(
                     text = if (hasAdvanced) "More Filters (active)" else "More Filters",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (hasAdvanced) DietGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (hasAdvanced) DesignGreen else TextSecondary,
                     fontWeight = if (hasAdvanced) FontWeight.Bold else FontWeight.Normal
                 )
                 Icon(
@@ -125,7 +131,7 @@ fun DietsScreen(
             when {
                 uiState.isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = DietGreen)
+                        CircularProgressIndicator(color = DesignGreen)
                     }
                 }
                 uiState.diets.isEmpty() -> {
@@ -192,7 +198,7 @@ fun DietsTopBar(
     showFavouritesOnly: Boolean = false,
     title: String = "My Diets"
 ) {
-    Surface(color = Color.White, shadowElevation = 2.dp) {
+    Surface(color = Color.White, shadowElevation = 0.dp) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Top row: back + title + settings
             Row(
@@ -234,7 +240,7 @@ fun DietsTopBar(
                             Icon(
                                 imageVector = if (showFavouritesOnly) Icons.Default.Star else Icons.Default.StarBorder,
                                 contentDescription = if (showFavouritesOnly) "Show all diets" else "Show favourites",
-                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else DietGreen
+                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else DesignGreen
                             )
                         }
                     }
@@ -244,7 +250,7 @@ fun DietsTopBar(
                     TextButton(onClick = onTagsSettings) {
                         Text(
                             "Tags",
-                            color = DietGreen,
+                            color = DesignGreen,
                             fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.labelLarge
                         )
@@ -254,8 +260,8 @@ fun DietsTopBar(
                 if (onNewDiet != null) OutlinedButton(
                     onClick = onNewDiet,
                     shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DietGreen),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DietGreen),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DesignGreen),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DesignGreen),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
@@ -266,30 +272,34 @@ fun DietsTopBar(
             }
 
             // Search field
-            OutlinedTextField(
+            TextField(
                 value = searchQuery,
                 onValueChange = onSearchChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search diets...", color = Color(0xFFAAAAAA)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFAAAAAA)) },
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                placeholder = { Text("Search diets…", fontSize = 14.sp, color = Color(0xFFBBBBBB)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFBBBBBB), modifier = Modifier.size(18.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color(0xFF888888))
+                        IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color(0xFF888888), modifier = Modifier.size(16.dp))
                         }
                     }
                 },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF5F5F5),
+                    unfocusedContainerColor = Color(0xFFF5F5F5),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
                     focusedTextColor = Color(0xFF111111),
                     unfocusedTextColor = Color(0xFF111111),
-                    focusedBorderColor = DietGreen,
-                    unfocusedBorderColor = Color(0xFFDEDEDE),
-                    cursorColor = DietGreen
+                    cursorColor = DesignGreen
                 )
             )
+            HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
         }
     }
 }
@@ -306,51 +316,36 @@ fun TagFilterRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // "All N" chip
         item {
-            FilterChip(
-                selected = selectedTagIds.isEmpty(),
-                onClick = onAllClick,
-                label = { Text("All $totalCount") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = DietGreen,
-                    selectedLabelColor = Color.White
-                )
-            )
+            DietsFilterChip(label = "All $totalCount", selected = selectedTagIds.isEmpty(), onClick = onAllClick)
         }
         items(tags) { tag ->
             val count = tagCountMap[tag.id] ?: 0
-            FilterChip(
+            DietsFilterChip(
+                label = if (count > 0) "${tag.name} $count" else tag.name,
                 selected = tag.id in selectedTagIds,
-                onClick = { onTagClick(tag.id) },
-                label = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(tag.name)
-                        if (count > 0) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (tag.id in selectedTagIds) Color.White.copy(alpha = 0.3f) else DietGreen.copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    text = "$count",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (tag.id in selectedTagIds) Color.White else DietGreen,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = DietGreen,
-                    selectedLabelColor = Color.White
-                )
+                onClick = { onTagClick(tag.id) }
             )
         }
+    }
+}
+
+@Composable
+private fun DietsFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) Color(0xFF111111) else Color.White)
+            .border(1.dp, if (selected) Color(0xFF111111) else Color(0xFFE8E8E8), RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(label, fontSize = 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) Color.White else Color(0xFF555555))
     }
 }
 
@@ -362,7 +357,7 @@ fun AdvancedFilterSection(
     onSlotToggle: (String) -> Unit,
     onClearAll: () -> Unit
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
+    Surface(color = CardBg) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             // Food filter
             OutlinedTextField(
@@ -401,7 +396,7 @@ fun AdvancedFilterSection(
                         onClick = { onSlotToggle(slot.name) },
                         label = { Text(slot.displayName, style = MaterialTheme.typography.labelSmall) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = DietGreen,
+                            selectedContainerColor = DesignGreen,
                             selectedLabelColor = Color.White
                         )
                     )
@@ -411,7 +406,7 @@ fun AdvancedFilterSection(
             if (foodFilter.isNotBlank() || slotFilter.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onClearAll, contentPadding = PaddingValues(0.dp)) {
-                    Text("Clear all filters", color = MaterialTheme.colorScheme.error)
+                    Text("Clear all filters", color = TextDestructive)
                 }
             }
         }
@@ -434,9 +429,9 @@ fun DietCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Header (always visible) — tap to expand or select
@@ -465,7 +460,7 @@ fun DietCard(
                         if (item.diet.isSystem) {
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                color = TagGrayBg
                             ) {
                                 Text(
                                     "Built-in",
@@ -530,7 +525,7 @@ fun DietCard(
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowRight,
                             contentDescription = "Select",
-                            tint = DietGreen,
+                            tint = DesignGreen,
                             modifier = Modifier.padding(start = 8.dp).size(20.dp)
                         )
                     } else {
@@ -561,12 +556,12 @@ fun DietCard(
                         TextButton(onClick = onView) {
                             Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("View", color = DietGreen)
+                            Text("View", color = DesignGreen)
                         }
                         TextButton(onClick = onEdit) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Edit", color = DietGreen)
+                            Text("Edit", color = DesignGreen)
                         }
                         TextButton(onClick = { onDuplicate() }) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -576,7 +571,7 @@ fun DietCard(
                         TextButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                            Text("Delete", color = TextDestructive)
                         }
                     }
                 }
@@ -591,7 +586,7 @@ fun DietCard(
             text = { Text("Delete \"${item.diet.name}\"?") },
             confirmButton = {
                 TextButton(onClick = { onDelete(); showDeleteDialog = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Delete", color = TextDestructive)
                 }
             },
             dismissButton = {
@@ -679,7 +674,7 @@ fun TagsManagementDialog(
                             ) {
                                 TagChip(tag = tag)
                                 IconButton(onClick = { tagToDelete = tag }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextDestructive)
                                 }
                             }
                         }

@@ -6,7 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import com.mealplanplus.ui.theme.BgPage
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -26,6 +26,7 @@ fun AddDietScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             DietFormTopBar(
                 title = "New Diet",
@@ -39,7 +40,7 @@ fun AddDietScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F5F5)),
+                .background(BgPage),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

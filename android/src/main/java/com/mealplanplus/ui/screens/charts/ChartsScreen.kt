@@ -1,21 +1,39 @@
 package com.mealplanplus.ui.screens.charts
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.ChartCarbs
+import com.mealplanplus.ui.theme.ChartFat
+import com.mealplanplus.ui.theme.ChartProtein
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 import com.mealplanplus.util.toChartLabel
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
@@ -42,19 +60,23 @@ fun ChartsScreen(
     var selectedTab by remember { mutableStateOf(ChartTab.HEALTH) }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Analytics") },
+                title = {
+                    Text(
+                        "Analytics",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
@@ -62,25 +84,56 @@ fun ChartsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(BgPage)
         ) {
-            // Tab row
-            TabRow(selectedTabIndex = selectedTab.ordinal) {
-                ChartTab.entries.forEach { tab ->
-                    Tab(
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardBg)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(ChartTab.entries.toList()) { tab ->
+                    ChartTabChip(
+                        label = tab.title,
                         selected = selectedTab == tab,
-                        onClick = { selectedTab = tab },
-                        text = { Text(tab.title) }
+                        onClick = { selectedTab = tab }
                     )
                 }
             }
-
-            // Tab content
-            when (selectedTab) {
-                ChartTab.HEALTH -> HealthChartsTab(viewModel, uiState)
-                ChartTab.NUTRITION -> NutritionChartsTab(viewModel, uiState)
-                ChartTab.INSIGHTS -> InsightsTab(viewModel, uiState)
+            HorizontalDivider(color = DividerColor, thickness = 1.dp)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (selectedTab) {
+                    ChartTab.HEALTH -> HealthChartsTab(viewModel, uiState)
+                    ChartTab.NUTRITION -> NutritionChartsTab(viewModel, uiState)
+                    ChartTab.INSIGHTS -> InsightsTab(viewModel, uiState)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ChartTabChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(if (selected) TextPrimary else CardBg)
+            .border(1.dp, if (selected) TextPrimary else Color(0xFFE8E8E8), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (selected) Color.White else TextSecondary
+        )
     }
 }
 
@@ -91,7 +144,9 @@ fun HealthChartsTab(
     uiState: ChartsUiState
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgPage),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -148,7 +203,7 @@ fun HealthChartsTab(
                     Text(
                         text = "Need at least 2 data points.\nLog more ${uiState.selectedMetricType.displayName} readings!",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
             } else {
@@ -168,7 +223,9 @@ fun NutritionChartsTab(
     uiState: ChartsUiState
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgPage),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -206,7 +263,7 @@ fun NutritionChartsTab(
                         ) {
                             Text(
                                 text = "Need at least 2 days of data",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary
                             )
                         }
                     } else {
@@ -232,7 +289,7 @@ fun NutritionChartsTab(
                         ) {
                             Text(
                                 text = "No nutrition data",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary
                             )
                         }
                     } else {
@@ -256,7 +313,9 @@ fun InsightsTab(
     uiState: ChartsUiState
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgPage),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -295,12 +354,12 @@ fun InsightsTab(
                             Text(
                                 text = "$adherencePercent%",
                                 style = MaterialTheme.typography.headlineLarge,
-                                color = MaterialTheme.colorScheme.primary
+                                color = DesignGreen
                             )
                             Text(
                                 text = "Completion Rate",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary
                             )
                         }
                     }
@@ -313,8 +372,8 @@ fun InsightsTab(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        color = DesignGreen,
+                        trackColor = TagGrayBg
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -326,12 +385,12 @@ fun InsightsTab(
                         Text(
                             text = "$completedPlans completed",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = DesignGreen
                         )
                         Text(
                             text = "$totalPlans total plans",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextSecondary
                         )
                     }
                 }
@@ -375,12 +434,12 @@ fun StatCard(
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = DesignGreen
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = TextSecondary
             )
         }
     }
@@ -477,7 +536,7 @@ fun MacroDistributionChart(
     val total = totalProtein + totalCarbs + totalFat
 
     if (total <= 0) {
-        Text("No macro data available", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("No macro data available", color = TextSecondary)
         return
     }
 
@@ -497,7 +556,7 @@ fun MacroDistributionChart(
                     modifier = Modifier
                         .weight(proteinPercent.toFloat())
                         .fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.tertiary
+                    color = ChartProtein
                 ) {}
             }
             if (carbsPercent > 0) {
@@ -505,7 +564,7 @@ fun MacroDistributionChart(
                     modifier = Modifier
                         .weight(carbsPercent.toFloat())
                         .fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.secondary
+                    color = ChartCarbs
                 ) {}
             }
             if (fatPercent > 0) {
@@ -513,7 +572,7 @@ fun MacroDistributionChart(
                     modifier = Modifier
                         .weight(fatPercent.toFloat())
                         .fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.error
+                    color = ChartFat
                 ) {}
             }
         }
@@ -525,9 +584,9 @@ fun MacroDistributionChart(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            MacroLegendItem("Protein", proteinPercent, totalProtein.toInt(), MaterialTheme.colorScheme.tertiary)
-            MacroLegendItem("Carbs", carbsPercent, totalCarbs.toInt(), MaterialTheme.colorScheme.secondary)
-            MacroLegendItem("Fat", fatPercent, totalFat.toInt(), MaterialTheme.colorScheme.error)
+            MacroLegendItem("Protein", proteinPercent, totalProtein.toInt(), ChartProtein)
+            MacroLegendItem("Carbs", carbsPercent, totalCarbs.toInt(), ChartCarbs)
+            MacroLegendItem("Fat", fatPercent, totalFat.toInt(), ChartFat)
         }
     }
 }
@@ -548,7 +607,7 @@ fun MacroLegendItem(
         Spacer(modifier = Modifier.width(4.dp))
         Column {
             Text("$name $percent%", style = MaterialTheme.typography.labelMedium)
-            Text("${grams}g total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${grams}g total", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
         }
     }
 }
@@ -568,7 +627,7 @@ fun WeeklySummaryCard(
             Text(
                 text = "Based on ${macros.size} days",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = TextSecondary
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -582,15 +641,15 @@ fun WeeklySummaryCard(
                     Text("Calories", style = MaterialTheme.typography.labelSmall)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${avgProtein}g", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.tertiary)
+                    Text("${avgProtein}g", style = MaterialTheme.typography.titleLarge, color = ChartProtein)
                     Text("Protein", style = MaterialTheme.typography.labelSmall)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${avgCarbs}g", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.secondary)
+                    Text("${avgCarbs}g", style = MaterialTheme.typography.titleLarge, color = ChartCarbs)
                     Text("Carbs", style = MaterialTheme.typography.labelSmall)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${avgFat}g", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
+                    Text("${avgFat}g", style = MaterialTheme.typography.titleLarge, color = ChartFat)
                     Text("Fat", style = MaterialTheme.typography.labelSmall)
                 }
             }

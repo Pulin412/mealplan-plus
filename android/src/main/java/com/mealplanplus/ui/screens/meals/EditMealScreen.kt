@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.meals
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,12 +10,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.repository.UsdaFoodResult
 import com.mealplanplus.ui.components.FoodDetailSheet
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,19 +83,16 @@ fun EditMealScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Edit Meal") },
+                title = { Text("Edit Meal", color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
@@ -95,6 +100,7 @@ fun EditMealScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(BgPage)
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
@@ -104,6 +110,7 @@ fun EditMealScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(BgPage)
                     .padding(padding)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -181,7 +188,7 @@ fun EditMealScreen(
                         Text(
                             text = "No foods added yet",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextSecondary
                         )
                     }
                 }
@@ -205,7 +212,7 @@ fun EditMealScreen(
 
                         Card(
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                containerColor = DesignGreenLight
                             )
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -229,7 +236,7 @@ fun EditMealScreen(
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = Color.White
                             )
                         } else {
                             Text("Update Meal")
@@ -241,7 +248,7 @@ fun EditMealScreen(
                     item {
                         Text(
                             text = error,
-                            color = MaterialTheme.colorScheme.error,
+                            color = TextDestructive,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

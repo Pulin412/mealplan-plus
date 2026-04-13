@@ -32,6 +32,9 @@ import com.mealplanplus.util.WidgetTextColorPresets
 import com.mealplanplus.util.WidgetTextWeight
 import com.mealplanplus.util.WidgetTextSize
 import kotlinx.coroutines.launch
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 // ─── Preset bg options shown in the UI ────────────────────────────────────────
 
@@ -60,25 +63,23 @@ fun WidgetSettingsScreen(
     var applyDone  by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Widget Appearance") },
+                title = { Text("Widget Appearance", color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {

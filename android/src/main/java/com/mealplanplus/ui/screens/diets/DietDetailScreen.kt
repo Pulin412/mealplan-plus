@@ -16,6 +16,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.repository.UsdaFoodResult
+import com.mealplanplus.ui.theme.BgPage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +102,7 @@ fun DietDetailScreen(
     var showAddSlotDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             if (isEditing) {
                 DietFormTopBar(
@@ -139,7 +141,7 @@ fun DietDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F5F5)),
+                .background(Color(0xFFF7F7F7)),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

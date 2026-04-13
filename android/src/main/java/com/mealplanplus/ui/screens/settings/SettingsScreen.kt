@@ -15,11 +15,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Widgets
@@ -32,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.local.ImportStrategy
 import kotlinx.coroutines.launch
+import com.mealplanplus.ui.theme.BgPage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -124,19 +129,20 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text("Settings", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF111111))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White,
                     titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF555555)
+                    navigationIconContentColor = Color(0xFF111111)
                 )
             )
         }
@@ -145,6 +151,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(BgPage)
                 .verticalScroll(rememberScrollState())
         ) {
             // Appearance Section
@@ -188,7 +195,7 @@ fun SettingsScreen(
                 )
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // Notifications Section
             SettingsSection(title = "Notifications") {
@@ -305,7 +312,7 @@ fun SettingsScreen(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // Fitness & Wearables Section
             SettingsSection(title = "Fitness & Wearables") {
@@ -376,7 +383,7 @@ fun SettingsScreen(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // Data Export Section
             SettingsSection(title = "Data Export") {
@@ -425,7 +432,7 @@ fun SettingsScreen(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // Data Import Section
             SettingsSection(title = "Data Import") {
@@ -473,7 +480,7 @@ fun SettingsScreen(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // About Section
             SettingsSection(title = "About") {
@@ -681,14 +688,23 @@ fun SettingsSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column {
+    Column(modifier = Modifier.padding(top = 20.dp)) {
         Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            text = title.uppercase(),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFFAAAAAA),
+            letterSpacing = 0.8.sp,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
         )
-        content()
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column { content() }
+        }
     }
 }
 
@@ -701,32 +717,32 @@ fun SettingsSwitchItem(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(Modifier.width(16.dp))
+        Box(
+            modifier = Modifier.size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(Color(0xFFF5F5F5)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF555555), modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(text = title, fontSize = 14.sp, color = Color(0xFF111111))
+            Text(text = subtitle, fontSize = 11.sp, color = Color(0xFFAAAAAA))
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF2E7D52),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFE0E0E0),
+                uncheckedBorderColor = Color(0xFFE0E0E0)
+            )
         )
     }
 }
@@ -739,20 +755,13 @@ fun SettingsTimeItem(
     onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Spacer(Modifier.width(40.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        TextButton(onClick = onClick) {
-            Text(formatTime(hour, minute))
+        Spacer(Modifier.width(46.dp))
+        Text(text = label, fontSize = 14.sp, modifier = Modifier.weight(1f), color = Color(0xFF555555))
+        TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+            Text(formatTime(hour, minute), fontSize = 14.sp, color = Color(0xFF2E7D52), fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -764,16 +773,20 @@ fun SettingsButtonItem(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(title)
+        Box(
+            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF5F5F5)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF555555), modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(title, fontSize = 14.sp, color = if (enabled) Color(0xFF111111) else Color(0xFFAAAAAA), modifier = Modifier.weight(1f))
+        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color(0xFFCCCCCC), modifier = Modifier.size(18.dp))
     }
 }
 
@@ -978,28 +991,22 @@ fun SettingsActionItem(
     onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Box(
+            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF5F5F5)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF555555), modifier = Modifier.size(18.dp))
         }
-        TextButton(onClick = onClick) {
-            Text(actionLabel)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, fontSize = 14.sp, color = Color(0xFF111111))
+            Text(text = subtitle, fontSize = 11.sp, color = Color(0xFFAAAAAA))
+        }
+        TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
+            Text(actionLabel, fontSize = 13.sp, color = Color(0xFF2E7D52), fontWeight = FontWeight.SemiBold)
         }
     }
 }
