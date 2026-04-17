@@ -304,6 +304,49 @@ fun HealthScreen(
                     }
                 }
             }
+
+            // ── Streak & Stats entry row ────────────────────────────────────
+            item {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White)
+                        .clickable { onNavigateToCharts() }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("🔥", fontSize = 20.sp)
+                        Column {
+                            Text(
+                                "Streak & Stats",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF111111)
+                            )
+                            Text(
+                                "View your streak, calendar & analytics",
+                                fontSize = 12.sp,
+                                color = Color(0xFF888888)
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Default.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color(0xFFCCCCCC),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 
