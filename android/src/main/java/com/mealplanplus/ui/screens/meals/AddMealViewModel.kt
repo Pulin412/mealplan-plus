@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.meals
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.UsdaFoodRepository
@@ -42,7 +43,8 @@ data class SelectedFood(
 class AddMealViewModel @Inject constructor(
     private val mealRepository: MealRepository,
     private val foodRepository: FoodRepository,
-    private val usdaRepository: UsdaFoodRepository
+    private val usdaRepository: UsdaFoodRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddMealUiState())
@@ -213,9 +215,11 @@ class AddMealViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                val userId = authRepository.getCurrentUserId().first() ?: return@launch
                 val meal = Meal(
                     name = state.name.trim(),
-                    description = state.description.takeIf { it.isNotBlank() }?.trim()
+                    description = state.description.takeIf { it.isNotBlank() }?.trim(),
+                    userId = userId
                 )
                 val mealId = mealRepository.insertMeal(meal)
 

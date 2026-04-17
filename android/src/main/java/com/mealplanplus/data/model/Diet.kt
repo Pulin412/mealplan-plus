@@ -9,10 +9,22 @@ import androidx.room.PrimaryKey
 /**
  * A diet template — a reusable named collection of meals assigned to slots.
  *
- * Diets are app-global (no user_id). The [isSystem] flag distinguishes
- * built-in diets (e.g. Diet-M1 through Diet-M21) from user-created ones.
+ * [userId] scopes the diet to a specific user.
+ * NULL means a system/built-in diet visible to every user.
+ * User-created diets always have a non-null userId.
  */
-@Entity(tableName = "diets")
+@Entity(
+    tableName = "diets",
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("userId")]
+)
 data class Diet(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -21,6 +33,9 @@ data class Diet(
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(defaultValue = "0")
     val isSystem: Boolean = false,
+    /** NULL = system diet visible to all; non-null = owned by this user. */
+    @ColumnInfo(defaultValue = "NULL")
+    val userId: Long? = null,
     val serverId: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
     val syncedAt: Long? = null,

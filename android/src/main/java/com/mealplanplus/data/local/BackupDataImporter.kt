@@ -36,8 +36,8 @@ class BackupDataImporter @Inject constructor(
 ) {
     private val TAG = "BackupDataImporter"
 
-    // v2: fixes meal_food_items merge bug (duplicate user copies were merged into one meal)
-    private val BACKUP_IMPORTED_KEY = booleanPreferencesKey("backup_data_imported_v2")
+    // v3: meals and diets are now user-scoped; full re-import with userId per record
+    private val BACKUP_IMPORTED_KEY = booleanPreferencesKey("backup_data_imported_v3")
 
     suspend fun importIfNeeded(context: Context) {
         val prefs = context.dataStore.data.first()
@@ -177,147 +177,139 @@ class BackupDataImporter @Inject constructor(
             Log.d(TAG, "Imported ${tagIdMap.size} tags")
 
             // ------------------------------------------------------------------
-            // 5. Import meals (app-global) — deduplicated by name.
-            //    Build old-meal-id → new-meal-id map covering ALL 3 users.
+            // 5. Import meals — now user-scoped (no name deduplication needed).
+            //    Each user gets their own meal records with their own userId.
+            //    Build old-meal-id → new-meal-id map per user.
             // ------------------------------------------------------------------
-            val mealIdMap = mutableMapOf<Long, Long>() // old meal id → new meal id
-            // Process all meals sorted by id so user1's set is inserted first.
-            val allMeals = root.getJSONArray("meals").toObjectList()
-                .sortedBy { it.getLong("id") }
-            val insertedMealNames = mutableMapOf<String, Long>() // name → new id (or existing DB id)
-            // Track which backup meal IDs are "originals" — only these should
-            // have their food items imported. Duplicate copies (same name, later
-            // users) may have different ingredients; importing them would merge
-            // multiple variants into a single meal.
-            val originalMealBackupIds = mutableSetOf<Long>()
+            val mealIdMap = mutableMapOf<Long, Long>() // old backup meal id → new Room meal id
+            val mfiByMealId = root.getJSONArray("meal_food_items").toObjectList()
+                .groupBy { it.getLong("mealId") }
 
+            val allMeals = root.getJSONArray("meals").toObjectList()
             for (m in allMeals) {
                 val oldId = m.getLong("id")
-                val name = m.getString("name")
-                val existingNewId = insertedMealNames[name]
-                if (existingNewId != null) {
-                    // Duplicate — reuse the already-inserted meal, but do NOT
-                    // import this copy's food items (they may differ from user 1's).
-                    mealIdMap[oldId] = existingNewId
-                } else {
-                    // Check if already in DB (from a previous bad import run).
-                    // If so, reuse the existing DB id and still treat this as the
-                    // canonical copy so we can clean and re-import its food items.
-                    val existingDbMeal = mealDao.getMealByName(name)
-                    val newId = existingDbMeal?.id ?: mealDao.insertMeal(
-                        Meal(
-                            name = name,
-                            description = m.optString("description", null),
-                            isSystem = false,
-                            createdAt = m.optLong("createdAt", System.currentTimeMillis())
-                        )
+                // Determine which user owns this meal from its diet_meals reference
+                // (all meals in the backup were user-owned, not system).
+                // We resolve the owning user when building diet slots (step 7).
+                // For now insert with userId=null; we'll patch it per-user below.
+                val newId = mealDao.insertMeal(
+                    Meal(
+                        name = m.getString("name"),
+                        description = m.optString("description", null),
+                        isSystem = false,
+                        userId = null, // patched in step 5b
+                        createdAt = m.optLong("createdAt", System.currentTimeMillis())
                     )
-                    mealIdMap[oldId] = newId
-                    insertedMealNames[name] = newId
-                    originalMealBackupIds.add(oldId) // mark as canonical copy
+                )
+                mealIdMap[oldId] = newId
+            }
+            Log.d(TAG, "Inserted ${mealIdMap.size} meals (one per backup record)")
+
+            // 5b. Build backup-userId → set of old meal IDs owned by that user,
+            //     then patch userId on the inserted meals.
+            val backupDietMeals = root.getJSONArray("diet_meals").toObjectList()
+            val backupDiets = root.getJSONArray("diets").toObjectList()
+            val backupDietIdToBackupUserId = mutableMapOf<Long, Long>()
+            // The backup has one diet set per user; map each backup diet id to its user
+            // by looking at the users array — diets[0..37] → user 1, [38..75] → user 2, etc.
+            // Simpler: group diet ids by user using plans/daily_logs which carry userId.
+            val backupPlansByUser = root.getJSONArray("plans").toObjectList()
+                .groupBy { it.getLong("userId") }
+            for ((backupUserId, plans) in backupPlansByUser) {
+                val dietIdsForUser = plans.mapNotNull { it.optLong("dietId", -1L).takeIf { it > 0 } }.toSet()
+                dietIdsForUser.forEach { backupDietIdToBackupUserId[it] = backupUserId }
+            }
+            // Also cover diets not in plans — assign by ordering (each user has same count)
+            val sortedDietIds = backupDiets.map { it.getLong("id") }.sorted()
+            val userIds = userIdMap.keys.sorted()
+            val dietsPerUser = sortedDietIds.size / userIds.size.coerceAtLeast(1)
+            sortedDietIds.forEachIndexed { idx, dietId ->
+                if (!backupDietIdToBackupUserId.containsKey(dietId)) {
+                    val userIndex = (idx / dietsPerUser).coerceAtMost(userIds.size - 1)
+                    backupDietIdToBackupUserId[dietId] = userIds[userIndex]
                 }
             }
-            Log.d(TAG, "Mapped ${mealIdMap.size} backup meal ids → ${insertedMealNames.size} unique meals")
+            // Map each backup meal id → owning backup user id via diet_meals
+            val backupMealIdToBackupUserId = mutableMapOf<Long, Long>()
+            for (dm in backupDietMeals) {
+                val backupDietId = dm.getLong("dietId")
+                val backupMealId = dm.optLong("mealId", -1L).takeIf { it > 0 } ?: continue
+                val backupUserId = backupDietIdToBackupUserId[backupDietId] ?: continue
+                backupMealIdToBackupUserId[backupMealId] = backupUserId
+            }
+            // Patch userId on each inserted meal
+            for ((oldMealId, newMealId) in mealIdMap) {
+                val backupUserId = backupMealIdToBackupUserId[oldMealId] ?: continue
+                val newUserId = userIdMap[backupUserId] ?: continue
+                val meal = mealDao.getMealById(newMealId) ?: continue
+                mealDao.updateMeal(meal.copy(userId = newUserId))
+            }
+            Log.d(TAG, "Patched userId on meals")
 
             // ------------------------------------------------------------------
-            // 6. Import meal_food_items using remapped meal + food IDs.
-            //    Only process food items for the ORIGINAL (first-user) copy of
-            //    each meal. Duplicate copies are skipped to prevent merging
-            //    different food compositions into a single meal.
-            //    Clear existing items first to fix any data from a prior bad run.
+            // 6. Import meal_food_items — straight mapping, no deduplication.
             // ------------------------------------------------------------------
-            // Clear existing food items for all canonical meals before re-inserting.
-            val uniqueNewMealIds = originalMealBackupIds.mapNotNull { mealIdMap[it] }.toSet()
-            uniqueNewMealIds.forEach { newMealId -> mealDao.clearMealFoodItems(newMealId) }
-            Log.d(TAG, "Cleared food items for ${uniqueNewMealIds.size} meals before re-import")
-
             var mfiSkipped = 0
-            val mfiArr = root.getJSONArray("meal_food_items")
             val batchMfi = mutableListOf<MealFoodItem>()
-            for (i in 0 until mfiArr.length()) {
-                val fi = mfiArr.getJSONObject(i)
-                val oldMealId = fi.getLong("mealId")
-                // Skip food items belonging to duplicate (non-original) meal copies
-                if (oldMealId !in originalMealBackupIds) {
-                    mfiSkipped++
-                    continue
+            for ((oldMealId, items) in mfiByMealId) {
+                val newMealId = mealIdMap[oldMealId] ?: run { mfiSkipped += items.size; continue }
+                for (fi in items) {
+                    val newFoodId = foodIdMap[fi.getLong("foodId")] ?: run { mfiSkipped++; continue }
+                    val unit = fi.optString("unit", "GRAM").let { str ->
+                        runCatching { FoodUnit.valueOf(str) }.getOrDefault(FoodUnit.GRAM)
+                    }
+                    batchMfi.add(MealFoodItem(
+                        mealId = newMealId,
+                        foodId = newFoodId,
+                        quantity = fi.getDouble("quantity"),
+                        unit = unit,
+                        notes = fi.optString("notes", null)
+                    ))
                 }
-                val oldFoodId = fi.getLong("foodId")
-                val newMealId = mealIdMap[oldMealId]
-                val newFoodId = foodIdMap[oldFoodId]
-                if (newMealId == null || newFoodId == null) {
-                    mfiSkipped++
-                    continue
-                }
-                val unit = fi.optString("unit", "GRAM").let { str ->
-                    runCatching { FoodUnit.valueOf(str) }.getOrDefault(FoodUnit.GRAM)
-                }
-                batchMfi.add(MealFoodItem(
-                    mealId = newMealId,
-                    foodId = newFoodId,
-                    quantity = fi.getDouble("quantity"),
-                    unit = unit,
-                    notes = fi.optString("notes", null)
-                ))
             }
             mealDao.insertMealFoodItems(batchMfi)
-            Log.d(TAG, "Inserted ${batchMfi.size} meal_food_items (skipped $mfiSkipped duplicates/unmapped)")
+            Log.d(TAG, "Inserted ${batchMfi.size} meal_food_items (skipped $mfiSkipped unmapped)")
 
             // ------------------------------------------------------------------
-            // 7. Import diets (app-global) — deduplicated by name
+            // 7. Import diets — now user-scoped (no name deduplication).
+            //    Each user gets their own diet records with their own userId.
             // ------------------------------------------------------------------
             val dietIdMap = mutableMapOf<Long, Long>()
-            val allDiets = root.getJSONArray("diets").toObjectList()
-                .sortedBy { it.getLong("id") }
-            val insertedDietNames = mutableMapOf<String, Long>()
-
-            for (d in allDiets) {
+            for (d in backupDiets) {
                 val oldId = d.getLong("id")
-                val name = d.getString("name")
-                val existingNewId = insertedDietNames[name]
-                if (existingNewId != null) {
-                    dietIdMap[oldId] = existingNewId
-                } else {
-                    val diet = Diet(
-                        name = name,
+                val backupUserId = backupDietIdToBackupUserId[oldId]
+                val newUserId = backupUserId?.let { userIdMap[it] }
+                val newId = dietDao.insertDiet(
+                    Diet(
+                        name = d.getString("name"),
                         description = d.optString("description", null),
                         isSystem = false,
+                        userId = newUserId,
                         isFavourite = d.getInt("isFavourite") == 1,
                         createdAt = d.optLong("createdAt", System.currentTimeMillis())
                     )
-                    val newId = dietDao.insertDiet(diet)
-                    dietIdMap[oldId] = newId
-                    insertedDietNames[name] = newId
-                }
+                )
+                dietIdMap[oldId] = newId
             }
-            Log.d(TAG, "Mapped ${dietIdMap.size} backup diet ids → ${insertedDietNames.size} unique diets")
+            Log.d(TAG, "Inserted ${dietIdMap.size} diets (one per backup record)")
 
             // ------------------------------------------------------------------
             // 8. Import diet_meals → diet_slots using remapped diet + meal IDs
             // ------------------------------------------------------------------
             var dmSkipped = 0
-            val dietMealsArr = root.getJSONArray("diet_meals")
-            val seenDietSlots = mutableSetOf<Pair<Long, String>>()
-            for (i in 0 until dietMealsArr.length()) {
-                val dm = dietMealsArr.getJSONObject(i)
+            for (dm in backupDietMeals) {
                 val oldDietId = dm.getLong("dietId")
                 val oldMealId = dm.optLong("mealId", -1L)
-                val newDietId = dietIdMap[oldDietId]
-                if (newDietId == null) { dmSkipped++; continue }
+                val newDietId = dietIdMap[oldDietId] ?: run { dmSkipped++; continue }
                 val newMealId = if (oldMealId > 0) mealIdMap[oldMealId] else null
-                val slotType = dm.getString("slotType")
-                val key = Pair(newDietId, slotType)
-                if (key in seenDietSlots) continue // deduplicate across users
-                seenDietSlots.add(key)
-                val dietMeal = DietMeal(
+                dietDao.insertDietMeal(DietMeal(
                     dietId = newDietId,
-                    slotType = slotType,
+                    slotType = dm.getString("slotType"),
                     mealId = newMealId,
                     instructions = dm.optString("instructions", null)
-                )
-                dietDao.insertDietMeal(dietMeal)
+                ))
             }
-            Log.d(TAG, "Inserted ${seenDietSlots.size} diet_slots (skipped $dmSkipped unmapped)")
+            Log.d(TAG, "Inserted ${backupDietMeals.size - dmSkipped} diet_slots (skipped $dmSkipped unmapped)")
 
             // ------------------------------------------------------------------
             // 9. Import diet_tags

@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.MealWithFoods
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.MealRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -20,7 +21,8 @@ data class LogMealPickerUiState(
 
 @HiltViewModel
 class LogMealPickerViewModel @Inject constructor(
-    private val mealRepository: MealRepository
+    private val mealRepository: MealRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LogMealPickerUiState())
@@ -32,18 +34,21 @@ class LogMealPickerViewModel @Inject constructor(
 
     private fun loadMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
-                val mealsWithFoods = meals.map { meal ->
-                    mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
+            authRepository.getCurrentUserId()
+                .filterNotNull()
+                .flatMapLatest { uid -> mealRepository.getMealsForUser(uid) }
+                .collect { meals ->
+                    val mealsWithFoods = meals.map { meal ->
+                        mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
+                    }
+                    _uiState.update { state ->
+                        state.copy(
+                            allMeals = mealsWithFoods,
+                            isLoading = false
+                        )
+                    }
+                    applyFilters()
                 }
-                _uiState.update { state ->
-                    state.copy(
-                        allMeals = mealsWithFoods,
-                        isLoading = false
-                    )
-                }
-                applyFilters()
-            }
         }
     }
 

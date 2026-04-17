@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.MealWithFoods
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.util.naturalSortKey
@@ -29,13 +30,16 @@ data class MealsUiState(
 @HiltViewModel
 class MealsViewModel @Inject constructor(
     private val mealRepository: MealRepository,
-    private val dietRepository: DietRepository
+    private val dietRepository: DietRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MealsUiState())
     val uiState: StateFlow<MealsUiState> = _uiState.asStateFlow()
 
-    val meals: StateFlow<List<Meal>> = mealRepository.getAllMeals()
+    val meals: StateFlow<List<Meal>> = authRepository.getCurrentUserId()
+        .filterNotNull()
+        .flatMapLatest { uid -> mealRepository.getMealsForUser(uid) }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _selectedMeal = MutableStateFlow<MealWithFoods?>(null)
@@ -48,39 +52,38 @@ class MealsViewModel @Inject constructor(
 
     private fun loadMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
-                val mealsWithFoods = meals.map { meal ->
-                    mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
+            authRepository.getCurrentUserId().filterNotNull()
+                .flatMapLatest { uid -> mealRepository.getMealsForUser(uid) }
+                .collect { meals ->
+                    val mealsWithFoods = meals.map { meal ->
+                        mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
+                    }
+                    _uiState.update { state ->
+                        state.copy(allMeals = mealsWithFoods, isLoading = false)
+                    }
+                    applyFilters()
                 }
-                _uiState.update { state ->
-                    state.copy(
-                        allMeals = mealsWithFoods,
-                        isLoading = false
-                    )
-                }
-                applyFilters()
-            }
         }
     }
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getAllDiets().collect { diets ->
-                val dietsWithMeals = diets.mapNotNull { diet ->
-                    dietRepository.getDietWithMeals(diet.id)
-                }
-                // Build mealId → set of slotTypes it appears in across all diet templates.
-                // Used by applyFilters() to honour the BREAKFAST / LUNCH / DINNER chips.
-                val mealSlotTypes = mutableMapOf<Long, MutableSet<String>>()
-                for (dwm in dietsWithMeals) {
-                    for ((slotType, mealWithFoods) in dwm.meals) {
-                        val mealId = mealWithFoods?.meal?.id ?: continue
-                        mealSlotTypes.getOrPut(mealId) { mutableSetOf() }.add(slotType)
+            authRepository.getCurrentUserId().filterNotNull()
+                .flatMapLatest { uid -> dietRepository.getDietsForUser(uid) }
+                .collect { diets ->
+                    val dietsWithMeals = diets.mapNotNull { diet ->
+                        dietRepository.getDietWithMeals(diet.id)
                     }
+                    val mealSlotTypes = mutableMapOf<Long, MutableSet<String>>()
+                    for (dwm in dietsWithMeals) {
+                        for ((slotType, mealWithFoods) in dwm.meals) {
+                            val mealId = mealWithFoods?.meal?.id ?: continue
+                            mealSlotTypes.getOrPut(mealId) { mutableSetOf() }.add(slotType)
+                        }
+                    }
+                    _uiState.update { it.copy(diets = dietsWithMeals, mealSlotTypes = mealSlotTypes) }
+                    applyFilters()
                 }
-                _uiState.update { it.copy(diets = dietsWithMeals, mealSlotTypes = mealSlotTypes) }
-                applyFilters()
-            }
         }
     }
 

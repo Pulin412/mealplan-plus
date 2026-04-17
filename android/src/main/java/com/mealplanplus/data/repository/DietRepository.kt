@@ -13,6 +13,17 @@ class DietRepository @Inject constructor(
     private val tagDao: TagDao,
     private val mealRepository: MealRepository
 ) {
+    fun getDietsForUser(userId: Long): Flow<List<Diet>> = dietDao.getDietsForUser(userId)
+
+    fun getDietsWithFullSummaryForUser(userId: Long): Flow<List<DietFullSummary>> =
+        dietDao.getDietsWithFullSummaryForUser(userId)
+
+    fun getFavouriteDietsForUser(userId: Long): Flow<List<Diet>> =
+        dietDao.getFavouriteDietsForUser(userId)
+
+    suspend fun getDietCountForUser(userId: Long): Int = dietDao.getDietCountForUser(userId)
+
+    /** Unfiltered — for seeder / importer use only. */
     fun getAllDiets(): Flow<List<Diet>> = dietDao.getAllDiets()
 
     fun getDietsWithFullSummary(): Flow<List<DietFullSummary>> = dietDao.getDietsWithFullSummary()

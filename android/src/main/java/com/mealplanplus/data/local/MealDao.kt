@@ -7,6 +7,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MealDao {
+    /** User's own meals + system meals (userId IS NULL). */
+    @Query("SELECT * FROM meals WHERE (userId = :userId OR userId IS NULL) ORDER BY name ASC")
+    fun getMealsForUser(userId: Long): Flow<List<Meal>>
+
+    /** Unfiltered — used internally by seeder / importer only. */
     @Query("SELECT * FROM meals ORDER BY name ASC")
     fun getAllMeals(): Flow<List<Meal>>
 
