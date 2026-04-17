@@ -11,7 +11,9 @@ import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import com.mealplanplus.util.toEpochMs
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -24,13 +26,24 @@ enum class DateRange(val label: String, val days: Int) {
 }
 
 data class ChartsUiState(
+    // ── Streak tab ────────────────────────────────────────────────────────────
+    val currentStreak: Int = 0,
+    val bestStreak: Int = 0,
+    val loggedDatesThisMonth: Set<Long> = emptySet(),   // epoch-ms dates logged in current month
+    val totalDaysLogged: Int = 0,
+    val avgCaloriesPerDay: Int = 0,
+    val avgProteinPerDay: Int = 0,
+
+    // ── Health tab ────────────────────────────────────────────────────────────
     val selectedMetricType: MetricType = MetricType.WEIGHT,
     val healthRange: DateRange = DateRange.MONTH,
     val healthMetrics: List<HealthMetric> = emptyList(),
 
+    // ── Nutrition tab ─────────────────────────────────────────────────────────
     val nutritionRange: DateRange = DateRange.WEEK,
     val macroTotals: List<DailyMacroSummary> = emptyList(),
 
+    // ── Insights tab ─────────────────────────────────────────────────────────
     val insightsRange: DateRange = DateRange.MONTH,
     val totalPlans: Int = 0,
     val completedPlans: Int = 0,
@@ -53,9 +66,82 @@ class ChartsViewModel @Inject constructor(
     private var insightsJob: Job? = null
 
     init {
+        loadStreakData()
         loadHealthMetrics()
         loadNutritionData()
         loadInsightsData()
+    }
+
+    // ── Streak tab ────────────────────────────────────────────────────────────
+
+    private fun loadStreakData() {
+        viewModelScope.launch {
+            val today = LocalDate.now()
+            val yearAgo = today.minusDays(365)
+            val monthStart = today.withDayOfMonth(1)
+            val monthEnd = today.withDayOfMonth(today.lengthOfMonth())
+
+            // All-year dates → streak + best streak
+            dailyLogRepository.getLoggedDatesForStreak(yearAgo, today).collect { summaries ->
+                val loggedMs = summaries.map { it.date }.toSet()
+
+                val current = computeCurrentStreak(loggedMs, today)
+                val best = computeBestStreak(loggedMs, today)
+
+                // This-month dates for calendar
+                val monthDates = dailyLogRepository
+                    .getLoggedDatesForStreak(monthStart, monthEnd)
+                    .first()
+                    .map { it.date }.toSet()
+
+                // All-time 30-day average macros
+                val macros30 = dailyLogRepository
+                    .getDailyMacroTotals(today.minusDays(30), today)
+                    .first()
+
+                val avgCal = if (macros30.isNotEmpty()) macros30.map { it.calories }.average().toInt() else 0
+                val avgProt = if (macros30.isNotEmpty()) macros30.map { it.protein }.average().toInt() else 0
+
+                _uiState.update {
+                    it.copy(
+                        currentStreak = current,
+                        bestStreak = best,
+                        loggedDatesThisMonth = monthDates,
+                        totalDaysLogged = loggedMs.size,
+                        avgCaloriesPerDay = avgCal,
+                        avgProteinPerDay = avgProt
+                    )
+                }
+            }
+        }
+    }
+
+    private fun computeCurrentStreak(loggedMs: Set<Long>, today: LocalDate): Int {
+        var streak = 0
+        var day = today
+        while (true) {
+            val ms = day.toEpochMs()
+            if (ms in loggedMs) { streak++; day = day.minusDays(1) } else break
+        }
+        return streak
+    }
+
+    private fun computeBestStreak(loggedMs: Set<Long>, today: LocalDate): Int {
+        if (loggedMs.isEmpty()) return 0
+        var best = 0
+        var current = 0
+        var day = today.minusDays(365)
+        val endDay = today
+        while (!day.isAfter(endDay)) {
+            if (day.toEpochMs() in loggedMs) {
+                current++
+                if (current > best) best = current
+            } else {
+                current = 0
+            }
+            day = day.plusDays(1)
+        }
+        return best
     }
 
     // Health tab

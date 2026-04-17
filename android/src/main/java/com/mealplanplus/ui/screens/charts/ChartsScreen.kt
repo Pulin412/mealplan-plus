@@ -17,9 +17,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.util.toEpochMs
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
@@ -45,8 +50,9 @@ import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
 
 enum class ChartTab(val title: String) {
-    HEALTH("Health"),
+    STREAK("Streak"),
     NUTRITION("Nutrition"),
+    HEALTH("Health"),
     INSIGHTS("Insights")
 }
 
@@ -65,7 +71,7 @@ fun ChartsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Analytics",
+                        "Streak & Stats",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -108,6 +114,7 @@ fun ChartsScreen(
                     .fillMaxWidth()
             ) {
                 when (selectedTab) {
+                    ChartTab.STREAK -> StreakTab(uiState)
                     ChartTab.HEALTH -> HealthChartsTab(viewModel, uiState)
                     ChartTab.NUTRITION -> NutritionChartsTab(viewModel, uiState)
                     ChartTab.INSIGHTS -> InsightsTab(viewModel, uiState)
@@ -136,6 +143,261 @@ private fun ChartTabChip(label: String, selected: Boolean, onClick: () -> Unit) 
         )
     }
 }
+
+// ── Streak Tab ────────────────────────────────────────────────────────────────
+
+@Composable
+fun StreakTab(uiState: ChartsUiState) {
+    val today = remember { LocalDate.now() }
+    val weekDays = remember {
+        // Mon=1..Sun=7, build Mon→Sun for current week
+        val mon = today.minusDays((today.dayOfWeek.value - 1).toLong())
+        (0..6).map { mon.plusDays(it.toLong()) }
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgPage),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // ── Streak hero card ─────────────────────────────────────────────────
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Column {
+                            Text(
+                                text = "${uiState.currentStreak}",
+                                fontSize = 40.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                lineHeight = 44.sp
+                            )
+                            Text(
+                                text = "Day streak 🔥",
+                                fontSize = 13.sp,
+                                color = TextSecondary
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "${uiState.bestStreak}",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Best ever",
+                                fontSize = 12.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = "THIS WEEK",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary,
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        weekDays.forEach { day ->
+                            val dayMs = day.toEpochMs()
+                            val isLogged = dayMs in uiState.loggedDatesThisMonth ||
+                                (day.isBefore(today) && uiState.currentStreak > 0 &&
+                                    today.toEpochDay() - day.toEpochDay() < uiState.currentStreak)
+                            val isToday = day == today
+                            val isFuture = day.isAfter(today)
+                            val dotBg = when {
+                                isToday -> TextPrimary
+                                isLogged && !isFuture -> DesignGreen.copy(alpha = 0.25f)
+                                else -> Color(0xFFF0F0F0)
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(dotBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isLogged && !isToday && !isFuture) {
+                                        Box(
+                                            Modifier
+                                                .size(8.dp)
+                                                .clip(RoundedCornerShape(50))
+                                                .background(DesignGreen)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = day.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                                    fontSize = 10.sp,
+                                    color = if (isFuture) Color(0xFFCCCCCC) else TextSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Monthly calendar ─────────────────────────────────────────────────
+        item {
+            val monthName = today.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            Text(
+                text = "Monthly overview · $monthName",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextSecondary,
+                letterSpacing = 0.5.sp,
+                modifier = Modifier.padding(horizontal = 2.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    val daysInMonth = today.lengthOfMonth()
+                    val monthStart = today.withDayOfMonth(1)
+                    val rows = (daysInMonth + 6) / 7
+                    for (row in 0 until rows) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            for (col in 0..6) {
+                                val dayNum = row * 7 + col + 1
+                                if (dayNum > daysInMonth) {
+                                    Spacer(Modifier.weight(1f))
+                                } else {
+                                    val dayDate = monthStart.plusDays((dayNum - 1).toLong())
+                                    val dayMs = dayDate.toEpochMs()
+                                    val isLogged = dayMs in uiState.loggedDatesThisMonth
+                                    val isTodayDay = dayDate == today
+                                    val isFutureDay = dayDate.isAfter(today)
+                                    val cellBg = when {
+                                        isTodayDay -> TextPrimary
+                                        isLogged -> Color(0xFFE8F5EE)
+                                        else -> Color(0xFFF5F5F5)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .aspectRatio(1f)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(cellBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "$dayNum",
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isTodayDay) FontWeight.Bold else FontWeight.Medium,
+                                            color = when {
+                                                isTodayDay -> Color.White
+                                                isLogged -> DesignGreen
+                                                isFutureDay -> Color(0xFFCCCCCC)
+                                                else -> Color(0xFFCCCCCC)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (row < rows - 1) Spacer(Modifier.height(3.dp))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        CalLegendItem(Color(0xFFE8F5EE), "Logged")
+                        CalLegendItem(TextPrimary, "Today")
+                        CalLegendItem(Color(0xFFF5F5F5), "Upcoming")
+                    }
+                }
+            }
+        }
+
+        // ── All-time stats ───────────────────────────────────────────────────
+        item {
+            Text(
+                text = "All-time stats",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextSecondary,
+                letterSpacing = 0.5.sp,
+                modifier = Modifier.padding(horizontal = 2.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AllTimeStatCard("Total days logged", "${uiState.totalDaysLogged}", Modifier.weight(1f))
+                AllTimeStatCard("Avg kcal / day", "${uiState.avgCaloriesPerDay}", Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AllTimeStatCard("Avg protein / day", "${uiState.avgProteinPerDay}g", Modifier.weight(1f))
+                // Placeholder for future stat
+                Box(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalLegendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Box(
+            Modifier
+                .size(10.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(color)
+        )
+        Text(label, fontSize = 10.sp, color = TextSecondary)
+    }
+}
+
+@Composable
+private fun AllTimeStatCard(title: String, value: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Spacer(Modifier.height(2.dp))
+            Text(title, fontSize = 11.sp, color = TextSecondary)
+        }
+    }
+}
+
+// ── Health Tab ────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
