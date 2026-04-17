@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: April 2026  
+> Last updated: April 15, 2026  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -41,33 +41,27 @@ mealplan-plus/
 
 | GH Issue | Task | Status |
 |---|---|---|
-| [#81](https://github.com/Pulin412/mealplan-plus/issues/81) | Remove `shared/` KMP module dependency from Android | ⬜ Open |
-| [#82](https://github.com/Pulin412/mealplan-plus/issues/82) | Stabilise Room schema — document v30 as clean baseline | ⬜ Open |
-| [#83](https://github.com/Pulin412/mealplan-plus/issues/83) | Merge `feature/quick-add-fab` → `main`, tag as v1.0 | 🔄 Merged · pending tag |
-| [#98](https://github.com/Pulin412/mealplan-plus/issues/98) | Android — Implement minimalist UI redesign across all current screens | ⬜ Open |
+| [#81](https://github.com/Pulin412/mealplan-plus/issues/81) | Remove `shared/` KMP module dependency from Android | ✅ Done |
+| [#82](https://github.com/Pulin412/mealplan-plus/issues/82) | Stabilise Room schema — document v32 as clean baseline | ✅ Done |
+| [#83](https://github.com/Pulin412/mealplan-plus/issues/83) | Merge `feature/foundation` → `main`, single app going forward | ✅ Done |
+| [#98](https://github.com/Pulin412/mealplan-plus/issues/98) | Android — Implement minimalist UI redesign across all screens | ✅ Done |
 
 ### Foundation Checklist
-- [ ] #81 — Audit `shared/` usage in Android; copy anything needed; remove `:shared` dependency
-- [ ] #82 — Verify schema files up to v30 exist; add `DB_SCHEMA.md`; write idempotency test
-- [x] #83 — FAB merged to `main` (f814a49); tag `v1.0` after #81 #82 #98 complete
-- [ ] #98 — Implement `design-future.html` visual language in Compose for all 14 existing screens; extract design tokens to `ui/theme/`; no data layer changes
+- [x] #81 — `MigrationRunner.kt` and `RoomToSQLDelightMigration.kt` removed; `:shared` dependency removed from `settings.gradle.kts`
+- [x] #82 — Schema exported up to v32 in `android/schemas/`; `docs/DATABASE_SCHEMA.md` written; `SeederIdempotencyTest.kt` added in `androidTest/`
+- [x] #83 — `feature/foundation` merged to `main` (April 15, 2026); `.dev` app ID suffix removed; single codebase, single app
+- [x] #98 — Full minimalist redesign across all 19 screens; `DesignTokens.kt` with dynamic light/dark tokens; `FormComponents.kt` for shared UI; user-scoped meals & diets (Room v32); backup data imported; swipe navigation; meal names in log slots; interactive diet picker with meal detail
 
-### Recommended order within Foundation
-1. **#81** (unblock Android build from KMP) — 1–2 days
-2. **#82** (schema docs + idempotency test) — half day
-3. **#98** (UI redesign) — largest item; design spec is done, this is pure Compose work
-4. **Tag v1.0** after all three are green
-
-### What was fixed to get here
-- DB v27→v28: deduplicated diets + meals (seeder ran multiple times due to missing guard)
-- DB v28→v29: deduplicated food_items (compound-PK tables handled carefully)
-- DB v29→v30: wiped corrupted meal/diet_slot data; `MealSlotReseeder` re-populates from `seed_data.json`
-- `UserDataSeeder`: added `getDietCount() > 0` idempotency guard
-- `JsonDataImporter`: fixed `getExistingDietNames()` — was always returning empty set
-- Quick-Add FAB: central `+` button with slide-up sheet (Add Food, New Meal, New Diet, Log Today)
-- Bottom nav: visible on all authenticated screens; Settings tab added for symmetry
-- Meal filter chips (Breakfast/Lunch/Dinner): now actually filter meals by diet slot assignment
-- `design-future.html`: interactive HTML mockups for all 19 screens across all phases
+### What was delivered in Foundation
+- Full minimalist design system: `DesignTokens.kt`, `FormComponents.kt`, global font scale, dark mode across all screens
+- All 19 screens redesigned to match `design-future.html`
+- User-scoped meals and diets (Room schema v30→v32; `userId` on `meals` + `diets` tables)
+- `BackupDataImporter` — one-time import of all 3 users' data from `backup/mealplan_data_export.json`
+- `AlarmManager` notification system (5 alarm types; replaced old WorkManager notification workers)
+- Health Connect integration (steps, calories burned, weight from fitness watches)
+- Streak & Stats screen; Grocery screens; Auth redesign; Profile screen
+- Diets, Meals, Foods accessible from More sheet with full navigation
+- `design-future.html` stays as the design reference for all future phases
 
 ---
 
@@ -111,14 +105,14 @@ mealplan-plus/
 
 | GH Issue | Task | Status |
 |---|---|---|
-| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v31 migration) | ⬜ Open |
+| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v33 migration) | ⬜ Open |
 | [#90](https://github.com/Pulin412/mealplan-plus/issues/90) | Android — Workout screens (Log, History, Exercise catalogue) | ⬜ Open |
 | [#91](https://github.com/Pulin412/mealplan-plus/issues/91) | Backend — Workout JPA entities + sync extension | ⬜ Open |
 
 ### Phase 2 Checklist
 
 **Android**
-- [ ] #89 — `Exercise`, `WorkoutSession`, `WorkoutSet` entities; DAOs; Room migration v30; `WorkoutRepository`; `exercises.json` asset + `ExerciseSeeder` with version guard
+- [ ] #89 — `Exercise`, `WorkoutSession`, `WorkoutSet` entities; DAOs; Room migration v32; `WorkoutRepository`; `exercises.json` asset + `ExerciseSeeder` with version guard
 - [ ] #90 — `WorkoutLogScreen`, `WorkoutHistoryScreen`, `ExerciseCatalogueScreen`; add "Log Workout" to Quick Add FAB; register routes in NavHost; ViewModel unit tests
 
 **Backend**
