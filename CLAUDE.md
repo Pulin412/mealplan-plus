@@ -10,7 +10,7 @@ Offline-first meal planning and food logging app. Users log meals by slot (BREAK
 ## Architecture Direction (agreed)
 - **Android** and **Web App** are fully independent codebases — no shared Kotlin code
 - **Backend** (Spring Boot) is the source of truth and shared layer for both clients
-- **`shared/` KMP module** is being disconnected (see issue #81) — do not add new code to it
+- **`shared/` KMP module** is disconnected — `MigrationRunner.kt` and `RoomToSQLDelightMigration.kt` deleted; `:shared` removed from `settings.gradle.kts`. Do not add any code there.
 - **iOS** is replaced by a Next.js PWA that works on iPhone Safari
 - **AI**: Spring AI + PgVectorStore on the backend; Gemini Nano on-device for Android offline use
 
@@ -19,11 +19,12 @@ Offline-first meal planning and food logging app. Users log meals by slot (BREAK
 ## Module layout
 | Module | Role |
 |--------|------|
-| `android/` | Android app (Kotlin, Compose, Room, Hilt) — **fully self-contained** |
-| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector |
+| `android/` | Android app (Kotlin, Compose, Room, Hilt) — **fully self-contained, single production app** |
+| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector — **Phase 1 next** |
 | `webapp/` | Next.js 14 + TypeScript PWA — **not yet created, Phase 3** |
-| `shared/` | KMP module — **being disconnected, do not add code here** |
+| `shared/` | KMP module — **disconnected, no code here** |
 | `ios/` | SwiftUI app — **superseded by PWA, no new work** |
+| `backup/` | `mealplan_data_export.json` + DB snapshot — temporary, used for one-time data import |
 
 ---
 
@@ -91,7 +92,7 @@ See `docs/DATABASE_SCHEMA.md` for the full schema, ER diagram, slot resolution a
 5. **AlarmManager, not WorkManager, for notifications.** WorkManager is only used for `SyncWorker`. The three old notification workers are deleted — do not re-add them.
 6. **Never delete system food rows during re-seed.** `DatabaseSeeder` uses upsert-only strategy to preserve FK references from `meal_foods` and `logged_foods`.
 7. **`planned_slots` is the source of truth for day planning.** When loading a day, read `planned_slots` first; fall back to `day_plans.template_diet_id`'s `diet_slots` only for slots not yet in `planned_slots`.
-8. Always confirm before pushing to a branch or commiting the files.
+8. Always confirm with the user before pushing to a branch or committing files.
 
 ---
 
@@ -184,6 +185,29 @@ Permission is requested via `PermissionController.createRequestPermissionResultC
 ### Availability
 - Android 14+ (API 34): Health Connect is part of the OS — always available.
 - Android 9–13: user must install the Health Connect app from Play Store. The Settings screen shows an "Install" prompt if unavailable.
+
+---
+
+## Current Status (as of April 15, 2026)
+
+**Foundation phase is COMPLETE and merged to `main`.** The app is a single codebase (`com.mealplanplus`). There is no separate feature branch or dev app ID.
+
+### What is done
+- Full minimalist design system: `DesignTokens.kt` (light/dark tokens), `FormComponents.kt`, global 10% font scale override in `Theme.kt`
+- All 19 screens redesigned to match `design-future.html`
+- Room schema at **v32** — explicit `MIGRATION_30_31` and `MIGRATION_31_32` in `DatabaseModule.kt`; schemas exported to `android/schemas/`
+- Meals and diets are **user-scoped** (`userId` FK on both tables). All ViewModels filter by `authRepository.getCurrentUserId().filterNotNull().flatMapLatest { ... }`
+- `BackupDataImporter` — one-time import (`backup_data_imported_v5` DataStore flag) of all 3 users from `backup/mealplan_data_export.json`. Runs in `MealPlanApp.onCreate()`.
+- `UserDataSeeder` uses `getDietCountForUser(userId)` guard — idempotent per user
+- `AlarmManager` notification system: 5 alarm types (BREAKFAST, LUNCH, DINNER, STREAK, WEEKLY_PLAN); `NotificationAlarmBootstrapper` is the single scheduling entry point
+- Health Connect integration: steps, calories burned, weight (read-only, 3 permissions)
+- Swipe left/right navigation between main tabs (Home, Log, Plan) using `detectHorizontalDragGestures` with 120dp threshold
+- Meal name shown as subtitle in each slot header on the Food Log screen
+- Diet Picker confirm sheet shows full meal breakdown (name + calories per slot) via `DietsViewModel.loadDietDetail()`
+- Diets, Meals, Foods screens navigable from the More sheet
+
+### What is next — Phase 1 (Backend Sync API)
+See `ROADMAP.md` for full checklist. Order: #84 (OpenAPI spec) → #85 (JPA entities + CRUD) → #86 (delta sync + pgvector) → #87 (Android SyncWorker) → #88 (Cloud Run CI/CD)
 
 ---
 
