@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.mealplanplus.data.local.BackupDataImporter
 import com.mealplanplus.data.local.DatabaseSeeder
 import com.mealplanplus.data.local.MealSlotReseeder
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -31,6 +32,9 @@ class MealPlanApp : Application() {
     lateinit var mealSlotReseeder: MealSlotReseeder
 
     @Inject
+    lateinit var backupDataImporter: BackupDataImporter
+
+    @Inject
     lateinit var crashlyticsReporter: CrashlyticsReporter
 
     @Inject
@@ -51,6 +55,8 @@ class MealPlanApp : Application() {
             databaseSeeder.seedIfNeeded(this@MealPlanApp)
             // Re-seed meal slots if wiped by MIGRATION_29_30 (incorrect deduplication fix)
             mealSlotReseeder.reseedIfNeeded(this@MealPlanApp)
+            // One-time restore of user data from v26 backup (runs only once, guarded by DataStore flag)
+            backupDataImporter.importIfNeeded(this@MealPlanApp)
         }
         scheduleSyncWork()
         cancelLegacyNotificationWork()

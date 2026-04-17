@@ -20,6 +20,7 @@ import com.mealplanplus.data.model.MealFoodItemWithDetails
 import com.mealplanplus.data.repository.UsdaFoodResult
 import com.mealplanplus.ui.components.FoodDetailSheet
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.ChartCarbs
 import com.mealplanplus.ui.theme.ChartFat
 import com.mealplanplus.ui.theme.ChartProtein
@@ -406,7 +407,8 @@ fun FoodItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onEdit)
+            .clickable(onClick = onEdit),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Row(
             modifier = Modifier

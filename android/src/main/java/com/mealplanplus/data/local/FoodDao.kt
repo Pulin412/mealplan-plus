@@ -63,6 +63,9 @@ interface FoodDao {
     @Update
     suspend fun updateAll(foods: List<FoodItem>)
 
+    @Query("SELECT * FROM food_items WHERE name = :name LIMIT 1")
+    suspend fun getFoodByExactName(name: String): FoodItem?
+
     @Query("DELETE FROM food_items")
     suspend fun deleteAllFoods()
 }

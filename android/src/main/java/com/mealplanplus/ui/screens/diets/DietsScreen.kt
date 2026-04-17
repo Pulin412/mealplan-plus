@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +33,9 @@ import com.mealplanplus.data.model.Tag
 import com.mealplanplus.ui.components.TagChip
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.ChartCarbs
+import com.mealplanplus.ui.theme.ChartFat
+import com.mealplanplus.ui.theme.ChartProtein
 import com.mealplanplus.ui.theme.DividerColor
 import com.mealplanplus.ui.theme.DesignGreen
 import com.mealplanplus.ui.theme.TagGrayBg
@@ -157,7 +159,7 @@ fun DietsScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(uiState.diets, key = { it.diet.id }) { item ->
+                        items(uiState.diets.distinctBy { it.diet.id }, key = { it.diet.id }) { item ->
                             DietCard(
                                 item = item,
                                 onView = { onNavigateToDietDetailView(item.diet.id) },
@@ -423,160 +425,190 @@ fun DietCard(
     onDuplicate: () -> Unit = {},
     onDelete: () -> Unit = {},
     onFavourite: (() -> Unit)? = null,
-    onSelect: (() -> Unit)? = null  // picker mode: tap card to select
+    onSelect: (() -> Unit)? = null
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val isPickerMode = onSelect != null
+    val primaryAction: () -> Unit = if (isPickerMode) (onSelect ?: {}) else onView
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = primaryAction),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = CardBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Header (always visible) — tap to expand or select
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            // Left calorie block
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { if (isPickerMode) onSelect?.invoke() else expanded = !expanded }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .width(70.dp)
+                    .fillMaxHeight()
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    // Name row + badges
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = item.diet.name,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.weight(1f, fill = false),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                Text(
+                    text = "${item.totalCalories}",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp
+                    ),
+                    color = TextPrimary
+                )
+                Text(
+                    text = "KCAL",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                    color = TextMuted
+                )
+            }
+
+            // Thin vertical divider
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(DividerColor)
+            )
+
+            // Main content
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, top = 13.dp, bottom = 13.dp, end = 4.dp)
+            ) {
+                // Name row + badges
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = item.diet.name,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f, fill = false),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (item.diet.isFavourite) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(13.dp)
                         )
-                        if (item.diet.isSystem) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = TagGrayBg
-                            ) {
-                                Text(
-                                    "Built-in",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        item.tags.take(2).forEach { tag -> TagChip(tag = tag) }
-                        if (item.tags.size > 2) {
+                    }
+                    if (item.diet.isSystem) {
+                        Surface(shape = RoundedCornerShape(4.dp), color = TagGrayBg) {
                             Text(
-                                "+${item.tags.size - 2}",
+                                "built-in",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextMuted,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                             )
                         }
-                    }
-
-                    // Description
-                    item.diet.description?.let { desc ->
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = desc,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(Modifier.height(10.dp))
-
-                    // Macro pills row
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        MacroPill(icon = "🔥", value = "${item.totalCalories}", unit = "kcal", color = Color(0xFFE65100))
-                        MacroPill(icon = "🍞", value = "${item.totalCarbs}g", unit = "carbs", color = Color(0xFF1565C0))
-                        MacroPill(icon = "💪", value = "${item.totalProtein}g", unit = "protein", color = Color(0xFF2E7D32))
-                        MacroPill(icon = "🥑", value = "${item.totalFat}g", unit = "fat", color = Color(0xFF6A1B9A))
-                    }
-                    item.totalGlycemicLoad?.let { gl ->
-                        Spacer(Modifier.height(6.dp))
-                        GlycemicLoadPill(gl)
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (onFavourite != null) {
-                        IconButton(
-                            onClick = onFavourite,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (item.diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
-                                contentDescription = if (item.diet.isFavourite) "Remove from favourites" else "Add to favourites",
-                                tint = if (item.diet.isFavourite) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                // Tags + meal count
+                if (item.tags.isNotEmpty() || item.mealCount > 0) {
+                    Spacer(Modifier.height(5.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        item.tags.take(3).forEach { tag -> TagChip(tag = tag) }
+                        if (item.mealCount > 0) {
+                            Text(
+                                "· ${item.mealCount} meals",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextMuted
                             )
                         }
                     }
-                    if (isPickerMode) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowRight,
-                            contentDescription = "Select",
-                            tint = DesignGreen,
-                            modifier = Modifier.padding(start = 8.dp).size(20.dp)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (expanded) "Collapse" else "Expand",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 8.dp).size(20.dp)
-                        )
-                    }
+                }
+
+                // Inline macros: P / C / F
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DietMacroInline(label = "P", value = "${item.totalProtein}g", color = ChartProtein)
+                    DietMacroInline(label = "C", value = "${item.totalCarbs}g", color = ChartCarbs)
+                    DietMacroInline(label = "F", value = "${item.totalFat}g", color = ChartFat)
                 }
             }
 
-            // Expanded section: Edit + Delete (only in non-picker mode)
-            AnimatedVisibility(
-                visible = expanded && !isPickerMode,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+            // Right: overflow menu (top) + chevron (bottom)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(end = 4.dp, top = 6.dp, bottom = 8.dp)
             ) {
-                Column {
-                    HorizontalDivider(color = DividerColor)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        TextButton(onClick = onView) {
-                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("View", color = DesignGreen)
+                if (!isPickerMode) {
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = TextMuted,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
-                        TextButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Edit", color = DesignGreen)
-                        }
-                        TextButton(onClick = { onDuplicate() }) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Duplicate", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        TextButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Delete", color = TextDestructive)
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Edit") },
+                                onClick = { showMenu = false; onEdit() },
+                                leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Duplicate") },
+                                onClick = { showMenu = false; onDuplicate() },
+                                leadingIcon = { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) }
+                            )
+                            if (onFavourite != null) {
+                                DropdownMenuItem(
+                                    text = { Text(if (item.diet.isFavourite) "Unfavourite" else "Favourite") },
+                                    onClick = { showMenu = false; onFavourite() },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (item.diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
+                                            null,
+                                            tint = Color(0xFFFFC107),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = TextDestructive) },
+                                onClick = { showMenu = false; showDeleteDialog = true },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, null, tint = TextDestructive, modifier = Modifier.size(16.dp))
+                                }
+                            )
                         }
                     }
+                } else {
+                    Spacer(Modifier.size(32.dp))
                 }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = if (isPickerMode) DesignGreen else TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -598,6 +630,7 @@ fun DietCard(
     }
 }
 
+// Used by DietFormComponents.kt in the same package
 @Composable
 fun MacroPill(icon: String, value: String, unit: String, color: Color) {
     Surface(
@@ -611,6 +644,17 @@ fun MacroPill(icon: String, value: String, unit: String, color: Color) {
             Text(text = "$icon $value", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = color)
             Text(text = unit, style = MaterialTheme.typography.labelSmall, color = color.copy(alpha = 0.7f), fontSize = 9.sp)
         }
+    }
+}
+
+@Composable
+private fun DietMacroInline(label: String, value: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = color)
+        Text(value, style = MaterialTheme.typography.labelSmall, color = color)
     }
 }
 

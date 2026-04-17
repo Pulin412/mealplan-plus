@@ -56,4 +56,7 @@ interface MealDao {
 
     @Query("SELECT COUNT(*) FROM meals")
     suspend fun getMealCount(): Int
+
+    @Query("SELECT * FROM meals WHERE name = :name LIMIT 1")
+    suspend fun getMealByName(name: String): Meal?
 }

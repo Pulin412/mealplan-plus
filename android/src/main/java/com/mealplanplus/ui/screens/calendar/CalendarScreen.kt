@@ -33,8 +33,11 @@ import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.DarkGreen
 import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DividerColor
 import com.mealplanplus.ui.theme.LocalIsDarkTheme
+import com.mealplanplus.ui.theme.TagGrayBg
 import com.mealplanplus.ui.theme.TagPurple
+import com.mealplanplus.ui.theme.TextDestructive
 import com.mealplanplus.ui.theme.TextMuted
 import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
@@ -790,21 +793,21 @@ internal fun PlanDayDetail(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFF5F5F5))
+                                        .background(TagGrayBg)
                                         .clickable(onClick = onChangeDiet)
                                         .padding(horizontal = 14.dp, vertical = 9.dp)
                                 ) {
-                                    Text("Change", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF666666))
+                                    Text("Change", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
                                 }
                                 if (isFuture) {
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFFFEEEEE))
+                                            .background(TextDestructive.copy(alpha = 0.08f))
                                             .clickable(onClick = onRemoveDiet)
                                             .padding(horizontal = 14.dp, vertical = 9.dp)
                                     ) {
-                                        Text("Remove", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFE53E3E))
+                                        Text("Remove", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextDestructive)
                                     }
                                 }
                             }
@@ -813,7 +816,7 @@ internal fun PlanDayDetail(
                 }
 
                 if (diet != null && dietWithMeals != null) {
-                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    HorizontalDivider(color = DividerColor)
                     // Macro row — inline, matching design
                     Row(modifier = Modifier.fillMaxWidth()) {
                         PlanMacroCell("${dietWithMeals.totalCalories.roundToInt()}", "kcal")
@@ -821,7 +824,7 @@ internal fun PlanDayDetail(
                         PlanMacroCell("${dietWithMeals.totalCarbs.roundToInt()}g", "carbs")
                         PlanMacroCell("${dietWithMeals.totalFat.roundToInt()}g", "fat", isLast = true)
                     }
-                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    HorizontalDivider(color = DividerColor)
                     // Meal slots
                     val showCheckboxes = isToday && !isPlanCompleted
                     PlanDietSlots(
@@ -881,7 +884,7 @@ internal fun PlanDietSlots(
                     isLogged = isLogged,
                     onToggle = if (showCheckboxes) { -> onSlotToggle(slot.name) } else null
                 )
-                HorizontalDivider(color = Color(0xFFF5F5F5))
+                HorizontalDivider(color = DividerColor)
             }
         }
         // Custom slots
@@ -894,7 +897,7 @@ internal fun PlanDietSlots(
                     val isLogged = slotLoggedState[slotType.uppercase()] == true
                     PlanSlotRow(
                         slotName = displayName,
-                        slotColor = Color(0xFF888888),
+                        slotColor = TextMuted,
                         mealName = mealWithFoods.meal?.name,
                         foods = mealWithFoods.items,
                         kcal = mealWithFoods.items.sumOf { it.calculatedCalories }.toInt(),
@@ -902,7 +905,7 @@ internal fun PlanDietSlots(
                         isLogged = isLogged,
                         onToggle = if (showCheckboxes) { -> onSlotToggle(slotType) } else null
                     )
-                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    HorizontalDivider(color = DividerColor)
                 }
             }
     }

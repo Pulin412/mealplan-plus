@@ -18,11 +18,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.repository.UsdaFoodResult
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.ChartCarbs
 import com.mealplanplus.ui.theme.ChartFat
 import com.mealplanplus.ui.theme.ChartProtein
 import com.mealplanplus.ui.theme.DesignGreen
 import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.DividerColor
 import com.mealplanplus.ui.theme.TagBlue
 import com.mealplanplus.ui.theme.TextDestructive
 import com.mealplanplus.ui.theme.TextPrimary
@@ -341,7 +343,8 @@ fun FoodSearchCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Row(
             modifier = Modifier
@@ -536,7 +539,7 @@ fun FoodDetailBottomSheet(
             )
 
             Spacer(Modifier.height(20.dp))
-            Divider()
+            HorizontalDivider(color = DividerColor)
             Spacer(Modifier.height(16.dp))
 
             // Macros

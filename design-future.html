@@ -481,7 +481,8 @@ const groups = {
   plan: {
     screens: [
       { id: 'calendar', label: 'Calendar' },
-      { id: 'plan-day', label: 'Day Detail' }
+      { id: 'plan-day', label: 'Day Detail' },
+      { id: 'select-diet', label: 'Select Diet' }
     ]
   },
   workouts: {
@@ -1092,38 +1093,143 @@ meals: `
 
 // ══ DIETS ══
 diets: `
-<div class="sh"><div class="sh-title">Diets</div><div class="sh-sub">38 diet plans · Remission · Maintenance · SOS</div></div>
-<div class="search-bar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Search diets...</span></div>
-<div class="chips-row">
-  <div class="chip on">All</div>
-  <div class="chip">Remission</div>
-  <div class="chip">Maintenance</div>
-  <div class="chip">SOS</div>
-  <div class="chip">Favourites ♥</div>
-</div>
-<div class="card card-p0">
-  <div class="li" style="border-bottom:1px solid #F5F5F5;">
-    <div class="li-icon" style="background:#E8F5EE;">🥗</div>
-    <div style="flex:1;"><div class="li-title">Diet-9</div><div class="li-sub">Egg Parantha, Fruit Bowl, Paneer Lauki...</div></div>
-    <div class="li-right"><span class="tag tg" style="margin-bottom:4px;">Remission</span><div class="li-unit">5 slots</div></div>
+<div style="background:#fff;border-bottom:1px solid #F0F0F0;flex-shrink:0;">
+  <div style="display:flex;align-items:center;padding:12px 16px 6px;gap:8px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round" style="cursor:pointer;flex-shrink:0;"><polyline points="15 18 9 12 15 6"/></svg>
+    <div style="flex:1;">
+      <div style="font-size:16px;font-weight:700;color:#111;">My Diets</div>
+      <div style="font-size:11px;color:#888;margin-top:1px;">38 diet plans</div>
+    </div>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" style="cursor:pointer;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div style="background:#fff;border:1px solid #2E7D52;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:#2E7D52;cursor:pointer;margin-left:4px;white-space:nowrap;">+ New</div>
   </div>
-  <div class="li" style="border-bottom:1px solid #F5F5F5;">
-    <div class="li-icon" style="background:#FFF0E6;">🍱</div>
-    <div style="flex:1;"><div class="li-title">Diet-M1</div><div class="li-sub">Paneer Egg Bhurji, Fruit Bowl, Chicken...</div></div>
-    <div class="li-right"><span class="tag to" style="margin-bottom:4px;">Maintenance</span><div class="li-unit">6 slots</div></div>
+  <div style="margin:4px 16px 8px;background:#F5F5F5;border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span style="font-size:13px;color:#BBB;">Search diets…</span>
   </div>
-  <div class="li" style="border-bottom:1px solid #F5F5F5;">
-    <div class="li-icon" style="background:#F0F8FF;">🥙</div>
-    <div style="flex:1;"><div class="li-title">Diet-1</div><div class="li-sub">Mix Veg Omelet, Fruit Bowl, Broccoli...</div></div>
-    <div class="li-right"><span class="tag tg" style="margin-bottom:4px;">Remission</span><div class="li-unit">5 slots</div></div>
-  </div>
-  <div class="li">
-    <div class="li-icon" style="background:#FFF8E6;">🍲</div>
-    <div style="flex:1;"><div class="li-title">Diet-M20</div><div class="li-sub">Chickpea Potato Chaat, Mix Fruit, Egg Rice</div></div>
-    <div class="li-right"><span class="tag tb" style="margin-bottom:4px;">SOS</span><div class="li-unit">4 slots</div></div>
+  <div style="display:flex;gap:6px;padding:0 16px 10px;overflow-x:auto;">
+    <div style="flex-shrink:0;background:#111;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#fff;">All 38</div>
+    <div style="flex-shrink:0;background:#F5F5F5;border-radius:20px;padding:4px 12px;font-size:12px;color:#555;">Remission</div>
+    <div style="flex-shrink:0;background:#F5F5F5;border-radius:20px;padding:4px 12px;font-size:12px;color:#555;">Maintenance</div>
+    <div style="flex-shrink:0;background:#F5F5F5;border-radius:20px;padding:4px 12px;font-size:12px;color:#555;">SOS</div>
+    <div style="flex-shrink:0;background:#F5F5F5;border-radius:20px;padding:4px 12px;font-size:12px;color:#555;">♥ Favourites</div>
   </div>
 </div>
-<div class="sp"></div>
+
+<div style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px;background:#F7F7F8;">
+
+  <!-- Card 1 — built-in, Remission -->
+  <div onclick="setScreen('diet-detail')" style="background:#fff;border-radius:14px;display:flex;align-items:stretch;cursor:pointer;overflow:hidden;">
+    <div style="width:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+      <div style="font-size:18px;font-weight:800;color:#111;line-height:1.1;">1840</div>
+      <div style="font-size:9px;color:#AAA;letter-spacing:0.5px;margin-top:2px;">KCAL</div>
+    </div>
+    <div style="width:1px;background:#F0F0F0;align-self:stretch;"></div>
+    <div style="flex:1;padding:13px 8px 13px 12px;min-width:0;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:13px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Diet-9</span>
+        <span style="background:#F5F5F5;border-radius:4px;padding:1px 5px;font-size:10px;color:#888;flex-shrink:0;">built-in</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:5px;flex-wrap:wrap;">
+        <span style="background:#E8F5EE;color:#2E7D52;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:500;">Remission</span>
+        <span style="font-size:11px;color:#AAA;">· 5 meals</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <span style="font-size:11px;"><b style="color:#1565C0;">P</b> <span style="color:#1565C0;">142g</span></span>
+        <span style="font-size:11px;"><b style="color:#E65100;">C</b> <span style="color:#E65100;">186g</span></span>
+        <span style="font-size:11px;"><b style="color:#6A1B9A;">F</b> <span style="color:#6A1B9A;">54g</span></span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:8px 8px 10px 0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1" fill="#CCC"/><circle cx="12" cy="12" r="1" fill="#CCC"/><circle cx="12" cy="19" r="1" fill="#CCC"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
+  <!-- Card 2 — favourite, Maintenance -->
+  <div onclick="setScreen('diet-detail')" style="background:#fff;border-radius:14px;display:flex;align-items:stretch;cursor:pointer;overflow:hidden;">
+    <div style="width:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+      <div style="font-size:18px;font-weight:800;color:#111;line-height:1.1;">2200</div>
+      <div style="font-size:9px;color:#AAA;letter-spacing:0.5px;margin-top:2px;">KCAL</div>
+    </div>
+    <div style="width:1px;background:#F0F0F0;align-self:stretch;"></div>
+    <div style="flex:1;padding:13px 8px 13px 12px;min-width:0;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:13px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Diet-M1</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#FFC107" stroke="none" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:5px;flex-wrap:wrap;">
+        <span style="background:#FFF0E6;color:#E65100;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:500;">Maintenance</span>
+        <span style="font-size:11px;color:#AAA;">· 6 meals</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <span style="font-size:11px;"><b style="color:#1565C0;">P</b> <span style="color:#1565C0;">200g</span></span>
+        <span style="font-size:11px;"><b style="color:#E65100;">C</b> <span style="color:#E65100;">180g</span></span>
+        <span style="font-size:11px;"><b style="color:#6A1B9A;">F</b> <span style="color:#6A1B9A;">60g</span></span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:8px 8px 10px 0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1" fill="#CCC"/><circle cx="12" cy="12" r="1" fill="#CCC"/><circle cx="12" cy="19" r="1" fill="#CCC"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
+  <!-- Card 3 — Remission, 2 tags -->
+  <div onclick="setScreen('diet-detail')" style="background:#fff;border-radius:14px;display:flex;align-items:stretch;cursor:pointer;overflow:hidden;">
+    <div style="width:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+      <div style="font-size:18px;font-weight:800;color:#111;line-height:1.1;">1650</div>
+      <div style="font-size:9px;color:#AAA;letter-spacing:0.5px;margin-top:2px;">KCAL</div>
+    </div>
+    <div style="width:1px;background:#F0F0F0;align-self:stretch;"></div>
+    <div style="flex:1;padding:13px 8px 13px 12px;min-width:0;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:13px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Diet-1</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:5px;flex-wrap:wrap;">
+        <span style="background:#E8F5EE;color:#2E7D52;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:500;">Remission</span>
+        <span style="background:#F0F4FF;color:#1E4FBF;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:500;">SOS</span>
+        <span style="font-size:11px;color:#AAA;">· 5 meals</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <span style="font-size:11px;"><b style="color:#1565C0;">P</b> <span style="color:#1565C0;">62g</span></span>
+        <span style="font-size:11px;"><b style="color:#E65100;">C</b> <span style="color:#E65100;">210g</span></span>
+        <span style="font-size:11px;"><b style="color:#6A1B9A;">F</b> <span style="color:#6A1B9A;">55g</span></span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:8px 8px 10px 0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1" fill="#CCC"/><circle cx="12" cy="12" r="1" fill="#CCC"/><circle cx="12" cy="19" r="1" fill="#CCC"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
+  <!-- Card 4 — SOS, user-created -->
+  <div onclick="setScreen('diet-detail')" style="background:#fff;border-radius:14px;display:flex;align-items:stretch;cursor:pointer;overflow:hidden;">
+    <div style="width:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+      <div style="font-size:18px;font-weight:800;color:#111;line-height:1.1;">1380</div>
+      <div style="font-size:9px;color:#AAA;letter-spacing:0.5px;margin-top:2px;">KCAL</div>
+    </div>
+    <div style="width:1px;background:#F0F0F0;align-self:stretch;"></div>
+    <div style="flex:1;padding:13px 8px 13px 12px;min-width:0;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:13px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Diet-M20</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:5px;flex-wrap:wrap;">
+        <span style="background:#FFF0E0;color:#C44;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:500;">SOS</span>
+        <span style="font-size:11px;color:#AAA;">· 4 meals</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <span style="font-size:11px;"><b style="color:#1565C0;">P</b> <span style="color:#1565C0;">130g</span></span>
+        <span style="font-size:11px;"><b style="color:#E65100;">C</b> <span style="color:#E65100;">120g</span></span>
+        <span style="font-size:11px;"><b style="color:#6A1B9A;">F</b> <span style="color:#6A1B9A;">40g</span></span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:8px 8px 10px 0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1" fill="#CCC"/><circle cx="12" cy="12" r="1" fill="#CCC"/><circle cx="12" cy="19" r="1" fill="#CCC"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
+</div>
 `,
 
 // ══ DIET DETAIL ══
@@ -1738,6 +1844,306 @@ sync: `
   <div class="li"><div style="font-size:22px;">↑</div><div style="flex:1;padding-left:4px;"><div class="li-title" style="font-size:13px;">Pushed health metric (weight)</div><div class="li-sub">Yesterday, 8:15 PM</div></div></div>
 </div>
 <div class="sp"></div>
+`,
+
+// ══ SELECT DIET ══
+'select-diet': `
+<div style="display:flex;flex-direction:column;height:100%;background:#F7F7F5;overflow:hidden;" id="sdRoot">
+
+  <!-- Top bar -->
+  <div style="background:#fff;padding:14px 8px 12px;border-bottom:1px solid #F0F0F0;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:10px;">
+      <div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:17px;font-weight:700;color:#111;line-height:1.2;">Select Diet</div>
+        <div style="font-size:11px;color:#888;margin-top:1px;">Plan for Thu, 17 Apr</div>
+      </div>
+      <div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+    </div>
+    <!-- Tag pills -->
+    <div style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;">
+      <div style="padding:5px 13px;border-radius:20px;background:#111;color:#fff;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">All 12</div>
+      <div style="padding:5px 13px;border-radius:20px;background:#FFF8E1;color:#C05200;font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;">★ Faves 3</div>
+      <div style="padding:5px 13px;border-radius:20px;background:#F0F0F0;color:#555;font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;">Keto 4</div>
+      <div style="padding:5px 13px;border-radius:20px;background:#F0F0F0;color:#555;font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;">Vegan 2</div>
+      <div style="padding:5px 13px;border-radius:20px;background:#F0F0F0;color:#555;font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;">Protein 5</div>
+    </div>
+  </div>
+
+  <!-- Scrollable list -->
+  <div style="flex:1;overflow-y:auto;padding:10px 14px 100px;" id="sdList">
+
+    <!-- ── Card 1: Keto Classic — EXPANDED (tap to toggle) ── -->
+    <div id="sd-card-1" style="background:#fff;border-radius:14px;margin-bottom:10px;border:1.5px solid #2E7D52;overflow:hidden;">
+      <!-- Header row -->
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;cursor:pointer;" onclick="sdToggle(1)">
+        <div style="text-align:center;flex-shrink:0;min-width:48px;">
+          <div style="font-size:20px;font-weight:800;color:#2E7D52;line-height:1;">1840</div>
+          <div style="font-size:9px;color:#888;font-weight:600;letter-spacing:.3px;margin-top:1px;">KCAL</div>
+        </div>
+        <div style="width:1px;background:#F0F0F0;align-self:stretch;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+            <span style="font-size:11px;color:#FFC107;">★</span>
+            <span style="font-size:15px;font-weight:700;color:#111;">Keto Classic</span>
+          </div>
+          <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:5px;">
+            <span style="font-size:10px;font-weight:600;color:#C05200;background:rgba(192,82,0,.09);padding:2px 7px;border-radius:5px;">Keto</span>
+            <span style="font-size:10px;font-weight:600;color:#7C3AED;background:rgba(124,58,237,.09);padding:2px 7px;border-radius:5px;">High-Fat</span>
+            <span style="font-size:10px;color:#888;">· 3 meals</span>
+          </div>
+          <div style="font-size:11px;color:#888;">P <span style="color:#7C3AED;font-weight:600;">92g</span> &nbsp;C <span style="color:#2E7D52;font-weight:600;">28g</span> &nbsp;F <span style="color:#E53935;font-weight:600;">160g</span></div>
+        </div>
+        <!-- Chevron up = expanded -->
+        <svg id="sd-chev-1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:4px;transition:transform .2s;transform:rotate(-90deg);"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+
+      <!-- Meal slots — visible when expanded -->
+      <div id="sd-slots-1" style="border-top:1px solid #F0F0F0;">
+        <!-- Breakfast -->
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid #F5F5F5;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Breakfast</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Egg Omelette with Veggies</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Eggs 3</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Spinach 30g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Butter 10g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Cheese 20g</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">480</div>
+        </div>
+        <!-- Lunch -->
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid #F5F5F5;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Lunch</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Avocado Chicken Bowl</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Chicken 150g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Avocado ½</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Lettuce 50g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Olive Oil 10ml</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">640</div>
+        </div>
+        <!-- Dinner -->
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#7C3AED;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Dinner</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Paneer Tikka with Salad</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Paneer 100g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Peppers 60g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Cream 30ml</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">+2 more</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">720</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Card 2: Lean Bulk — collapsed ── -->
+    <div id="sd-card-2" style="background:#fff;border-radius:14px;margin-bottom:10px;overflow:hidden;">
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;cursor:pointer;" onclick="sdToggle(2)">
+        <div style="text-align:center;flex-shrink:0;min-width:48px;">
+          <div style="font-size:20px;font-weight:800;color:#2E7D52;line-height:1;">2200</div>
+          <div style="font-size:9px;color:#888;font-weight:600;letter-spacing:.3px;margin-top:1px;">KCAL</div>
+        </div>
+        <div style="width:1px;background:#F0F0F0;align-self:stretch;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+            <span style="font-size:15px;font-weight:700;color:#111;">Lean Bulk</span>
+            <span style="font-size:10px;color:#AAA;background:#F5F5F5;padding:1px 6px;border-radius:4px;">built-in</span>
+          </div>
+          <div style="display:flex;gap:5px;align-items:center;margin-bottom:5px;">
+            <span style="font-size:10px;font-weight:600;color:#2E7D52;background:rgba(46,125,82,.09);padding:2px 7px;border-radius:5px;">High-Protein</span>
+            <span style="font-size:10px;color:#888;">· 2 meals</span>
+          </div>
+          <div style="font-size:11px;color:#888;">P <span style="color:#7C3AED;font-weight:600;">200g</span> &nbsp;C <span style="color:#2E7D52;font-weight:600;">180g</span> &nbsp;F <span style="color:#E53935;font-weight:600;">60g</span></div>
+        </div>
+        <svg id="sd-chev-2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:4px;"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div id="sd-slots-2" style="display:none;border-top:1px solid #F0F0F0;">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid #F5F5F5;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Breakfast</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Protein Oats</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Oats 80g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Whey 30g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Banana 1</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Milk 200ml</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">520</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Lunch</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Grilled Chicken Rice</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Chicken 200g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Rice 150g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Broccoli 80g</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">680</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Card 3: Mediterranean — collapsed ── -->
+    <div id="sd-card-3" style="background:#fff;border-radius:14px;margin-bottom:10px;overflow:hidden;">
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;cursor:pointer;" onclick="sdToggle(3)">
+        <div style="text-align:center;flex-shrink:0;min-width:48px;">
+          <div style="font-size:20px;font-weight:800;color:#2E7D52;line-height:1;">1650</div>
+          <div style="font-size:9px;color:#888;font-weight:600;letter-spacing:.3px;margin-top:1px;">KCAL</div>
+        </div>
+        <div style="width:1px;background:#F0F0F0;align-self:stretch;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mediterranean Balance</div>
+          <div style="display:flex;gap:5px;align-items:center;margin-bottom:5px;">
+            <span style="font-size:10px;font-weight:600;color:#1565C0;background:rgba(21,101,192,.09);padding:2px 7px;border-radius:5px;">Vegan</span>
+            <span style="font-size:10px;color:#888;">· 3 meals</span>
+          </div>
+          <div style="font-size:11px;color:#888;">P <span style="color:#7C3AED;font-weight:600;">62g</span> &nbsp;C <span style="color:#2E7D52;font-weight:600;">210g</span> &nbsp;F <span style="color:#E53935;font-weight:600;">55g</span></div>
+        </div>
+        <svg id="sd-chev-3" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:4px;"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div id="sd-slots-3" style="display:none;border-top:1px solid #F0F0F0;">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid #F5F5F5;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Breakfast</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Hummus Toast with Olives</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Sourdough 2 slices</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Hummus 60g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Olives 30g</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">380</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid #F5F5F5;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Lunch</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Greek Salad Bowl</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Tomatoes 100g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Cucumber 80g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Feta 50g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">+2 more</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">420</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#7C3AED;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Dinner</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Lentil Soup &amp; Flatbread</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Red Lentils 80g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Flatbread 1</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Olive Oil 10ml</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">450</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Card 4: Calorie Cut — collapsed ── -->
+    <div id="sd-card-4" style="background:#fff;border-radius:14px;margin-bottom:4px;overflow:hidden;">
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;cursor:pointer;" onclick="sdToggle(4)">
+        <div style="text-align:center;flex-shrink:0;min-width:48px;">
+          <div style="font-size:20px;font-weight:800;color:#2E7D52;line-height:1;">1380</div>
+          <div style="font-size:9px;color:#888;font-weight:600;letter-spacing:.3px;margin-top:1px;">KCAL</div>
+        </div>
+        <div style="width:1px;background:#F0F0F0;align-self:stretch;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:4px;">Calorie Cut</div>
+          <div style="display:flex;gap:5px;align-items:center;margin-bottom:5px;">
+            <span style="font-size:10px;font-weight:600;color:#E53935;background:rgba(229,57,53,.09);padding:2px 7px;border-radius:5px;">Cut</span>
+            <span style="font-size:10px;color:#888;">· 3 meals</span>
+          </div>
+          <div style="font-size:11px;color:#888;">P <span style="color:#7C3AED;font-weight:600;">130g</span> &nbsp;C <span style="color:#2E7D52;font-weight:600;">120g</span> &nbsp;F <span style="color:#E53935;font-weight:600;">40g</span></div>
+        </div>
+        <svg id="sd-chev-4" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CCC" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:4px;"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div id="sd-slots-4" style="display:none;border-top:1px solid #F0F0F0;">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid #F5F5F5;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Breakfast</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Greek Yogurt Parfait</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Greek Yogurt 150g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Berries 50g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Granola 20g</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">320</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid #F5F5F5;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Lunch</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Tuna Salad Wrap</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Tuna 120g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Tortilla 1</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Lettuce 30g</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">420</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#7C3AED;flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">Dinner</div>
+            <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:5px;">Steamed Fish &amp; Vegetables</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Salmon 150g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Beans 60g</span>
+              <span style="font-size:10px;color:#555;background:#F5F5F5;padding:2px 7px;border-radius:6px;">Zucchini 80g</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#888;flex-shrink:0;margin-top:14px;">640</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom confirm bar — updates dynamically with selected diet -->
+  <div id="sd-confirm-bar" style="background:#fff;border-top:1px solid #F0F0F0;padding:12px 16px 16px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="flex:1;">
+        <div id="sd-confirm-name" style="font-size:13px;font-weight:700;color:#111;">Keto Classic</div>
+        <div id="sd-confirm-sub" style="font-size:11px;color:#888;margin-top:1px;">1840 kcal · P 92g · C 28g · F 160g</div>
+      </div>
+      <svg onclick="sdCollapse()" style="cursor:pointer;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#BBB" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+    <div style="background:#111;border-radius:12px;padding:13px;text-align:center;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">
+      Plan for Thu, 17 Apr
+    </div>
+  </div>
+
+</div>
 `
 };
 
@@ -1769,10 +2175,71 @@ function renderNav() {
 function renderScreen() {
   document.getElementById('screen-content').innerHTML = screens[currentScreen] || '<div style="padding:40px;text-align:center;color:#CCC;">Screen coming soon</div>';
   if (currentScreen === 'calendar') buildCalendar();
+  if (currentScreen === 'select-diet') initSelectDiet();
   // Auth screens: hide bottom nav and AI FAB (pre-login)
   const isAuth = currentGroup === 'auth';
   document.querySelector('.bottom-nav').style.display = isAuth ? 'none' : '';
   document.querySelector('.ai-fab').style.display = isAuth ? 'none' : '';
+}
+
+// ── Select Diet screen logic ──────────────────────────────────────────
+var sdExpanded = null;
+var sdDiets = {
+  1: { name:'Keto Classic',          sub:'1840 kcal · P 92g · C 28g · F 160g' },
+  2: { name:'Lean Bulk',             sub:'2200 kcal · P 200g · C 180g · F 60g' },
+  3: { name:'Mediterranean Balance', sub:'1650 kcal · P 62g · C 210g · F 55g' },
+  4: { name:'Calorie Cut',           sub:'1380 kcal · P 130g · C 120g · F 40g' }
+};
+
+function initSelectDiet() {
+  sdExpanded = null;
+  sdToggle(1); // open card 1 by default
+}
+
+function sdToggle(n) {
+  // Collapse the previously open card
+  if (sdExpanded && sdExpanded !== n) {
+    var prev = sdExpanded;
+    var pCard  = document.getElementById('sd-card-'  + prev);
+    var pSlots = document.getElementById('sd-slots-' + prev);
+    var pChev  = document.getElementById('sd-chev-'  + prev);
+    if (pCard)  pCard.style.border = '';
+    if (pSlots) pSlots.style.display = 'none';
+    if (pChev)  { pChev.style.transform = ''; pChev.setAttribute('stroke','#CCC'); }
+  }
+
+  if (sdExpanded === n) {
+    // Tap same card → collapse & hide bar
+    var card  = document.getElementById('sd-card-'  + n);
+    var slots = document.getElementById('sd-slots-' + n);
+    var chev  = document.getElementById('sd-chev-'  + n);
+    if (card)  card.style.border = '';
+    if (slots) slots.style.display = 'none';
+    if (chev)  { chev.style.transform = ''; chev.setAttribute('stroke','#CCC'); }
+    sdExpanded = null;
+    var bar = document.getElementById('sd-confirm-bar');
+    if (bar) bar.style.display = 'none';
+  } else {
+    // Expand new card
+    var card  = document.getElementById('sd-card-'  + n);
+    var slots = document.getElementById('sd-slots-' + n);
+    var chev  = document.getElementById('sd-chev-'  + n);
+    if (card)  card.style.border = '1.5px solid #2E7D52';
+    if (slots) slots.style.display = 'block';
+    if (chev)  { chev.style.transform = 'rotate(-90deg)'; chev.setAttribute('stroke','#2E7D52'); }
+    sdExpanded = n;
+    // Update confirm bar
+    var bar = document.getElementById('sd-confirm-bar');
+    var nm  = document.getElementById('sd-confirm-name');
+    var sb  = document.getElementById('sd-confirm-sub');
+    if (bar) bar.style.display = '';
+    if (nm && sdDiets[n]) nm.textContent = sdDiets[n].name;
+    if (sb && sdDiets[n]) sb.textContent = sdDiets[n].sub;
+  }
+}
+
+function sdCollapse() {
+  if (sdExpanded) sdToggle(sdExpanded);
 }
 
 function buildCalendar() {
@@ -1845,5 +2312,9 @@ document.querySelectorAll('.gtab').forEach(el=>{
   });
 });
 </script>
+
+<!-- Select Diet screen: go to Plan group → "Select Diet" tab in the interactive mockup above -->
+
+
 </body>
 </html>

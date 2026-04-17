@@ -19,6 +19,8 @@ import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.MealWithFoods
 import com.mealplanplus.ui.components.DietBrowserSection
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.TextMuted
 import com.mealplanplus.ui.theme.ChartCarbs
 import com.mealplanplus.ui.theme.ChartFat
 import com.mealplanplus.ui.theme.ChartProtein
@@ -179,7 +181,7 @@ fun DietMealPickerScreen(
                                 Icons.Default.Info,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = TextSecondary
+                                tint = TextMuted
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -188,7 +190,7 @@ fun DietMealPickerScreen(
                                 else
                                     "No meals available",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
+                                color = TextMuted
                             )
                         }
                     }
@@ -221,7 +223,8 @@ fun PickerMealCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Column(
             modifier = Modifier

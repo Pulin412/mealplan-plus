@@ -21,8 +21,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import kotlin.math.roundToInt
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 private val DetailGreen: Color
     @Composable get() = DesignGreen
@@ -46,11 +51,7 @@ fun MealDetailScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF555555)
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
@@ -93,7 +94,7 @@ fun MealDetailScreen(
                     item {
                         Card(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = CardBg),
                             elevation = CardDefaults.cardElevation(0.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -104,7 +105,7 @@ fun MealDetailScreen(
                                 Text(
                                     "INSTRUCTIONS",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFAAAAAA),
+                                    color = TextMuted,
                                     fontWeight = FontWeight.Medium
                                 )
                                     Text(
@@ -121,7 +122,7 @@ fun MealDetailScreen(
                     item {
                         Card(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = CardBg),
                             elevation = CardDefaults.cardElevation(0.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -136,7 +137,7 @@ fun MealDetailScreen(
                                     Text(
                                         "INGREDIENTS",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFFAAAAAA),
+                                        color = TextMuted,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -158,7 +159,7 @@ fun MealDetailScreen(
                                         )
                                     }
                                 }
-                                HorizontalDivider(color = Color(0xFFEEEEEE))
+                                HorizontalDivider(color = DividerColor)
 
                                 // Progress indicator (interactive mode only)
                                 if (!readOnly) {
@@ -197,10 +198,10 @@ fun MealDetailScreen(
                                                     .fillMaxWidth()
                                                     .height(6.dp),
                                                 color = DetailGreen,
-                                                trackColor = Color(0xFFE0E0E0)
+                                                trackColor = DividerColor
                                             )
                                         }
-                                        HorizontalDivider(color = Color(0xFFEEEEEE))
+                                        HorizontalDivider(color = DividerColor)
                                     }
                                 }
 
@@ -214,7 +215,7 @@ fun MealDetailScreen(
                                     if (idx < uiState.sortedFoods.size - 1) {
                                         HorizontalDivider(
                                             modifier = Modifier.padding(horizontal = 16.dp),
-                                            color = Color(0xFFF0F0F0)
+                                            color = DividerColor
                                         )
                                     }
                                 }
@@ -226,7 +227,7 @@ fun MealDetailScreen(
                     item {
                         Card(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = CardBg),
                             elevation = CardDefaults.cardElevation(0.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -234,7 +235,7 @@ fun MealDetailScreen(
                                 Text(
                                     "TOTALS",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFAAAAAA),
+                                    color = TextMuted,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(Modifier.height(14.dp))
@@ -249,7 +250,7 @@ fun MealDetailScreen(
                                 }
                                 uiState.totalGlycemicLoad?.let { gl ->
                                     Spacer(Modifier.height(12.dp))
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    HorizontalDivider(color = DividerColor)
                                     Spacer(Modifier.height(12.dp))
                                     GlycemicLoadRow(glycemicLoad = gl)
                                 }
@@ -269,9 +270,9 @@ private fun SortChip(label: String, selected: Boolean, onClick: () -> Unit) {
         onClick = onClick,
         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = Color(0xFF111111),
+            selectedContainerColor = TextPrimary,
             selectedLabelColor = Color.White,
-            labelColor = Color(0xFF555555)
+            labelColor = TextMuted
         ),
         shape = RoundedCornerShape(8.dp)
     )
@@ -311,8 +312,7 @@ private fun IngredientCheckRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textDecoration = if (!readOnly && checked) TextDecoration.LineThrough else TextDecoration.None,
-                color = if (!readOnly && checked) TextSecondary
-                        else MaterialTheme.colorScheme.onSurface
+                color = if (!readOnly && checked) TextSecondary else TextPrimary
             )
             Text(
                 text = "${item.mealFoodItem.quantity.toInt()} ${item.mealFoodItem.unit.shortLabel}",
@@ -326,7 +326,7 @@ private fun IngredientCheckRow(
                 text = "${item.calculatedCalories.roundToInt()} kcal",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFFE65100)
+                color = Color(0xFFE65100)  // semantic: calories orange
             )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 MacroPill("P ${item.calculatedProtein.roundToInt()}g", Color(0xFF2E7D32))

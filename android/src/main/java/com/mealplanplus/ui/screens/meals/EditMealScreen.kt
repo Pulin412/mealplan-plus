@@ -18,7 +18,11 @@ import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.repository.UsdaFoodResult
 import com.mealplanplus.ui.components.FoodDetailSheet
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DesignGreen
 import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.TagGrayBg
 import com.mealplanplus.ui.theme.TextDestructive
 import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
@@ -168,7 +172,7 @@ fun EditMealScreen(
                 }
 
                 item {
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -211,9 +215,7 @@ fun EditMealScreen(
                         val totalF = uiState.selectedFoods.sumOf { it.food.fat * it.quantity }
 
                         Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = DesignGreenLight
-                            )
+                            colors = CardDefaults.cardColors(containerColor = DesignGreenLight)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text("Total Macros", style = MaterialTheme.typography.titleSmall)

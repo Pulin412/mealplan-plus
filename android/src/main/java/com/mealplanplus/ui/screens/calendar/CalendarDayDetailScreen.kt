@@ -16,6 +16,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.util.toEpochMs
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -99,7 +103,7 @@ private fun DayDetailTopBar(date: LocalDate, onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(CardBg)
             .statusBarsPadding()
             .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -108,7 +112,7 @@ private fun DayDetailTopBar(date: LocalDate, onBack: () -> Unit) {
             Icon(
                 imageVector = Icons.Default.ChevronLeft,
                 contentDescription = "Back",
-                tint = Color(0xFF111111),
+                tint = TextPrimary,
                 modifier = Modifier.size(26.dp)
             )
         }
@@ -116,16 +120,16 @@ private fun DayDetailTopBar(date: LocalDate, onBack: () -> Unit) {
             text = "Day Detail",
             fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111111),
+            color = TextPrimary,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = date.format(dateFmt),
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF888888),
+            color = TextMuted,
             modifier = Modifier.padding(end = 16.dp)
         )
     }
-    HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
+    HorizontalDivider(color = DividerColor, thickness = 1.dp)
 }
