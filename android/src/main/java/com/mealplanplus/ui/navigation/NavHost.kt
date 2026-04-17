@@ -42,10 +42,12 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -293,6 +296,25 @@ fun MealPlanNavHost(
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var showMiscSheet    by remember { mutableStateOf(false) }
 
+    // Tabs in swipe order (ignoring + and More)
+    val swipeTabs = listOf(Screen.Home.route, Screen.DailyLog.route, Screen.Calendar.route)
+    val currentTabIndex = when {
+        currentRoute == Screen.Home.route -> 0
+        currentRoute?.startsWith("daily_log") == true -> 1
+        currentRoute?.startsWith("calendar") == true -> 2
+        else -> -1
+    }
+
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo(Screen.Home.route) { saveState = route != Screen.Home.route; inclusive = false }
+            launchSingleTop = true
+            restoreState = route != Screen.Home.route
+        }
+    }
+
+    var swipeAccum by remember { mutableFloatStateOf(0f) }
+
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -305,10 +327,37 @@ fun MealPlanNavHost(
             }
         }
     ) { innerPadding ->
+        val swipeMod = if (showBottomBar && currentTabIndex >= 0) {
+            Modifier.pointerInput(currentTabIndex) {
+                detectHorizontalDragGestures(
+                    onDragStart = { swipeAccum = 0f },
+                    onDragEnd = { swipeAccum = 0f },
+                    onDragCancel = { swipeAccum = 0f },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        swipeAccum += dragAmount
+                        val threshold = 120.dp.toPx()
+                        when {
+                            swipeAccum < -threshold && currentTabIndex < swipeTabs.size - 1 -> {
+                                navigateToTab(swipeTabs[currentTabIndex + 1])
+                                swipeAccum = 0f
+                            }
+                            swipeAccum > threshold && currentTabIndex > 0 -> {
+                                navigateToTab(swipeTabs[currentTabIndex - 1])
+                                swipeAccum = 0f
+                            }
+                        }
+                    }
+                )
+            }
+        } else Modifier
+
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(innerPadding)
+                .then(swipeMod)
         ) {
             composable(Screen.Landing.route) {
                 LandingScreen(

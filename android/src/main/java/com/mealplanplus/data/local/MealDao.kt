@@ -52,6 +52,14 @@ interface MealDao {
     @Query("DELETE FROM meals")
     suspend fun deleteAllMeals()
 
+    /** Deletes all meals owned by [userId] — cascades to meal_food_items. */
+    @Query("DELETE FROM meals WHERE userId = :userId")
+    suspend fun deleteAllMealsForUser(userId: Long)
+
+    /** Deletes orphan user-created meals (isSystem=0) with no userId — from bad imports. */
+    @Query("DELETE FROM meals WHERE isSystem = 0 AND userId IS NULL")
+    suspend fun deleteOrphanUserMeals()
+
     // Sync helpers (v19)
     @Query("SELECT * FROM meals WHERE syncedAt IS NULL OR updatedAt > syncedAt")
     suspend fun getUnsyncedMeals(): List<Meal>

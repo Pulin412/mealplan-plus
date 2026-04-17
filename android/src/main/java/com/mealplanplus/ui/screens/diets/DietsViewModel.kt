@@ -80,6 +80,18 @@ class DietsViewModel @Inject constructor(
     private val _showTagsDialog = MutableStateFlow(false)
     private val _showFavouritesOnly = MutableStateFlow(false)
 
+    /** Loaded on-demand when the confirm sheet opens. */
+    private val _selectedDietDetail = MutableStateFlow<com.mealplanplus.data.model.DietWithMeals?>(null)
+    val selectedDietDetail: StateFlow<com.mealplanplus.data.model.DietWithMeals?> = _selectedDietDetail
+
+    fun loadDietDetail(dietId: Long) {
+        viewModelScope.launch {
+            _selectedDietDetail.value = dietRepository.getDietWithMeals(dietId)
+        }
+    }
+
+    fun clearDietDetail() { _selectedDietDetail.value = null }
+
     val uiState: StateFlow<DietsUiState> = combine(
         _dietsWithMeals,
         _allTags,

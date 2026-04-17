@@ -43,7 +43,7 @@ class DatabaseSeeder @Inject constructor(
          * all system foods are deleted and re-inserted from the asset. User-created foods are
          * never touched because they have isSystemFood = false.
          */
-        const val SYSTEM_FOODS_VERSION = 3
+        const val SYSTEM_FOODS_VERSION = 4
 
         private val SYSTEM_FOODS_VERSION_KEY = intPreferencesKey("system_foods_version")
     }

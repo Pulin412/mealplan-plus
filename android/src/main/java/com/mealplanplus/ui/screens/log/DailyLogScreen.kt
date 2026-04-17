@@ -510,10 +510,12 @@ fun DailyLogTab(
                             val slot = logSlot.mealSlot
                             val slotFoods = logWithFoods?.foodsForSlot(slot.name) ?: emptyList()
                             val plannedItems = plannedDiet?.meals?.get(slot.name)?.items ?: emptyList()
+                            val plannedMealName = plannedDiet?.meals?.get(slot.name)?.meal?.name
                             MealSlotCard(
                                 slot = slot,
                                 foods = slotFoods,
                                 plannedItems = plannedItems,
+                                plannedMealName = plannedMealName,
                                 isExpanded = slot.name in expandedSlots,
                                 onToggleExpand = { onToggleSlot(slot) },
                                 onAddFood = { onAddFood(slot) },
@@ -538,6 +540,7 @@ fun MealSlotCard(
     slot: DefaultMealSlot,
     foods: List<LoggedFoodWithDetails>,
     plannedItems: List<MealFoodItemWithDetails> = emptyList(),
+    plannedMealName: String? = null,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
     onAddFood: () -> Unit,
@@ -582,14 +585,25 @@ fun MealSlotCard(
                         .background(dotColor)
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    text = slot.displayName.uppercase(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp,
-                    color = TextPrimary,
-                    modifier = Modifier.weight(1f)
-                )
+                // Slot label + optional planned meal name
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = slot.displayName.uppercase(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                        color = TextPrimary
+                    )
+                    if (!plannedMealName.isNullOrBlank()) {
+                        Text(
+                            text = plannedMealName,
+                            fontSize = 10.sp,
+                            color = TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
                 Text(
                     text = kcalLabel,
                     fontSize = 11.sp,

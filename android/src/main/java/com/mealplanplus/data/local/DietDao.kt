@@ -65,6 +65,14 @@ interface DietDao {
     @Query("DELETE FROM diets")
     suspend fun deleteAllDiets()
 
+    /** Deletes all diets owned by [userId] — cascades to diet_slots. */
+    @Query("DELETE FROM diets WHERE userId = :userId")
+    suspend fun deleteAllDietsForUser(userId: Long)
+
+    /** Deletes orphan user-created diets (isSystem=0) with no userId — from bad imports. */
+    @Query("DELETE FROM diets WHERE isSystem = 0 AND userId IS NULL")
+    suspend fun deleteOrphanUserDiets()
+
     @Query("SELECT COUNT(*) FROM diets")
     suspend fun getDietCount(): Int
 

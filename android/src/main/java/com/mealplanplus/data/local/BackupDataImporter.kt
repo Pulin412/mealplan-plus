@@ -36,8 +36,8 @@ class BackupDataImporter @Inject constructor(
 ) {
     private val TAG = "BackupDataImporter"
 
-    // v3: meals and diets are now user-scoped; full re-import with userId per record
-    private val BACKUP_IMPORTED_KEY = booleanPreferencesKey("backup_data_imported_v3")
+    // v5: clean up orphan null-userId meals/diets left by the v3 import before re-inserting.
+    private val BACKUP_IMPORTED_KEY = booleanPreferencesKey("backup_data_imported_v5")
 
     suspend fun importIfNeeded(context: Context) {
         val prefs = context.dataStore.data.first()
@@ -177,6 +177,19 @@ class BackupDataImporter @Inject constructor(
             Log.d(TAG, "Imported ${tagIdMap.size} tags")
 
             // ------------------------------------------------------------------
+            // 4b. Clear any previously imported meals/diets before re-inserting.
+            //     Also clears orphan null-userId records left by earlier bad imports.
+            //     CASCADE on the FK deletes meal_food_items and diet_slots too.
+            // ------------------------------------------------------------------
+            mealDao.deleteOrphanUserMeals()   // removes isSystem=0, userId IS NULL leftovers
+            dietDao.deleteOrphanUserDiets()
+            for (newUserId in userIdMap.values) {
+                mealDao.deleteAllMealsForUser(newUserId)
+                dietDao.deleteAllDietsForUser(newUserId)
+            }
+            Log.d(TAG, "Cleared previous meals/diets (orphans + ${userIdMap.size} users)")
+
+            // ------------------------------------------------------------------
             // 5. Import meals — now user-scoped (no name deduplication needed).
             //    Each user gets their own meal records with their own userId.
             //    Build old-meal-id → new-meal-id map per user.
@@ -252,9 +265,11 @@ class BackupDataImporter @Inject constructor(
             var mfiSkipped = 0
             val batchMfi = mutableListOf<MealFoodItem>()
             for ((oldMealId, items) in mfiByMealId) {
-                val newMealId = mealIdMap[oldMealId] ?: run { mfiSkipped += items.size; continue }
+                val newMealId = mealIdMap[oldMealId]
+                if (newMealId == null) { mfiSkipped += items.size; continue }
                 for (fi in items) {
-                    val newFoodId = foodIdMap[fi.getLong("foodId")] ?: run { mfiSkipped++; continue }
+                    val newFoodId = foodIdMap[fi.getLong("foodId")]
+                    if (newFoodId == null) { mfiSkipped++; continue }
                     val unit = fi.optString("unit", "GRAM").let { str ->
                         runCatching { FoodUnit.valueOf(str) }.getOrDefault(FoodUnit.GRAM)
                     }
@@ -300,7 +315,8 @@ class BackupDataImporter @Inject constructor(
             for (dm in backupDietMeals) {
                 val oldDietId = dm.getLong("dietId")
                 val oldMealId = dm.optLong("mealId", -1L)
-                val newDietId = dietIdMap[oldDietId] ?: run { dmSkipped++; continue }
+                val newDietId = dietIdMap[oldDietId]
+                if (newDietId == null) { dmSkipped++; continue }
                 val newMealId = if (oldMealId > 0) mealIdMap[oldMealId] else null
                 dietDao.insertDietMeal(DietMeal(
                     dietId = newDietId,

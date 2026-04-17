@@ -41,8 +41,15 @@ fun DietPickerScreen(
     viewModel: DietsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val selectedDietDetail by viewModel.selectedDietDetail.collectAsState()
     var selectedItem by remember { mutableStateOf<DietDisplayItem?>(null) }
     var searchActive by remember { mutableStateOf(false) }
+
+    // Load full diet details (meal names) whenever selection changes
+    LaunchedEffect(selectedItem) {
+        val id = selectedItem?.diet?.id
+        if (id != null) viewModel.loadDietDetail(id) else viewModel.clearDietDetail()
+    }
 
     val parsedDate = try { LocalDate.parse(date) } catch (e: Exception) { LocalDate.now() }
     val isFutureDate = parsedDate.isAfter(LocalDate.now())
@@ -236,6 +243,7 @@ fun DietPickerScreen(
     selectedItem?.let { item ->
         DietConfirmSheet(
             item = item,
+            dietDetail = selectedDietDetail,
             actionText = actionText,
             date = parsedDate.format(dateFmt),
             onConfirm = {
@@ -438,6 +446,7 @@ private fun DietFilterPill(
 @Composable
 private fun DietConfirmSheet(
     item: DietDisplayItem,
+    dietDetail: com.mealplanplus.data.model.DietWithMeals?,
     actionText: String,
     date: String,
     onConfirm: () -> Unit,
@@ -454,7 +463,7 @@ private fun DietConfirmSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
         ) {
-            // Diet name
+            // Diet name + date
             Text(
                 text = item.diet.name,
                 fontSize = 20.sp,
@@ -468,7 +477,7 @@ private fun DietConfirmSheet(
                 color = TextMuted
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
             // Macro summary row
             Row(
@@ -487,40 +496,85 @@ private fun DietConfirmSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // Slot coverage
-            if (item.mealCount > 0) {
-                Text(
-                    text = "SLOTS COVERED",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp,
-                    color = TextMuted,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DefaultMealSlot.entries.forEach { slot ->
-                        val covered = slot.name in item.assignedSlots
+            // Meal slots — show slot name + assigned meal name
+            Text(
+                text = "MEALS",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+                color = TextMuted,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            if (dietDetail == null) {
+                // Loading state
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = DesignGreen
+                    )
+                    Text("Loading meals…", fontSize = 12.sp, color = TextMuted)
+                }
+            } else {
+                val orderedSlots = DefaultMealSlot.entries
+                    .filter { it.name in item.assignedSlots }
+                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    orderedSlots.forEach { slot ->
+                        val mealWithFoods = dietDetail.meals[slot.name]
+                        val mealName = mealWithFoods?.meal?.name
+                        val slotKcal = mealWithFoods?.totalCalories?.toInt() ?: 0
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(7.dp)
                                     .clip(CircleShape)
-                                    .background(if (covered) DesignGreen else DividerColor)
+                                    .background(slotColor(slot))
                             )
-                            Text(
-                                text = slot.displayName,
-                                fontSize = 12.sp,
-                                color = if (covered) TextPrimary else TextMuted,
-                                fontWeight = if (covered) FontWeight.Medium else FontWeight.Normal
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = slot.displayName,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 0.3.sp,
+                                    color = TextPrimary
+                                )
+                                if (mealName != null) {
+                                    Text(
+                                        text = mealName,
+                                        fontSize = 12.sp,
+                                        color = TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            if (slotKcal > 0) {
+                                Text(
+                                    text = "$slotKcal kcal",
+                                    fontSize = 11.sp,
+                                    color = TextMuted
+                                )
+                            }
+                        }
+                        if (slot != orderedSlots.last()) {
+                            HorizontalDivider(color = DividerColor)
                         }
                     }
                 }
-                Spacer(Modifier.height(20.dp))
             }
+
+            Spacer(Modifier.height(20.dp))
 
             // Confirm button
             Button(
