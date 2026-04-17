@@ -1,5 +1,6 @@
 package com.mealplanplus.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -8,18 +9,35 @@ import androidx.room.PrimaryKey
 /**
  * A meal template — a named collection of food items.
  *
- * Meals are app-global (no user_id): any user can use any meal.
+ * [userId] scopes the meal to a specific user.
+ * NULL means a system/built-in meal visible to every user.
+ * User-created meals always have a non-null userId.
+ *
  * The slot a meal fills (BREAKFAST, LUNCH, etc.) is determined by
  * [DietMeal] when building a diet template, or by [PlannedSlot] when
  * planning a specific day. Meals themselves are slot-agnostic.
  */
-@Entity(tableName = "meals")
+@Entity(
+    tableName = "meals",
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("userId")]
+)
 data class Meal(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
     val description: String? = null,
     val isSystem: Boolean = false,
+    /** NULL = system meal visible to all; non-null = owned by this user. */
+    @ColumnInfo(defaultValue = "NULL")
+    val userId: Long? = null,
     val serverId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),

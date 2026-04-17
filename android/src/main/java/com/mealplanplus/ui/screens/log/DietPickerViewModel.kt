@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.Tag
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.TagRepository
 import com.mealplanplus.util.naturalSortKey
@@ -30,7 +31,8 @@ data class DietPickerUiState(
 @HiltViewModel
 class DietPickerViewModel @Inject constructor(
     private val dietRepository: DietRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -75,20 +77,23 @@ class DietPickerViewModel @Inject constructor(
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getDietsWithFullSummary().collect { summaries ->
-                _isLoading.value = true
-                val dietIds = summaries.map { it.id }
-                val tagsMap = dietRepository.getTagsForDiets(dietIds)
-                _allDiets.value = summaries.map { summary ->
-                    DietPickerItem(
-                        diet = summary.toDiet(),
-                        totalCalories = summary.totalCalories,
-                        mealCount = summary.mealCount,
-                        tags = tagsMap[summary.id] ?: emptyList()
-                    )
+            authRepository.getCurrentUserId()
+                .filterNotNull()
+                .flatMapLatest { uid -> dietRepository.getDietsWithFullSummaryForUser(uid) }
+                .collect { summaries ->
+                    _isLoading.value = true
+                    val dietIds = summaries.map { it.id }
+                    val tagsMap = dietRepository.getTagsForDiets(dietIds)
+                    _allDiets.value = summaries.map { summary ->
+                        DietPickerItem(
+                            diet = summary.toDiet(),
+                            totalCalories = summary.totalCalories,
+                            mealCount = summary.mealCount,
+                            tags = tagsMap[summary.id] ?: emptyList()
+                        )
+                    }
+                    _isLoading.value = false
                 }
-                _isLoading.value = false
-            }
         }
     }
 

@@ -16,5 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "MealPlanPlus"
 include(":android")
-include(":shared")
+// :shared (KMP) intentionally removed — Android is fully self-contained on Room/Hilt
 include(":backend")

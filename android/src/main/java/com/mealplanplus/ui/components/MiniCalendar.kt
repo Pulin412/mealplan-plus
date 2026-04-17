@@ -118,8 +118,6 @@ fun MiniCalendar(
                                 isToday = isToday,
                                 hasPlan = hasPlan,
                                 isCompleted = isCompleted,
-                                dietName = dietName,
-                                compact = true,
                                 onClick = { onDateSelected(date) },
                                 modifier = Modifier.weight(1f)
                             )

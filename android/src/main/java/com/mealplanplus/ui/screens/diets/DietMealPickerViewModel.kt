@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.MealWithFoods
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.MealRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,8 @@ data class DietMealPickerUiState(
 class DietMealPickerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val mealRepository: MealRepository,
-    private val dietRepository: DietRepository
+    private val dietRepository: DietRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val slotType: String = savedStateHandle.get<String>("slotType") ?: ""
@@ -43,29 +45,35 @@ class DietMealPickerViewModel @Inject constructor(
 
     private fun loadMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
-                val mealsWithFoods = meals.map { meal ->
-                    mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
+            authRepository.getCurrentUserId()
+                .filterNotNull()
+                .flatMapLatest { uid -> mealRepository.getMealsForUser(uid) }
+                .collect { meals ->
+                    val mealsWithFoods = meals.map { meal ->
+                        mealRepository.getMealWithFoods(meal.id) ?: MealWithFoods(meal, emptyList())
+                    }
+                    _uiState.update { state ->
+                        state.copy(
+                            allMeals = mealsWithFoods,
+                            isLoading = false
+                        )
+                    }
+                    applyFilters()
                 }
-                _uiState.update { state ->
-                    state.copy(
-                        allMeals = mealsWithFoods,
-                        isLoading = false
-                    )
-                }
-                applyFilters()
-            }
         }
     }
 
     private fun loadDiets() {
         viewModelScope.launch {
-            dietRepository.getAllDiets().collect { diets ->
-                val dietsWithMeals = diets.mapNotNull { diet ->
-                    dietRepository.getDietWithMeals(diet.id)
+            authRepository.getCurrentUserId()
+                .filterNotNull()
+                .flatMapLatest { uid -> dietRepository.getDietsForUser(uid) }
+                .collect { diets ->
+                    val dietsWithMeals = diets.mapNotNull { diet ->
+                        dietRepository.getDietWithMeals(diet.id)
+                    }
+                    _uiState.update { it.copy(diets = dietsWithMeals) }
                 }
-                _uiState.update { it.copy(diets = dietsWithMeals) }
-            }
         }
     }
 

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,8 +31,15 @@ import com.mealplanplus.data.model.Tag
 import com.mealplanplus.ui.components.TagChip
 import com.mealplanplus.ui.screens.diets.TagFilterRow
 import com.mealplanplus.ui.screens.diets.TagsManagementDialog
-
-private val FoodGreen = Color(0xFF2E7D52)
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPlaceholder
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +60,7 @@ fun FoodsScreen(
     var showTagsDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             FoodsTopBar(
                 totalCount = foods.size,
@@ -63,71 +73,33 @@ fun FoodsScreen(
                 onNavigateToScanner = if (!pickerMode) onNavigateToScanner else null,
                 pickerMode = pickerMode
             )
-        },
-        floatingActionButton = {
-            if (!pickerMode) {
-                Column(horizontalAlignment = Alignment.End) {
-                    SmallFloatingActionButton(
-                        onClick = onNavigateToOnlineSearch,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    ) {
-                        Icon(Icons.Default.Search, contentDescription = "Search Online")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    SmallFloatingActionButton(
-                        onClick = onNavigateToScanner,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Icon(Icons.Default.Info, contentDescription = "Scan Barcode")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    FloatingActionButton(onClick = onNavigateToAddFood) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Food")
-                    }
-                }
-            }
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
+                .background(BgPage)
         ) {
-            // Tag filter row
-            TagFilterRow(
-                tags = tags,
-                selectedTagIds = selectedTagIds,
-                tagCountMap = emptyMap(),
-                totalCount = foods.size,
-                onTagClick = viewModel::toggleTag,
-                onAllClick = viewModel::clearTagFilter
-            )
-
-            // Tab row
-            TabRow(
-                selectedTabIndex = selectedTab.ordinal,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = FoodGreen
+            // Filter chips row
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardBg)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Tab(
-                    selected = selectedTab == FoodTab.ALL,
-                    onClick = { viewModel.selectTab(FoodTab.ALL) },
-                    text = { Text("All") }
-                )
-                Tab(
-                    selected = selectedTab == FoodTab.FAVORITES,
-                    onClick = { viewModel.selectTab(FoodTab.FAVORITES) },
-                    text = { Text("Favorites") }
-                )
-                Tab(
-                    selected = selectedTab == FoodTab.RECENT,
-                    onClick = { viewModel.selectTab(FoodTab.RECENT) },
-                    text = { Text("Recent") }
-                )
+                item {
+                    FoodFilterChip("All", selectedTab == FoodTab.ALL) { viewModel.selectTab(FoodTab.ALL) }
+                }
+                item {
+                    FoodFilterChip("Favorites", selectedTab == FoodTab.FAVORITES) { viewModel.selectTab(FoodTab.FAVORITES) }
+                }
+                item {
+                    FoodFilterChip("Recent", selectedTab == FoodTab.RECENT) { viewModel.selectTab(FoodTab.RECENT) }
+                }
             }
-
-            HorizontalDivider()
+            HorizontalDivider(color = DividerColor)
 
             when {
                 foods.isEmpty() -> {
@@ -135,27 +107,24 @@ fun FoodsScreen(
                         val emptyText = when {
                             searchQuery.isNotBlank() -> "No foods found"
                             selectedTagIds.isNotEmpty() -> "No foods match selected tags"
-                            selectedTab == FoodTab.FAVORITES -> "No favorites yet.\nTap ♡ to add favorites!"
+                            selectedTab == FoodTab.FAVORITES -> "No favorites yet.\nTap ♡ to add!"
                             selectedTab == FoodTab.RECENT -> "No recent foods."
                             else -> "No foods yet.\nTap + to add or scan a barcode!"
                         }
-                        Text(
-                            text = emptyText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text(text = emptyText, fontSize = 14.sp, color = TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                 }
                 else -> {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxSize().background(BgPage),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
                     ) {
                         items(foods, key = { it.id }) { food ->
                             FoodCard(
                                 food = food,
-                                tags = tags.filter { /* populated by getTagsForFood in expanded view */ false },
+                                tags = tags.filter { false },
                                 pickerMode = pickerMode,
                                 onToggleFavorite = { viewModel.toggleFavorite(food) },
                                 onDelete = { viewModel.deleteFood(food) },
@@ -196,72 +165,94 @@ fun FoodsTopBar(
     onNavigateToScanner: (() -> Unit)? = null,
     pickerMode: Boolean = false
 ) {
-    Surface(color = FoodGreen, shadowElevation = 4.dp) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 4.dp, end = 8.dp, top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (pickerMode) "Select Food" else "My Foods",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
-                    )
-                    Text(
-                        text = "$totalCount items",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                }
-                if (onTagsSettings != null) {
-                    TextButton(onClick = onTagsSettings) {
-                        Text("Tags", color = Color.White, fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-                if (onNewFood != null) {
-                    IconButton(onClick = onNewFood) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Food", tint = Color.White)
-                    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardBg)
+            .statusBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 8.dp, top = 6.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary, modifier = Modifier.size(22.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (pickerMode) "Select Food" else "Foods",
+                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                )
+                Text(text = "$totalCount items", fontSize = 12.sp, color = TextSecondary)
+            }
+            if (onNavigateToOnlineSearch != null) {
+                IconButton(onClick = onNavigateToOnlineSearch, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Search, contentDescription = "Online Search", tint = TextSecondary, modifier = Modifier.size(20.dp))
                 }
             }
-            // Embedded search
-            TextField(
-                value = searchQuery,
-                onValueChange = onSearchChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                placeholder = { Text("Search foods…", color = Color.White.copy(alpha = 0.7f)) },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.7f))
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.White)
-                        }
-                    }
-                },
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White.copy(alpha = 0.2f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.15f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
+            if (onNavigateToScanner != null) {
+                IconButton(onClick = onNavigateToScanner, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = "Scan Barcode", tint = TextSecondary, modifier = Modifier.size(20.dp))
+                }
+            }
+            if (onNewFood != null) {
+                IconButton(onClick = onNewFood, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Food", tint = TextPrimary, modifier = Modifier.size(22.dp))
+                }
+            }
         }
+        // Flat search bar
+        TextField(
+            value = searchQuery,
+            onValueChange = onSearchChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            placeholder = { Text("Search foods…", fontSize = 14.sp, color = TextMuted) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = TagGrayBg,
+                unfocusedContainerColor = TagGrayBg,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                cursorColor = DesignGreen
+            )
+        )
+        HorizontalDivider(color = DividerColor, thickness = 1.dp)
+    }
+}
+
+@Composable
+private fun FoodFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) TextPrimary else CardBg)
+            .border(1.dp, if (selected) TextPrimary else TagGrayBg, RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) Color.White else TextSecondary
+        )
     }
 }
 
@@ -285,101 +276,69 @@ fun FoodCard(
     var showTagPicker by remember { mutableStateOf(false) }
     val foodTags by getFoodTags().collectAsState(initial = emptyList())
 
+    // Icon background tint based on food category
+    val iconBg = when {
+        food.calories > 400 -> Color(0xFFFFF8E6)
+        food.protein > 20   -> Color(0xFFF5FFF5)
+        food.carbs > 40     -> Color(0xFFF0F8FF)
+        else                -> Color(0xFFF5F5F5)
+    }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp)
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Icon well
+                Box(
+                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(iconBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🥗", fontSize = 18.sp)
+                }
+                // Name + subtitle
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = food.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        if (food.barcode != null) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.Info,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    food.brand?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Spacer(Modifier.height(4.dp))
+                    Text(food.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1)
                     Text(
-                        "${food.servingSize.toInt()} ${food.servingUnit}  ·  " +
-                        "${food.calories.toInt()} kcal",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = FoodGreen,
-                        fontWeight = FontWeight.Medium
+                        text = food.brand?.let { "${it} · " }.orEmpty() + "${food.servingSize.toInt()} ${food.servingUnit}",
+                        fontSize = 11.sp, color = TextMuted, maxLines = 1
                     )
                 }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (pickerMode) {
-                        Button(
-                            onClick = { showQuantityDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = FoodGreen),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Select", fontSize = 13.sp)
-                        }
-                    } else {
-                        IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
-                            Icon(
-                                if (food.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = null,
-                                tint = if (food.isFavorite) MaterialTheme.colorScheme.error
-                                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                // Right column: picker button or kcal
+                if (pickerMode) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(TextPrimary)
+                            .clickable { showQuantityDialog = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("Add", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
-                    Icon(
-                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("${food.calories.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text("kcal", fontSize = 10.sp, color = TextMuted)
+                    }
                 }
             }
 
-            // Tags row
-            if (foodTags.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(foodTags) { tag -> TagChip(tag = tag) }
-                }
-            }
-
-            // Expanded details
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
-            ) {
-                Column(modifier = Modifier.padding(top = 12.dp)) {
-                    HorizontalDivider()
-                    Spacer(Modifier.height(8.dp))
-                    // Macros
+            // Expanded detail section
+            AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
+                Column {
+                    HorizontalDivider(color = DividerColor)
+                    // Macro row
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         MacroDetail("Protein", "${food.protein.toInt()}g", Color(0xFF2196F3))
@@ -387,73 +346,30 @@ fun FoodCard(
                         MacroDetail("Fat", "${food.fat.toInt()}g", Color(0xFFE91E63))
                         food.glycemicIndex?.let {
                             MacroDetail("GI", "$it", when {
-                                it <= 55 -> FoodGreen
+                                it <= 55 -> DesignGreen
                                 it <= 69 -> Color(0xFFFF9800)
                                 else -> Color(0xFFE53935)
                             })
                         }
                     }
-
                     if (!pickerMode) {
-                        Spacer(Modifier.height(8.dp))
-                        HorizontalDivider()
-                        Spacer(Modifier.height(8.dp))
-                        // Tag management
+                        HorizontalDivider(color = DividerColor)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Tags", style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            TextButton(onClick = { showTagPicker = !showTagPicker }) {
-                                Text("+ Add tag", color = FoodGreen,
-                                    style = MaterialTheme.typography.labelMedium)
+                            IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    if (food.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = null,
+                                    tint = if (food.isFavorite) Color(0xFFE53E3E) else TextMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
-                        }
-                        if (foodTags.isNotEmpty()) {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                items(foodTags) { tag ->
-                                    InputChip(
-                                        selected = true,
-                                        onClick = { onRemoveTag(tag.id) },
-                                        label = { Text(tag.name, fontSize = 12.sp) },
-                                        trailingIcon = {
-                                            Icon(Icons.Default.Close, contentDescription = "Remove",
-                                                modifier = Modifier.size(14.dp))
-                                        }
-                                    )
-                                }
+                            TextButton(onClick = { showDeleteDialog = true }) {
+                                Text("Delete", color = Color(0xFFE53E3E), fontSize = 13.sp)
                             }
-                        }
-                        if (showTagPicker && allTags.isNotEmpty()) {
-                            Spacer(Modifier.height(4.dp))
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                items(allTags.filter { t -> foodTags.none { it.id == t.id } }) { tag ->
-                                    FilterChip(
-                                        selected = false,
-                                        onClick = {
-                                            onAddTag(tag.id)
-                                            showTagPicker = false
-                                        },
-                                        label = { Text(tag.name, fontSize = 12.sp) }
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        HorizontalDivider()
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(
-                            onClick = { showDeleteDialog = true },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = null,
-                                modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Delete", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }

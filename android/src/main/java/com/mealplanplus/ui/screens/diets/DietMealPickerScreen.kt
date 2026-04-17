@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.diets
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.MealWithFoods
 import com.mealplanplus.ui.components.DietBrowserSection
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.ChartCarbs
+import com.mealplanplus.ui.theme.ChartFat
+import com.mealplanplus.ui.theme.ChartProtein
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,28 +40,26 @@ fun DietMealPickerScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
                 title = {
                     val slot = DefaultMealSlot.entries.find { it.name == slotType }
-                    Text("Select ${slot?.displayName ?: "Meal"}")
+                    Text("Select ${slot?.displayName ?: "Meal"}", color = TextPrimary)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
         ) {
             // Search bar
@@ -131,7 +140,7 @@ fun DietMealPickerScreen(
                 Text(
                     text = "${filteredDiets.size} diets",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = TextSecondary,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
@@ -149,7 +158,7 @@ fun DietMealPickerScreen(
                 Text(
                     text = "${uiState.filteredMeals.size} meals",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = TextSecondary,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
@@ -172,7 +181,7 @@ fun DietMealPickerScreen(
                                 Icons.Default.Info,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = TextMuted
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -181,7 +190,7 @@ fun DietMealPickerScreen(
                                 else
                                     "No meals available",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextMuted
                             )
                         }
                     }
@@ -214,7 +223,8 @@ fun PickerMealCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Column(
             modifier = Modifier
@@ -237,7 +247,7 @@ fun PickerMealCard(
                 Text(
                     text = "${mealWithFoods.totalCalories.toInt()} cal",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = DesignGreen
                 )
             }
 
@@ -247,7 +257,7 @@ fun PickerMealCard(
                     text = mealWithFoods.items.take(3).joinToString(", ") { it.food.name } +
                             if (mealWithFoods.items.size > 3) " +${mealWithFoods.items.size - 3} more" else "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -260,17 +270,17 @@ fun PickerMealCard(
                 Text(
                     text = "P: ${mealWithFoods.totalProtein.toInt()}g",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.tertiary
+                    color = ChartProtein
                 )
                 Text(
                     text = "C: ${mealWithFoods.totalCarbs.toInt()}g",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = ChartCarbs
                 )
                 Text(
                     text = "F: ${mealWithFoods.totalFat.toInt()}g",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error
+                    color = ChartFat
                 )
             }
         }

@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.diets
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -17,6 +19,18 @@ import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import com.mealplanplus.data.repository.UsdaFoodResult
 import com.mealplanplus.ui.components.FoodDetailSheet
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.ChartCarbs
+import com.mealplanplus.ui.theme.ChartFat
+import com.mealplanplus.ui.theme.ChartProtein
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,34 +100,36 @@ fun DietMealSlotScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text(uiState.slotDisplayName)
+                        Text(uiState.slotDisplayName, color = TextPrimary)
                         if (uiState.dietName.isNotEmpty()) {
                             Text(
                                 text = uiState.dietName,
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary
                             )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         },
         floatingActionButton = {
             if (uiState.currentMeal != null) {
-                FloatingActionButton(onClick = onNavigateToFoodPicker) {
+                FloatingActionButton(
+                    onClick = onNavigateToFoodPicker,
+                    containerColor = TextPrimary,
+                    contentColor = Color.White
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Food")
                 }
             }
@@ -124,6 +140,7 @@ fun DietMealSlotScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(BgPage)
                         .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
@@ -134,6 +151,7 @@ fun DietMealSlotScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(BgPage)
                         .padding(padding),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -176,7 +194,7 @@ fun DietMealSlotScreen(
                             item {
                                 Card(
                                     colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        containerColor = TagGrayBg
                                     )
                                 ) {
                                     Box(
@@ -190,18 +208,18 @@ fun DietMealSlotScreen(
                                                 Icons.Default.Add,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(48.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                tint = TextSecondary
                                             )
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(
                                                 "No food items yet",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = TextSecondary
                                             )
                                             Text(
                                                 "Tap + to add foods",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = TextSecondary
                                             )
                                         }
                                     }
@@ -223,7 +241,7 @@ fun DietMealSlotScreen(
                         item {
                             Card(
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    containerColor = TagGrayBg
                                 )
                             ) {
                                 Box(
@@ -237,18 +255,18 @@ fun DietMealSlotScreen(
                                             Icons.Default.Info,
                                             contentDescription = null,
                                             modifier = Modifier.size(48.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = TextSecondary
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text(
                                             "No meal assigned",
                                             style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = TextSecondary
                                         )
                                         Text(
                                             "Select a meal above to see its contents",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = TextSecondary
                                         )
                                     }
                                 }
@@ -293,7 +311,7 @@ fun MealSelectorCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
+            containerColor = TagGrayBg
         )
     ) {
         Row(
@@ -307,18 +325,18 @@ fun MealSelectorCard(
                 Text(
                     text = "Current Meal",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    color = TextSecondary.copy(alpha = 0.7f)
                 )
                 Text(
                     text = currentMeal?.name ?: "Not assigned",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = TextPrimary
                 )
             }
             Icon(
                 Icons.Default.KeyboardArrowDown,
                 contentDescription = "Change meal",
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                tint = TextPrimary
             )
         }
     }
@@ -333,7 +351,7 @@ fun MacroSummaryCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = DesignGreenLight
         )
     ) {
         Column(
@@ -344,17 +362,17 @@ fun MacroSummaryCard(
             Text(
                 text = "Meal Totals",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = TextPrimary
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                MacroItem("Calories", "${calories.toInt()}", MaterialTheme.colorScheme.primary)
-                MacroItem("Protein", "${protein.toInt()}g", MaterialTheme.colorScheme.tertiary)
-                MacroItem("Carbs", "${carbs.toInt()}g", MaterialTheme.colorScheme.secondary)
-                MacroItem("Fat", "${fat.toInt()}g", MaterialTheme.colorScheme.error)
+                MacroItem("Calories", "${calories.toInt()}", DesignGreen)
+                MacroItem("Protein", "${protein.toInt()}g", ChartProtein)
+                MacroItem("Carbs", "${carbs.toInt()}g", ChartCarbs)
+                MacroItem("Fat", "${fat.toInt()}g", ChartFat)
             }
         }
     }
@@ -375,7 +393,7 @@ fun MacroItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            color = TextSecondary.copy(alpha = 0.7f)
         )
     }
 }
@@ -389,7 +407,8 @@ fun FoodItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onEdit)
+            .clickable(onClick = onEdit),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Row(
             modifier = Modifier
@@ -406,19 +425,19 @@ fun FoodItemCard(
                 Text(
                     text = "${item.mealFoodItem.quantity.toInt()}${item.mealFoodItem.unit.shortLabel} • ${item.calculatedCalories.toInt()} cal",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextSecondary
                 )
                 Text(
                     text = "P: ${item.calculatedProtein.toInt()}g • C: ${item.calculatedCarbs.toInt()}g • F: ${item.calculatedFat.toInt()}g",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextSecondary
                 )
             }
             IconButton(onClick = onRemove) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Remove",
-                    tint = MaterialTheme.colorScheme.error
+                    tint = TextDestructive
                 )
             }
         }

@@ -91,6 +91,7 @@ See `docs/DATABASE_SCHEMA.md` for the full schema, ER diagram, slot resolution a
 5. **AlarmManager, not WorkManager, for notifications.** WorkManager is only used for `SyncWorker`. The three old notification workers are deleted — do not re-add them.
 6. **Never delete system food rows during re-seed.** `DatabaseSeeder` uses upsert-only strategy to preserve FK references from `meal_foods` and `logged_foods`.
 7. **`planned_slots` is the source of truth for day planning.** When loading a day, read `planned_slots` first; fall back to `day_plans.template_diet_id`'s `diet_slots` only for slots not yet in `planned_slots`.
+8. Always confirm before pushing to a branch or commiting the files.
 
 ---
 

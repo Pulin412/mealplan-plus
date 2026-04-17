@@ -2,6 +2,7 @@ package com.mealplanplus.ui.screens.profile
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,9 +17,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.mealplanplus.ui.theme.BrandGreen
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.ActivityLevel
 import com.mealplanplus.data.model.Gender
@@ -68,19 +78,16 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
+                title = { Text("Profile", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BrandGreen,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+                colors = minimalTopAppBarColors()
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -93,6 +100,7 @@ fun ProfileScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(BgPage)
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -106,13 +114,13 @@ fun ProfileScreen(
                     Card(
                         modifier = Modifier.size(80.dp),
                         shape = MaterialTheme.shapes.extraLarge,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        colors = CardDefaults.cardColors(containerColor = DesignGreenLight)
                     ) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.Person, null,
                                 modifier = Modifier.size(40.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                tint = TextPrimary
                             )
                         }
                     }
@@ -120,7 +128,7 @@ fun ProfileScreen(
                     Text(
                         uiState.user?.email ?: "",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
 
@@ -144,7 +152,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     // Gender chips
-                    Text("Gender", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Gender", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Gender.entries.forEach { g ->
                             FilterChip(
@@ -184,7 +192,7 @@ fun ProfileScreen(
                         selected = uiState.activityLevel,
                         onSelect = viewModel::updateActivityLevel
                     )
-                    Text("Goal", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Goal", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GoalType.entries.forEach { g ->
                             FilterChip(
@@ -220,7 +228,7 @@ fun ProfileScreen(
                         Text(
                             "* Estimates only. BMR via Mifflin-St Jeor; body fat via Deurenberg formula.",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextSecondary
                         )
                     }
                 }
@@ -274,21 +282,24 @@ fun ProfileScreen(
                 Button(
                     onClick = { viewModel.saveProfile() },
                     enabled = !uiState.isSaving,
-                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(13.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = DesignGreen)
                 ) {
                     if (uiState.isSaving) {
-                        CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                        CircularProgressIndicator(Modifier.size(20.dp), color = Color.White)
                     } else {
                         Icon(Icons.Default.Check, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Save Profile")
+                        Text("Save Profile", fontWeight = FontWeight.Bold)
                     }
                 }
 
                 // ── Logout ───────────────────────────────────────────────────
                 OutlinedButton(
-                    onClick = { viewModel.logout() }, // nav handled by LaunchedEffect(isLoggedIn)
+                    onClick = { viewModel.logout() },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(13.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
                     Icon(Icons.Default.ExitToApp, null)
@@ -449,12 +460,17 @@ private fun ProfileSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             content()
         }
     }
@@ -464,7 +480,7 @@ private fun ProfileSection(
 private fun EstimateCard(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        colors = CardDefaults.cardColors(containerColor = DesignGreenLight)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(10.dp),

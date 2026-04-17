@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.diets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +25,8 @@ data class AddDietUiState(
 @HiltViewModel
 class AddDietViewModel @Inject constructor(
     private val dietRepository: DietRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddDietUiState())
@@ -82,9 +84,11 @@ class AddDietViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
+                val userId = authRepository.getCurrentUserId().first() ?: return@launch
                 val diet = Diet(
                     name = state.name.trim(),
-                    description = state.description.takeIf { it.isNotBlank() }?.trim()
+                    description = state.description.takeIf { it.isNotBlank() }?.trim(),
+                    userId = userId
                 )
                 val dietId = dietRepository.insertDiet(diet)
                 if (state.selectedTagIds.isNotEmpty()) {

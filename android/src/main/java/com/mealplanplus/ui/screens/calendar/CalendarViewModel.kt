@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.PlanRepository
@@ -44,13 +45,16 @@ class CalendarViewModel @Inject constructor(
     private val planRepository: PlanRepository,
     private val dietRepository: DietRepository,
     private val dailyLogRepository: DailyLogRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
-    val diets: StateFlow<List<Diet>> = dietRepository.getAllDiets()
+    val diets: StateFlow<List<Diet>> = authRepository.getCurrentUserId()
+        .filterNotNull()
+        .flatMapLatest { uid -> dietRepository.getDietsForUser(uid) }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {

@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.log
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.MealWithFoods
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.ChartCarbs
+import com.mealplanplus.ui.theme.ChartFat
+import com.mealplanplus.ui.theme.ChartProtein
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,29 +62,27 @@ fun LogMealPickerScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     val slot = DefaultMealSlot.entries.find { it.name == slotType }
-                    Text("Add ${slot?.displayName ?: "Meal"}")
+                    Text("Add ${slot?.displayName ?: "Meal"}", color = TextPrimary)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
         ) {
             // Search bar
@@ -122,7 +132,7 @@ fun LogMealPickerScreen(
             Text(
                 text = "${uiState.filteredMeals.size} meals",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = TextMuted,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -137,25 +147,25 @@ fun LogMealPickerScreen(
                     CircularProgressIndicator()
                 }
             } else if (uiState.filteredMeals.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (uiState.searchQuery.isNotEmpty()) "No meals match your search" else "No meals available",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = TextMuted
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (uiState.searchQuery.isNotEmpty()) "No meals match your search" else "No meals available",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextMuted
+                            )
+                        }
                     }
-                }
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -194,7 +204,8 @@ fun MealCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Column(
             modifier = Modifier
@@ -209,44 +220,43 @@ fun MealCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = mealWithFoods.meal.name,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary
                     )
                 }
                 Text(
                     text = "${mealWithFoods.totalCalories.toInt()} cal",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = DesignGreen
                 )
             }
 
             if (mealWithFoods.items.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = mealWithFoods.items.take(3).joinToString(", ") { it.food.name } +
                             if (mealWithFoods.items.size > 3) " +${mealWithFoods.items.size - 3} more" else "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextSecondary
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
                     text = "P: ${mealWithFoods.totalProtein.toInt()}g",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.tertiary
+                    color = ChartProtein
                 )
                 Text(
                     text = "C: ${mealWithFoods.totalCarbs.toInt()}g",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = ChartCarbs
                 )
                 Text(
                     text = "F: ${mealWithFoods.totalFat.toInt()}g",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error
+                    color = ChartFat
                 )
             }
         }
@@ -264,13 +274,14 @@ fun QuantityPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add $mealName") },
+        title = { Text("Add $mealName", color = TextPrimary) },
+        containerColor = CardBg,
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "${(calories * quantity).toInt()} cal",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = DesignGreen
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(

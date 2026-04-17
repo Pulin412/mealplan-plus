@@ -1,8 +1,8 @@
 # MealPlan+ — Database Schema
 
-> **Target version:** 27  
-> **Previous version:** 26 (backed up in `backup/` before this redesign)  
-> **Last updated:** 2026-04-11
+> **Target version:** 30  
+> **Previous version:** 26 (backed up in `backup/` before the v27 redesign)  
+> **Last updated:** 2026-04-17
 
 ---
 
@@ -365,3 +365,22 @@ When loading what to display for a given `(user_id, date, slot_type)`:
 | 24–25 | Glycemic index data + fix |
 | 26 | String → Long dates across all date columns |
 | **27** | **New schema: planned_slots, planned_slot_foods, diet_slots rename, remove user_id from meals/diets, drop custom_meal_slots** |
+| 28 | Data-only: deduplicate meals + diets by name (keep min id) |
+| 29 | Data-only: deduplicate food_items by name (keep min id), re-point FK refs |
+| **30** | **Data-only: wipe all meals + meal_food_items + diet_slots (corrupted by v28 dedup); MealSlotReseeder re-seeds from seed_data.json on next launch** |
+
+### v30 is the stable baseline
+
+All schema files in `android/schemas/com.mealplanplus.data.local.AppDatabase/30.json` reflect the current entity definitions. No further destructive data migrations are planned; v31+ will be additive only (new tables, new columns).
+
+---
+
+## Idempotency Guarantee
+
+All seeders that populate initial data (`UserDataSeeder`, `MealSlotReseeder`, `DatabaseSeeder`) are guarded by a count check before inserting:
+
+```kotlin
+if (dao.getDietCount() > 0) return   // already seeded
+```
+
+This ensures re-running the seeder (e.g. after an app restart) never creates duplicate rows. The seeder uses `INSERT OR IGNORE` / `OnConflictStrategy.IGNORE` for food items and tags.

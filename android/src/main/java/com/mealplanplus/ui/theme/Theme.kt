@@ -5,22 +5,29 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 
+/** Provides the resolved dark-mode state (accounts for manual override via ThemePreferences). */
+val LocalIsDarkTheme = compositionLocalOf { false }
+
 private val LightColorScheme = lightColorScheme(
-    primary = Teal40,
+    primary = BrandGreen,
     onPrimary = Color.White,
-    primaryContainer = Teal90,
-    onPrimaryContainer = Teal10,
-    secondary = Green40,
+    primaryContainer = Color(0xFFE8F5EE),
+    onPrimaryContainer = Color(0xFF1A3D2A),
+    secondary = Color(0xFF555555),
     onSecondary = Color.White,
-    secondaryContainer = Green90,
-    onSecondaryContainer = Green10,
+    secondaryContainer = Color(0xFFF0F0F0),
+    onSecondaryContainer = Color(0xFF111111),
     tertiary = Orange40,
     onTertiary = Color.White,
     tertiaryContainer = Orange90,
@@ -29,14 +36,14 @@ private val LightColorScheme = lightColorScheme(
     onError = Color.White,
     errorContainer = Red90,
     onErrorContainer = Red10,
-    background = Grey99,
-    onBackground = Grey10,
-    surface = Grey99,
-    onSurface = Grey10,
-    surfaceVariant = GreyVariant90,
-    onSurfaceVariant = GreyVariant30,
-    outline = GreyVariant50,
-    outlineVariant = GreyVariant80
+    background = Color(0xFFF7F7F7),
+    onBackground = Color(0xFF111111),
+    surface = Color.White,
+    onSurface = Color(0xFF111111),
+    surfaceVariant = Color(0xFFF5F5F5),
+    onSurfaceVariant = Color(0xFF888888),
+    outline = Color(0xFFDEDEDE),
+    outlineVariant = Color(0xFFCCCCCC),
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -69,7 +76,7 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun MealPlanPlusTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -85,15 +92,21 @@ fun MealPlanPlusTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            window.statusBarColor = Color.Transparent.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        shapes = AppShapes,
-        content = content
-    )
+    val baseDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalIsDarkTheme provides darkTheme,
+        LocalDensity provides Density(baseDensity.density, fontScale = baseDensity.fontScale * 1.1f)
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            shapes = AppShapes,
+            content = content
+        )
+    }
 }

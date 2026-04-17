@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.meals
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +17,19 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.repository.UsdaFoodResult
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.ChartCarbs
+import com.mealplanplus.ui.theme.ChartFat
+import com.mealplanplus.ui.theme.ChartProtein
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.TagBlue
+import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 // Unit types for quantity measurement
 enum class MeasureUnit(val label: String) {
@@ -41,25 +55,23 @@ fun FoodPickerScreen(
     var selectedUsdaFood by remember { mutableStateOf<UsdaFoodResult?>(null) }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Select Food") },
+                title = { Text("Select Food", color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
         ) {
             // Search bar
@@ -94,7 +106,7 @@ fun FoodPickerScreen(
                         Text(
                             "Your Foods (${allFoods.size})",
                             style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = DesignGreen,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
@@ -130,7 +142,7 @@ fun FoodPickerScreen(
                             Text(
                                 "Your Foods (${uiState.localResults.size})",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = DesignGreen,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
@@ -153,7 +165,7 @@ fun FoodPickerScreen(
                             Text(
                                 "No local foods found for \"${uiState.searchQuery}\"",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = TextSecondary,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
@@ -198,7 +210,7 @@ fun FoodPickerScreen(
                                 Text(
                                     "USDA Database (${uiState.usdaResults.size})",
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.secondary
+                                    color = TagBlue
                                 )
                             }
                         }
@@ -208,7 +220,7 @@ fun FoodPickerScreen(
                                 item {
                                     Text(
                                         uiState.searchError!!,
-                                        color = MaterialTheme.colorScheme.error,
+                                        color = TextDestructive,
                                         modifier = Modifier.padding(8.dp)
                                     )
                                 }
@@ -217,7 +229,7 @@ fun FoodPickerScreen(
                                 item {
                                     Text(
                                         "No foods found in USDA database",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = TextSecondary,
                                         modifier = Modifier.padding(8.dp)
                                     )
                                 }
@@ -303,14 +315,14 @@ fun EmptyState(
             icon,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = TextSecondary
         )
         Spacer(Modifier.height(8.dp))
         Text(title, style = MaterialTheme.typography.titleMedium)
         Text(
             subtitle,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = TextSecondary
         )
     }
 }
@@ -331,7 +343,8 @@ fun FoodSearchCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Row(
             modifier = Modifier
@@ -350,19 +363,19 @@ fun FoodSearchCard(
                     Text(
                         it,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "${calories.toInt()} cal per ${servingSize.toInt()}$servingUnit",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = DesignGreen
                 )
                 Text(
                     "P:${protein.toInt()}g  C:${carbs.toInt()}g  F:${fat.toInt()}g",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextSecondary
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -370,14 +383,14 @@ fun FoodSearchCard(
                     Icon(
                         Icons.Default.Star,
                         contentDescription = "Local",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = DesignGreen,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Icon(
                     Icons.Default.KeyboardArrowRight,
                     contentDescription = "Select",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = TextSecondary
                 )
             }
         }
@@ -432,7 +445,7 @@ fun FoodDetailBottomSheet(
             // Header
             Text(name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             brand?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -521,12 +534,12 @@ fun FoodDetailBottomSheet(
             Text(
                 hintText,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = TextSecondary,
                 modifier = Modifier.padding(top = 8.dp)
             )
 
             Spacer(Modifier.height(20.dp))
-            Divider()
+            HorizontalDivider(color = DividerColor)
             Spacer(Modifier.height(16.dp))
 
             // Macros
@@ -535,7 +548,7 @@ fun FoodDetailBottomSheet(
 
             // Calories card
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                colors = CardDefaults.cardColors(containerColor = DesignGreenLight),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -549,7 +562,7 @@ fun FoodDetailBottomSheet(
                         "${adjustedCalories.toInt()} kcal",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = DesignGreen
                     )
                 }
             }
@@ -561,9 +574,9 @@ fun FoodDetailBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MacroChip("Protein", adjustedProtein, "g", MaterialTheme.colorScheme.tertiary, Modifier.weight(1f))
-                MacroChip("Carbs", adjustedCarbs, "g", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
-                MacroChip("Fat", adjustedFat, "g", MaterialTheme.colorScheme.error, Modifier.weight(1f))
+                MacroChip("Protein", adjustedProtein, "g", ChartProtein, Modifier.weight(1f))
+                MacroChip("Carbs", adjustedCarbs, "g", ChartCarbs, Modifier.weight(1f))
+                MacroChip("Fat", adjustedFat, "g", ChartFat, Modifier.weight(1f))
             }
 
             Spacer(Modifier.height(24.dp))

@@ -12,6 +12,9 @@ class MealRepository @Inject constructor(
     private val mealDao: MealDao,
     private val foodDao: FoodDao
 ) {
+    fun getMealsForUser(userId: Long): Flow<List<Meal>> = mealDao.getMealsForUser(userId)
+
+    /** Unfiltered — for seeder / importer use only. */
     fun getAllMeals(): Flow<List<Meal>> = mealDao.getAllMeals()
 
     suspend fun getMealById(id: Long): Meal? = mealDao.getMealById(id)

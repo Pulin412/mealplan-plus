@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
@@ -31,7 +32,8 @@ class DietMealSlotViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val dietRepository: DietRepository,
     private val mealRepository: MealRepository,
-    private val foodRepository: FoodRepository
+    private val foodRepository: FoodRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val dietId: Long = savedStateHandle.get<Long>("dietId") ?: 0L
@@ -70,9 +72,12 @@ class DietMealSlotViewModel @Inject constructor(
 
     private fun loadAvailableMeals() {
         viewModelScope.launch {
-            mealRepository.getAllMeals().collect { meals ->
-                _uiState.update { it.copy(availableMeals = meals) }
-            }
+            authRepository.getCurrentUserId()
+                .filterNotNull()
+                .flatMapLatest { uid -> mealRepository.getMealsForUser(uid) }
+                .collect { meals ->
+                    _uiState.update { it.copy(availableMeals = meals) }
+                }
         }
     }
 

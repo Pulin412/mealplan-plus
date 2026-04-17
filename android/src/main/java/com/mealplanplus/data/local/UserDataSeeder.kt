@@ -50,11 +50,11 @@ class UserDataSeeder @Inject constructor(
      * Call this after user sign-up.
      */
     suspend fun seedUserData(context: Context, userId: Long) = withContext(Dispatchers.IO) {
-        // Idempotency guard: skip if diets already exist in the database.
-        // Without this, re-sign-ins or auth replays would duplicate all seed data.
-        val existingCount = dietDao.getDietCount()
+        // Idempotency guard: skip if this specific user already has diets.
+        // Use user-scoped count so backup/system diets don't block seeding new users.
+        val existingCount = dietDao.getDietCountForUser(userId)
         if (existingCount > 0) {
-            Log.d(TAG, "Skipping seed — $existingCount diets already in database")
+            Log.d(TAG, "Skipping seed — user $userId already has $existingCount diets")
             return@withContext
         }
         Log.d(TAG, "Starting user data seed for userId=$userId")
@@ -138,10 +138,11 @@ class UserDataSeeder @Inject constructor(
         tagMap: Map<String, Long>,
         foodMap: Map<String, Long>
     ): Pair<Boolean, Int> {
-        // Create the diet
+        // Create the diet — assign userId so it's owned by this user
         val diet = Diet(
             name = seedDiet.name,
-            description = seedDiet.description
+            description = seedDiet.description,
+            userId = userId
         )
         val dietId = dietDao.insertDiet(diet)
 
@@ -175,7 +176,7 @@ class UserDataSeeder @Inject constructor(
         seedMeal: SeedMeal,
         foodMap: Map<String, Long>
     ): Long? {
-        val meal = Meal(name = seedMeal.name)
+        val meal = Meal(name = seedMeal.name, userId = userId)
         val mealId = mealDao.insertMeal(meal)
 
         val foodItems = seedMeal.items.mapNotNull { seedItem ->

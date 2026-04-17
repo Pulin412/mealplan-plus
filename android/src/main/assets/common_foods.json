@@ -2049,5 +2049,83 @@
     "proteinPer100": 0,
     "carbsPer100": 0,
     "fatPer100": 0
+  },
+  {
+    "name": "Capsicum",
+    "category": "Vegetables",
+    "caloriesPer100": 20,
+    "proteinPer100": 0.9,
+    "carbsPer100": 4.6,
+    "fatPer100": 0.2
+  },
+  {
+    "name": "Cashew",
+    "category": "Nuts & Seeds",
+    "caloriesPer100": 553,
+    "proteinPer100": 18.2,
+    "carbsPer100": 30.2,
+    "fatPer100": 43.9
+  },
+  {
+    "name": "Potato",
+    "category": "Vegetables",
+    "caloriesPer100": 77,
+    "proteinPer100": 2.0,
+    "carbsPer100": 17.5,
+    "fatPer100": 0.1,
+    "glycemicIndex": 78
+  },
+  {
+    "name": "White Rice",
+    "category": "Grains",
+    "caloriesPer100": 130,
+    "proteinPer100": 2.7,
+    "carbsPer100": 28.2,
+    "fatPer100": 0.3,
+    "glycemicIndex": 64
+  },
+  {
+    "name": "Corn",
+    "category": "Vegetables",
+    "caloriesPer100": 86,
+    "proteinPer100": 3.3,
+    "carbsPer100": 19.0,
+    "fatPer100": 1.4,
+    "glycemicIndex": 52
+  },
+  {
+    "name": "Blueberry",
+    "category": "Fruits",
+    "caloriesPer100": 57,
+    "proteinPer100": 0.7,
+    "carbsPer100": 14.5,
+    "fatPer100": 0.3,
+    "glycemicIndex": 53
+  },
+  {
+    "name": "Strawberry",
+    "category": "Fruits",
+    "caloriesPer100": 32,
+    "proteinPer100": 0.7,
+    "carbsPer100": 7.7,
+    "fatPer100": 0.3,
+    "glycemicIndex": 40
+  },
+  {
+    "name": "Spinach",
+    "category": "Vegetables",
+    "caloriesPer100": 23,
+    "proteinPer100": 2.9,
+    "carbsPer100": 3.6,
+    "fatPer100": 0.4,
+    "glycemicIndex": 10
+  },
+  {
+    "name": "Pink Salt",
+    "category": "Condiments",
+    "caloriesPer100": 0,
+    "proteinPer100": 0,
+    "carbsPer100": 0,
+    "fatPer100": 0
   }
 ]

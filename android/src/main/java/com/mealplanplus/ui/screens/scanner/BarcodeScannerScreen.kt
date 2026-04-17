@@ -7,6 +7,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -25,14 +26,23 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 import com.mealplanplus.data.model.FoodItem
 import java.util.concurrent.Executors
 
+/**
+ * @param onFoodFound  When non-null, the scanner is in "fill form" mode — it calls this
+ *                     with the found FoodItem instead of saving it to the database.
+ *                     When null (default), the scanner saves the food directly.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun BarcodeScannerScreen(
     onNavigateBack: () -> Unit,
     onFoodSaved: () -> Unit,
+    onFoodFound: ((com.mealplanplus.data.model.FoodItem) -> Unit)? = null,
     viewModel: BarcodeScannerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -47,25 +57,23 @@ fun BarcodeScannerScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Scan Barcode") },
+                title = { Text("Scan Barcode", color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
         ) {
             when {
@@ -157,7 +165,14 @@ fun BarcodeScannerScreen(
                     FoodFoundCard(
                         food = uiState.foundFood!!,
                         isExisting = false,
-                        onSave = { viewModel.saveFood(uiState.foundFood!!) },
+                        onSave = {
+                            if (onFoodFound != null) {
+                                onFoodFound(uiState.foundFood!!)
+                            } else {
+                                viewModel.saveFood(uiState.foundFood!!)
+                            }
+                        },
+                        fillFormMode = onFoodFound != null,
                         onScanAgain = { viewModel.retryScanning() },
                         onNavigateBack = onNavigateBack
                     )
@@ -210,7 +225,8 @@ fun FoodFoundCard(
     isExisting: Boolean,
     onSave: () -> Unit,
     onScanAgain: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    fillFormMode: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -288,7 +304,7 @@ fun FoodFoundCard(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
-                    Text("Add to Foods")
+                    Text(if (fillFormMode) "Fill in Form" else "Add to Foods")
                 }
             }
         }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.Tag
+import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -61,7 +62,8 @@ data class DietsUiState(
 class DietsViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val tagRepository: TagRepository,
-    private val dietDisplayCache: DietDisplayCache
+    private val dietDisplayCache: DietDisplayCache,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -77,6 +79,18 @@ class DietsViewModel @Inject constructor(
     private val _allTags = MutableStateFlow<List<Tag>>(emptyList())
     private val _showTagsDialog = MutableStateFlow(false)
     private val _showFavouritesOnly = MutableStateFlow(false)
+
+    /** Loaded on-demand when the confirm sheet opens. */
+    private val _selectedDietDetail = MutableStateFlow<com.mealplanplus.data.model.DietWithMeals?>(null)
+    val selectedDietDetail: StateFlow<com.mealplanplus.data.model.DietWithMeals?> = _selectedDietDetail
+
+    fun loadDietDetail(dietId: Long) {
+        viewModelScope.launch {
+            _selectedDietDetail.value = dietRepository.getDietWithMeals(dietId)
+        }
+    }
+
+    fun clearDietDetail() { _selectedDietDetail.value = null }
 
     val uiState: StateFlow<DietsUiState> = combine(
         _dietsWithMeals,
@@ -167,33 +181,36 @@ class DietsViewModel @Inject constructor(
 
     private fun loadDietsWithMeals() {
         viewModelScope.launch {
-            dietRepository.getDietsWithFullSummary().collect { summaries ->
-                // Show spinner only on the very first load (cache was empty).
-                // On re-navigation the cache is warm so we refresh silently.
-                _isLoading.value = _dietsWithMeals.value.isEmpty()
+            authRepository.getCurrentUserId()
+                .filterNotNull()
+                .flatMapLatest { uid -> dietRepository.getDietsWithFullSummaryForUser(uid) }
+                .collect { summaries ->
+                    // Show spinner only on the very first load (cache was empty).
+                    // On re-navigation the cache is warm so we refresh silently.
+                    _isLoading.value = _dietsWithMeals.value.isEmpty()
 
-                val dietIds = summaries.map { it.id }
-                val tagsMap = dietRepository.getTagsForDiets(dietIds)
-                val (foodNamesMap, slotsMap) = dietRepository.getDietFoodNamesAndSlots(dietIds)
+                    val dietIds = summaries.map { it.id }
+                    val tagsMap = dietRepository.getTagsForDiets(dietIds)
+                    val (foodNamesMap, slotsMap) = dietRepository.getDietFoodNamesAndSlots(dietIds)
 
-                val enrichedItems = summaries.map { summary ->
-                    DietDisplayItem(
-                        diet = summary.toDiet(),
-                        totalCalories = summary.totalCalories,
-                        totalProtein = summary.totalProtein,
-                        totalCarbs = summary.totalCarbs,
-                        totalFat = summary.totalFat,
-                        totalGlycemicLoad = summary.totalGlycemicLoad,
-                        mealCount = summary.mealCount,
-                        tags = tagsMap[summary.id] ?: emptyList(),
-                        foodNames = foodNamesMap[summary.id] ?: emptyList(),
-                        assignedSlots = slotsMap[summary.id] ?: emptySet()
-                    )
+                    val enrichedItems = summaries.map { summary ->
+                        DietDisplayItem(
+                            diet = summary.toDiet(),
+                            totalCalories = summary.totalCalories,
+                            totalProtein = summary.totalProtein,
+                            totalCarbs = summary.totalCarbs,
+                            totalFat = summary.totalFat,
+                            totalGlycemicLoad = summary.totalGlycemicLoad,
+                            mealCount = summary.mealCount,
+                            tags = tagsMap[summary.id] ?: emptyList(),
+                            foodNames = foodNamesMap[summary.id] ?: emptyList(),
+                            assignedSlots = slotsMap[summary.id] ?: emptySet()
+                        )
+                    }
+                    _dietsWithMeals.value = enrichedItems
+                    dietDisplayCache.items.value = enrichedItems  // keep singleton warm
+                    _isLoading.value = false
                 }
-                _dietsWithMeals.value = enrichedItems
-                dietDisplayCache.items.value = enrichedItems  // keep singleton warm
-                _isLoading.value = false
-            }
         }
     }
 

@@ -8,15 +8,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
@@ -24,10 +28,9 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -36,12 +39,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,9 +57,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
@@ -74,6 +82,7 @@ import com.mealplanplus.ui.screens.diets.DietDetailScreen
 import androidx.compose.material.icons.filled.Restaurant
 import com.mealplanplus.ui.screens.log.DailyLogScreen
 import com.mealplanplus.ui.screens.log.LogMealPickerScreen
+import com.mealplanplus.ui.screens.calendar.CalendarDayDetailScreen
 import com.mealplanplus.ui.screens.calendar.CalendarScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.charts.ChartsScreen
@@ -86,6 +95,7 @@ import com.mealplanplus.ui.screens.diets.DietMealSlotScreen
 import com.mealplanplus.ui.screens.diets.DietMealPickerScreen
 import com.mealplanplus.ui.screens.diets.MealDetailScreen
 import com.mealplanplus.ui.screens.log.DietPickerScreen
+import com.mealplanplus.ui.screens.auth.LandingScreen
 import com.mealplanplus.ui.screens.auth.LoginScreen
 import com.mealplanplus.ui.screens.auth.SignUpScreen
 import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
@@ -101,11 +111,25 @@ import com.mealplanplus.widget.NAV_CALENDAR_FOR_DATE
 import com.mealplanplus.widget.NAV_DIET_DETAIL
 import com.mealplanplus.widget.NAV_HOME
 import com.mealplanplus.widget.NAV_LOG_FOR_DATE
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.draw.alpha
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.LocalIsDarkTheme
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.widget.WidgetDeepLink
-
-private val PrimaryGreen = Color(0xFF2E7D52)
+import kotlinx.coroutines.delay
 
 sealed class Screen(val route: String) {
+    object Landing : Screen("landing")
     object Login : Screen("login")
     object SignUp : Screen("signup")
     object Profile : Screen("profile")
@@ -149,11 +173,15 @@ sealed class Screen(val route: String) {
     object CalendarWithDate : Screen("calendar_date/{initialDate}") {
         fun createRoute(date: String) = "calendar_date/$date"
     }
+    object PlanDayDetail : Screen("plan_day/{initialDate}") {
+        fun createRoute(date: String) = "plan_day/$date"
+    }
     object Health : Screen("health")
     object Charts : Screen("charts")
     object ForgotPassword : Screen("forgot_password")
     object Settings : Screen("settings")
     object BarcodeScanner : Screen("barcode_scanner")
+    object BarcodeScannerForAddFood : Screen("barcode_scanner_for_add_food")
     object OnlineSearch : Screen("online_search")
     object GroceryLists : Screen("grocery_lists")
     object CreateGroceryList : Screen("create_grocery_list")
@@ -164,25 +192,18 @@ sealed class Screen(val route: String) {
     object WidgetSettings : Screen("widget_settings")
 }
 
-// Bottom nav tab definitions
+// Bottom nav tab definitions (4 visible + 1 FAB)
 private data class BottomNavItem(
     val label: String,
     val icon: ImageVector,
-    val route: String
-)
-
-// 6 tabs → 3 left | [+] | 3 right  (symmetric layout)
-private val bottomNavItems = listOf(
-    BottomNavItem("Home",     Icons.Filled.Home,          Screen.Home.route),
-    BottomNavItem("Meal Plan",Icons.Filled.CalendarMonth,  Screen.Calendar.route),
-    BottomNavItem("Diets",    Icons.Filled.Restaurant,     Screen.Diets.route),
-    BottomNavItem("Health",   Icons.Filled.FavoriteBorder, Screen.Health.route),
-    BottomNavItem("Grocery",  Icons.Filled.ShoppingCart,   Screen.GroceryLists.route),
-    BottomNavItem("Settings", Icons.Filled.Settings,       Screen.Settings.route)
+    val route: String,
+    // secondary routes that also make this tab appear selected
+    val ownedRoutePrefix: String? = null
 )
 
 // Only hide the bar on unauthenticated screens
 private val authOnlyRoutes = setOf(
+    Screen.Landing.route,
     Screen.Login.route,
     Screen.SignUp.route,
     Screen.ForgotPassword.route
@@ -209,7 +230,7 @@ fun MealPlanNavHost(
         return
     }
 
-    val startDestination = remember { if (isLoggedIn == true) Screen.Home.route else Screen.Login.route }
+    val startDestination = remember { if (isLoggedIn == true) Screen.Home.route else Screen.Landing.route }
 
     // On logout: restart the activity cleanly so NavHost, ViewModels, and back
     // stack all reset to a fresh state. Avoids Compose Navigation back-stack bugs.
@@ -273,6 +294,26 @@ fun MealPlanNavHost(
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = isLoggedIn == true && currentRoute != null && currentRoute !in authOnlyRoutes
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var showMiscSheet    by remember { mutableStateOf(false) }
+
+    // Tabs in swipe order (ignoring + and More)
+    val swipeTabs = listOf(Screen.Home.route, Screen.DailyLog.route, Screen.Calendar.route)
+    val currentTabIndex = when {
+        currentRoute == Screen.Home.route -> 0
+        currentRoute?.startsWith("daily_log") == true -> 1
+        currentRoute?.startsWith("calendar") == true -> 2
+        else -> -1
+    }
+
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo(Screen.Home.route) { saveState = route != Screen.Home.route; inclusive = false }
+            launchSingleTop = true
+            restoreState = route != Screen.Home.route
+        }
+    }
+
+    var swipeAccum by remember { mutableFloatStateOf(0f) }
 
     Scaffold(
         bottomBar = {
@@ -280,23 +321,58 @@ fun MealPlanNavHost(
                 BottomNavBar(
                     navController = navController,
                     currentRoute = currentRoute,
-                    onQuickAdd = { showQuickAddSheet = true }
+                    onQuickAdd = { showQuickAddSheet = true },
+                    onMisc     = { showMiscSheet = true }
                 )
             }
         }
     ) { innerPadding ->
+        val swipeMod = if (showBottomBar && currentTabIndex >= 0) {
+            Modifier.pointerInput(currentTabIndex) {
+                detectHorizontalDragGestures(
+                    onDragStart = { swipeAccum = 0f },
+                    onDragEnd = { swipeAccum = 0f },
+                    onDragCancel = { swipeAccum = 0f },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        swipeAccum += dragAmount
+                        val threshold = 120.dp.toPx()
+                        when {
+                            swipeAccum < -threshold && currentTabIndex < swipeTabs.size - 1 -> {
+                                navigateToTab(swipeTabs[currentTabIndex + 1])
+                                swipeAccum = 0f
+                            }
+                            swipeAccum > threshold && currentTabIndex > 0 -> {
+                                navigateToTab(swipeTabs[currentTabIndex - 1])
+                                swipeAccum = 0f
+                            }
+                        }
+                    }
+                )
+            }
+        } else Modifier
+
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(innerPadding)
+                .then(swipeMod)
         ) {
+            composable(Screen.Landing.route) {
+                LandingScreen(
+                    onSignInWithEmail = { navController.navigate(Screen.Login.route) },
+                    onCreateAccount = { navController.navigate(Screen.SignUp.route) }
+                )
+            }
             composable(Screen.Login.route) {
                 LoginScreen(
                     onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
                     onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) },
+                    onNavigateBack = { navController.popBackStack() },
                     onLoginSuccess = {
                         navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                            popUpTo(Screen.Landing.route) { inclusive = true }
                         }
                     }
                 )
@@ -311,7 +387,7 @@ fun MealPlanNavHost(
                     onNavigateToLogin = { navController.popBackStack() },
                     onSignUpSuccess = {
                         navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                            popUpTo(Screen.Landing.route) { inclusive = true }
                         }
                     }
                 )
@@ -356,9 +432,12 @@ fun MealPlanNavHost(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.AddFood.route) {
+            composable(Screen.AddFood.route) { backStackEntry ->
+                val savedStateHandle = backStackEntry.savedStateHandle
                 AddFoodScreen(
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToScanner = { navController.navigate(Screen.BarcodeScannerForAddFood.route) },
+                    savedStateHandle = savedStateHandle
                 )
             }
             composable(Screen.Meals.route) {
@@ -455,7 +534,7 @@ fun MealPlanNavHost(
                 AddDietScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onDietSaved = { dietId ->
-                        navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = true)) {
+                        navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = false)) {
                             popUpTo(Screen.AddDiet.route) { inclusive = true }
                         }
                     }
@@ -470,11 +549,15 @@ fun MealPlanNavHost(
             ) { backStackEntry ->
                 val savedStateHandle = backStackEntry.savedStateHandle
                 val autoEdit = backStackEntry.arguments?.getBoolean("autoEdit") ?: false
+                val dietId = backStackEntry.arguments?.getLong("dietId") ?: 0L
                 DietDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToFoodPicker = { navController.navigate(Screen.FoodPickerForDietSlot.route) },
-                    onNavigateToMealDetail = { dietId, slotType ->
-                        navController.navigate(Screen.MealDetail.createRoute(dietId, slotType))
+                    onNavigateToMealDetail = { dId, slotType ->
+                        navController.navigate(Screen.MealDetail.createRoute(dId, slotType))
+                    },
+                    onNavigateToEditSlot = { slotType ->
+                        navController.navigate(Screen.DietMealSlot.createRoute(dietId, slotType))
                     },
                     savedStateHandle = savedStateHandle,
                     autoEdit = autoEdit
@@ -656,6 +739,9 @@ fun MealPlanNavHost(
                     onNavigateToMealDetail = { dietId, slotType ->
                         navController.navigate(Screen.MealDetail.createRoute(dietId, slotType, readOnly = true))
                     },
+                    onNavigateToDayDetail = { date ->
+                        navController.navigate(Screen.PlanDayDetail.createRoute(date.toString()))
+                    },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
@@ -676,6 +762,24 @@ fun MealPlanNavHost(
                     onNavigateToMealDetail = { dietId, slotType ->
                         navController.navigate(Screen.MealDetail.createRoute(dietId, slotType, readOnly = true))
                     },
+                    onNavigateToDayDetail = { date ->
+                        navController.navigate(Screen.PlanDayDetail.createRoute(date.toString()))
+                    },
+                    savedStateHandle = backStackEntry.savedStateHandle
+                )
+            }
+            composable(
+                route = Screen.PlanDayDetail.route,
+                arguments = listOf(navArgument("initialDate") { type = NavType.StringType })
+            ) { backStackEntry ->
+                CalendarDayDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToDietPicker = { date ->
+                        navController.navigate(Screen.DietPicker.createRoute(date))
+                    },
+                    onNavigateToLog = { date ->
+                        navController.navigate(Screen.DailyLogWithDate.createRoute(date))
+                    },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
@@ -693,7 +797,8 @@ fun MealPlanNavHost(
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToWidgetSettings = { navController.navigate(Screen.WidgetSettings.route) }
+                    onNavigateToWidgetSettings = { navController.navigate(Screen.WidgetSettings.route) },
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
                 )
             }
             composable(Screen.WidgetSettings.route) {
@@ -705,6 +810,24 @@ fun MealPlanNavHost(
                 BarcodeScannerScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onFoodSaved = { navController.popBackStack() }
+                )
+            }
+            // Scanner in "fill form" mode — passes scanned food data back to AddFoodScreen
+            composable(Screen.BarcodeScannerForAddFood.route) {
+                BarcodeScannerScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onFoodSaved = { navController.popBackStack() },
+                    onFoodFound = { food ->
+                        navController.previousBackStackEntry?.savedStateHandle?.apply {
+                            set("scanned_food_name", food.name)
+                            set("scanned_food_brand", food.brand)
+                            set("scanned_food_calories", food.caloriesPer100)
+                            set("scanned_food_protein", food.proteinPer100)
+                            set("scanned_food_carbs", food.carbsPer100)
+                            set("scanned_food_fat", food.fatPer100)
+                        }
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(Screen.OnlineSearch.route) {
@@ -764,106 +887,164 @@ fun MealPlanNavHost(
             }
         )
     }
+
+    if (showMiscSheet) {
+        MiscSheet(
+            onDismiss = { showMiscSheet = false },
+            onNavigate = { route ->
+                showMiscSheet = false
+                navController.navigate(route) {
+                    popUpTo(Screen.Home.route) { saveState = true; inclusive = false }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        )
+    }
 }
+
+// ── New minimalist bottom nav (5 slots: Home | Log | + | Plan | Misc) ──────────
+
+private val SelectedNavColor: Color
+    @Composable get() = TextPrimary
+private val UnselectedNavColor: Color
+    @Composable get() = TextMuted
+private val NavIndicator: Color
+    @Composable get() = TagGrayBg
 
 @Composable
 private fun BottomNavBar(
     navController: NavController,
     currentRoute: String?,
-    onQuickAdd: () -> Unit
+    onQuickAdd: () -> Unit,
+    onMisc: () -> Unit
 ) {
-    // Split nav items: [Home, Meal Plan, Diets] | [+] | [Health, Grocery, Settings]
-    val leftItems = bottomNavItems.take(3)
-    val rightItems = bottomNavItems.drop(3)
+    // Determine which tab is active based on current route
+    val isHomeActive = currentRoute == Screen.Home.route
+    val isLogActive  = currentRoute?.startsWith("daily_log") == true
+    val isPlanActive = currentRoute?.startsWith("calendar") == true
+
+    fun navTo(route: String, isHome: Boolean = false) {
+        navController.navigate(route) {
+            popUpTo(Screen.Home.route) {
+                saveState = !isHome
+                inclusive = false
+            }
+            launchSingleTop = true
+            restoreState = !isHome
+        }
+    }
 
     NavigationBar(
-        containerColor = Color.White,
-        contentColor = PrimaryGreen
+        containerColor = CardBg,
+        contentColor = SelectedNavColor,
+        tonalElevation = 0.dp,
+        modifier = Modifier.height(64.dp)
     ) {
-        leftItems.forEach { item ->
-            val selected = currentRoute == item.route
-            val isHome = item.route == Screen.Home.route
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    if (!selected || isHome) {
-                        navController.navigate(item.route) {
-                            popUpTo(Screen.Home.route) {
-                                saveState = !isHome
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                            restoreState = !isHome
-                        }
-                    }
-                },
-                icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryGreen,
-                    selectedTextColor = PrimaryGreen,
-                    indicatorColor = Color(0xFFE8F5E9),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
-                )
-            )
-        }
+        // Home
+        NavTab(
+            icon = Icons.Filled.Home,
+            label = "Home",
+            selected = isHomeActive,
+            onClick = { navTo(Screen.Home.route, isHome = true) }
+        )
 
-        // Centre elevated "+" quick-add button
-        // padding(bottom) shifts the circle up so it aligns visually
-        // with the icon portion of the adjacent NavigationBarItems
+        // Log → today's food log
+        NavTab(
+            icon = Icons.Default.Description,
+            label = "Log",
+            selected = isLogActive,
+            onClick = { navTo(Screen.DailyLog.route) }
+        )
+
+        // Centre + FAB
         Box(
             modifier = Modifier
                 .weight(1f)
-                .padding(bottom = 14.dp),
+                .fillMaxHeight()
+                .padding(bottom = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .background(PrimaryGreen)
+                    .background(TextPrimary)
                     .clickable { onQuickAdd() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Quick add",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    tint = CardBg,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
 
-        rightItems.forEach { item ->
-            val selected = currentRoute == item.route
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    if (!selected) {
-                        navController.navigate(item.route) {
-                            popUpTo(Screen.Home.route) {
-                                saveState = true
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryGreen,
-                    selectedTextColor = PrimaryGreen,
-                    indicatorColor = Color(0xFFE8F5E9),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
-                )
-            )
-        }
+        // Plan → Calendar
+        NavTab(
+            icon = Icons.Filled.CalendarMonth,
+            label = "Plan",
+            selected = isPlanActive,
+            onClick = { navTo(Screen.Calendar.route) }
+        )
+
+        // Misc → opens bottom sheet
+        NavTab(
+            icon = Icons.Default.Settings,
+            label = "More",
+            selected = false,
+            onClick = onMisc
+        )
     }
 }
+
+@Composable
+private fun RowScope.NavTab(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(22.dp)
+            )
+        },
+        label = {
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+        },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor   = SelectedNavColor,
+            selectedTextColor   = SelectedNavColor,
+            indicatorColor      = NavIndicator,
+            unselectedIconColor = UnselectedNavColor,
+            unselectedTextColor = UnselectedNavColor
+        )
+    )
+}
+
+// ── Quick-add action model ────────────────────────────────────────────────────
+
+private data class QuickAction(
+    val icon: ImageVector,
+    val tint: Color,
+    val label: String,
+    val subtitle: String,
+    val route: String
+)
+
+// ── Animated swipe-up quick-add sheet ─────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -873,119 +1054,242 @@ private fun QuickAddSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    var revealed by remember { mutableStateOf(false) }
 
-    fun dismissThenNavigate(route: String) {
-        scope.launch { sheetState.hide() }.invokeOnCompletion {
-            if (!sheetState.isVisible) {
-                onDismiss()
-                onNavigate(route)
+    val actions = listOf(
+        QuickAction(Icons.Default.Edit,      Color(0xFF2E7D52), "Log Today's Meals", "Open today's food diary",           Screen.DailyLog.route),
+        QuickAction(Icons.Default.Add,        Color(0xFFF59E0B), "Add a Food",         "Search or scan a food item",        Screen.AddFood.route),
+        QuickAction(Icons.Default.Restaurant, Color(0xFFC05200), "Create a Meal",      "Bundle foods into a reusable meal", Screen.AddMeal.route),
+        QuickAction(Icons.Default.List,       Color(0xFF1E4FBF), "Build a Diet",       "Create a structured diet plan",     Screen.AddDiet.route),
+    )
+
+    // Alpha for each row — staggered fade-in via animateFloatAsState + tween delayMillis
+    val alphas = actions.mapIndexed { i, _ ->
+        animateFloatAsState(
+            targetValue = if (revealed) 1f else 0f,
+            animationSpec = tween(durationMillis = 220, delayMillis = i * 65),
+            label = "alpha_$i"
+        ).value
+    }
+
+    // Offset for each row — staggered spring slide-up via Animatable
+    val offsets = remember { actions.map { Animatable(24f) } }
+    LaunchedEffect(Unit) {
+        delay(60L)      // give the sheet its open animation first
+        revealed = true
+        actions.indices.forEach { i ->
+            launch {
+                delay(i * 65L)
+                offsets[i].animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness    = Spring.StiffnessMedium
+                    )
+                )
             }
+        }
+    }
+
+    fun go(route: String) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) { onDismiss(); onNavigate(route) }
         }
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        sheetState       = sheetState,
+        containerColor   = CardBg,
+        shape            = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = {
+            Box(
+                Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(TextMuted.copy(alpha = 0.3f))
+                )
+            }
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 4.dp, bottom = 36.dp)
+                .padding(bottom = 40.dp)
         ) {
-            Text(
-                text = "Quick Add",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 20.dp)
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickAddTile(
-                    icon = Icons.Default.Add,
-                    iconBg = Color(0xFF2E7D52),
-                    label = "Add Food",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.AddFood.route) }
+            actions.forEachIndexed { index, action ->
+                QuickActionRow(
+                    action   = action,
+                    onClick  = { go(action.route) },
+                    modifier = Modifier
+                        .alpha(alphas[index])
+                        .offset(y = offsets[index].value.dp)
                 )
-                QuickAddTile(
-                    icon = Icons.Default.Restaurant,
-                    iconBg = Color(0xFFE65100),
-                    label = "New Meal",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.AddMeal.route) }
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickAddTile(
-                    icon = Icons.Default.List,
-                    iconBg = Color(0xFF1565C0),
-                    label = "New Diet",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.AddDiet.route) }
-                )
-                QuickAddTile(
-                    icon = Icons.Default.Edit,
-                    iconBg = Color(0xFF6A1B9A),
-                    label = "Log Today",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.DailyLog.route) }
-                )
+                if (index < actions.size - 1) {
+                    HorizontalDivider(
+                        modifier  = Modifier
+                            .padding(start = 74.dp, end = 20.dp)
+                            .alpha(alphas[index]),
+                        color     = DividerColor,
+                        thickness = 0.5.dp
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun QuickAddTile(
-    icon: ImageVector,
-    iconBg: Color,
-    label: String,
-    onClick: () -> Unit,
+private fun QuickActionRow(
+    action:   QuickAction,
+    onClick:  () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Row(
         modifier = modifier
-            .height(96.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // Soft rounded-square icon bubble
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(action.tint.copy(alpha = 0.13f)),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(iconBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+            Icon(
+                imageVector     = action.icon,
+                contentDescription = null,
+                tint            = action.tint,
+                modifier        = Modifier.size(20.dp)
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text       = action.label,
+                fontWeight = FontWeight.SemiBold,
+                fontSize   = 15.sp,
+                color      = TextPrimary
+            )
+            Text(
+                text     = action.subtitle,
+                fontSize = 12.sp,
+                color    = TextMuted
+            )
+        }
+        Icon(
+            imageVector        = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint               = TextMuted.copy(alpha = 0.5f),
+            modifier           = Modifier.size(18.dp)
+        )
+    }
+}
+
+// ── More bottom sheet (navigation destinations not covered by +) ──────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MiscSheet(
+    onDismiss: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var revealed by remember { mutableStateOf(false) }
+
+    val actions = listOf(
+        QuickAction(Icons.Default.Restaurant,     Color(0xFF2E7D52), "Diets",    "Browse & manage diet plans",    Screen.Diets.route),
+        QuickAction(Icons.Default.List,           Color(0xFFC05200), "Meals",    "Your meal library",             Screen.Meals.route),
+        QuickAction(Icons.Default.Star,           Color(0xFF1E4FBF), "Foods",    "Food catalogue & nutrition",    Screen.Foods.route),
+        QuickAction(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health",   "Metrics, weight & activity",    Screen.Health.route),
+        QuickAction(Icons.Default.ShoppingCart,   Color(0xFF6A1B9A), "Grocery",  "Your shopping lists",           Screen.GroceryLists.route),
+        QuickAction(Icons.Default.Settings,       Color(0xFF555555), "Settings", "Preferences & notifications",   Screen.Settings.route),
+    )
+
+    val alphas = actions.mapIndexed { i, _ ->
+        animateFloatAsState(
+            targetValue    = if (revealed) 1f else 0f,
+            animationSpec  = tween(durationMillis = 220, delayMillis = i * 65),
+            label          = "misc_alpha_$i"
+        ).value
+    }
+    val offsets = remember { actions.map { Animatable(24f) } }
+    LaunchedEffect(Unit) {
+        delay(60L)
+        revealed = true
+        actions.indices.forEach { i ->
+            launch {
+                delay(i * 65L)
+                offsets[i].animateTo(
+                    targetValue    = 0f,
+                    animationSpec  = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness    = Spring.StiffnessMedium
+                    )
                 )
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        }
+    }
+
+    fun go(route: String) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) { onDismiss(); onNavigate(route) }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState       = sheetState,
+        containerColor   = CardBg,
+        shape            = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = {
+            Box(
+                Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(TextMuted.copy(alpha = 0.3f))
+                )
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 40.dp)
+        ) {
+            actions.forEachIndexed { index, action ->
+                QuickActionRow(
+                    action   = action,
+                    onClick  = { go(action.route) },
+                    modifier = Modifier
+                        .alpha(alphas[index])
+                        .offset(y = offsets[index].value.dp)
+                )
+                if (index < actions.size - 1) {
+                    HorizontalDivider(
+                        modifier  = Modifier
+                            .padding(start = 74.dp, end = 20.dp)
+                            .alpha(alphas[index]),
+                        color     = DividerColor,
+                        thickness = 0.5.dp
+                    )
+                }
+            }
         }
     }
 }

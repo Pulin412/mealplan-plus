@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.scanner
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +16,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.FoodItem
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,19 +42,16 @@ fun OnlineSearchScreen(
     }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Search Online") },
+                title = { Text("Search Online", color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = minimalTopAppBarColors()
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -53,6 +59,7 @@ fun OnlineSearchScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BgPage)
                 .padding(padding)
         ) {
             // Search bar
@@ -118,13 +125,10 @@ fun OnlineSearchScreen(
                                 Icons.Default.Warning,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = TextMuted
                             )
                             Spacer(Modifier.height(8.dp))
-                            Text(
-                                uiState.error!!,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text(uiState.error!!, color = TextMuted)
                         }
                     }
                 }
@@ -139,18 +143,19 @@ fun OnlineSearchScreen(
                                 Icons.Default.Search,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = TextMuted
                             )
                             Spacer(Modifier.height(16.dp))
                             Text(
                                 "Search for foods online",
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 "Powered by OpenFoodFacts",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary
                             )
                         }
                     }
@@ -181,7 +186,8 @@ fun OnlineSearchResultCard(
     onAdd: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardBg)
     ) {
         Row(
             modifier = Modifier
@@ -193,27 +199,35 @@ fun OnlineSearchResultCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = food.name,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
                 )
                 food.brand?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Per ${food.servingSize.toInt()}${food.servingUnit}",
-                    style = MaterialTheme.typography.labelSmall
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextMuted
                 )
                 Text(
                     text = "Cal: ${food.calories.toInt()} | P: ${food.protein.toInt()}g | C: ${food.carbs.toInt()}g | F: ${food.fat.toInt()}g",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = DesignGreen
                 )
             }
-            FilledTonalButton(onClick = onAdd) {
+            FilledTonalButton(
+                onClick = onAdd,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = TagGrayBg,
+                    contentColor = TextPrimary
+                )
+            ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("Add")

@@ -31,9 +31,18 @@ import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.Tag
 import com.mealplanplus.ui.components.TagChip
-
-private val DietGreen = Color(0xFF2E7D52)
-private val DietGreenLight = Color(0xFFE8F5EE)
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.ChartCarbs
+import com.mealplanplus.ui.theme.ChartFat
+import com.mealplanplus.ui.theme.ChartProtein
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +57,7 @@ fun DietsScreen(
     var showAdvancedFilters by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = BgPage,
         topBar = {
             DietsTopBar(
                 totalCount = uiState.totalDietCount,
@@ -68,7 +78,7 @@ fun DietsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
+                .background(BgPage)
         ) {
             // Tag filter row
             TagFilterRow(
@@ -93,7 +103,7 @@ fun DietsScreen(
                 Text(
                     text = if (hasAdvanced) "More Filters (active)" else "More Filters",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (hasAdvanced) DietGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (hasAdvanced) DesignGreen else TextSecondary,
                     fontWeight = if (hasAdvanced) FontWeight.Bold else FontWeight.Normal
                 )
                 Icon(
@@ -125,7 +135,7 @@ fun DietsScreen(
             when {
                 uiState.isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = DietGreen)
+                        CircularProgressIndicator(color = DesignGreen)
                     }
                 }
                 uiState.diets.isEmpty() -> {
@@ -149,7 +159,7 @@ fun DietsScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(uiState.diets, key = { it.diet.id }) { item ->
+                        items(uiState.diets.distinctBy { it.diet.id }, key = { it.diet.id }) { item ->
                             DietCard(
                                 item = item,
                                 onView = { onNavigateToDietDetailView(item.diet.id) },
@@ -192,7 +202,7 @@ fun DietsTopBar(
     showFavouritesOnly: Boolean = false,
     title: String = "My Diets"
 ) {
-    Surface(color = DietGreen, shadowElevation = 4.dp) {
+    Surface(color = CardBg, shadowElevation = 0.dp) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Top row: back + title + settings
             Row(
@@ -202,13 +212,13 @@ fun DietsTopBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = TextPrimary
                     )
                     Text(
                         text = if (totalCount == shownCount)
@@ -216,7 +226,7 @@ fun DietsTopBar(
                         else
                             "$totalCount diets · $shownCount shown",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = TextSecondary
                     )
                 }
                 // Favourites filter toggle
@@ -234,7 +244,7 @@ fun DietsTopBar(
                             Icon(
                                 imageVector = if (showFavouritesOnly) Icons.Default.Star else Icons.Default.StarBorder,
                                 contentDescription = if (showFavouritesOnly) "Show all diets" else "Show favourites",
-                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else Color.White
+                                tint = if (showFavouritesOnly) Color(0xFFFFC107) else DesignGreen
                             )
                         }
                     }
@@ -244,7 +254,7 @@ fun DietsTopBar(
                     TextButton(onClick = onTagsSettings) {
                         Text(
                             "Tags",
-                            color = Color.White,
+                            color = DesignGreen,
                             fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.labelLarge
                         )
@@ -254,8 +264,8 @@ fun DietsTopBar(
                 if (onNewDiet != null) OutlinedButton(
                     onClick = onNewDiet,
                     shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DesignGreen),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DesignGreen),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
@@ -266,30 +276,34 @@ fun DietsTopBar(
             }
 
             // Search field
-            OutlinedTextField(
+            TextField(
                 value = searchQuery,
                 onValueChange = onSearchChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search diets...", color = Color.White.copy(alpha = 0.7f)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.7f)) },
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                placeholder = { Text("Search diets…", fontSize = 14.sp, color = TextMuted) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.White)
+                        IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(16.dp))
                         }
                     }
                 },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color.White.copy(alpha = 0.5f),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                    cursorColor = Color.White
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = TagGrayBg,
+                    unfocusedContainerColor = TagGrayBg,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    cursorColor = DesignGreen
                 )
             )
+            HorizontalDivider(color = DividerColor, thickness = 1.dp)
         }
     }
 }
@@ -306,51 +320,36 @@ fun TagFilterRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .background(CardBg)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // "All N" chip
         item {
-            FilterChip(
-                selected = selectedTagIds.isEmpty(),
-                onClick = onAllClick,
-                label = { Text("All $totalCount") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = DietGreen,
-                    selectedLabelColor = Color.White
-                )
-            )
+            DietsFilterChip(label = "All $totalCount", selected = selectedTagIds.isEmpty(), onClick = onAllClick)
         }
         items(tags) { tag ->
             val count = tagCountMap[tag.id] ?: 0
-            FilterChip(
+            DietsFilterChip(
+                label = if (count > 0) "${tag.name} $count" else tag.name,
                 selected = tag.id in selectedTagIds,
-                onClick = { onTagClick(tag.id) },
-                label = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(tag.name)
-                        if (count > 0) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (tag.id in selectedTagIds) Color.White.copy(alpha = 0.3f) else DietGreen.copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    text = "$count",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (tag.id in selectedTagIds) Color.White else DietGreen,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = DietGreen,
-                    selectedLabelColor = Color.White
-                )
+                onClick = { onTagClick(tag.id) }
             )
         }
+    }
+}
+
+@Composable
+private fun DietsFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) TextPrimary else CardBg)
+            .border(1.dp, if (selected) TextPrimary else TagGrayBg, RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(label, fontSize = 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) Color.White else TextSecondary)
     }
 }
 
@@ -362,7 +361,7 @@ fun AdvancedFilterSection(
     onSlotToggle: (String) -> Unit,
     onClearAll: () -> Unit
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
+    Surface(color = CardBg) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             // Food filter
             OutlinedTextField(
@@ -401,7 +400,7 @@ fun AdvancedFilterSection(
                         onClick = { onSlotToggle(slot.name) },
                         label = { Text(slot.displayName, style = MaterialTheme.typography.labelSmall) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = DietGreen,
+                            selectedContainerColor = DesignGreen,
                             selectedLabelColor = Color.White
                         )
                     )
@@ -411,7 +410,7 @@ fun AdvancedFilterSection(
             if (foodFilter.isNotBlank() || slotFilter.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onClearAll, contentPadding = PaddingValues(0.dp)) {
-                    Text("Clear all filters", color = MaterialTheme.colorScheme.error)
+                    Text("Clear all filters", color = TextDestructive)
                 }
             }
         }
@@ -426,160 +425,190 @@ fun DietCard(
     onDuplicate: () -> Unit = {},
     onDelete: () -> Unit = {},
     onFavourite: (() -> Unit)? = null,
-    onSelect: (() -> Unit)? = null  // picker mode: tap card to select
+    onSelect: (() -> Unit)? = null
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val isPickerMode = onSelect != null
+    val primaryAction: () -> Unit = if (isPickerMode) (onSelect ?: {}) else onView
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = primaryAction),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Header (always visible) — tap to expand or select
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            // Left calorie block
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { if (isPickerMode) onSelect?.invoke() else expanded = !expanded }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .width(70.dp)
+                    .fillMaxHeight()
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    // Name row + badges
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = item.diet.name,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.weight(1f, fill = false),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                Text(
+                    text = "${item.totalCalories}",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp
+                    ),
+                    color = TextPrimary
+                )
+                Text(
+                    text = "KCAL",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                    color = TextMuted
+                )
+            }
+
+            // Thin vertical divider
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(DividerColor)
+            )
+
+            // Main content
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, top = 13.dp, bottom = 13.dp, end = 4.dp)
+            ) {
+                // Name row + badges
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = item.diet.name,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f, fill = false),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (item.diet.isFavourite) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(13.dp)
                         )
-                        if (item.diet.isSystem) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Text(
-                                    "Built-in",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        item.tags.take(2).forEach { tag -> TagChip(tag = tag) }
-                        if (item.tags.size > 2) {
+                    }
+                    if (item.diet.isSystem) {
+                        Surface(shape = RoundedCornerShape(4.dp), color = TagGrayBg) {
                             Text(
-                                "+${item.tags.size - 2}",
+                                "built-in",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextMuted,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                             )
                         }
-                    }
-
-                    // Description
-                    item.diet.description?.let { desc ->
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = desc,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(Modifier.height(10.dp))
-
-                    // Macro pills row
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        MacroPill(icon = "🔥", value = "${item.totalCalories}", unit = "kcal", color = Color(0xFFE65100))
-                        MacroPill(icon = "🍞", value = "${item.totalCarbs}g", unit = "carbs", color = Color(0xFF1565C0))
-                        MacroPill(icon = "💪", value = "${item.totalProtein}g", unit = "protein", color = Color(0xFF2E7D32))
-                        MacroPill(icon = "🥑", value = "${item.totalFat}g", unit = "fat", color = Color(0xFF6A1B9A))
-                    }
-                    item.totalGlycemicLoad?.let { gl ->
-                        Spacer(Modifier.height(6.dp))
-                        GlycemicLoadPill(gl)
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (onFavourite != null) {
-                        IconButton(
-                            onClick = onFavourite,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (item.diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
-                                contentDescription = if (item.diet.isFavourite) "Remove from favourites" else "Add to favourites",
-                                tint = if (item.diet.isFavourite) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                // Tags + meal count
+                if (item.tags.isNotEmpty() || item.mealCount > 0) {
+                    Spacer(Modifier.height(5.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        item.tags.take(3).forEach { tag -> TagChip(tag = tag) }
+                        if (item.mealCount > 0) {
+                            Text(
+                                "· ${item.mealCount} meals",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextMuted
                             )
                         }
                     }
-                    if (isPickerMode) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowRight,
-                            contentDescription = "Select",
-                            tint = DietGreen,
-                            modifier = Modifier.padding(start = 8.dp).size(20.dp)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (expanded) "Collapse" else "Expand",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 8.dp).size(20.dp)
-                        )
-                    }
+                }
+
+                // Inline macros: P / C / F
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DietMacroInline(label = "P", value = "${item.totalProtein}g", color = ChartProtein)
+                    DietMacroInline(label = "C", value = "${item.totalCarbs}g", color = ChartCarbs)
+                    DietMacroInline(label = "F", value = "${item.totalFat}g", color = ChartFat)
                 }
             }
 
-            // Expanded section: Edit + Delete (only in non-picker mode)
-            AnimatedVisibility(
-                visible = expanded && !isPickerMode,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+            // Right: overflow menu (top) + chevron (bottom)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(end = 4.dp, top = 6.dp, bottom = 8.dp)
             ) {
-                Column {
-                    HorizontalDivider(color = Color(0xFFEEEEEE))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        TextButton(onClick = onView) {
-                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("View", color = DietGreen)
+                if (!isPickerMode) {
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = TextMuted,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
-                        TextButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Edit", color = DietGreen)
-                        }
-                        TextButton(onClick = { onDuplicate() }) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Duplicate", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        TextButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Edit") },
+                                onClick = { showMenu = false; onEdit() },
+                                leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Duplicate") },
+                                onClick = { showMenu = false; onDuplicate() },
+                                leadingIcon = { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) }
+                            )
+                            if (onFavourite != null) {
+                                DropdownMenuItem(
+                                    text = { Text(if (item.diet.isFavourite) "Unfavourite" else "Favourite") },
+                                    onClick = { showMenu = false; onFavourite() },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (item.diet.isFavourite) Icons.Default.Star else Icons.Default.StarBorder,
+                                            null,
+                                            tint = Color(0xFFFFC107),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = TextDestructive) },
+                                onClick = { showMenu = false; showDeleteDialog = true },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, null, tint = TextDestructive, modifier = Modifier.size(16.dp))
+                                }
+                            )
                         }
                     }
+                } else {
+                    Spacer(Modifier.size(32.dp))
                 }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = if (isPickerMode) DesignGreen else TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -591,7 +620,7 @@ fun DietCard(
             text = { Text("Delete \"${item.diet.name}\"?") },
             confirmButton = {
                 TextButton(onClick = { onDelete(); showDeleteDialog = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Delete", color = TextDestructive)
                 }
             },
             dismissButton = {
@@ -601,6 +630,7 @@ fun DietCard(
     }
 }
 
+// Used by DietFormComponents.kt in the same package
 @Composable
 fun MacroPill(icon: String, value: String, unit: String, color: Color) {
     Surface(
@@ -614,6 +644,17 @@ fun MacroPill(icon: String, value: String, unit: String, color: Color) {
             Text(text = "$icon $value", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = color)
             Text(text = unit, style = MaterialTheme.typography.labelSmall, color = color.copy(alpha = 0.7f), fontSize = 9.sp)
         }
+    }
+}
+
+@Composable
+private fun DietMacroInline(label: String, value: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = color)
+        Text(value, style = MaterialTheme.typography.labelSmall, color = color)
     }
 }
 
@@ -679,7 +720,7 @@ fun TagsManagementDialog(
                             ) {
                                 TagChip(tag = tag)
                                 IconButton(onClick = { tagToDelete = tag }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextDestructive)
                                 }
                             }
                         }

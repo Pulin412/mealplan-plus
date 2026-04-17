@@ -28,8 +28,10 @@ import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.MealFoodItemWithDetails
 import com.mealplanplus.data.model.Tag
 import androidx.compose.ui.text.style.TextAlign
+import com.mealplanplus.ui.theme.DesignGreen
 
-private val FormGreen = Color(0xFF2E7D52)
+private val FormGreen: Color
+    @Composable get() = DesignGreen
 
 // ─── Top Bar ────────────────────────────────────────────────────────────────
 
@@ -68,10 +70,10 @@ fun DietFormTopBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = FormGreen,
-            titleContentColor = Color.White,
-            navigationIconContentColor = Color.White,
-            actionIconContentColor = Color.White
+            containerColor = Color.White,
+            titleContentColor = Color(0xFF111111),
+            navigationIconContentColor = Color(0xFF555555),
+            actionIconContentColor = Color(0xFF555555)
         )
     )
 }
@@ -94,7 +96,7 @@ fun DietInfoCard(
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
+        elevation = CardDefaults.cardElevation(0.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
