@@ -37,6 +37,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.local.ImportStrategy
 import kotlinx.coroutines.launch
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -46,6 +54,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToWidgetSettings: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -133,17 +142,13 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111)) },
+                title = { Text("Settings", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF111111))
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF111111)
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
@@ -154,6 +159,17 @@ fun SettingsScreen(
                 .background(BgPage)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Profile Section
+            SettingsSection(title = "Profile") {
+                SettingsButtonItem(
+                    title = "Your Profile",
+                    icon = Icons.Default.Person,
+                    onClick = onNavigateToProfile
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
             // Appearance Section
             SettingsSection(title = "Appearance") {
                 // Follow system theme
@@ -693,14 +709,14 @@ fun SettingsSection(
             text = title.uppercase(),
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFFAAAAAA),
+            color = TextMuted,
             letterSpacing = 0.8.sp,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
         )
         Card(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = CardBg),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column { content() }
@@ -723,25 +739,25 @@ fun SettingsSwitchItem(
         Box(
             modifier = Modifier.size(34.dp)
                 .clip(RoundedCornerShape(9.dp))
-                .background(Color(0xFFF5F5F5)),
+                .background(TagGrayBg),
             contentAlignment = Alignment.Center
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF555555), modifier = Modifier.size(18.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 14.sp, color = Color(0xFF111111))
-            Text(text = subtitle, fontSize = 11.sp, color = Color(0xFFAAAAAA))
+            Text(text = title, fontSize = 14.sp, color = TextPrimary)
+            Text(text = subtitle, fontSize = 11.sp, color = TextMuted)
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF2E7D52),
+                checkedTrackColor = DesignGreen,
                 uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFE0E0E0),
-                uncheckedBorderColor = Color(0xFFE0E0E0)
+                uncheckedTrackColor = DividerColor,
+                uncheckedBorderColor = DividerColor
             )
         )
     }
@@ -759,9 +775,9 @@ fun SettingsTimeItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Spacer(Modifier.width(46.dp))
-        Text(text = label, fontSize = 14.sp, modifier = Modifier.weight(1f), color = Color(0xFF555555))
+        Text(text = label, fontSize = 14.sp, modifier = Modifier.weight(1f), color = TextSecondary)
         TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
-            Text(formatTime(hour, minute), fontSize = 14.sp, color = Color(0xFF2E7D52), fontWeight = FontWeight.SemiBold)
+            Text(formatTime(hour, minute), fontSize = 14.sp, color = DesignGreen, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -779,14 +795,14 @@ fun SettingsButtonItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF5F5F5)),
+            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(TagGrayBg),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = Color(0xFF555555), modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
-        Text(title, fontSize = 14.sp, color = if (enabled) Color(0xFF111111) else Color(0xFFAAAAAA), modifier = Modifier.weight(1f))
-        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color(0xFFCCCCCC), modifier = Modifier.size(18.dp))
+        Text(title, fontSize = 14.sp, color = if (enabled) TextPrimary else TextMuted, modifier = Modifier.weight(1f))
+        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -995,18 +1011,18 @@ fun SettingsActionItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFF5F5F5)),
+            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(TagGrayBg),
             contentAlignment = Alignment.Center
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF555555), modifier = Modifier.size(18.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 14.sp, color = Color(0xFF111111))
-            Text(text = subtitle, fontSize = 11.sp, color = Color(0xFFAAAAAA))
+            Text(text = title, fontSize = 14.sp, color = TextPrimary)
+            Text(text = subtitle, fontSize = 11.sp, color = TextMuted)
         }
         TextButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
-            Text(actionLabel, fontSize = 13.sp, color = Color(0xFF2E7D52), fontWeight = FontWeight.SemiBold)
+            Text(actionLabel, fontSize = 13.sp, color = DesignGreen, fontWeight = FontWeight.SemiBold)
         }
     }
 }

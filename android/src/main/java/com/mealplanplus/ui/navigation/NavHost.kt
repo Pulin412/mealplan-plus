@@ -747,7 +747,8 @@ fun MealPlanNavHost(
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToWidgetSettings = { navController.navigate(Screen.WidgetSettings.route) }
+                    onNavigateToWidgetSettings = { navController.navigate(Screen.WidgetSettings.route) },
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
                 )
             }
             composable(Screen.WidgetSettings.route) {

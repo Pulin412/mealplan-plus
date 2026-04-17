@@ -18,12 +18,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.mealplanplus.ui.theme.BrandGreen
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DesignGreen
 import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.TextMuted
 import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.ActivityLevel
 import com.mealplanplus.data.model.Gender
@@ -76,17 +81,13 @@ fun ProfileScreen(
         containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
+                title = { Text("Profile", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF555555)
-                )
+                colors = minimalTopAppBarColors()
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -281,21 +282,24 @@ fun ProfileScreen(
                 Button(
                     onClick = { viewModel.saveProfile() },
                     enabled = !uiState.isSaving,
-                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(13.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = DesignGreen)
                 ) {
                     if (uiState.isSaving) {
-                        CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                        CircularProgressIndicator(Modifier.size(20.dp), color = Color.White)
                     } else {
                         Icon(Icons.Default.Check, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Save Profile")
+                        Text("Save Profile", fontWeight = FontWeight.Bold)
                     }
                 }
 
                 // ── Logout ───────────────────────────────────────────────────
                 OutlinedButton(
-                    onClick = { viewModel.logout() }, // nav handled by LaunchedEffect(isLoggedIn)
+                    onClick = { viewModel.logout() },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(13.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
                     Icon(Icons.Default.ExitToApp, null)
@@ -456,12 +460,17 @@ private fun ProfileSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             content()
         }
     }

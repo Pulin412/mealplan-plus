@@ -28,11 +28,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.model.GroceryItemWithFood
 import com.mealplanplus.util.GroceryCategory
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DesignGreenLight
 import com.mealplanplus.ui.theme.TagGrayBg
 import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
-import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -53,26 +58,26 @@ fun GroceryDetailScreen(
                         Text(
                             uiState.list?.list?.name ?: "Grocery List",
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111)
+                            fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                         )
                         uiState.list?.let { gl ->
                             Text("${gl.items.size} items · ${gl.items.count { it.item.isChecked }} bought",
-                                fontSize = 12.sp, color = Color(0xFF888888))
+                                fontSize = 12.sp, color = TextSecondary)
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF111111))
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.shareList() }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share", tint = Color(0xFF555555))
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = TextSecondary)
                     }
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Color(0xFF555555))
+                            Icon(Icons.Default.MoreVert, contentDescription = "More", tint = TextSecondary)
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -89,12 +94,7 @@ fun GroceryDetailScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF111111),
-                    actionIconContentColor = Color(0xFF555555)
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
@@ -145,33 +145,33 @@ fun GroceryDetailScreen(
                     ) {
                         Box(
                             modifier = Modifier.clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE8F5EE)).padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) { Text("${list.totalCount} items", fontSize = 12.sp, color = Color(0xFF2E7D52), fontWeight = FontWeight.SemiBold) }
+                                .background(DesignGreenLight).padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) { Text("${list.totalCount} items", fontSize = 12.sp, color = DesignGreen, fontWeight = FontWeight.SemiBold) }
                         Spacer(Modifier.width(8.dp))
                         Box(
                             modifier = Modifier.clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFF0F0F0)).padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) { Text("${list.checkedCount} bought", fontSize = 12.sp, color = Color(0xFF666666)) }
+                                .background(TagGrayBg).padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) { Text("${list.checkedCount} bought", fontSize = 12.sp, color = TextSecondary) }
                         Spacer(Modifier.weight(1f))
                         if (list.checkedCount > 0) {
                             TextButton(onClick = { viewModel.uncheckAllItems() }, contentPadding = PaddingValues(0.dp)) {
-                                Text("Clear bought", fontSize = 12.sp, color = Color(0xFF888888))
+                                Text("Clear bought", fontSize = 12.sp, color = TextSecondary)
                             }
                         }
                     }
 
-                    if (list.totalCount > 0) {
-                        LinearProgressIndicator(
-                            progress = list.progressPercent,
-                            modifier = Modifier.fillMaxWidth().height(3.dp),
-                            color = Color(0xFF2E7D52),
-                            trackColor = Color(0xFFF0F0F0)
-                        )
-                    }
+                        if (list.totalCount > 0) {
+                            LinearProgressIndicator(
+                                progress = list.progressPercent,
+                                modifier = Modifier.fillMaxWidth().height(3.dp),
+                                color = DesignGreen,
+                                trackColor = TagGrayBg
+                            )
+                        }
 
                     // Tab row + Add Item
                     Row(
-                        modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth().background(CardBg).padding(horizontal = 16.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -359,7 +359,7 @@ fun GroceryItemRow(
     onDelete: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().background(Color.White)
+        modifier = Modifier.fillMaxWidth().background(CardBg)
             .clickable(onClick = onCheckedChange)
             .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -367,8 +367,8 @@ fun GroceryItemRow(
         // Circular checkbox (green when checked)
         Box(
             modifier = Modifier.size(22.dp).clip(CircleShape)
-                .background(if (item.item.isChecked) Color(0xFF2E7D52) else Color.White)
-                .border(1.5.dp, if (item.item.isChecked) Color(0xFF2E7D52) else Color(0xFFDDDDDD), CircleShape),
+                .background(if (item.item.isChecked) DesignGreen else CardBg)
+                .border(1.5.dp, if (item.item.isChecked) DesignGreen else TagGrayBg, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (item.item.isChecked) {
@@ -382,19 +382,19 @@ fun GroceryItemRow(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 textDecoration = if (item.item.isChecked) TextDecoration.LineThrough else TextDecoration.None,
-                color = if (item.item.isChecked) Color(0xFFBBBBBB) else Color(0xFF111111),
+                color = if (item.item.isChecked) TextMuted else TextPrimary,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
-            Text(text = item.displayQuantity, fontSize = 11.sp, color = Color(0xFFAAAAAA))
+            Text(text = item.displayQuantity, fontSize = 11.sp, color = TextMuted)
         }
         IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp), tint = Color(0xFFCCCCCC))
+            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp), tint = TextMuted)
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = Color(0xFFCCCCCC))
+            Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = TextMuted)
         }
     }
-    HorizontalDivider(color = Color(0xFFF5F5F5), modifier = Modifier.padding(start = 46.dp))
+    HorizontalDivider(color = TagGrayBg, modifier = Modifier.padding(start = 46.dp))
 }
 
 @Composable
@@ -402,13 +402,13 @@ private fun GroceryFilterChip(label: String, selected: Boolean, onClick: () -> U
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selected) Color(0xFF111111) else Color.White)
-            .border(1.dp, if (selected) Color(0xFF111111) else Color(0xFFE8E8E8), RoundedCornerShape(50))
+            .background(if (selected) TextPrimary else CardBg)
+            .border(1.dp, if (selected) TextPrimary else TagGrayBg, RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 5.dp)
     ) {
         Text(label, fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else Color(0xFF555555))
+            color = if (selected) Color.White else TextSecondary)
     }
 }
 

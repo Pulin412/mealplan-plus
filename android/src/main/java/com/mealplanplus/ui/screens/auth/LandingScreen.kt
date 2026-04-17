@@ -35,9 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mealplanplus.ui.theme.BrandGreen
+import com.mealplanplus.ui.theme.DarkGreen
+import com.mealplanplus.ui.theme.DesignGreen
 
-private val HeroDark = Color(0xFF1A3D2A)
-private val HeroLight = Color(0xFF3D9463)
 private val OnHeroMuted = Color(0xFFA8CCB8)
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -54,7 +54,7 @@ fun LandingScreen(
                 .fillMaxWidth()
                 .weight(0.54f)
                 .background(
-                    Brush.linearGradient(colors = listOf(HeroDark, BrandGreen, HeroLight))
+                    Brush.linearGradient(colors = listOf(DarkGreen, DesignGreen, Color(0xFF3D9463)))
                 ),
             contentAlignment = Alignment.Center
         ) {

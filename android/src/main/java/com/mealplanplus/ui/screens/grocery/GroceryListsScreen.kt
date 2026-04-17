@@ -21,7 +21,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.GroceryList
 import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.DesignGreenLight
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.minimalTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,22 +45,18 @@ fun GroceryListsScreen(
         containerColor = BgPage,
         topBar = {
             TopAppBar(
-                title = { Text("Grocery Lists", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111)) },
+                title = { Text("Grocery Lists", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF111111))
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToCreate) {
-                        Icon(Icons.Default.Add, contentDescription = "Create list", tint = Color(0xFF111111))
+                        Icon(Icons.Default.Add, contentDescription = "Create list", tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF111111)
-                )
+                colors = minimalTopAppBarColors()
             )
         }
     ) { padding ->
@@ -150,8 +153,8 @@ fun GroceryListCard(
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -162,34 +165,34 @@ fun GroceryListCard(
             ) {
                 Box(
                     modifier = Modifier.size(38.dp)
-                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(11.dp))
-                        .background(Color(0xFFF5FFF5)),
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(DesignGreenLight),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.ShoppingCart, null, tint = Color(0xFF2E7D52), modifier = Modifier.size(20.dp)) }
+                ) { Icon(Icons.Default.ShoppingCart, null, tint = DesignGreen, modifier = Modifier.size(20.dp)) }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(item.list.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111111), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(item.list.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     item.list.dateRangeDisplay?.let { dateRange ->
-                        Text(dateRange, fontSize = 11.sp, color = Color(0xFFAAAAAA))
+                        Text(dateRange, fontSize = 11.sp, color = TextMuted)
                     }
-                    Text("${item.checkedCount} of ${item.itemCount} items", fontSize = 11.sp, color = Color(0xFFAAAAAA))
+                    Text("${item.checkedCount} of ${item.itemCount} items", fontSize = 11.sp, color = TextMuted)
                 }
 
                 if (item.itemCount > 0 && item.checkedCount == item.itemCount) {
                     Box(
-                        modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
-                            .background(Color(0xFFE8F5EE)).padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) { Text("Done", fontSize = 11.sp, color = Color(0xFF2E7D52), fontWeight = FontWeight.SemiBold) }
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                            .background(DesignGreenLight).padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) { Text("Done", fontSize = 11.sp, color = DesignGreen, fontWeight = FontWeight.SemiBold) }
                 } else {
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("${item.itemCount}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111))
-                        Text("items", fontSize = 10.sp, color = Color(0xFFAAAAAA))
+                        Text("${item.itemCount}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text("items", fontSize = 10.sp, color = TextMuted)
                     }
                 }
 
                 Box {
                     IconButton(onClick = { showMenu = true }, modifier = Modifier.size(30.dp)) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Color(0xFFBBBBBB), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = TextSecondary, modifier = Modifier.size(16.dp))
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
@@ -205,8 +208,8 @@ fun GroceryListCard(
                 LinearProgressIndicator(
                     progress = item.progressPercent,
                     modifier = Modifier.fillMaxWidth().height(3.dp),
-                    color = Color(0xFF2E7D52),
-                    trackColor = Color(0xFFF0F0F0)
+                    color = DesignGreen,
+                    trackColor = TagGrayBg
                 )
             }
         }
