@@ -34,9 +34,12 @@ import com.mealplanplus.data.model.Tag
 import com.mealplanplus.ui.components.TagChip
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DividerColor
 import com.mealplanplus.ui.theme.DesignGreen
 import com.mealplanplus.ui.theme.TagGrayBg
 import com.mealplanplus.ui.theme.TextDestructive
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -197,7 +200,7 @@ fun DietsTopBar(
     showFavouritesOnly: Boolean = false,
     title: String = "My Diets"
 ) {
-    Surface(color = Color.White, shadowElevation = 0.dp) {
+    Surface(color = CardBg, shadowElevation = 0.dp) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Top row: back + title + settings
             Row(
@@ -207,13 +210,13 @@ fun DietsTopBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF555555))
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = Color(0xFF111111)
+                        color = TextPrimary
                     )
                     Text(
                         text = if (totalCount == shownCount)
@@ -221,7 +224,7 @@ fun DietsTopBar(
                         else
                             "$totalCount diets · $shownCount shown",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF888888)
+                        color = TextSecondary
                     )
                 }
                 // Favourites filter toggle
@@ -277,28 +280,28 @@ fun DietsTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp),
-                placeholder = { Text("Search diets…", fontSize = 14.sp, color = Color(0xFFBBBBBB)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFBBBBBB), modifier = Modifier.size(18.dp)) },
+                placeholder = { Text("Search diets…", fontSize = 14.sp, color = TextMuted) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color(0xFF888888), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(16.dp))
                         }
                     }
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF5F5F5),
-                    unfocusedContainerColor = Color(0xFFF5F5F5),
+                    focusedContainerColor = TagGrayBg,
+                    unfocusedContainerColor = TagGrayBg,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color(0xFF111111),
-                    unfocusedTextColor = Color(0xFF111111),
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
                     cursorColor = DesignGreen
                 )
             )
-            HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
+            HorizontalDivider(color = DividerColor, thickness = 1.dp)
         }
     }
 }
@@ -315,7 +318,7 @@ fun TagFilterRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(CardBg)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -338,13 +341,13 @@ private fun DietsFilterChip(label: String, selected: Boolean, onClick: () -> Uni
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selected) Color(0xFF111111) else Color.White)
-            .border(1.dp, if (selected) Color(0xFF111111) else Color(0xFFE8E8E8), RoundedCornerShape(50))
+            .background(if (selected) TextPrimary else CardBg)
+            .border(1.dp, if (selected) TextPrimary else TagGrayBg, RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp)
     ) {
         Text(label, fontSize = 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else Color(0xFF555555))
+            color = if (selected) Color.White else TextSecondary)
     }
 }
 
@@ -429,7 +432,7 @@ fun DietCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -545,7 +548,7 @@ fun DietCard(
                 exit = shrinkVertically()
             ) {
                 Column {
-                    HorizontalDivider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = DividerColor)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

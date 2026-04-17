@@ -114,6 +114,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.draw.alpha
 import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.DividerColor
@@ -1158,6 +1159,9 @@ private fun MiscSheet(
     var revealed by remember { mutableStateOf(false) }
 
     val actions = listOf(
+        QuickAction(Icons.Default.Restaurant,     Color(0xFF2E7D52), "Diets",    "Browse & manage diet plans",    Screen.Diets.route),
+        QuickAction(Icons.Default.List,           Color(0xFFC05200), "Meals",    "Your meal library",             Screen.Meals.route),
+        QuickAction(Icons.Default.Star,           Color(0xFF1E4FBF), "Foods",    "Food catalogue & nutrition",    Screen.Foods.route),
         QuickAction(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health",   "Metrics, weight & activity",    Screen.Health.route),
         QuickAction(Icons.Default.ShoppingCart,   Color(0xFF6A1B9A), "Grocery",  "Your shopping lists",           Screen.GroceryLists.route),
         QuickAction(Icons.Default.Settings,       Color(0xFF555555), "Settings", "Preferences & notifications",   Screen.Settings.route),

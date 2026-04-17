@@ -33,8 +33,11 @@ import com.mealplanplus.ui.screens.diets.TagFilterRow
 import com.mealplanplus.ui.screens.diets.TagsManagementDialog
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DividerColor
 import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TagGrayBg
 import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPlaceholder
 import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
 
@@ -96,7 +99,7 @@ fun FoodsScreen(
                     FoodFilterChip("Recent", selectedTab == FoodTab.RECENT) { viewModel.selectTab(FoodTab.RECENT) }
                 }
             }
-            HorizontalDivider(color = Color(0xFFF0F0F0))
+            HorizontalDivider(color = DividerColor)
 
             when {
                 foods.isEmpty() -> {
@@ -207,9 +210,9 @@ fun FoodsTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 6.dp),
-            placeholder = { Text("Search foods…", fontSize = 14.sp, color = Color(0xFFBBBBBB)) },
+            placeholder = { Text("Search foods…", fontSize = 14.sp, color = TextMuted) },
             leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFBBBBBB), modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
@@ -221,8 +224,8 @@ fun FoodsTopBar(
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFFF5F5F5),
-                unfocusedContainerColor = Color(0xFFF5F5F5),
+                focusedContainerColor = TagGrayBg,
+                unfocusedContainerColor = TagGrayBg,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedTextColor = TextPrimary,
@@ -230,7 +233,7 @@ fun FoodsTopBar(
                 cursorColor = DesignGreen
             )
         )
-        HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
+        HorizontalDivider(color = DividerColor, thickness = 1.dp)
     }
 }
 
@@ -239,8 +242,8 @@ private fun FoodFilterChip(label: String, selected: Boolean, onClick: () -> Unit
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selected) TextPrimary else Color.White)
-            .border(1.dp, if (selected) TextPrimary else Color(0xFFE8E8E8), RoundedCornerShape(50))
+            .background(if (selected) TextPrimary else CardBg)
+            .border(1.dp, if (selected) TextPrimary else TagGrayBg, RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp)
     ) {
@@ -248,7 +251,7 @@ private fun FoodFilterChip(label: String, selected: Boolean, onClick: () -> Unit
             text = label,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else Color(0xFF555555)
+            color = if (selected) Color.White else TextSecondary
         )
     }
 }
@@ -332,7 +335,7 @@ fun FoodCard(
             // Expanded detail section
             AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
                 Column {
-                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                    HorizontalDivider(color = DividerColor)
                     // Macro row
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
@@ -350,7 +353,7 @@ fun FoodCard(
                         }
                     }
                     if (!pickerMode) {
-                        HorizontalDivider(color = Color(0xFFF5F5F5))
+                        HorizontalDivider(color = DividerColor)
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,

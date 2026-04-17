@@ -29,6 +29,7 @@ import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.DividerColor
 import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.TagGrayBg
 import com.mealplanplus.ui.theme.TextMuted
 import com.mealplanplus.ui.theme.TextPlaceholder
 import com.mealplanplus.ui.theme.TextDestructive
@@ -80,8 +81,8 @@ fun MealsScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF5F5F5),
-                        unfocusedContainerColor = Color(0xFFF5F5F5),
+                        focusedContainerColor = TagGrayBg,
+                        unfocusedContainerColor = TagGrayBg,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         focusedTextColor = TextPrimary,
@@ -204,7 +205,7 @@ private fun MealFilterChip(label: String, selected: Boolean, onClick: () -> Unit
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(if (selected) TextPrimary else CardBg)
-            .border(1.dp, if (selected) TextPrimary else Color(0xFFE8E8E8), RoundedCornerShape(50))
+            .border(1.dp, if (selected) TextPrimary else TagGrayBg, RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp)
     ) {
