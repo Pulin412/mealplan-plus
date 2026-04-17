@@ -63,6 +63,12 @@ interface DietDao {
     @Query("SELECT COUNT(*) FROM diets")
     suspend fun getDietCount(): Int
 
+    @Query("SELECT * FROM diets ORDER BY name ASC")
+    suspend fun getAllDietsOnce(): List<Diet>
+
+    @Query("SELECT * FROM diets WHERE name = :name LIMIT 1")
+    suspend fun getDietByName(name: String): Diet?
+
     @Query("UPDATE diets SET isFavourite = :isFavourite WHERE id = :id")
     suspend fun setFavourite(id: Long, isFavourite: Boolean)
 
