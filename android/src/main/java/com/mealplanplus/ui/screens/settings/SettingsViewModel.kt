@@ -4,12 +4,10 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mealplanplus.data.local.BackupRestoreManager
 import com.mealplanplus.data.local.CsvDataImporter
 import com.mealplanplus.data.local.ImportResult
 import com.mealplanplus.data.local.ImportStrategy
 import com.mealplanplus.data.local.JsonDataImporter
-import com.mealplanplus.data.local.RestoreResult
 import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
@@ -42,11 +40,7 @@ data class SettingsUiState(
     // Health Connect state
     val isHealthConnectAvailable: Boolean = false,
     val isHealthConnectConnected: Boolean = false,
-    val healthConnectLastSyncWeight: Double? = null,
-    // Backup restore state
-    val isRestoring: Boolean = false,
-    val restoreResult: RestoreResult? = null,
-    val backupAlreadyRestored: Boolean = false
+    val healthConnectLastSyncWeight: Double? = null
 )
 
 data class ThemeState(
@@ -77,8 +71,7 @@ class SettingsViewModel @Inject constructor(
     private val healthRepository: HealthRepository,
     private val healthConnectRepository: HealthConnectRepository,
     private val jsonDataImporter: JsonDataImporter,
-    private val csvDataImporter: CsvDataImporter,
-    private val backupRestoreManager: BackupRestoreManager
+    private val csvDataImporter: CsvDataImporter
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -101,39 +94,6 @@ class SettingsViewModel @Inject constructor(
         loadNotificationPreferences()
         loadDataForExport()
         checkHealthConnectStatus()
-        checkBackupRestoreStatus()
-    }
-
-    private fun checkBackupRestoreStatus() {
-        viewModelScope.launch {
-            val alreadyDone = backupRestoreManager.isAlreadyRestored()
-            _uiState.update { it.copy(backupAlreadyRestored = alreadyDone) }
-        }
-    }
-
-    fun restoreFromBackup() {
-        if (_uiState.value.isRestoring) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRestoring = true, restoreResult = null, error = null) }
-            try {
-                val result = backupRestoreManager.restoreFromBackup()
-                _uiState.update {
-                    it.copy(
-                        isRestoring = false,
-                        restoreResult = result,
-                        backupAlreadyRestored = result == null
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isRestoring = false, error = "Restore failed: ${e.message}")
-                }
-            }
-        }
-    }
-
-    fun clearRestoreResult() {
-        _uiState.update { it.copy(restoreResult = null) }
     }
 
     private fun loadThemePreferences() {
