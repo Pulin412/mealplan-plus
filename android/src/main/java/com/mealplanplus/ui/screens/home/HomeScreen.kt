@@ -54,25 +54,22 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import com.mealplanplus.ui.theme.AiPurple
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.MacroCal
+import com.mealplanplus.ui.theme.MacroCarbs
+import com.mealplanplus.ui.theme.MacroFat
+import com.mealplanplus.ui.theme.MacroProtein
+import com.mealplanplus.ui.theme.PrimaryGreen
+import com.mealplanplus.ui.theme.SlotBreakfast
+import com.mealplanplus.ui.theme.SlotDefault
+import com.mealplanplus.ui.theme.SlotDinner
+import com.mealplanplus.ui.theme.SlotLunch
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
-
-// ── Design tokens ──────────────────────────────────────────────────────────────
-private val PrimaryGreen  = Color(0xFF2E7D52)
-private val BgPage        = Color(0xFFF7F7F7)
-private val CardBg        = Color.White
-private val TextPrimary   = Color(0xFF111111)
-private val TextSecondary = Color(0xFF888888)
-private val TextMuted     = Color(0xFFBBBBBB)
-private val Divider       = Color(0xFFEEEEEE)
-private val MacroProtein  = Color(0xFF2E7D52)
-private val MacroCarbs    = Color(0xFFC05200)
-private val MacroFat      = Color(0xFF1E4FBF)
-private val MacroCal      = Color(0xFFF59E0B)
-private val SlotBreakfast = Color(0xFFF59E0B)
-private val SlotLunch     = Color(0xFF2E7D52)
-private val SlotDinner    = Color(0xFF7C3AED)
-private val SlotDefault   = Color(0xFF888888)
-private val AiPurple      = Color(0xFF7C3AED)
 
 @Composable
 fun HomeScreen(

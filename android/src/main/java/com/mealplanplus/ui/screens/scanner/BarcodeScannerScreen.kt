@@ -32,11 +32,17 @@ import com.mealplanplus.ui.theme.minimalTopAppBarColors
 import com.mealplanplus.data.model.FoodItem
 import java.util.concurrent.Executors
 
+/**
+ * @param onFoodFound  When non-null, the scanner is in "fill form" mode — it calls this
+ *                     with the found FoodItem instead of saving it to the database.
+ *                     When null (default), the scanner saves the food directly.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun BarcodeScannerScreen(
     onNavigateBack: () -> Unit,
     onFoodSaved: () -> Unit,
+    onFoodFound: ((com.mealplanplus.data.model.FoodItem) -> Unit)? = null,
     viewModel: BarcodeScannerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -159,7 +165,14 @@ fun BarcodeScannerScreen(
                     FoodFoundCard(
                         food = uiState.foundFood!!,
                         isExisting = false,
-                        onSave = { viewModel.saveFood(uiState.foundFood!!) },
+                        onSave = {
+                            if (onFoodFound != null) {
+                                onFoodFound(uiState.foundFood!!)
+                            } else {
+                                viewModel.saveFood(uiState.foundFood!!)
+                            }
+                        },
+                        fillFormMode = onFoodFound != null,
                         onScanAgain = { viewModel.retryScanning() },
                         onNavigateBack = onNavigateBack
                     )
@@ -212,7 +225,8 @@ fun FoodFoundCard(
     isExisting: Boolean,
     onSave: () -> Unit,
     onScanAgain: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    fillFormMode: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -290,7 +304,7 @@ fun FoodFoundCard(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
-                    Text("Add to Foods")
+                    Text(if (fillFormMode) "Fill in Form" else "Add to Foods")
                 }
             }
         }

@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,10 +28,9 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -107,9 +108,21 @@ import com.mealplanplus.widget.NAV_CALENDAR_FOR_DATE
 import com.mealplanplus.widget.NAV_DIET_DETAIL
 import com.mealplanplus.widget.NAV_HOME
 import com.mealplanplus.widget.NAV_LOG_FOR_DATE
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.ui.draw.alpha
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DividerColor
+import com.mealplanplus.ui.theme.LocalIsDarkTheme
+import com.mealplanplus.ui.theme.TagGrayBg
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.widget.WidgetDeepLink
-
-private val PrimaryGreen = Color(0xFF2E7D52)
+import kotlinx.coroutines.delay
 
 sealed class Screen(val route: String) {
     object Landing : Screen("landing")
@@ -164,6 +177,7 @@ sealed class Screen(val route: String) {
     object ForgotPassword : Screen("forgot_password")
     object Settings : Screen("settings")
     object BarcodeScanner : Screen("barcode_scanner")
+    object BarcodeScannerForAddFood : Screen("barcode_scanner_for_add_food")
     object OnlineSearch : Screen("online_search")
     object GroceryLists : Screen("grocery_lists")
     object CreateGroceryList : Screen("create_grocery_list")
@@ -368,9 +382,12 @@ fun MealPlanNavHost(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.AddFood.route) {
+            composable(Screen.AddFood.route) { backStackEntry ->
+                val savedStateHandle = backStackEntry.savedStateHandle
                 AddFoodScreen(
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToScanner = { navController.navigate(Screen.BarcodeScannerForAddFood.route) },
+                    savedStateHandle = savedStateHandle
                 )
             }
             composable(Screen.Meals.route) {
@@ -467,7 +484,7 @@ fun MealPlanNavHost(
                 AddDietScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onDietSaved = { dietId ->
-                        navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = true)) {
+                        navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = false)) {
                             popUpTo(Screen.AddDiet.route) { inclusive = true }
                         }
                     }
@@ -482,11 +499,15 @@ fun MealPlanNavHost(
             ) { backStackEntry ->
                 val savedStateHandle = backStackEntry.savedStateHandle
                 val autoEdit = backStackEntry.arguments?.getBoolean("autoEdit") ?: false
+                val dietId = backStackEntry.arguments?.getLong("dietId") ?: 0L
                 DietDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToFoodPicker = { navController.navigate(Screen.FoodPickerForDietSlot.route) },
-                    onNavigateToMealDetail = { dietId, slotType ->
-                        navController.navigate(Screen.MealDetail.createRoute(dietId, slotType))
+                    onNavigateToMealDetail = { dId, slotType ->
+                        navController.navigate(Screen.MealDetail.createRoute(dId, slotType))
+                    },
+                    onNavigateToEditSlot = { slotType ->
+                        navController.navigate(Screen.DietMealSlot.createRoute(dietId, slotType))
                     },
                     savedStateHandle = savedStateHandle,
                     autoEdit = autoEdit
@@ -740,6 +761,24 @@ fun MealPlanNavHost(
                     onFoodSaved = { navController.popBackStack() }
                 )
             }
+            // Scanner in "fill form" mode — passes scanned food data back to AddFoodScreen
+            composable(Screen.BarcodeScannerForAddFood.route) {
+                BarcodeScannerScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onFoodSaved = { navController.popBackStack() },
+                    onFoodFound = { food ->
+                        navController.previousBackStackEntry?.savedStateHandle?.apply {
+                            set("scanned_food_name", food.name)
+                            set("scanned_food_brand", food.brand)
+                            set("scanned_food_calories", food.caloriesPer100)
+                            set("scanned_food_protein", food.proteinPer100)
+                            set("scanned_food_carbs", food.carbsPer100)
+                            set("scanned_food_fat", food.fatPer100)
+                        }
+                        navController.popBackStack()
+                    }
+                )
+            }
             composable(Screen.OnlineSearch.route) {
                 OnlineSearchScreen(
                     onNavigateBack = { navController.popBackStack() }
@@ -815,9 +854,12 @@ fun MealPlanNavHost(
 
 // ── New minimalist bottom nav (5 slots: Home | Log | + | Plan | Misc) ──────────
 
-private val SelectedNavColor   = Color(0xFF111111)
-private val UnselectedNavColor = Color(0xFFBBBBBB)
-private val NavIndicator       = Color(0xFFF5F5F5)
+private val SelectedNavColor: Color
+    @Composable get() = TextPrimary
+private val UnselectedNavColor: Color
+    @Composable get() = TextMuted
+private val NavIndicator: Color
+    @Composable get() = TagGrayBg
 
 @Composable
 private fun BottomNavBar(
@@ -843,7 +885,7 @@ private fun BottomNavBar(
     }
 
     NavigationBar(
-        containerColor = Color.White,
+        containerColor = CardBg,
         contentColor = SelectedNavColor,
         tonalElevation = 0.dp,
         modifier = Modifier.height(64.dp)
@@ -876,14 +918,14 @@ private fun BottomNavBar(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF111111))
+                    .background(TextPrimary)
                     .clickable { onQuickAdd() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Quick add",
-                    tint = Color.White,
+                    tint = CardBg,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -941,6 +983,18 @@ private fun RowScope.NavTab(
     )
 }
 
+// ── Quick-add action model ────────────────────────────────────────────────────
+
+private data class QuickAction(
+    val icon: ImageVector,
+    val tint: Color,
+    val label: String,
+    val subtitle: String,
+    val route: String
+)
+
+// ── Animated swipe-up quick-add sheet ─────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickAddSheet(
@@ -949,87 +1003,42 @@ private fun QuickAddSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    var revealed by remember { mutableStateOf(false) }
 
-    fun dismissThenNavigate(route: String) {
-        scope.launch { sheetState.hide() }.invokeOnCompletion {
-            if (!sheetState.isVisible) {
-                onDismiss()
-                onNavigate(route)
-            }
-        }
+    val actions = listOf(
+        QuickAction(Icons.Default.Edit,      Color(0xFF2E7D52), "Log Today's Meals", "Open today's food diary",           Screen.DailyLog.route),
+        QuickAction(Icons.Default.Add,        Color(0xFFF59E0B), "Add a Food",         "Search or scan a food item",        Screen.AddFood.route),
+        QuickAction(Icons.Default.Restaurant, Color(0xFFC05200), "Create a Meal",      "Bundle foods into a reusable meal", Screen.AddMeal.route),
+        QuickAction(Icons.Default.List,       Color(0xFF1E4FBF), "Build a Diet",       "Create a structured diet plan",     Screen.AddDiet.route),
+    )
+
+    // Alpha for each row — staggered fade-in via animateFloatAsState + tween delayMillis
+    val alphas = actions.mapIndexed { i, _ ->
+        animateFloatAsState(
+            targetValue = if (revealed) 1f else 0f,
+            animationSpec = tween(durationMillis = 220, delayMillis = i * 65),
+            label = "alpha_$i"
+        ).value
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 4.dp, bottom = 36.dp)
-        ) {
-            Text(
-                text = "Quick Add",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 20.dp)
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickAddTile(
-                    icon = Icons.Default.Add,
-                    iconBg = Color(0xFF2E7D52),
-                    label = "Add Food",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.AddFood.route) }
-                )
-                QuickAddTile(
-                    icon = Icons.Default.Restaurant,
-                    iconBg = Color(0xFFE65100),
-                    label = "New Meal",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.AddMeal.route) }
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickAddTile(
-                    icon = Icons.Default.List,
-                    iconBg = Color(0xFF1565C0),
-                    label = "New Diet",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.AddDiet.route) }
-                )
-                QuickAddTile(
-                    icon = Icons.Default.Edit,
-                    iconBg = Color(0xFF6A1B9A),
-                    label = "Log Today",
-                    modifier = Modifier.weight(1f),
-                    onClick = { dismissThenNavigate(Screen.DailyLog.route) }
+    // Offset for each row — staggered spring slide-up via Animatable
+    val offsets = remember { actions.map { Animatable(24f) } }
+    LaunchedEffect(Unit) {
+        delay(60L)      // give the sheet its open animation first
+        revealed = true
+        actions.indices.forEach { i ->
+            launch {
+                delay(i * 65L)
+                offsets[i].animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness    = Spring.StiffnessMedium
+                    )
                 )
             }
         }
     }
-}
-
-// ── Misc "More" bottom sheet ──────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MiscSheet(
-    onDismiss: () -> Unit,
-    onNavigate: (String) -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
 
     fun go(route: String) {
         scope.launch { sheetState.hide() }.invokeOnCompletion {
@@ -1039,39 +1048,45 @@ private fun MiscSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        sheetState       = sheetState,
+        containerColor   = CardBg,
+        shape            = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = {
+            Box(
+                Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(TextMuted.copy(alpha = 0.3f))
+                )
+            }
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(top = 4.dp, bottom = 36.dp)
+                .padding(bottom = 40.dp)
         ) {
-            Text("More", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
-
-            // 2-column grid of navigation tiles
-            val items = listOf(
-                Triple(Icons.Default.Restaurant,   Color(0xFF2E7D52), "Foods")    to Screen.Foods.route,
-                Triple(Icons.Default.Restaurant,   Color(0xFFE65100), "Meals")    to Screen.Meals.route,
-                Triple(Icons.Default.List,         Color(0xFF1565C0), "Diets")    to Screen.Diets.route,
-                Triple(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health") to Screen.Health.route,
-                Triple(Icons.Default.ShoppingCart, Color(0xFF6A1B9A), "Grocery")  to Screen.GroceryLists.route,
-                Triple(Icons.Default.Settings,     Color(0xFF555555), "Settings") to Screen.Settings.route,
-            )
-
-            items.chunked(3).forEach { rowItems ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowItems.forEach { (iconData, route) ->
-                        val (icon, bg, label) = iconData
-                        QuickAddTile(icon = icon, iconBg = bg, label = label, onClick = { go(route) }, modifier = Modifier.weight(1f))
-                    }
-                    // Fill remaining slots if row not full
-                    repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+            actions.forEachIndexed { index, action ->
+                QuickActionRow(
+                    action   = action,
+                    onClick  = { go(action.route) },
+                    modifier = Modifier
+                        .alpha(alphas[index])
+                        .offset(y = offsets[index].value.dp)
+                )
+                if (index < actions.size - 1) {
+                    HorizontalDivider(
+                        modifier  = Modifier
+                            .padding(start = 74.dp, end = 20.dp)
+                            .alpha(alphas[index]),
+                        color     = DividerColor,
+                        thickness = 0.5.dp
+                    )
                 }
             }
         }
@@ -1079,47 +1094,148 @@ private fun MiscSheet(
 }
 
 @Composable
-private fun QuickAddTile(
-    icon: ImageVector,
-    iconBg: Color,
-    label: String,
-    onClick: () -> Unit,
+private fun QuickActionRow(
+    action:   QuickAction,
+    onClick:  () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Row(
         modifier = modifier
-            .height(96.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // Soft rounded-square icon bubble
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(action.tint.copy(alpha = 0.13f)),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(iconBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+            Icon(
+                imageVector     = action.icon,
+                contentDescription = null,
+                tint            = action.tint,
+                modifier        = Modifier.size(20.dp)
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text       = action.label,
+                fontWeight = FontWeight.SemiBold,
+                fontSize   = 15.sp,
+                color      = TextPrimary
+            )
+            Text(
+                text     = action.subtitle,
+                fontSize = 12.sp,
+                color    = TextMuted
+            )
+        }
+        Icon(
+            imageVector        = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint               = TextMuted.copy(alpha = 0.5f),
+            modifier           = Modifier.size(18.dp)
+        )
+    }
+}
+
+// ── More bottom sheet (navigation destinations not covered by +) ──────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MiscSheet(
+    onDismiss: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var revealed by remember { mutableStateOf(false) }
+
+    val actions = listOf(
+        QuickAction(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health",   "Metrics, weight & activity",    Screen.Health.route),
+        QuickAction(Icons.Default.ShoppingCart,   Color(0xFF6A1B9A), "Grocery",  "Your shopping lists",           Screen.GroceryLists.route),
+        QuickAction(Icons.Default.Settings,       Color(0xFF555555), "Settings", "Preferences & notifications",   Screen.Settings.route),
+    )
+
+    val alphas = actions.mapIndexed { i, _ ->
+        animateFloatAsState(
+            targetValue    = if (revealed) 1f else 0f,
+            animationSpec  = tween(durationMillis = 220, delayMillis = i * 65),
+            label          = "misc_alpha_$i"
+        ).value
+    }
+    val offsets = remember { actions.map { Animatable(24f) } }
+    LaunchedEffect(Unit) {
+        delay(60L)
+        revealed = true
+        actions.indices.forEach { i ->
+            launch {
+                delay(i * 65L)
+                offsets[i].animateTo(
+                    targetValue    = 0f,
+                    animationSpec  = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness    = Spring.StiffnessMedium
+                    )
                 )
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        }
+    }
+
+    fun go(route: String) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) { onDismiss(); onNavigate(route) }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState       = sheetState,
+        containerColor   = CardBg,
+        shape            = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = {
+            Box(
+                Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(TextMuted.copy(alpha = 0.3f))
+                )
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 40.dp)
+        ) {
+            actions.forEachIndexed { index, action ->
+                QuickActionRow(
+                    action   = action,
+                    onClick  = { go(action.route) },
+                    modifier = Modifier
+                        .alpha(alphas[index])
+                        .offset(y = offsets[index].value.dp)
+                )
+                if (index < actions.size - 1) {
+                    HorizontalDivider(
+                        modifier  = Modifier
+                            .padding(start = 74.dp, end = 20.dp)
+                            .alpha(alphas[index]),
+                        color     = DividerColor,
+                        thickness = 0.5.dp
+                    )
+                }
+            }
         }
     }
 }

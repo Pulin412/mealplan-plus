@@ -30,7 +30,8 @@ import com.mealplanplus.data.model.Tag
 import androidx.compose.ui.text.style.TextAlign
 import com.mealplanplus.ui.theme.DesignGreen
 
-private val FormGreen = DesignGreen
+private val FormGreen: Color
+    @Composable get() = DesignGreen
 
 // ─── Top Bar ────────────────────────────────────────────────────────────────
 

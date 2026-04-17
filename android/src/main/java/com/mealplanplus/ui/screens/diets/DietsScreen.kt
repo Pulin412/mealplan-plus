@@ -35,7 +35,6 @@ import com.mealplanplus.ui.components.TagChip
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
 import com.mealplanplus.ui.theme.DesignGreen
-import com.mealplanplus.ui.theme.DesignGreenLight
 import com.mealplanplus.ui.theme.TagGrayBg
 import com.mealplanplus.ui.theme.TextDestructive
 import com.mealplanplus.ui.theme.TextSecondary

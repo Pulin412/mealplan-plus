@@ -36,6 +36,19 @@ import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.model.LoggedFoodWithDetails
 import com.mealplanplus.data.model.MealFoodItemWithDetails
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CaloriesColor
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.CarbsColor
+import com.mealplanplus.ui.theme.ExtraBg
+import com.mealplanplus.ui.theme.ExtraText
+import com.mealplanplus.ui.theme.FatColor
+import com.mealplanplus.ui.theme.OverColor
+import com.mealplanplus.ui.theme.ProteinColor
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
+import com.mealplanplus.ui.theme.TopBarGreen
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.min
@@ -47,23 +60,6 @@ sealed class LogSlot {
         is Default -> "default_${mealSlot.name}"
     }
 }
-
-// ── Design tokens ────────────────────────────────────────────────────────────
-private val TopBarGreen   = Color(0xFF2E7D52)
-private val BgPage        = Color(0xFFF7F7F7)
-private val CardBg        = Color.White
-private val TextPrimary   = Color(0xFF111111)
-private val TextSecondary = Color(0xFF888888)
-private val TextMuted     = Color(0xFFBBBBBB)
-private val ExtraBg       = Color(0xFFFFF3E0)
-private val ExtraText     = Color(0xFFC05200)
-
-// Macro colours
-private val CaloriesColor = Color(0xFFF59E0B)
-private val ProteinColor  = Color(0xFF2E7D52)
-private val CarbsColor    = Color(0xFFC05200)
-private val FatColor      = Color(0xFF1E4FBF)
-private val OverColor     = Color(0xFFF59E0B)
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 

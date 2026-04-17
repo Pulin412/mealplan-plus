@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MealPlan+ — Landing Page Concept</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Inter', sans-serif; background: #0d0d0d; color: #fff; min-height: 100vh; }
+
+/* ── Page shell ── */
+.page { padding: 32px 24px 56px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; color: #eee; text-align: center; }
+.page-sub { font-size: 12px; color: #555; text-align: center; max-width: 600px; line-height: 1.5; }
+
+/* ── Column header ── */
+.columns { display: flex; gap: 56px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+.col { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+.col-label {
+  font-size: 10px; font-weight: 800; letter-spacing: 1.2px; color: #444; text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+.col-label::before, .col-label::after { content:''; flex:1; height:1px; background:#222; width:60px; }
+.col-label.current::before, .col-label.current::after { background:#333; }
+.col-label.proposed { color: #4caf80; }
+.col-label.proposed::before, .col-label.proposed::after { background:#1a3d2a; }
+
+/* Arrow between columns */
+.arrow-col { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding-top: 120px; }
+.arrow { font-size: 28px; color: #333; }
+.arrow-label { font-size: 10px; color: #333; font-weight: 700; letter-spacing: 0.8px; }
+
+/* ── Phone frame ── */
+.phone-pair { display: flex; flex-direction: row; gap: 20px; align-items: flex-start; }
+.phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.phone-title { font-size: 11px; font-weight: 700; color: #555; letter-spacing: 0.5px; }
+.phone {
+  width: 270px; height: 585px; border-radius: 36px; overflow: hidden;
+  box-shadow: 0 24px 48px rgba(0,0,0,.8), 0 0 0 1px #2a2a2a;
+  position: relative; flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════
+   CURRENT — Login Screen (as-is)
+═══════════════════════════════════════ */
+.cur-login { background: #fff; display: flex; flex-direction: column; height: 100%; }
+.cur-status { background: #fff; height: 40px; display: flex; align-items: center; padding: 0 18px; justify-content: space-between; }
+.cur-status span { font-size: 11px; font-weight: 600; color: #111; }
+.cur-login-body {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 24px 22px; overflow-y: auto;
+}
+.cur-logo-circle {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: #008391; /* Teal40 — current theme */
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; margin-bottom: 12px;
+}
+.cur-app-name { font-size: 26px; font-weight: 800; color: #008391; letter-spacing: -0.5px; }
+.cur-tagline { font-size: 12px; color: #888; margin-top: 3px; margin-bottom: 28px; }
+.cur-field {
+  width: 100%; height: 44px; border: 1.5px solid #ccc; border-radius: 6px;
+  margin-bottom: 12px; display: flex; align-items: center; padding: 0 12px;
+  gap: 8px; background: #fff;
+}
+.cur-field span { font-size: 16px; color: #aaa; }
+.cur-field .ph { font-size: 12px; color: #bbb; flex: 1; }
+.cur-btn {
+  width: 100%; height: 44px; border-radius: 6px; background: #008391;
+  color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center;
+  justify-content: center; margin-top: 4px;
+}
+.cur-forgot { font-size: 11px; color: #008391; text-align: right; width: 100%; margin-top: -6px; margin-bottom: 8px; }
+.cur-google-btn {
+  width: 100%; height: 44px; border-radius: 6px; border: 1.5px solid #ccc;
+  background: #fff; color: #333; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px;
+}
+.cur-or { width: 100%; display: flex; align-items: center; gap: 8px; margin: 14px 0; font-size: 11px; color: #bbb; }
+.cur-or::before, .cur-or::after { content:''; flex:1; height:1px; background:#eee; }
+.cur-signup-btn {
+  width: 100%; height: 44px; border-radius: 6px; border: 1.5px solid #ccc;
+  background: #fff; color: #333; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; margin-top: 0;
+}
+.cur-copy { font-size: 9px; color: #ccc; margin-top: auto; padding-top: 12px; }
+
+/* ═══════════════════════════════════════
+   CURRENT — Home Screen (as-is)
+═══════════════════════════════════════ */
+.cur-home { background: #fafcfe; display: flex; flex-direction: column; height: 100%; }
+.cur-home-header {
+  background: #2e7d52; padding: 36px 18px 18px;
+}
+.cur-home-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.cur-menu-row { display: flex; align-items: center; gap: 6px; }
+.cur-menu-icon { font-size: 16px; color: rgba(255,255,255,.7); }
+.cur-greeting-name { font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+.cur-greeting-sub { font-size: 12px; color: rgba(255,255,255,.75); }
+.cur-home-icons { display: flex; gap: 6px; }
+.cur-icon-btn { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.cur-calcard {
+  background: rgba(255,255,255,.15); border-radius: 14px; padding: 12px 14px;
+}
+.cur-calcard-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.cur-calcard-label { font-size: 11px; color: rgba(255,255,255,.75); }
+.cur-calcard-val { font-size: 12px; font-weight: 700; color: #fff; }
+.cur-calbar { height: 5px; background: rgba(255,255,255,.25); border-radius: 3px; overflow: hidden; }
+.cur-calbar-fill { height: 100%; background: #fff; border-radius: 3px; }
+.cur-calstatus { font-size: 10px; color: rgba(255,255,255,.8); margin-top: 5px; display: flex; justify-content: space-between; }
+
+.cur-home-scroll { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Macro rings card */
+.cur-rings-card { background: #fff; border-radius: 14px; padding: 12px 8px; display: flex; justify-content: space-around; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.cur-ring-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.cur-ring { width: 54px; height: 54px; position: relative; }
+.cur-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.cur-ring-label { font-size: 9px; color: #888; font-weight: 600; }
+.cur-ring-pct { font-size: 8px; color: #aaa; }
+
+/* Today plan card */
+.cur-plan-card { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.cur-plan-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.cur-plan-title { font-size: 14px; font-weight: 700; color: #111; }
+.cur-plan-action { font-size: 11px; color: #2e7d52; font-weight: 700; }
+.cur-slot { display: flex; align-items: center; gap: 8px; padding: 7px 0; }
+.cur-slot + .cur-slot { border-top: 0.5px solid #f5f5f5; }
+.cur-slot-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.cur-slot-info { flex: 1; }
+.cur-slot-name { font-size: 12px; font-weight: 600; color: #111; }
+.cur-slot-meal { font-size: 10px; color: #888; }
+.cur-slot-tick { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 700; }
+
+.cur-navbar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 54px;
+  background: #fff; border-top: 1px solid #eee;
+  display: flex; align-items: center; justify-content: space-around; padding-bottom: 2px;
+}
+.cur-nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+.cur-nav-item .ni { font-size: 16px; }
+.cur-nav-item .nl { font-size: 8px; color: #bbb; font-weight: 600; }
+.cur-nav-item.a .nl { color: #2e7d52; }
+.cur-nav-fab { width: 40px; height: 40px; border-radius: 50%; background: #2e7d52; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; margin-bottom: 6px; }
+
+/* ═══════════════════════════════════════
+   PROPOSED — Landing Screen
+═══════════════════════════════════════ */
+.new-landing { background: #fff; display: flex; flex-direction: column; height: 100%; }
+.new-hero {
+  background: linear-gradient(160deg, #1a3d2a 0%, #2e7d52 55%, #3d9463 100%);
+  flex: 0 0 54%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 0 22px; position: relative; overflow: hidden;
+}
+.food-bg {
+  position: absolute; inset: 0; display: grid; grid-template-columns: repeat(5, 1fr);
+  opacity: 0.07; font-size: 22px; align-items: center; justify-items: center;
+  padding: 10px; pointer-events: none;
+}
+.new-logo-box {
+  width: 62px; height: 62px; border-radius: 18px;
+  background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.25);
+  display: flex; align-items: center; justify-content: center; font-size: 28px;
+  margin-bottom: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.25);
+}
+.new-app-name { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.6px; }
+.new-tagline { font-size: 11px; color: rgba(255,255,255,.65); margin-top: 4px; text-align: center; line-height: 1.4; }
+.new-pills { display: flex; gap: 5px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+.new-pill {
+  background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.18);
+  border-radius: 20px; padding: 3px 9px; font-size: 9px; color: rgba(255,255,255,.9); font-weight: 600;
+}
+.new-actions {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 20px 20px 22px; gap: 10px; background: #fff;
+}
+.new-cta-label { font-size: 15px; font-weight: 800; color: #111; letter-spacing: -0.3px; }
+.new-cta-sub { font-size: 10px; color: #bbb; margin-top: -6px; }
+.new-btn-primary {
+  width: 100%; height: 44px; border-radius: 11px; background: #111;
+  color: #fff; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.new-btn-google {
+  width: 100%; height: 44px; border-radius: 11px; border: 1.5px solid #e0e0e0;
+  background: #fff; color: #333; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.new-divider { display: flex; align-items: center; gap: 8px; width: 100%; color: #ddd; font-size: 10px; }
+.new-divider::before,.new-divider::after { content:''; flex:1; height:1px; background:#eee; }
+.new-btn-secondary {
+  width: 100%; height: 44px; border-radius: 11px; background: #f5f5f5;
+  color: #555; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.new-footer { font-size: 9px; color: #ccc; margin-top: auto; text-align: center; }
+
+/* ═══════════════════════════════════════
+   PROPOSED — Sign In Screen
+═══════════════════════════════════════ */
+.new-signin { background: #fff; display: flex; flex-direction: column; height: 100%; }
+.new-signin-top {
+  background: #2e7d52; padding: 40px 20px 22px;
+}
+.back-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; color: rgba(255,255,255,.65); font-size: 12px; }
+.new-signin-title { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+.new-signin-sub { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 2px; }
+.new-signin-body {
+  flex: 1; padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 11px; overflow-y: auto;
+}
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-label { font-size: 10px; font-weight: 800; color: #999; letter-spacing: 0.5px; }
+.field-box {
+  height: 42px; border-radius: 10px; border: 1.5px solid #ebebeb; background: #fafafa;
+  padding: 0 12px; display: flex; align-items: center; gap: 8px;
+}
+.field-box span { font-size: 14px; color: #ccc; }
+.field-ph { font-size: 12px; color: #ccc; flex: 1; }
+.field-eye { font-size: 12px; color: #ccc; }
+.forgot-link { font-size: 11px; color: #2e7d52; font-weight: 700; text-align: right; margin-top: -6px; }
+.new-signin-btn {
+  height: 44px; border-radius: 11px; background: #111;
+  color: #fff; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.new-or { display: flex; align-items: center; gap: 8px; color: #ddd; font-size: 10px; }
+.new-or::before,.new-or::after { content:''; flex:1; height:1px; background:#eee; }
+.new-google {
+  height: 42px; border-radius: 11px; border: 1.5px solid #e0e0e0; background: #fff;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-size: 12px; font-weight: 600; color: #333;
+}
+.new-signup-link { font-size: 11px; color: #aaa; text-align: center; margin-top: auto; padding-top: 4px; }
+.new-signup-link a { color: #2e7d52; font-weight: 700; }
+
+/* ═══════════════════════════════════════
+   PROPOSED — Home Screen (unchanged, shown for context)
+═══════════════════════════════════════ */
+.same-badge {
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+  padding: 6px 12px; font-size: 11px; color: #555; text-align: center; width: 270px;
+  line-height: 1.5;
+}
+
+/* ── Notes ── */
+.notes-row { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
+.note { background: #141414; border: 1px solid #1e1e1e; border-radius: 12px; padding: 14px 16px; font-size: 11px; color: #666; line-height: 1.6; flex: 1; min-width: 240px; max-width: 280px; }
+.note strong { color: #ddd; display: block; margin-bottom: 5px; font-size: 12px; }
+.note ul { padding-left: 14px; }
+.note li { margin-bottom: 3px; }
+.pro { color: #4caf80; }
+.mut { color: #888; }
+
+.change-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 8px;
+}
+.badge-change { background: #1a3d2a; color: #4caf80; }
+.badge-same { background: #1a1a1a; color: #555; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div>
+    <h1>MealPlan+ — Landing Page · Before &amp; After</h1>
+    <p class="page-sub">Left column = current app as-is &nbsp;·&nbsp; Right column = proposed changes &nbsp;·&nbsp; Green header = screens that change &nbsp;·&nbsp; Greyed = unchanged</p>
+  </div>
+
+  <div class="columns">
+
+    <!-- ═══════ CURRENT COLUMN ═══════ -->
+    <div class="col">
+      <div class="col-label current">Current</div>
+
+      <div class="phone-pair">
+
+        <!-- Current: Login -->
+        <div class="phone-wrap">
+          <div class="phone-title">Login <span class="change-badge badge-change">→ changes</span></div>
+          <div class="phone cur-login">
+            <div class="cur-status"><span>9:41</span><span>● ● ▐▐</span></div>
+            <div class="cur-login-body">
+              <div class="cur-logo-circle">🍽</div>
+              <div class="cur-app-name">MealPlan+</div>
+              <div class="cur-tagline">Smart nutrition tracking</div>
+
+              <div class="cur-field">
+                <span>✉</span><div class="ph">Email</div>
+              </div>
+              <div class="cur-field">
+                <span>🔒</span><div class="ph">Password</div><span style="font-size:12px;">👁</span>
+              </div>
+              <div class="cur-forgot">Forgot Password?</div>
+              <div class="cur-btn">Sign In</div>
+              <div class="cur-google-btn">
+                <span style="font-weight:900;color:#4285F4;">G</span> Continue with Google
+              </div>
+              <div class="cur-or">or</div>
+              <div class="cur-signup-btn">Sign Up</div>
+              <div class="cur-copy">© 2026 Pulin. All rights reserved.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current: Home -->
+        <div class="phone-wrap">
+          <div class="phone-title">Home <span class="change-badge badge-same">unchanged</span></div>
+          <div class="phone cur-home">
+            <!-- Green header -->
+            <div class="cur-home-header">
+              <div class="cur-home-top">
+                <div class="cur-menu-row">
+                  <div class="cur-menu-icon">☰</div>
+                  <div>
+                    <div class="cur-greeting-name">Good morning, Pulin 👋</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,.6);">Saturday, 12 Apr</div>
+                  </div>
+                </div>
+                <div class="cur-home-icons">
+                  <div class="cur-icon-btn">🌙</div>
+                  <div class="cur-icon-btn">🔔</div>
+                  <div class="cur-icon-btn" style="font-weight:700;font-size:12px;">P</div>
+                </div>
+              </div>
+              <div class="cur-calcard">
+                <div class="cur-calcard-row">
+                  <div class="cur-calcard-label">Today's Target</div>
+                  <div class="cur-calcard-val">840 / 1840 kcal</div>
+                </div>
+                <div class="cur-calbar"><div class="cur-calbar-fill" style="width:46%"></div></div>
+                <div class="cur-calstatus">
+                  <span>🔥 1000 kcal remaining</span>
+                  <span>🔥 47 day streak</span>
+                </div>
+              </div>
+            </div>
+            <!-- Scroll content -->
+            <div class="cur-home-scroll">
+              <!-- Macro rings -->
+              <div class="cur-rings-card">
+                <div class="cur-ring-item">
+                  <div class="cur-ring">
+                    <svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="#f5f5f5" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="#F5A623" stroke-width="5" stroke-dasharray="138.2" stroke-dashoffset="75" stroke-linecap="round"/><text x="27" y="27" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="700" fill="#111" transform="rotate(90 27 27)">110g</text></svg>
+                  </div>
+                  <div class="cur-ring-label">Carbs</div><div class="cur-ring-pct">53%</div>
+                </div>
+                <div class="cur-ring-item">
+                  <div class="cur-ring">
+                    <svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="#f5f5f5" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="#4A90D9" stroke-width="5" stroke-dasharray="138.2" stroke-dashoffset="82" stroke-linecap="round"/><text x="27" y="27" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="700" fill="#111" transform="rotate(90 27 27)">62g</text></svg>
+                  </div>
+                  <div class="cur-ring-label">Protein</div><div class="cur-ring-pct">45%</div>
+                </div>
+                <div class="cur-ring-item">
+                  <div class="cur-ring">
+                    <svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="#f5f5f5" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="#E91E8C" stroke-width="5" stroke-dasharray="138.2" stroke-dashoffset="76" stroke-linecap="round"/><text x="27" y="27" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="700" fill="#111" transform="rotate(90 27 27)">28g</text></svg>
+                  </div>
+                  <div class="cur-ring-label">Fat</div><div class="cur-ring-pct">47%</div>
+                </div>
+                <div class="cur-ring-item">
+                  <div class="cur-ring">
+                    <svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="#f5f5f5" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="#2e7d52" stroke-width="5" stroke-dasharray="138.2" stroke-dashoffset="74" stroke-linecap="round"/><text x="27" y="27" dominant-baseline="middle" text-anchor="middle" font-size="8" font-weight="700" fill="#111" transform="rotate(90 27 27)">840</text></svg>
+                  </div>
+                  <div class="cur-ring-label">Calories</div><div class="cur-ring-pct">46%</div>
+                </div>
+              </div>
+              <!-- Today plan card -->
+              <div class="cur-plan-card">
+                <div class="cur-plan-head">
+                  <div class="cur-plan-title">Today's Plan</div>
+                  <div class="cur-plan-action">Change Diet ›</div>
+                </div>
+                <div class="cur-slot">
+                  <div class="cur-slot-icon" style="background:#fff3e0;">🌅</div>
+                  <div class="cur-slot-info">
+                    <div class="cur-slot-name">Breakfast</div>
+                    <div class="cur-slot-meal">Poha · Chai</div>
+                  </div>
+                  <div class="cur-slot-tick" style="background:#2e7d52;color:#fff;">✓</div>
+                </div>
+                <div class="cur-slot">
+                  <div class="cur-slot-icon" style="background:#e8f5ee;opacity:.5;">☀️</div>
+                  <div class="cur-slot-info" style="opacity:.5;">
+                    <div class="cur-slot-name">Lunch</div>
+                    <div class="cur-slot-meal">Dal Tadka · Rice</div>
+                  </div>
+                  <div class="cur-slot-tick" style="background:#f0f0f0;color:#ccc;">○</div>
+                </div>
+                <div class="cur-slot">
+                  <div class="cur-slot-icon" style="background:#ede7f6;opacity:.5;">🌙</div>
+                  <div class="cur-slot-info" style="opacity:.5;">
+                    <div class="cur-slot-name">Dinner</div>
+                    <div class="cur-slot-meal">Roti · Paneer</div>
+                  </div>
+                  <div class="cur-slot-tick" style="background:#f0f0f0;color:#ccc;">○</div>
+                </div>
+              </div>
+            </div>
+            <!-- Nav bar -->
+            <div class="cur-navbar">
+              <div class="cur-nav-item a"><div class="ni">🏠</div><div class="nl" style="color:#2e7d52;">Home</div></div>
+              <div class="cur-nav-item"><div class="ni">📅</div><div class="nl">Plan</div></div>
+              <div class="cur-nav-fab">+</div>
+              <div class="cur-nav-item"><div class="ni">🥗</div><div class="nl">Diets</div></div>
+              <div class="cur-nav-item"><div class="ni">⚙️</div><div class="nl">More</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /phone-pair -->
+    </div><!-- /col current -->
+
+    <!-- ═══════ ARROW ═══════ -->
+    <div class="arrow-col">
+      <div class="arrow">→</div>
+      <div class="arrow-label">PROPOSED</div>
+    </div>
+
+    <!-- ═══════ PROPOSED COLUMN ═══════ -->
+    <div class="col">
+      <div class="col-label proposed">Proposed</div>
+
+      <div class="phone-pair">
+
+        <!-- Proposed: Landing (new screen) -->
+        <div class="phone-wrap">
+          <div class="phone-title">Landing <span class="change-badge badge-change">new screen</span></div>
+          <div class="phone new-landing">
+            <!-- Hero -->
+            <div class="new-hero">
+              <div class="food-bg">🥗🍛🥦🍎🥕 🫚🍲🥑🌽🧄 🫙🍱🥩🍅🧅 🫐🥗🍳🥜🌿 🥝🫛🧆🍠🫘</div>
+              <div class="new-logo-box">🥗</div>
+              <div class="new-app-name">MealPlan+</div>
+              <div class="new-tagline">Your personal nutrition companion.<br>Plan, track &amp; thrive.</div>
+              <div class="new-pills">
+                <div class="new-pill">🍽 Meal Plans</div>
+                <div class="new-pill">📊 Macro Tracking</div>
+                <div class="new-pill">🛒 Grocery Lists</div>
+                <div class="new-pill">🔥 Streaks</div>
+              </div>
+            </div>
+            <!-- Actions -->
+            <div class="new-actions">
+              <div class="new-cta-label">Start your journey</div>
+              <div class="new-cta-sub">Free forever · No credit card</div>
+              <div class="new-btn-primary">✉&nbsp; Sign in with Email</div>
+              <div class="new-btn-google">
+                <span style="font-weight:900;font-size:14px;color:#4285F4;">G</span>
+                Continue with Google
+              </div>
+              <div class="new-divider">or</div>
+              <div class="new-btn-secondary">✦&nbsp; Create free account</div>
+              <div class="new-footer">By continuing you agree to our Terms &amp; Privacy</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Proposed: Sign In (restyled) -->
+        <div class="phone-wrap">
+          <div class="phone-title">Sign In <span class="change-badge badge-change">restyled</span></div>
+          <div class="phone new-signin">
+            <!-- Green top -->
+            <div class="new-signin-top">
+              <div class="back-row">← &nbsp;Back</div>
+              <div class="new-signin-title">Welcome back 👋</div>
+              <div class="new-signin-sub">Sign in to MealPlan+</div>
+            </div>
+            <!-- Form -->
+            <div class="new-signin-body">
+              <div class="field-group">
+                <div class="field-label">EMAIL</div>
+                <div class="field-box"><span>✉</span><div class="field-ph">you@example.com</div></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">PASSWORD</div>
+                <div class="field-box"><span>🔒</span><div class="field-ph">••••••••</div><span class="field-eye">👁</span></div>
+              </div>
+              <div class="forgot-link">Forgot Password?</div>
+              <div class="new-signin-btn">Sign In →</div>
+              <div class="new-or">or</div>
+              <div class="new-google"><span style="font-weight:900;font-size:14px;color:#4285F4;">G</span> Continue with Google</div>
+              <div class="new-signup-link">No account? <a>Create one →</a></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /phone-pair -->
+
+      <!-- Home screen note -->
+      <div class="same-badge">🏠 Home screen &amp; all other screens remain exactly as they are — no changes</div>
+
+    </div><!-- /col proposed -->
+
+  </div><!-- /columns -->
+
+  <!-- Notes -->
+  <div class="notes-row">
+    <div class="note">
+      <strong>What changes</strong>
+      <ul>
+        <li class="pro">✓ New <code>LandingScreen.kt</code> added — green hero, feature pills, 3 CTAs</li>
+        <li class="pro">✓ <code>LoginScreen.kt</code> restyled — green header strip, cleaner fields</li>
+        <li class="pro">✓ <code>SignUpScreen.kt</code> same treatment as Sign In</li>
+        <li class="pro">✓ Nav routing updated: app opens to Landing, not Login</li>
+      </ul>
+    </div>
+    <div class="note">
+      <strong>What stays the same</strong>
+      <ul>
+        <li class="mut">→ All auth logic (Firebase, Google OAuth) — untouched</li>
+        <li class="mut">→ HomeScreen, DailyLog, Diets, Calendar — unchanged</li>
+        <li class="mut">→ Theme / Color tokens — unchanged</li>
+        <li class="mut">→ All ViewModels and repositories — unchanged</li>
+      </ul>
+    </div>
+    <div class="note">
+      <strong>Design rationale</strong>
+      <ul>
+        <li class="pro">✓ Green header = visual continuity between landing → app</li>
+        <li class="pro">✓ Feature pills give new users context before signing up</li>
+        <li class="pro">✓ "Free forever" line removes hesitation for new installs</li>
+        <li class="mut">→ Same green (#2e7d52) used in the app header — consistent brand</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

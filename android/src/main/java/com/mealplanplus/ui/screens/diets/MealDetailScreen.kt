@@ -24,7 +24,8 @@ import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.DesignGreen
 import com.mealplanplus.ui.theme.TextSecondary
 
-private val DetailGreen = DesignGreen
+private val DetailGreen: Color
+    @Composable get() = DesignGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

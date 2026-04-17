@@ -29,6 +29,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.*
 import com.mealplanplus.ui.components.CalendarDayCell
+import com.mealplanplus.ui.theme.BgPage
+import com.mealplanplus.ui.theme.CardBg
+import com.mealplanplus.ui.theme.DarkGreen
+import com.mealplanplus.ui.theme.DesignGreen
+import com.mealplanplus.ui.theme.LocalIsDarkTheme
+import com.mealplanplus.ui.theme.TagPurple
+import com.mealplanplus.ui.theme.TextMuted
+import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.TextSecondary
 import com.mealplanplus.util.toEpochMs
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -37,16 +46,7 @@ import java.time.format.TextStyle
 import java.util.*
 import kotlin.math.roundToInt
 
-// ── Design tokens ────────────────────────────────────────────────────────────
-internal val DarkGreen      = Color(0xFF2E7D52)
-internal val BgPage         = Color(0xFFF7F7F7)
-internal val CardBg         = Color.White
-internal val TextPrimary    = Color(0xFF111111)
-internal val TextSecondary  = Color(0xFF888888)
-internal val TextMuted      = Color(0xFFAAAAAA)
-internal val TagPurple      = Color(0xFF7B1FA2)
-
-// Slot dot colours (matching Log screen)
+// Slot dot colours
 internal fun planSlotColor(slotName: String): Color = when (slotName.uppercase()) {
     "BREAKFAST"    -> Color(0xFFF59E0B)
     "NOON"         -> Color(0xFF888888)
@@ -62,11 +62,15 @@ internal fun planSlotColor(slotName: String): Color = when (slotName.uppercase()
     else           -> Color(0xFF888888)
 }
 
-// Legacy aliases
-private val LightGreenBg  = Color(0xFFE8F5E9)
-private val YellowBg      = Color(0xFFFFFDE7)
-private val PlannedYellow = Color(0xFFFFF9C4)
-private val CompletedGreen = DarkGreen
+// Calendar-specific background tints — adapt for dark mode
+private val LightGreenBg: Color
+    @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF1A2D23) else Color(0xFFE8F5E9)
+private val YellowBg: Color
+    @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF2D2100) else Color(0xFFFFFDE7)
+private val PlannedYellow: Color
+    @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF2A1E00) else Color(0xFFFFF9C4)
+private val CompletedGreen: Color
+    @Composable get() = DesignGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

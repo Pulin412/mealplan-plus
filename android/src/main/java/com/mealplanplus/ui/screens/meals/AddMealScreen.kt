@@ -1,31 +1,33 @@
 package com.mealplanplus.ui.screens.meals
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
-import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.repository.UsdaFoodResult
-import com.mealplanplus.ui.components.FoodDetailSheet
-import com.mealplanplus.ui.theme.BgPage
-import com.mealplanplus.ui.theme.DesignGreen
-import com.mealplanplus.ui.theme.DesignGreenLight
-import com.mealplanplus.ui.theme.TextDestructive
-import com.mealplanplus.ui.theme.TextPrimary
-import com.mealplanplus.ui.theme.TextSecondary
-import com.mealplanplus.ui.theme.minimalTopAppBarColors
+import com.mealplanplus.ui.components.*
+import com.mealplanplus.ui.screens.foods.UsdaFoodResultRow
+import com.mealplanplus.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,25 +38,22 @@ fun AddMealScreen(
     viewModel: AddMealViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var slotExpanded by remember { mutableStateOf(false) }
-
-    // Editing food state
     var editingFood by remember { mutableStateOf<SelectedFood?>(null) }
 
     // Handle food selection results from FoodPickerScreen
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.let { handle ->
-            // Local food selected
             handle.get<Long>("selected_food_id")?.let { foodId ->
                 val quantity = handle.get<Double>("selected_quantity") ?: 1.0
-                val unit = handle.get<String>("selected_unit")?.let { runCatching { com.mealplanplus.data.model.FoodUnit.valueOf(it) }.getOrNull() } ?: com.mealplanplus.data.model.FoodUnit.GRAM
+                val unit = handle.get<String>("selected_unit")?.let {
+                    runCatching { FoodUnit.valueOf(it) }.getOrNull()
+                } ?: FoodUnit.GRAM
                 viewModel.addFoodById(foodId, quantity, unit)
                 handle.remove<Long>("selected_food_id")
                 handle.remove<Double>("selected_quantity")
                 handle.remove<String>("selected_unit")
             }
 
-            // USDA food selected
             handle.get<String>("usda_food_name")?.let { name ->
                 val usdaFood = UsdaFoodResult(
                     fdcId = 0,
@@ -69,8 +68,6 @@ fun AddMealScreen(
                 )
                 val quantity = handle.get<Double>("selected_quantity") ?: 1.0
                 viewModel.addUsdaFoodWithQuantity(usdaFood, quantity)
-
-                // Clear all USDA keys
                 handle.remove<String>("usda_food_name")
                 handle.remove<String>("usda_food_brand")
                 handle.remove<Double>("usda_food_calories")
@@ -89,173 +86,160 @@ fun AddMealScreen(
         if (uiState.isSaved) onNavigateBack()
     }
 
-    Scaffold(
-        containerColor = BgPage,
-        topBar = {
-            TopAppBar(
-                title = { Text("Add Meal", color = TextPrimary) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
-                    }
-                },
-                colors = minimalTopAppBarColors()
-            )
-        }
-    ) { padding ->
+    val bgPage = BgPage
+    val cardBg = CardBg
+    val textMuted = TextMuted
+    val dividerColor = DividerColor
+    val iconBgGray = IconBgGray
+
+    val totalCal = uiState.selectedFoods.sumOf { it.food.calculateCalories(it.quantity, it.unit) }
+    val totalP = uiState.selectedFoods.sumOf { it.food.calculateProtein(it.quantity, it.unit) }
+    val totalC = uiState.selectedFoods.sumOf { it.food.calculateCarbs(it.quantity, it.unit) }
+    val totalF = uiState.selectedFoods.sumOf { it.food.calculateFat(it.quantity, it.unit) }
+
+    Column(modifier = Modifier.fillMaxSize().background(bgPage)) {
+        // ── Header ──
+        ScreenCloseHeader(title = "Create Meal", onClose = onNavigateBack)
+        ScreenSubtitle(text = "Combine foods into a meal")
+
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BgPage)
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Meal name
             item {
-                OutlinedTextField(
-                    value = uiState.name,
-                    onValueChange = viewModel::updateName,
-                    label = { Text("Meal Name *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                FormGroup(label = "Meal Name *") {
+                    DesignTextField(
+                        value = uiState.name,
+                        onValueChange = viewModel::updateName,
+                        placeholder = "e.g. Paneer Corn Stir Fry",
+                        imeAction = ImeAction.Next
+                    )
+                }
+            }
+
+            // Ingredients section label
+            item {
+                FormSectionLabel(
+                    "Ingredients",
+                    modifier = Modifier.padding(top = 6.dp)
                 )
             }
 
+            // Ingredient card
             item {
-                OutlinedTextField(
-                    value = uiState.description,
-                    onValueChange = viewModel::updateDescription,
-                    label = { Text("Description") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2
-                )
-            }
-
-            item {
-                ExposedDropdownMenuBox(
-                    expanded = slotExpanded,
-                    onExpandedChange = { slotExpanded = it }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(cardBg)
                 ) {
-                    OutlinedTextField(
-                        value = uiState.selectedSlot.displayName,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Meal Slot") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(slotExpanded) },
+                    if (uiState.selectedFoods.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No ingredients added yet",
+                                fontSize = 13.sp,
+                                color = textMuted,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            )
+                        }
+                    } else {
+                        uiState.selectedFoods.forEachIndexed { index, sf ->
+                            IngredientRow(
+                                food = sf.food,
+                                quantity = sf.quantity,
+                                unit = sf.unit,
+                                onEdit = { editingFood = sf },
+                                onRemove = { viewModel.removeFood(sf.food.id) }
+                            )
+                            if (index < uiState.selectedFoods.lastIndex) {
+                                HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(start = 62.dp))
+                            }
+                        }
+                    }
+
+                    // Add ingredient row
+                    HorizontalDivider(color = dividerColor, thickness = 1.dp)
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = slotExpanded,
-                        onDismissRequest = { slotExpanded = false }
+                            .clickable { onNavigateToFoodPicker() }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        DefaultMealSlot.entries.forEach { slot ->
-                            DropdownMenuItem(
-                                text = { Text(slot.displayName) },
-                                onClick = {
-                                    viewModel.updateSlot(slot)
-                                    slotExpanded = false
-                                }
-                            )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(iconBgGray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("+", fontSize = 20.sp, color = textMuted, fontWeight = FontWeight.Light)
                         }
+                        Text(
+                            "Search & add ingredient…",
+                            fontSize = 13.sp,
+                            color = textMuted,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
 
-            item {
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Food Items", style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = onNavigateToFoodPicker) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Add Food")
-                    }
-                }
-            }
-
-            if (uiState.selectedFoods.isEmpty()) {
-                item {
-                    Text(
-                        text = "No foods added yet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
-                }
-            }
-
-            items(uiState.selectedFoods, key = { it.food.id }) { sf ->
-                SelectedFoodCard(
-                    food = sf.food,
-                    quantity = sf.quantity,
-                    unit = sf.unit,
-                    onQuantityChange = { viewModel.updateFoodQuantity(sf.food.id, it) },
-                    onRemove = { viewModel.removeFood(sf.food.id) },
-                    onEdit = { editingFood = sf }
-                )
-            }
-
+            // Macro summary strip (shown when there are foods)
             if (uiState.selectedFoods.isNotEmpty()) {
                 item {
-                    val totalCal = uiState.selectedFoods.sumOf { it.food.calculateCalories(it.quantity, it.unit) }
-                    val totalP = uiState.selectedFoods.sumOf { it.food.calculateProtein(it.quantity, it.unit) }
-                    val totalC = uiState.selectedFoods.sumOf { it.food.calculateCarbs(it.quantity, it.unit) }
-                    val totalF = uiState.selectedFoods.sumOf { it.food.calculateFat(it.quantity, it.unit) }
-
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = DesignGreenLight
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(cardBg)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Total Macros", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "Cal: ${totalCal.toInt()} | P: ${totalP.toInt()}g | C: ${totalC.toInt()}g | F: ${totalF.toInt()}g",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+                        MacroColumn("${totalCal.toInt()}", "kcal", Modifier.weight(1f))
+                        Box(modifier = Modifier.width(1.dp).height(56.dp).background(dividerColor).align(Alignment.CenterVertically))
+                        MacroColumn("${totalP.toInt()}g", "protein", Modifier.weight(1f))
+                        Box(modifier = Modifier.width(1.dp).height(56.dp).background(dividerColor).align(Alignment.CenterVertically))
+                        MacroColumn("${totalC.toInt()}g", "carbs", Modifier.weight(1f))
+                        Box(modifier = Modifier.width(1.dp).height(56.dp).background(dividerColor).align(Alignment.CenterVertically))
+                        MacroColumn("${totalF.toInt()}g", "fat", Modifier.weight(1f))
                     }
                 }
             }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = viewModel::saveMeal,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isLoading
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White
-                        )
-                    } else {
-                        Text("Save Meal")
-                    }
-                }
-            }
-
+            // Error
             uiState.error?.let { error ->
                 item {
                     Text(
-                        text = error,
-                        color = TextDestructive,
-                        style = MaterialTheme.typography.bodySmall
+                        error,
+                        fontSize = 12.sp,
+                        color = TextDestructive
                     )
                 }
+            }
+
+            // Save button
+            item {
+                PrimaryButton(
+                    text = "Save Meal",
+                    onClick = viewModel::saveMeal,
+                    isLoading = uiState.isLoading,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Spacer(Modifier.height(32.dp))
             }
         }
     }
 
-    // Food detail sheet for editing existing food
+    // Food detail sheet for editing
     editingFood?.let { sf ->
-        FoodDetailSheet(
+        com.mealplanplus.ui.components.FoodDetailSheet(
             food = sf.food,
             usdaFood = null,
             initialQuantity = sf.quantity,
@@ -268,67 +252,117 @@ fun AddMealScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ─── Ingredient row ───────────────────────────────────────────────────────────
+
 @Composable
-fun SelectedFoodCard(
+private fun IngredientRow(
     food: FoodItem,
     quantity: Double,
-    unit: FoodUnit = FoodUnit.GRAM,
-    onQuantityChange: (Double) -> Unit,
-    onRemove: () -> Unit,
-    onEdit: () -> Unit
+    unit: FoodUnit,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit
 ) {
-    val calories = food.calculateCalories(quantity, unit)
-    val protein = food.calculateProtein(quantity, unit)
-    val carbs = food.calculateCarbs(quantity, unit)
-    val fat = food.calculateFat(quantity, unit)
+    val textPrimary = TextPrimary
+    val textMuted = TextMuted
+    val iconBgGray = IconBgGray
 
-    Card(
-        onClick = onEdit
+    val quantityLabel = buildString {
+        append(if (quantity == quantity.toLong().toDouble()) "${quantity.toInt()}" else "%.1f".format(quantity))
+        append(unit.shortLabel)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onEdit() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
+        // Food icon
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .size(38.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(iconBgGray),
+            contentAlignment = Alignment.Center
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(food.name, style = MaterialTheme.typography.bodyLarge)
+            Icon(Icons.Default.Restaurant, contentDescription = null, tint = textMuted, modifier = Modifier.size(18.dp))
+        }
+
+        // Name
+        Text(
+            food.name,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = textPrimary,
+            modifier = Modifier.weight(1f),
+            maxLines = 1
+        )
+
+        // Quantity badge + remove
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(iconBgGray)
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
                 Text(
-                    "${quantity.toInt()}${unit.shortLabel} • ${calories.toInt()} cal",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-                Text(
-                    "P:${protein.toInt()}g C:${carbs.toInt()}g F:${fat.toInt()}g",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = DesignGreen
+                    quantityLabel,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = textPrimary
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = { if (quantity > 10) onQuantityChange(quantity - 10) },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Decrease")
-                }
-                Text(
-                    text = if (quantity == quantity.toLong().toDouble()) "${quantity.toInt()}" else "%.1f".format(quantity),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Remove",
+                    tint = textMuted,
+                    modifier = Modifier.size(16.dp)
                 )
-                IconButton(
-                    onClick = { onQuantityChange(quantity + 10) },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Increase")
-                }
-                IconButton(onClick = onRemove) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove")
-                }
             }
         }
     }
 }
 
+// ─── Macro column for summary strip ──────────────────────────────────────────
+
+@Composable
+private fun MacroColumn(value: String, label: String, modifier: Modifier = Modifier) {
+    val textPrimary = TextPrimary
+    val textMuted = TextMuted
+    Column(
+        modifier = modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+        Text(label, fontSize = 10.sp, color = textMuted, modifier = Modifier.padding(top = 1.dp))
+    }
+}
+
+// Keep SelectedFoodCard for backward compat (not used in new UI but referenced from NavHost if any)
+@Composable
+fun SelectedFoodCard(
+    food: FoodItem,
+    quantity: Double,
+    unit: FoodUnit = FoodUnit.GRAM,
+    @Suppress("UNUSED_PARAMETER") onQuantityChange: (Double) -> Unit,
+    onRemove: () -> Unit,
+    onEdit: () -> Unit
+) {
+    IngredientRow(
+        food = food,
+        quantity = quantity,
+        unit = unit,
+        onEdit = onEdit,
+        onRemove = onRemove
+    )
+}

@@ -94,6 +94,23 @@ class AddFoodViewModel @Inject constructor(
         }
     }
 
+    /** Pre-fill all form fields from a scanned/found FoodItem (e.g. barcode scan result). */
+    fun prefillFromFood(food: FoodItem) {
+        _uiState.update {
+            it.copy(
+                name = food.name,
+                brand = food.brand ?: "",
+                servingSize = "100",
+                servingUnit = "g",
+                calories = food.caloriesPer100.toInt().toString(),
+                protein = food.proteinPer100.toInt().toString(),
+                carbs = food.carbsPer100.toInt().toString(),
+                fat = food.fatPer100.toInt().toString(),
+                glycemicIndex = food.glycemicIndex?.toString() ?: ""
+            )
+        }
+    }
+
     fun copyFromUsda(food: UsdaFoodResult) {
         _uiState.update {
             it.copy(
