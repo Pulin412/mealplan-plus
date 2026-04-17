@@ -1,0 +1,1084 @@
+openapi: 3.0.3
+info:
+  title: MealPlan+ API
+  description: |
+    REST API for MealPlan+ — nutrition tracking & meal planning.
+
+    ## Authentication
+    All endpoints (except health checks) require a Firebase ID token in the `Authorization: Bearer <token>` header.
+    The backend resolves the token to a `firebaseUid` and auto-creates the user on first call.
+
+    ## Sync strategy
+    Client-server sync uses **last-write-wins on `updatedAt`**.
+    - Every syncable resource carries `serverId` (stable UUID, survives local DB wipes) and `updatedAt`.
+    - **Pull:** `GET /api/v1/sync/pull?since=<ISO-8601>` — returns all records changed after `since`.
+    - **Push:** `POST /api/v1/sync/push` — upserts records by `serverId`; server returns count accepted.
+    - Android `SyncWorker` stores the last successful pull time in DataStore and passes it as `since`.
+  version: v1
+
+servers:
+  - url: https://api.mealplanplus.com
+    description: Production (Cloud Run)
+  - url: http://localhost:8080
+    description: Local dev
+
+security:
+  - FirebaseJWT: []
+
+tags:
+  - name: Users
+    description: Identity — auto-created on first authenticated call
+  - name: Foods
+    description: Food items with nutritional data (system-wide + user-created)
+  - name: Meals
+    description: Named collections of foods assigned to a slot
+  - name: Diets
+    description: Weekly diet templates composed of meals
+  - name: Grocery Lists
+    description: Shopping lists, optionally linked to a diet
+  - name: Health Metrics
+    description: Weight, steps, blood pressure, and custom metrics
+  - name: Daily Logs
+    description: Per-day food consumption records
+  - name: Sync
+    description: Delta sync — push local changes, pull server changes since a timestamp
+
+# ─────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────
+paths:
+
+  # ── Users ────────────────────────────────────
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      description: Returns the authenticated user profile. Auto-creates the user on first call.
+      operationId: getMe
+      responses:
+        '200':
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Foods ─────────────────────────────────────
+  /api/v1/foods:
+    get:
+      tags: [Foods]
+      summary: List foods
+      description: Returns all system foods plus foods created by the authenticated user.
+      operationId: listFoods
+      responses:
+        '200':
+          description: List of foods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FoodDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Foods]
+      summary: Create food
+      operationId: createFood
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FoodDto'
+      responses:
+        '201':
+          description: Created food
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FoodDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/foods/{id}:
+    get:
+      tags: [Foods]
+      summary: Get food by ID
+      operationId: getFood
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Food
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FoodDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Foods]
+      summary: Delete food
+      operationId: deleteFood
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Meals ─────────────────────────────────────
+  /api/v1/meals:
+    get:
+      tags: [Meals]
+      summary: List meals
+      description: Returns all meals owned by the authenticated user.
+      operationId: listMeals
+      responses:
+        '200':
+          description: List of meals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MealDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Meals]
+      summary: Create meal
+      operationId: createMeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealDto'
+      responses:
+        '201':
+          description: Created meal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/meals/{id}:
+    get:
+      tags: [Meals]
+      summary: Get meal by ID
+      operationId: getMeal
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Meal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Meals]
+      summary: Delete meal
+      operationId: deleteMeal
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Diets ─────────────────────────────────────
+  /api/v1/diets:
+    get:
+      tags: [Diets]
+      summary: List diets
+      operationId: listDiets
+      responses:
+        '200':
+          description: List of diets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DietDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Diets]
+      summary: Create diet
+      operationId: createDiet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DietDto'
+      responses:
+        '201':
+          description: Created diet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DietDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/diets/{id}:
+    get:
+      tags: [Diets]
+      summary: Get diet by ID
+      operationId: getDiet
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Diet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DietDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Diets]
+      summary: Delete diet
+      operationId: deleteDiet
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Grocery Lists ─────────────────────────────
+  /api/v1/grocery-lists:
+    get:
+      tags: [Grocery Lists]
+      summary: List grocery lists
+      operationId: listGroceryLists
+      responses:
+        '200':
+          description: List of grocery lists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroceryListDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Grocery Lists]
+      summary: Create grocery list
+      operationId: createGroceryList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroceryListDto'
+      responses:
+        '201':
+          description: Created grocery list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroceryListDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/grocery-lists/{id}:
+    get:
+      tags: [Grocery Lists]
+      summary: Get grocery list by ID
+      operationId: getGroceryList
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Grocery list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroceryListDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Grocery Lists]
+      summary: Delete grocery list
+      operationId: deleteGroceryList
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Health Metrics ─────────────────────────────
+  /api/v1/health-metrics:
+    get:
+      tags: [Health Metrics]
+      summary: List health metrics
+      operationId: listHealthMetrics
+      responses:
+        '200':
+          description: List of health metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HealthMetricDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Health Metrics]
+      summary: Create health metric
+      operationId: createHealthMetric
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthMetricDto'
+      responses:
+        '201':
+          description: Created health metric
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthMetricDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/health-metrics/{id}:
+    delete:
+      tags: [Health Metrics]
+      summary: Delete health metric
+      operationId: deleteHealthMetric
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/health-metrics/custom-types:
+    get:
+      tags: [Health Metrics]
+      summary: List custom metric types
+      operationId: listCustomMetricTypes
+      responses:
+        '200':
+          description: List of custom types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomMetricTypeDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Health Metrics]
+      summary: Create custom metric type
+      operationId: createCustomMetricType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomMetricTypeDto'
+      responses:
+        '201':
+          description: Created custom type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomMetricTypeDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Daily Logs ────────────────────────────────
+  /api/v1/daily-logs:
+    get:
+      tags: [Daily Logs]
+      summary: List daily logs
+      operationId: listDailyLogs
+      responses:
+        '200':
+          description: List of daily logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyLogDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Daily Logs]
+      summary: Create or update daily log
+      operationId: createDailyLog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyLogDto'
+      responses:
+        '201':
+          description: Created daily log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyLogDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/daily-logs/{id}:
+    get:
+      tags: [Daily Logs]
+      summary: Get daily log by ID
+      operationId: getDailyLog
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Daily log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyLogDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Daily Logs]
+      summary: Delete daily log
+      operationId: deleteDailyLog
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Sync ──────────────────────────────────────
+  /api/v1/sync/pull:
+    get:
+      tags: [Sync]
+      summary: Pull changes since timestamp
+      description: |
+        Returns all user-owned records with `updatedAt > since` across every domain.
+        Android `SyncWorker` stores the `serverTime` from the previous response and passes it
+        as `since` on the next call. On first sync, pass `since=1970-01-01T00:00:00Z`.
+      operationId: syncPull
+      parameters:
+        - name: since
+          in: query
+          required: true
+          description: ISO-8601 instant — only records updated after this time are returned
+          schema:
+            type: string
+            format: date-time
+            example: "2026-04-15T10:30:00Z"
+      responses:
+        '200':
+          description: Delta payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPullResponse'
+        '400':
+          description: Missing or malformed `since` parameter
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/sync/push:
+    post:
+      tags: [Sync]
+      summary: Push local changes to server
+      description: |
+        Upserts records by `serverId` using last-write-wins on `updatedAt`.
+        Any domain list may be empty — send only what has changed locally.
+      operationId: syncPush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPushRequest'
+      responses:
+        '200':
+          description: Number of records accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPushResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+# ─────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    FirebaseJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID token obtained via client-side Firebase Auth sign-in
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Firebase JWT
+    NotFound:
+      description: Resource not found
+
+  schemas:
+
+    # ── Sync metadata (mixin, not a standalone schema) ──────────────────
+    # Fields present on every syncable DTO:
+    #   serverId  — stable UUID generated on the client; survives local DB wipes
+    #   updatedAt — last-modified instant used for last-write-wins conflict resolution
+    #   createdAt — set once on creation; read-only from the server's perspective
+    # ────────────────────────────────────────────────────────────────────
+
+    # ── User ─────────────────────────────────────
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        firebaseUid:
+          type: string
+        email:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, firebaseUid, createdAt]
+
+    # ── Food ──────────────────────────────────────
+    FoodDto:
+      type: object
+      description: |
+        A food item with per-100g macros. `isSystemFood=true` items are shared across all users
+        and are never deleted during re-seed. `serverId` is the cross-device identity.
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Server-assigned DB ID (omit on create)
+        serverId:
+          type: string
+          format: uuid
+          description: Stable client-generated UUID — sync identity
+        name:
+          type: string
+        brand:
+          type: string
+          nullable: true
+        barcode:
+          type: string
+          nullable: true
+        caloriesPer100:
+          type: number
+          format: double
+        proteinPer100:
+          type: number
+          format: double
+        carbsPer100:
+          type: number
+          format: double
+        fatPer100:
+          type: number
+          format: double
+        gramsPerPiece:
+          type: number
+          format: double
+          nullable: true
+        gramsPerCup:
+          type: number
+          format: double
+          nullable: true
+        gramsPerTbsp:
+          type: number
+          format: double
+          nullable: true
+        gramsPerTsp:
+          type: number
+          format: double
+          nullable: true
+        glycemicIndex:
+          type: integer
+          nullable: true
+        isSystemFood:
+          type: boolean
+          default: false
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last-modified instant (server-set; used for sync conflict resolution)
+          readOnly: true
+      required: [name, caloriesPer100, proteinPer100, carbsPer100, fatPer100]
+
+    # ── Meal ──────────────────────────────────────
+    MealFoodItemDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        mealId:
+          type: integer
+          format: int64
+        foodId:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          format: double
+        unit:
+          type: string
+          enum: [GRAM, ML, PIECE, CUP, TBSP, TSP]
+          default: GRAM
+        notes:
+          type: string
+          nullable: true
+      required: [foodId, quantity, unit]
+
+    MealDto:
+      type: object
+      description: A named collection of foods assigned to a meal slot.
+      properties:
+        id:
+          type: integer
+          format: int64
+        serverId:
+          type: string
+          format: uuid
+          description: Stable client-generated UUID — sync identity
+        firebaseUid:
+          type: string
+          description: Owner — set by server from JWT; ignored on inbound requests
+          readOnly: true
+        name:
+          type: string
+        slot:
+          type: string
+          enum: [Breakfast, Lunch, Dinner, Snack]
+          default: Lunch
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealFoodItemDto'
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [name, slot]
+
+    # ── Diet ──────────────────────────────────────
+    DietMealDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        dietId:
+          type: integer
+          format: int64
+        mealId:
+          type: integer
+          format: int64
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 7
+          description: 1=Mon…7=Sun; 0=any day
+        slot:
+          type: string
+          enum: [Breakfast, Lunch, Dinner, Snack]
+          default: Lunch
+        instructions:
+          type: string
+          nullable: true
+      required: [mealId, dayOfWeek, slot]
+
+    DietDto:
+      type: object
+      description: A weekly diet template composed of meals, with optional macro targets.
+      properties:
+        id:
+          type: integer
+          format: int64
+        serverId:
+          type: string
+          format: uuid
+          description: Stable client-generated UUID — sync identity
+        firebaseUid:
+          type: string
+          readOnly: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        targetCalories:
+          type: number
+          format: double
+          nullable: true
+        targetProtein:
+          type: number
+          format: double
+          nullable: true
+        targetCarbs:
+          type: number
+          format: double
+          nullable: true
+        targetFat:
+          type: number
+          format: double
+          nullable: true
+        meals:
+          type: array
+          items:
+            $ref: '#/components/schemas/DietMealDto'
+        tagIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [name]
+
+    # ── Grocery ───────────────────────────────────
+    GroceryItemDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        groceryListId:
+          type: integer
+          format: int64
+        foodId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional link to a Food record
+        name:
+          type: string
+        quantity:
+          type: number
+          format: double
+          default: 1.0
+        unit:
+          type: string
+          enum: [GRAM, ML, PIECE, CUP, TBSP, TSP]
+          default: GRAM
+        category:
+          type: string
+          nullable: true
+        done:
+          type: boolean
+          default: false
+      required: [name, quantity, unit]
+
+    GroceryListDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serverId:
+          type: string
+          format: uuid
+          description: Stable client-generated UUID — sync identity
+        firebaseUid:
+          type: string
+          readOnly: true
+        name:
+          type: string
+        dietId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional diet this list was generated from
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroceryItemDto'
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [name]
+
+    # ── Health Metrics ────────────────────────────
+    HealthMetricDto:
+      type: object
+      description: |
+        A single health measurement. Common `type` values: WEIGHT, STEPS, BLOOD_PRESSURE,
+        HEART_RATE, SLEEP_HOURS, WATER_ML, BODY_FAT_PCT.
+        For BLOOD_PRESSURE, use `subType=SYSTOLIC` / `DIASTOLIC` with `secondaryValue`.
+      properties:
+        id:
+          type: integer
+          format: int64
+        serverId:
+          type: string
+          format: uuid
+        firebaseUid:
+          type: string
+          readOnly: true
+        type:
+          type: string
+          example: WEIGHT
+        subType:
+          type: string
+          nullable: true
+          example: SYSTOLIC
+        value:
+          type: number
+          format: double
+        secondaryValue:
+          type: number
+          format: double
+          nullable: true
+          description: Second reading (e.g. diastolic BP)
+        unit:
+          type: string
+          example: kg
+        recordedAt:
+          type: string
+          format: date-time
+          description: When the measurement was taken (client-provided)
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [type, value, unit]
+
+    CustomMetricTypeDto:
+      type: object
+      description: User-defined metric type (e.g. "Waist circumference").
+      properties:
+        id:
+          type: integer
+          format: int64
+        serverId:
+          type: string
+          format: uuid
+        firebaseUid:
+          type: string
+          readOnly: true
+        name:
+          type: string
+        unit:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [name, unit]
+
+    # ── Daily Log ─────────────────────────────────
+    LoggedFoodDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        dailyLogId:
+          type: integer
+          format: int64
+        foodId:
+          type: integer
+          format: int64
+        mealSlot:
+          type: string
+          enum: [Breakfast, Lunch, Dinner, Snack]
+          default: Lunch
+        quantity:
+          type: number
+          format: double
+        unit:
+          type: string
+          enum: [GRAM, ML, PIECE, CUP, TBSP, TSP]
+          default: GRAM
+      required: [foodId, mealSlot, quantity, unit]
+
+    DailyLogDto:
+      type: object
+      description: One day's food consumption log. One record per user per date.
+      properties:
+        id:
+          type: integer
+          format: int64
+        serverId:
+          type: string
+          format: uuid
+          description: Stable client-generated UUID — sync identity
+        firebaseUid:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          description: ISO-8601 date (YYYY-MM-DD)
+          example: "2026-04-17"
+        notes:
+          type: string
+          nullable: true
+        loggedFoods:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoggedFoodDto'
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [date]
+
+    # ── Sync ──────────────────────────────────────
+    SyncPushRequest:
+      type: object
+      description: |
+        All locally-changed records since the last successful push.
+        Any domain list may be omitted or empty — only changed records need to be sent.
+        The server upserts by `serverId` using last-write-wins on `updatedAt`.
+      properties:
+        foods:
+          type: array
+          items:
+            $ref: '#/components/schemas/FoodDto'
+          default: []
+        meals:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealDto'
+          default: []
+        diets:
+          type: array
+          items:
+            $ref: '#/components/schemas/DietDto'
+          default: []
+        healthMetrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthMetricDto'
+          default: []
+        groceryLists:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroceryListDto'
+          default: []
+        dailyLogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyLogDto'
+          default: []
+
+    SyncPushResponse:
+      type: object
+      properties:
+        accepted:
+          type: integer
+          description: Total number of records upserted across all domains
+      required: [accepted]
+
+    SyncPullResponse:
+      type: object
+      description: |
+        Delta payload — only records with `updatedAt > since` are included.
+        Store `serverTime` locally and use it as `since` on the next pull to avoid gaps.
+      properties:
+        foods:
+          type: array
+          items:
+            $ref: '#/components/schemas/FoodDto'
+        meals:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealDto'
+        diets:
+          type: array
+          items:
+            $ref: '#/components/schemas/DietDto'
+        healthMetrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthMetricDto'
+        groceryLists:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroceryListDto'
+        dailyLogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyLogDto'
+        serverTime:
+          type: string
+          format: date-time
+          description: Server clock at the moment of this response — use as `since` on next pull
+      required: [foods, meals, diets, healthMetrics, groceryLists, dailyLogs, serverTime]
