@@ -17,6 +17,7 @@ import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.util.SyncPreferences
 import com.mealplanplus.util.extractShortDietName
 import com.mealplanplus.util.toEpochMs
 import com.mealplanplus.util.toLocalDate
@@ -97,7 +98,9 @@ data class HomeUiState(
     val activitySummary: ActivitySummary = ActivitySummary(),
     val isTodayCompleted: Boolean = false,
     val finishCompleted: Boolean = false,
-    val todayDietName: String? = null
+    val todayDietName: String? = null,
+    /** Epoch ms of the last successful sync, or null if never synced. */
+    val lastSyncedAt: Long? = null
 )
 
 @HiltViewModel
@@ -125,6 +128,7 @@ class HomeViewModel @Inject constructor(
         loadTodayPlanSlots()
         loadGlucoseHistory()
         loadStreakData()
+        loadLastSyncedAt()
         loadActivityData()
         viewModelScope.launch {
             _weekOffset.collect { loadWeekData() }
@@ -462,6 +466,13 @@ class HomeViewModel @Inject constructor(
             "EVENING" -> "🌆"
             "POST_DINNER" -> "🍵"
             else -> "🍽️"
+        }
+    }
+
+    private fun loadLastSyncedAt() {
+        viewModelScope.launch {
+            SyncPreferences.getLastSyncTimestamp(context)
+                .collect { ts -> _uiState.update { it.copy(lastSyncedAt = if (ts == 0L) null else ts) } }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.grocery
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -7,7 +8,8 @@ import java.time.Instant
 @Service
 class GroceryService(
     private val listRepo: GroceryListRepository,
-    private val itemRepo: GroceryItemRepository
+    private val itemRepo: GroceryItemRepository,
+    private val tombstones: TombstoneService
 ) {
     fun list(firebaseUid: String): List<GroceryListDto> =
         listRepo.findByFirebaseUid(firebaseUid).map { it.toDto(itemRepo.findByGroceryListId(it.id)) }
@@ -35,6 +37,7 @@ class GroceryService(
         require(gl.firebaseUid == firebaseUid) { "Forbidden" }
         itemRepo.deleteByGroceryListId(id)
         listRepo.delete(gl)
+        tombstones.record(firebaseUid, "grocery_list", gl.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<GroceryListDto> =
@@ -44,8 +47,16 @@ class GroceryService(
     @Transactional
     fun upsert(dto: GroceryListDto, firebaseUid: String): GroceryListDto {
         val existing = dto.serverId?.let { listRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toDto(itemRepo.findByGroceryListId(existing.id))
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(itemRepo.findByGroceryListId(existing.id))
+        itemRepo.deleteByGroceryListId(existing.id)
+        val updated = GroceryList(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name, dietId = dto.dietId)
+            .also { it.serverId = existing.serverId }
+        val saved = listRepo.save(updated)
+        val items = dto.items.map { item ->
+            itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
+                quantity = item.quantity, unit = item.unit, category = item.category, done = item.done))
+        }
+        return saved.toDto(items)
     }
 }

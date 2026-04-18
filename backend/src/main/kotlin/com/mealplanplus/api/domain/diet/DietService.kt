@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.diet
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -9,7 +10,8 @@ class DietService(
     private val dietRepo: DietRepository,
     private val dietMealRepo: DietMealRepository,
     private val tagRepo: TagRepository,
-    private val crossRefRepo: DietTagCrossRefRepository
+    private val crossRefRepo: DietTagCrossRefRepository,
+    private val tombstones: TombstoneService
 ) {
     private fun Diet.toFullDto() = toDto(
         dietMealRepo.findByDietId(id),
@@ -44,6 +46,7 @@ class DietService(
         dietMealRepo.deleteByDietId(id)
         crossRefRepo.deleteByDietId(id)
         dietRepo.delete(diet)
+        tombstones.record(firebaseUid, "diet", diet.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<DietDto> =
@@ -52,8 +55,21 @@ class DietService(
     @Transactional
     fun upsert(dto: DietDto, firebaseUid: String): DietDto {
         val existing = dto.serverId?.let { dietRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toFullDto()
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toFullDto()
+        dietMealRepo.deleteByDietId(existing.id)
+        crossRefRepo.deleteByDietId(existing.id)
+        val updated = Diet(
+            id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name,
+            description = dto.description, targetCalories = dto.targetCalories,
+            targetProtein = dto.targetProtein, targetCarbs = dto.targetCarbs, targetFat = dto.targetFat
+        ).also { it.serverId = existing.serverId }
+        val saved = dietRepo.save(updated)
+        dto.meals.forEach { m ->
+            dietMealRepo.save(DietMeal(dietId = saved.id, mealId = m.mealId,
+                dayOfWeek = m.dayOfWeek, slot = m.slot, instructions = m.instructions))
+        }
+        dto.tagIds.forEach { tagId -> crossRefRepo.save(DietTagCrossRef(dietId = saved.id, tagId = tagId)) }
+        return saved.toFullDto()
     }
 }

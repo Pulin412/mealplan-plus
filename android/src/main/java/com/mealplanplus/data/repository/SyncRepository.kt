@@ -57,22 +57,16 @@ class SyncRepository @Inject constructor(
                 name = g.name, updatedAt = g.updatedAt)
         }
 
-        val req = SyncPushRequest(meals = meals, diets = diets,
-            healthMetrics = metrics, groceryLists = groceryLists)
-
         val totalItems = meals.size + diets.size + metrics.size + groceryLists.size
         if (totalItems == 0) return Result.success(0)
 
+        val req = SyncPushRequest(meals = meals, diets = diets,
+            healthMetrics = metrics, groceryLists = groceryLists)
         val resp = api.push(req)
         Log.d(TAG, "Push accepted=${resp.accepted}")
 
-        // Mark as synced
-        mealDao.getUnsyncedMeals().forEach { m ->
-            mealDao.updateMeal(m.copy(syncedAt = now))
-        }
-        dietDao.getUnsyncedDiets().forEach { d ->
-            dietDao.updateDiet(d.copy(syncedAt = now))
-        }
+        mealDao.getUnsyncedMeals().forEach { m -> mealDao.updateMeal(m.copy(syncedAt = now)) }
+        dietDao.getUnsyncedDiets().forEach { d -> dietDao.updateDiet(d.copy(syncedAt = now)) }
         healthMetricDao.getUnsyncedMetrics(userId).forEach { h ->
             healthMetricDao.updateHealthMetric(h.copy(syncedAt = now))
         }
@@ -87,38 +81,42 @@ class SyncRepository @Inject constructor(
         Log.e(TAG, "Push failed: ${e.message}")
     }
 
-    /** Pull backend changes since last pull and merge into local DB */
-    suspend fun pull(userId: Long, since: Long): Result<Unit> = runCatching {
-        val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid
-            ?: return Result.failure(Exception("Not signed in with Firebase"))
-
+    /**
+     * Pull backend changes since [since] (epoch ms) and merge into local DB.
+     * Returns the server's clock at response time so the caller can store it as
+     * the next pull's `since` value.
+     */
+    suspend fun pull(userId: Long, since: Long): Result<Long> = runCatching {
         val sinceIso = isoFormatter.format(Instant.ofEpochMilli(since))
         val resp = api.pull(sinceIso)
         val now = System.currentTimeMillis()
 
+        // ── Upsert changed meals ──────────────────────────────────────────────
         resp.meals.forEach { dto ->
             val existing = dto.serverId?.let { mealDao.getMealByServerId(it) }
             if (existing == null) {
                 mealDao.insertMeal(Meal(name = dto.name,
                     serverId = dto.serverId, updatedAt = dto.updatedAt ?: now, syncedAt = now))
-            } else if ((dto.updatedAt ?: 0L) >= existing.updatedAt) {
+            } else if ((dto.updatedAt ?: 0L) > existing.updatedAt) {
                 mealDao.updateMeal(existing.copy(name = dto.name,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
             }
         }
 
+        // ── Upsert changed diets ─────────────────────────────────────────────
         resp.diets.forEach { dto ->
             val existing = dto.serverId?.let { dietDao.getDietByServerId(it) }
             if (existing == null) {
                 dietDao.insertDiet(Diet(name = dto.name,
                     description = dto.description, serverId = dto.serverId,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
-            } else if ((dto.updatedAt ?: 0L) >= existing.updatedAt) {
+            } else if ((dto.updatedAt ?: 0L) > existing.updatedAt) {
                 dietDao.updateDiet(existing.copy(name = dto.name, description = dto.description,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
             }
         }
 
+        // ── Upsert changed health metrics ────────────────────────────────────
         resp.healthMetrics.forEach { dto ->
             val existing = dto.serverId?.let { healthMetricDao.getMetricByServerId(it) }
             if (existing == null) {
@@ -128,28 +126,46 @@ class SyncRepository @Inject constructor(
                     metricType = dto.type, subType = dto.subType, value = dto.value,
                     secondaryValue = dto.secondaryValue, serverId = dto.serverId,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
-            } else if ((dto.updatedAt ?: 0L) >= existing.updatedAt) {
+            } else if ((dto.updatedAt ?: 0L) > existing.updatedAt) {
                 healthMetricDao.updateHealthMetric(existing.copy(value = dto.value,
                     secondaryValue = dto.secondaryValue, subType = dto.subType,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
             }
         }
 
+        // ── Upsert changed grocery lists ─────────────────────────────────────
         resp.groceryLists.forEach { dto ->
             val existing = dto.serverId?.let { groceryDao.getGroceryListByServerId(it) }
             if (existing == null) {
                 groceryDao.insertGroceryList(GroceryList(userId = userId, name = dto.name,
                     serverId = dto.serverId, syncedAt = now))
-            } else if ((dto.updatedAt ?: 0L) >= existing.updatedAt) {
+            } else if ((dto.updatedAt ?: 0L) > existing.updatedAt) {
                 groceryDao.updateGroceryList(existing.copy(name = dto.name,
                     updatedAt = dto.updatedAt ?: now, syncedAt = now))
             }
         }
 
+        // ── Apply tombstones (server-side deletes) ───────────────────────────
+        resp.tombstones.forEach { t ->
+            when (t.entityType) {
+                "meal" -> mealDao.getMealByServerId(t.serverId)
+                    ?.let { mealDao.deleteMeal(it) }
+                "diet" -> dietDao.getDietByServerId(t.serverId)
+                    ?.let { dietDao.deleteDiet(it) }
+                "health_metric" -> healthMetricDao.getMetricByServerId(t.serverId)
+                    ?.let { healthMetricDao.deleteMetric(it) }
+                "grocery_list" -> groceryDao.getGroceryListByServerId(t.serverId)
+                    ?.let { groceryDao.deleteList(it) }
+            }
+        }
+
         Log.d(TAG, "Pull complete: meals=${resp.meals.size} diets=${resp.diets.size} " +
-            "metrics=${resp.healthMetrics.size} lists=${resp.groceryLists.size}")
+            "metrics=${resp.healthMetrics.size} lists=${resp.groceryLists.size} " +
+            "tombstones=${resp.tombstones.size}")
         crashlytics.log("sync_pull", "meals=${resp.meals.size} diets=${resp.diets.size} " +
-            "metrics=${resp.healthMetrics.size} lists=${resp.groceryLists.size}")
+            "metrics=${resp.healthMetrics.size} tombstones=${resp.tombstones.size}")
+
+        resp.serverTime ?: now
     }.onFailure { e ->
         crashlytics.recordNonFatal(e, context = "sync_pull", extras = mapOf("userId" to userId.toString()))
         Log.e(TAG, "Pull failed: ${e.message}")

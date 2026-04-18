@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.log
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -8,7 +9,8 @@ import java.time.LocalDate
 @Service
 class DailyLogService(
     private val logRepo: DailyLogRepository,
-    private val foodRepo: LoggedFoodRepository
+    private val foodRepo: LoggedFoodRepository,
+    private val tombstones: TombstoneService
 ) {
     fun list(firebaseUid: String): List<DailyLogDto> =
         logRepo.findByFirebaseUid(firebaseUid).map { it.toDto(foodRepo.findByDailyLogId(it.id)) }
@@ -39,6 +41,7 @@ class DailyLogService(
         require(log.firebaseUid == firebaseUid) { "Forbidden" }
         foodRepo.deleteByDailyLogId(id)
         logRepo.delete(log)
+        tombstones.record(firebaseUid, "daily_log", log.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<DailyLogDto> =
@@ -48,8 +51,17 @@ class DailyLogService(
     @Transactional
     fun upsert(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
         val existing = dto.serverId?.let { logRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toDto(foodRepo.findByDailyLogId(existing.id))
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(foodRepo.findByDailyLogId(existing.id))
+        foodRepo.deleteByDailyLogId(existing.id)
+        val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
+            date = dto.date ?: existing.date, notes = dto.notes)
+            .also { it.serverId = existing.serverId }
+        val saved = logRepo.save(updated)
+        val foods = dto.loggedFoods.map { f ->
+            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId,
+                mealSlot = f.mealSlot, quantity = f.quantity, unit = f.unit))
+        }
+        return saved.toDto(foods)
     }
 }

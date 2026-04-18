@@ -43,6 +43,13 @@ data class GroceryListDto(
     val items: List<GroceryItemDto> = emptyList(), val updatedAt: Long? = null
 )
 
+/** Signals a server-side delete. Android should purge the matching local record. */
+data class TombstoneDto(
+    val entityType: String = "",
+    val serverId: String = "",
+    val deletedAt: Long = 0L
+)
+
 // ── Sync request / response ───────────────────────────────────────────────────
 
 data class SyncPushRequest(
@@ -59,7 +66,9 @@ data class SyncPullResponse(
     val diets: List<DietDto> = emptyList(),
     val healthMetrics: List<HealthMetricDto> = emptyList(),
     val groceryLists: List<GroceryListDto> = emptyList(),
-    val serverTime: String? = null
+    val tombstones: List<TombstoneDto> = emptyList(),
+    /** Server clock at response time — store as lastSyncTimestamp for next pull's `since`. */
+    val serverTime: Long? = null
 )
 
 // ── Retrofit interface ────────────────────────────────────────────────────────

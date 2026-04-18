@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.meal
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -7,7 +8,8 @@ import java.time.Instant
 @Service
 class MealService(
     private val mealRepo: MealRepository,
-    private val itemRepo: MealFoodItemRepository
+    private val itemRepo: MealFoodItemRepository,
+    private val tombstones: TombstoneService
 ) {
     fun list(firebaseUid: String): List<MealDto> =
         mealRepo.findByFirebaseUid(firebaseUid).map { it.toDto(itemRepo.findByMealId(it.id)) }
@@ -35,6 +37,7 @@ class MealService(
         require(meal.firebaseUid == firebaseUid) { "Forbidden" }
         itemRepo.deleteByMealId(id)
         mealRepo.delete(meal)
+        tombstones.record(firebaseUid, "meal", meal.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<MealDto> =
@@ -44,8 +47,16 @@ class MealService(
     @Transactional
     fun upsert(dto: MealDto, firebaseUid: String): MealDto {
         val existing = dto.serverId?.let { mealRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toDto(itemRepo.findByMealId(existing.id))
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(itemRepo.findByMealId(existing.id))
+        itemRepo.deleteByMealId(existing.id)
+        val updated = Meal(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name, slot = dto.slot)
+            .also { it.serverId = existing.serverId }
+        val saved = mealRepo.save(updated)
+        val items = dto.items.map { item ->
+            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = item.foodId,
+                quantity = item.quantity, unit = item.unit, notes = item.notes))
+        }
+        return saved.toDto(items)
     }
 }

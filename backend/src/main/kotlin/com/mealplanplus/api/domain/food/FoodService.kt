@@ -1,12 +1,13 @@
 package com.mealplanplus.api.domain.food
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
 
 @Service
-class FoodService(private val repo: FoodRepository) {
+class FoodService(private val repo: FoodRepository, private val tombstones: TombstoneService) {
 
     fun list(firebaseUid: String): List<FoodDto> =
         repo.findByFirebaseUidOrIsSystemFoodTrue(firebaseUid).map { it.toDto() }
@@ -31,6 +32,7 @@ class FoodService(private val repo: FoodRepository) {
         val food = repo.findById(id).orElseThrow()
         require(food.firebaseUid == firebaseUid) { "Forbidden" }
         repo.delete(food)
+        tombstones.record(firebaseUid, "food", food.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<FoodDto> =
@@ -40,8 +42,17 @@ class FoodService(private val repo: FoodRepository) {
     @Transactional
     fun upsert(dto: FoodDto, firebaseUid: String): FoodDto {
         val existing = dto.serverId?.let { repo.findByServerId(it) }
-        return if (existing == null) create(dto, firebaseUid)
-        else if ((dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt) create(dto, firebaseUid)
-        else existing.toDto()
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto()
+        val updated = Food(
+            id = existing.id, firebaseUid = existing.firebaseUid,
+            name = dto.name, brand = dto.brand, barcode = dto.barcode,
+            caloriesPer100 = dto.caloriesPer100, proteinPer100 = dto.proteinPer100,
+            carbsPer100 = dto.carbsPer100, fatPer100 = dto.fatPer100,
+            gramsPerPiece = dto.gramsPerPiece, gramsPerCup = dto.gramsPerCup,
+            gramsPerTbsp = dto.gramsPerTbsp, gramsPerTsp = dto.gramsPerTsp,
+            glycemicIndex = dto.glycemicIndex, isSystemFood = existing.isSystemFood
+        ).also { it.serverId = existing.serverId }
+        return repo.save(updated).toDto()
     }
 }
