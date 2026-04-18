@@ -131,7 +131,7 @@ fun HomeScreen(
                 userInitial   = uiState.userInitial,
                 dayStreak     = uiState.dayStreak,
                 caloriesConsumed = uiState.todaySummary.calories,
-                activitySessions = if (uiState.activitySummary.isConnected) (uiState.activitySummary.stepsToday / 1000).toInt() else 0,
+                activitySteps = if (uiState.activitySummary.isConnected) uiState.activitySummary.stepsToday.toInt() else 0,
                 isDark        = isDark,
                 onThemeToggle = {
                     scope.launch {
@@ -195,7 +195,7 @@ fun HomeGreetingHeader(
     userInitial: String,
     dayStreak: Int,
     caloriesConsumed: Int,
-    activitySessions: Int = 0,
+    activitySteps: Int = 0,
     isDark: Boolean = false,
     onThemeToggle: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
@@ -287,7 +287,7 @@ fun HomeGreetingHeader(
             StatDivider()
             StatChip(emoji = "⚡", value = "%,d".format(caloriesConsumed), label = "kcal")
             StatDivider()
-            StatChip(emoji = "💪", value = "$activitySessions", label = "sessions")
+            StatChip(emoji = "💪", value = "%,d".format(activitySteps), label = "steps")
         }
     }
 }

@@ -27,9 +27,12 @@ import com.mealplanplus.widget.TodayPlanWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.YearMonth
 import javax.inject.Inject
 
@@ -130,6 +133,7 @@ class HomeViewModel @Inject constructor(
         loadStreakData()
         loadLastSyncedAt()
         loadActivityData()
+        observeDateChange()
         viewModelScope.launch {
             _weekOffset.collect { loadWeekData() }
         }
@@ -466,6 +470,23 @@ class HomeViewModel @Inject constructor(
             "EVENING" -> "🌆"
             "POST_DINNER" -> "🍵"
             else -> "🍽️"
+        }
+    }
+
+    private fun observeDateChange() {
+        viewModelScope.launch {
+            while (true) {
+                val now = LocalDateTime.now()
+                val millisUntilMidnight = Duration.between(
+                    now,
+                    now.toLocalDate().plusDays(1).atStartOfDay()
+                ).toMillis()
+                delay(millisUntilMidnight)
+                loadTodayData()
+                loadTodayPlanSlots()
+                loadStreakData()
+                loadGlucoseHistory()
+            }
         }
     }
 

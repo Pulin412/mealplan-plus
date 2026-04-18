@@ -1,6 +1,9 @@
 package com.mealplanplus.ui.screens.calendar
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -145,7 +148,10 @@ fun CalendarScreen(
                         viewModel.selectDate(date)
                         onNavigateToDayDetail(date)
                     },
-                    onAssignDiet = { date -> onNavigateToDietPicker(date.toString()) }
+                    onAssignDiet = { date ->
+                        viewModel.selectDate(date)
+                        onNavigateToDietPicker(date.toString())
+                    }
                 )
             }
         }
@@ -922,50 +928,92 @@ internal fun PlanSlotRow(
     isLogged: Boolean,
     onToggle: (() -> Unit)?
 ) {
-    val ingredientPreview = foods.take(5).joinToString(" · ") { it.food.name }
+    val hasFoods = foods.isNotEmpty()
+    var expanded by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        // Dot
-        Box(
+    Column {
+        Row(
             modifier = Modifier
-                .size(7.dp)
-                .clip(CircleShape)
-                .background(slotColor)
-        )
-        // Slot label (fixed 64dp)
-        Text(
-            text = slotName.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.4.sp,
-            color = TextMuted,
-            modifier = Modifier.width(64.dp),
-            maxLines = 1
-        )
-        // Meal name + ingredient preview
-        Column(modifier = Modifier.weight(1f)) {
-            if (mealName != null) {
-                Text(mealName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (ingredientPreview.isNotEmpty()) {
-                    Text(ingredientPreview, fontSize = 11.sp, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 1.dp))
+                .fillMaxWidth()
+                .then(if (hasFoods) Modifier.clickable { expanded = !expanded } else Modifier)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Dot
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(slotColor)
+            )
+            // Slot label (fixed 64dp)
+            Text(
+                text = slotName.uppercase(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.4.sp,
+                color = TextMuted,
+                modifier = Modifier.width(64.dp),
+                maxLines = 1
+            )
+            // Meal name + hint
+            Column(modifier = Modifier.weight(1f)) {
+                if (mealName != null) {
+                    Text(mealName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (hasFoods) {
+                        Text(
+                            text = if (expanded) "tap to hide" else "${foods.size} ingredients · tap to expand",
+                            fontSize = 11.sp,
+                            color = TextMuted,
+                            modifier = Modifier.padding(top = 1.dp)
+                        )
+                    }
+                } else {
+                    Text("—", fontSize = 13.sp, color = TextMuted)
                 }
-            } else {
-                Text("—", fontSize = 13.sp, color = TextMuted)
+            }
+            // Calories
+            if (kcal > 0) {
+                Text("$kcal", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Medium)
+            }
+            // Checkbox toggle
+            if (showCheckbox) {
+                SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
             }
         }
-        // Calories
-        if (kcal > 0) {
-            Text("$kcal", fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Medium)
+
+        // Expandable ingredient chips
+        AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 85.dp, end = 14.dp, bottom = 10.dp)
+            ) {
+                PlanIngredientChips(foods)
+            }
         }
-        // Checkbox toggle
-        if (showCheckbox) {
-            SlotCheckCircle(isLogged = isLogged, onToggle = onToggle)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlanIngredientChips(foods: List<MealFoodItemWithDetails>) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        foods.forEach { item ->
+            val label = "${item.food.name} · ${formatQuantity(item.mealFoodItem.quantity)} ${item.mealFoodItem.unit.shortLabel}"
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                color = Color(0xFF555555),
+                maxLines = 1,
+                modifier = Modifier
+                    .background(Color(0xFFF8F8F8), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            )
         }
     }
 }
@@ -1529,7 +1577,7 @@ private fun MealIngredientList(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "${item.mealFoodItem.quantity.toInt()}g · ${item.calculatedCalories.toInt()} kcal",
+                    text = "${formatQuantity(item.mealFoodItem.quantity)} ${item.mealFoodItem.unit.shortLabel} · ${item.calculatedCalories.toInt()} kcal",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )

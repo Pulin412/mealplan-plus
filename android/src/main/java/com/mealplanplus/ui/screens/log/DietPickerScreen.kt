@@ -145,7 +145,7 @@ fun DietPickerScreen(
                         }
                         item {
                             DietFilterPill(
-                                label = "★ Faves",
+                                label = "★ Fav",
                                 selected = uiState.showFavouritesOnly,
                                 onClick = viewModel::toggleFavouritesFilter,
                                 selectedColor = Color(0xFFFFC107)
