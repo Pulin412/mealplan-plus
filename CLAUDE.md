@@ -20,7 +20,7 @@ Offline-first meal planning and food logging app. Users log meals by slot (BREAK
 | Module | Role |
 |--------|------|
 | `android/` | Android app (Kotlin, Compose, Room, Hilt) — **fully self-contained, single production app** |
-| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector — **Phase 1 next** |
+| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector — **Phase 1 complete** |
 | `webapp/` | Next.js 14 + TypeScript PWA — **not yet created, Phase 3** |
 | `shared/` | KMP module — **disconnected, no code here** |
 | `ios/` | SwiftUI app — **superseded by PWA, no new work** |
@@ -188,26 +188,33 @@ Permission is requested via `PermissionController.createRequestPermissionResultC
 
 ---
 
-## Current Status (as of April 15, 2026)
+## Current Status (as of April 18, 2026)
 
-**Foundation phase is COMPLETE and merged to `main`.** The app is a single codebase (`com.mealplanplus`). There is no separate feature branch or dev app ID.
+**Phase 1 (Backend Sync API) is COMPLETE on `feature/phase1-backend-sync`.** Foundation is merged to `main`.
 
-### What is done
-- Full minimalist design system: `DesignTokens.kt` (light/dark tokens), `FormComponents.kt`, global 10% font scale override in `Theme.kt`
-- All 19 screens redesigned to match `design-future.html`
-- Room schema at **v32** — explicit `MIGRATION_30_31` and `MIGRATION_31_32` in `DatabaseModule.kt`; schemas exported to `android/schemas/`
-- Meals and diets are **user-scoped** (`userId` FK on both tables). All ViewModels filter by `authRepository.getCurrentUserId().filterNotNull().flatMapLatest { ... }`
-- `BackupDataImporter` — one-time import (`backup_data_imported_v5` DataStore flag) of all 3 users from `backup/mealplan_data_export.json`. Runs in `MealPlanApp.onCreate()`.
-- `UserDataSeeder` uses `getDietCountForUser(userId)` guard — idempotent per user
-- `AlarmManager` notification system: 5 alarm types (BREAKFAST, LUNCH, DINNER, STREAK, WEEKLY_PLAN); `NotificationAlarmBootstrapper` is the single scheduling entry point
-- Health Connect integration: steps, calories burned, weight (read-only, 3 permissions)
-- Swipe left/right navigation between main tabs (Home, Log, Plan) using `detectHorizontalDragGestures` with 120dp threshold
-- Meal name shown as subtitle in each slot header on the Food Log screen
-- Diet Picker confirm sheet shows full meal breakdown (name + calories per slot) via `DietsViewModel.loadDietDetail()`
-- Diets, Meals, Foods screens navigable from the More sheet
+### Backend (Spring Boot — `backend/`)
+- All 7 domain CRUD endpoints (User, Food, Meal, Diet, Grocery, HealthMetric, DailyLog)
+- `POST /api/v1/sync/push` + `GET /api/v1/sync/pull?since=<ISO>` — delta sync with last-write-wins
+- **Tombstones** — `Tombstone` entity + `TombstoneService`; all `delete()` methods write a tombstone; pull response includes `tombstones[]`
+- **Flyway** — `V1__init.sql` (full schema) + `V2__pgvector.sql` (pgvector extension + `entity_embeddings` table with HNSW index). Flyway disabled for H2 dev, enabled for docker/prod profile.
+- Firebase JWT auth via JWKS; `SecurityConfig` secures all endpoints
+- `docs/openapi.yaml` — hand-crafted OpenAPI 3.0 spec (source of truth for TypeScript codegen in Phase 3)
+- Jackson configured to serialize `Instant` as epoch milliseconds for Android compatibility
 
-### What is next — Phase 1 (Backend Sync API)
-See `ROADMAP.md` for full checklist. Order: #84 (OpenAPI spec) → #85 (JPA entities + CRUD) → #86 (delta sync + pgvector) → #87 (Android SyncWorker) → #88 (Cloud Run CI/CD)
+### Android (`android/`)
+- `SyncWorker` — 15-min periodic WorkManager job; reads `lastSyncTimestamp` from DataStore, saves `serverTime` after pull
+- `SyncRepository` — push unsynced records, pull delta, apply tombstones (delete local records by `serverId`), conflict resolution: remote wins only when `remoteUpdatedAt > localUpdatedAt` (server wins on tie)
+- `SyncPreferences` — `last_sync_timestamp` DataStore key
+- `HomeUiState.lastSyncedAt` — exposed to UI for sync status display
+- `MealPlanApi` — Firebase token injected via OkHttp interceptor (`Tasks.await` on background thread)
+
+### CI/CD
+- `ci.yml` — build + test on push to `main` (Android, Backend, iOS path-filtered)
+- `backend-deploy.yml` — Cloud Run deploy; triggered on `backend/**` changes to `main`; uses Cloud Run secrets for DB credentials; verifies `/actuator/health` after deploy
+- **Cloud Run service:** `mealplan-api` in `europe-west1` (deploy URL available after first run — update `MEAL_PLAN_API_URL` in `NetworkModule.kt`)
+
+### What is next — Phase 2 (Workout Logging)
+See `ROADMAP.md`. After merging `feature/phase1-backend-sync` → `main`: #89 (Android workout entities) → #90 (workout screens) → #91 (backend workout sync)
 
 ---
 

@@ -18,6 +18,10 @@ spring:
       path: /h2-console
   flyway:
     enabled: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true
+      write-date-timestamps-as-nanoseconds: false
 
 server:
   port: ${PORT:8080}
