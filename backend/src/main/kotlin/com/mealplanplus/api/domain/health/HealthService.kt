@@ -45,8 +45,13 @@ class HealthMetricService(
     @Transactional
     fun upsert(dto: HealthMetricDto, firebaseUid: String): HealthMetricDto {
         val existing = dto.serverId?.let { metricRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toDto()
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto()
+        val updated = HealthMetric(
+            id = existing.id, firebaseUid = existing.firebaseUid, type = dto.type, subType = dto.subType,
+            value = dto.value, secondaryValue = dto.secondaryValue, unit = dto.unit,
+            recordedAt = dto.recordedAt ?: existing.recordedAt
+        ).also { it.serverId = existing.serverId }
+        return metricRepo.save(updated).toDto()
     }
 }

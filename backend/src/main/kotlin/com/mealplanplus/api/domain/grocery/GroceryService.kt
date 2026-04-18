@@ -44,8 +44,16 @@ class GroceryService(
     @Transactional
     fun upsert(dto: GroceryListDto, firebaseUid: String): GroceryListDto {
         val existing = dto.serverId?.let { listRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toDto(itemRepo.findByGroceryListId(existing.id))
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(itemRepo.findByGroceryListId(existing.id))
+        itemRepo.deleteByGroceryListId(existing.id)
+        val updated = GroceryList(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name, dietId = dto.dietId)
+            .also { it.serverId = existing.serverId }
+        val saved = listRepo.save(updated)
+        val items = dto.items.map { item ->
+            itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
+                quantity = item.quantity, unit = item.unit, category = item.category, done = item.done))
+        }
+        return saved.toDto(items)
     }
 }

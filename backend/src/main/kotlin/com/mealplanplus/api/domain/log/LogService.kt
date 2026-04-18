@@ -48,8 +48,17 @@ class DailyLogService(
     @Transactional
     fun upsert(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
         val existing = dto.serverId?.let { logRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toDto(foodRepo.findByDailyLogId(existing.id))
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(foodRepo.findByDailyLogId(existing.id))
+        foodRepo.deleteByDailyLogId(existing.id)
+        val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
+            date = dto.date ?: existing.date, notes = dto.notes)
+            .also { it.serverId = existing.serverId }
+        val saved = logRepo.save(updated)
+        val foods = dto.loggedFoods.map { f ->
+            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId,
+                mealSlot = f.mealSlot, quantity = f.quantity, unit = f.unit))
+        }
+        return saved.toDto(foods)
     }
 }

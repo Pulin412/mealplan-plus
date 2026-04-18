@@ -44,8 +44,16 @@ class MealService(
     @Transactional
     fun upsert(dto: MealDto, firebaseUid: String): MealDto {
         val existing = dto.serverId?.let { mealRepo.findByServerId(it) }
-        return if (existing == null || (dto.updatedAt ?: Instant.EPOCH) >= existing.updatedAt)
-            create(dto, firebaseUid)
-        else existing.toDto(itemRepo.findByMealId(existing.id))
+        if (existing == null) return create(dto, firebaseUid)
+        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(itemRepo.findByMealId(existing.id))
+        itemRepo.deleteByMealId(existing.id)
+        val updated = Meal(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name, slot = dto.slot)
+            .also { it.serverId = existing.serverId }
+        val saved = mealRepo.save(updated)
+        val items = dto.items.map { item ->
+            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = item.foodId,
+                quantity = item.quantity, unit = item.unit, notes = item.notes))
+        }
+        return saved.toDto(items)
     }
 }
