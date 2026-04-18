@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.diet
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -9,7 +10,8 @@ class DietService(
     private val dietRepo: DietRepository,
     private val dietMealRepo: DietMealRepository,
     private val tagRepo: TagRepository,
-    private val crossRefRepo: DietTagCrossRefRepository
+    private val crossRefRepo: DietTagCrossRefRepository,
+    private val tombstones: TombstoneService
 ) {
     private fun Diet.toFullDto() = toDto(
         dietMealRepo.findByDietId(id),
@@ -44,6 +46,7 @@ class DietService(
         dietMealRepo.deleteByDietId(id)
         crossRefRepo.deleteByDietId(id)
         dietRepo.delete(diet)
+        tombstones.record(firebaseUid, "diet", diet.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<DietDto> =

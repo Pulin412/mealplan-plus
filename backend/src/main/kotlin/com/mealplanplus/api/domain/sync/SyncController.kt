@@ -27,7 +27,8 @@ class SyncController(
     private val dietService: DietService,
     private val healthService: HealthMetricService,
     private val groceryService: GroceryService,
-    private val logService: DailyLogService
+    private val logService: DailyLogService,
+    private val tombstoneService: TombstoneService
 ) {
     data class PushRequest(
         val foods: List<FoodDto> = emptyList(),
@@ -47,6 +48,7 @@ class SyncController(
         val healthMetrics: List<HealthMetricDto>,
         val groceryLists: List<GroceryListDto>,
         val dailyLogs: List<DailyLogDto>,
+        val tombstones: List<TombstoneDto>,
         val serverTime: Instant
     )
 
@@ -73,6 +75,7 @@ class SyncController(
         healthMetrics = healthService.since(auth.name, since),
         groceryLists = groceryService.since(auth.name, since),
         dailyLogs = logService.since(auth.name, since),
+        tombstones = tombstoneService.since(auth.name, since),
         serverTime = Instant.now()
     )
 }

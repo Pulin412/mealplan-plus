@@ -35,6 +35,9 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.h2database:h2")
 
+    // Flyway (PostgreSQL migrations — disabled for H2 dev profile)
+    implementation("org.flywaydb:flyway-core")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
 }

@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.health
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -7,7 +8,8 @@ import java.time.Instant
 @Service
 class HealthMetricService(
     private val metricRepo: HealthMetricRepository,
-    private val customTypeRepo: CustomMetricTypeRepository
+    private val customTypeRepo: CustomMetricTypeRepository,
+    private val tombstones: TombstoneService
 ) {
     fun list(firebaseUid: String): List<HealthMetricDto> =
         metricRepo.findByFirebaseUid(firebaseUid).map { it.toDto() }
@@ -37,6 +39,7 @@ class HealthMetricService(
         val metric = metricRepo.findById(id).orElseThrow()
         require(metric.firebaseUid == firebaseUid) { "Forbidden" }
         metricRepo.delete(metric)
+        tombstones.record(firebaseUid, "health_metric", metric.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<HealthMetricDto> =

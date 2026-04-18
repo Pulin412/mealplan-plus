@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.grocery
 
+import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -7,7 +8,8 @@ import java.time.Instant
 @Service
 class GroceryService(
     private val listRepo: GroceryListRepository,
-    private val itemRepo: GroceryItemRepository
+    private val itemRepo: GroceryItemRepository,
+    private val tombstones: TombstoneService
 ) {
     fun list(firebaseUid: String): List<GroceryListDto> =
         listRepo.findByFirebaseUid(firebaseUid).map { it.toDto(itemRepo.findByGroceryListId(it.id)) }
@@ -35,6 +37,7 @@ class GroceryService(
         require(gl.firebaseUid == firebaseUid) { "Forbidden" }
         itemRepo.deleteByGroceryListId(id)
         listRepo.delete(gl)
+        tombstones.record(firebaseUid, "grocery_list", gl.serverId)
     }
 
     fun since(firebaseUid: String, since: Instant): List<GroceryListDto> =
