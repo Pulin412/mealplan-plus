@@ -60,8 +60,9 @@ fun WorkoutTemplateDetailScreen(
                         fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary, letterSpacing = (-0.3).sp
                     )
                     if (t != null) {
+                        val totalSets = t.exercises.sumOf { it.templateExercise.targetSets ?: 0 }
                         Text(
-                            "${t.exercises.size} exercise${if (t.exercises.size != 1) "s" else ""} · ${t.template.category.displayName()}",
+                            "${t.exercises.size} exercise${if (t.exercises.size != 1) "s" else ""} · $totalSets sets · ${t.template.category.displayName()}",
                             fontSize = 12.sp, color = TextSecondary, modifier = Modifier.padding(top = 1.dp)
                         )
                     }
@@ -170,23 +171,59 @@ fun WorkoutTemplateDetailScreen(
                                             if (meta.isNotBlank()) Text(meta, fontSize = 11.sp, color = TextSecondary)
                                         }
 
-                                        // Target row: sets × reps @ weight
-                                        val targetStr = buildString {
-                                            ex.templateExercise.targetSets?.let { append("${it}×") }
-                                            ex.templateExercise.targetReps?.let { append("${it}") }
-                                            ex.templateExercise.targetWeightKg?.let {
-                                                val w = if (it % 1 == 0.0) it.toInt().toString() else "%.1f".format(it)
-                                                append(" @ ${w}kg")
-                                            }
-                                        }
-                                        if (targetStr.isNotBlank()) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(7.dp))
-                                                    .background(TagGrayBg)
-                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                                            ) {
-                                                Text(targetStr, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = TextSecondary)
+                                        // Set breakdown: group consecutive sets with same reps+weight
+                                        Column(
+                                            horizontalAlignment = Alignment.End,
+                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            if (ex.plannedSets.isNotEmpty()) {
+                                                // Group into runs of same (reps, weight)
+                                                data class SetGroup(val reps: Int?, val weightKg: Double?, val count: Int)
+                                                val groups = mutableListOf<SetGroup>()
+                                                for (s in ex.plannedSets) {
+                                                    val last = groups.lastOrNull()
+                                                    if (last != null && last.reps == s.reps && last.weightKg == s.weightKg) {
+                                                        groups[groups.lastIndex] = last.copy(count = last.count + 1)
+                                                    } else {
+                                                        groups.add(SetGroup(s.reps, s.weightKg, 1))
+                                                    }
+                                                }
+                                                groups.forEach { g ->
+                                                    val label = buildString {
+                                                        g.weightKg?.let {
+                                                            val w = if (it % 1 == 0.0) it.toInt().toString() else "%.1f".format(it)
+                                                            append("${w}kg · ")
+                                                        }
+                                                        g.reps?.let { append("${it} reps") }
+                                                        if (g.count > 1) append(" ×${g.count}")
+                                                    }
+                                                    if (label.isNotBlank()) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .background(TagGrayBg)
+                                                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                        ) {
+                                                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = TextSecondary)
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                // Fallback: show summary badge
+                                                val fallback = buildString {
+                                                    ex.templateExercise.targetSets?.let { append("${it}×") }
+                                                    ex.templateExercise.targetReps?.let { append("$it") }
+                                                }
+                                                if (fallback.isNotBlank()) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(TagGrayBg)
+                                                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                    ) {
+                                                        Text(fallback, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = TextSecondary)
+                                                    }
+                                                }
                                             }
                                         }
                                     }

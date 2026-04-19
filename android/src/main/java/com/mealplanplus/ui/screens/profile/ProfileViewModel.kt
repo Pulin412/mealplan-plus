@@ -18,6 +18,7 @@ import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.User
 import com.mealplanplus.data.model.WorkoutTemplate
 import com.mealplanplus.data.model.WorkoutTemplateCategory
+import com.mealplanplus.data.model.WorkoutTemplateSet
 import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
@@ -441,22 +442,75 @@ class ProfileViewModel @Inject constructor(
 
                         val exercisesArr = t.optJSONArray("exercises")
                         if (exercisesArr != null) {
+                            // ── Step 1: insert WorkoutTemplateExercise rows ──
                             val templateExercises = mutableListOf<WorkoutTemplateExercise>()
                             for (j in 0 until exercisesArr.length()) {
                                 val ex = exercisesArr.getJSONObject(j)
                                 val exName = ex.optString("name", "")
                                 if (exName.isBlank()) continue
                                 val exercise = workoutRepository.getExerciseByName(exName) ?: continue
-                                templateExercises.add(WorkoutTemplateExercise(
-                                    templateId = templateId,
-                                    exerciseId = exercise.id,
-                                    orderIndex = j,
-                                    targetSets = ex.optInt("sets", 3).takeIf { it > 0 },
-                                    targetReps = ex.optInt("reps", 0).takeIf { it > 0 }
-                                ))
+
+                                val setsArr = ex.optJSONArray("sets")
+                                val totalSets: Int
+                                val firstReps: Int?
+                                if (setsArr != null && setsArr.length() > 0) {
+                                    totalSets = (0 until setsArr.length()).sumOf { k ->
+                                        setsArr.getJSONObject(k).optInt("count", 1)
+                                    }
+                                    firstReps = setsArr.getJSONObject(0).optInt("reps", 0).takeIf { it > 0 }
+                                } else {
+                                    totalSets = ex.optInt("sets", 3).coerceAtLeast(1)
+                                    firstReps = ex.optInt("reps", 0).takeIf { it > 0 }
+                                }
+
+                                templateExercises.add(
+                                    WorkoutTemplateExercise(
+                                        templateId = templateId,
+                                        exerciseId = exercise.id,
+                                        orderIndex = j,
+                                        targetSets = totalSets,
+                                        targetReps = firstReps
+                                    )
+                                )
                             }
+
                             if (templateExercises.isNotEmpty()) {
                                 workoutRepository.upsertTemplateExercises(templateExercises)
+
+                                // ── Step 2: re-fetch to get DB-assigned IDs ──
+                                val inserted = workoutRepository.getTemplateWithExercises(templateId)
+                                if (inserted != null) {
+                                    // Sort by orderIndex to match JSON order
+                                    val sortedExercises = inserted.exercises
+                                        .sortedBy { it.templateExercise.orderIndex }
+
+                                    val allSets = mutableListOf<WorkoutTemplateSet>()
+                                    sortedExercises.forEachIndexed { idx, exWithDetails ->
+                                        val exJson = exercisesArr.optJSONObject(idx) ?: return@forEachIndexed
+                                        val setsArr = exJson.optJSONArray("sets") ?: return@forEachIndexed
+                                        var setIndex = 0
+                                        for (k in 0 until setsArr.length()) {
+                                            val setObj = setsArr.getJSONObject(k)
+                                            val reps = setObj.optInt("reps", 0).takeIf { it > 0 }
+                                            val weightKg = setObj.optDouble("weight", Double.NaN)
+                                                .takeIf { !it.isNaN() }
+                                            val count = setObj.optInt("count", 1).coerceAtLeast(1)
+                                            repeat(count) {
+                                                allSets.add(
+                                                    WorkoutTemplateSet(
+                                                        templateExerciseId = exWithDetails.templateExercise.id,
+                                                        setIndex = setIndex++,
+                                                        reps = reps,
+                                                        weightKg = weightKg
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                    if (allSets.isNotEmpty()) {
+                                        workoutRepository.insertTemplateSets(allSets)
+                                    }
+                                }
                             }
                         }
                         imported++

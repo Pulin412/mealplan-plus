@@ -68,10 +68,31 @@ data class WorkoutTemplateExercise(
     val notes: String? = null
 )
 
+/** One row per set in a workout template exercise (supports pyramid / varied sets). */
+@Entity(
+    tableName = "workout_template_sets",
+    foreignKeys = [ForeignKey(
+        entity = WorkoutTemplateExercise::class,
+        parentColumns = ["id"],
+        childColumns = ["templateExerciseId"],
+        onDelete = ForeignKey.CASCADE
+    )],
+    indices = [Index("templateExerciseId")]
+)
+data class WorkoutTemplateSet(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val templateExerciseId: Long,
+    val setIndex: Int = 0,
+    val reps: Int? = null,
+    val weightKg: Double? = null
+)
+
 data class WorkoutTemplateExerciseWithDetails(
     @Embedded val templateExercise: WorkoutTemplateExercise,
     @Relation(parentColumn = "exerciseId", entityColumn = "id")
-    val exercise: Exercise
+    val exercise: Exercise,
+    @Relation(parentColumn = "id", entityColumn = "templateExerciseId")
+    val plannedSets: List<WorkoutTemplateSet>
 )
 
 data class WorkoutTemplateWithExercises(

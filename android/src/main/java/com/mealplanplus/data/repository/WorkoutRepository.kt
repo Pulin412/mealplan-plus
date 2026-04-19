@@ -12,6 +12,7 @@ import com.mealplanplus.data.model.WorkoutSession
 import com.mealplanplus.data.model.WorkoutSet
 import com.mealplanplus.data.model.WorkoutTemplate
 import com.mealplanplus.data.model.WorkoutTemplateExercise
+import com.mealplanplus.data.model.WorkoutTemplateSet
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,6 +56,12 @@ class WorkoutRepository @Inject constructor(
     suspend fun insertTemplate(template: WorkoutTemplate): Long = templateDao.insertTemplate(template)
     suspend fun upsertTemplateExercises(exercises: List<WorkoutTemplateExercise>) =
         templateDao.upsertTemplateExercises(exercises)
+
+    suspend fun insertTemplateSets(sets: List<WorkoutTemplateSet>) =
+        templateDao.insertTemplateSets(sets)
+
+    suspend fun clearSetsForTemplate(templateId: Long) =
+        templateDao.clearSetsForTemplate(templateId)
 
     suspend fun saveTemplate(
         template: WorkoutTemplate,

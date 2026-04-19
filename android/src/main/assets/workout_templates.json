@@ -5,12 +5,60 @@
       "category": "STRENGTH",
       "notes": "Monday · Beginner",
       "exercises": [
-        { "name": "Bench Press",            "sets": 3, "reps": 12 },
-        { "name": "Incline Dumbbell Press", "sets": 4, "reps": 15 },
-        { "name": "Flat Dumbbell Press",    "sets": 5, "reps": 15 },
-        { "name": "Bicep Curl",             "sets": 4, "reps": 12 },
-        { "name": "Cable Bicep Curl",       "sets": 4, "reps": 12 },
-        { "name": "Hammer Curl",            "sets": 4, "reps": 12 }
+        {
+          "name": "Bench Press",
+          "sets": [
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 8,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Incline Dumbbell Press",
+          "sets": [
+            { "reps": 15, "weight": 2.5,  "count": 1 },
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 8,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Flat Dumbbell Press",
+          "sets": [
+            { "reps": 15, "weight": 2.5,  "count": 1 },
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 10, "weight": 7.5,  "count": 1 },
+            { "reps": 8,  "weight": 10.0, "count": 1 },
+            { "reps": 5,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Bicep Curl",
+          "sets": [
+            { "reps": 12, "weight": 5.0,  "count": 2 },
+            { "reps": 10, "weight": 7.5,  "count": 2 },
+            { "reps": 8,  "weight": 10.0, "count": 1 },
+            { "reps": 5,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Cable Bicep Curl",
+          "sets": [
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 },
+            { "reps": 5,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Hammer Curl",
+          "sets": [
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 10, "weight": 7.5,  "count": 1 },
+            { "reps": 8,  "weight": 10.0, "count": 1 },
+            { "reps": 8,  "weight": 12.5, "count": 1 }
+          ]
+        }
       ]
     },
     {
@@ -18,13 +66,70 @@
       "category": "STRENGTH",
       "notes": "Tuesday · Beginner",
       "exercises": [
-        { "name": "Deadlift",                  "sets": 4, "reps": 10 },
-        { "name": "Lat Pulldown",              "sets": 3, "reps": 15 },
-        { "name": "Reverse Grip Lat Pulldown", "sets": 4, "reps": 15 },
-        { "name": "Seated Cable Row",          "sets": 4, "reps": 15 },
-        { "name": "Tricep Bar Pulldown",       "sets": 4, "reps": 15 },
-        { "name": "Tricep Rope Pulldown",      "sets": 5, "reps": 15 },
-        { "name": "Skull Crushers",            "sets": 5, "reps": 15 }
+        {
+          "name": "Deadlift",
+          "sets": [
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 10, "weight": 12.5, "count": 1 },
+            { "reps": 8,  "weight": 15.0, "count": 1 },
+            { "reps": 5,  "weight": 20.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Lat Pulldown",
+          "sets": [
+            { "reps": 15, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 }
+          ]
+        },
+        {
+          "name": "Reverse Grip Lat Pulldown",
+          "sets": [
+            { "reps": 15, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Seated Cable Row",
+          "sets": [
+            { "reps": 15, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Tricep Bar Pulldown",
+          "sets": [
+            { "reps": 15, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Tricep Rope Pulldown",
+          "sets": [
+            { "reps": 15, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 },
+            { "reps": 5,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Skull Crushers",
+          "sets": [
+            { "reps": 15, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 },
+            { "reps": 5,  "count": 1 }
+          ]
+        }
       ]
     },
     {
@@ -32,12 +137,61 @@
       "category": "STRENGTH",
       "notes": "Wednesday · Beginner",
       "exercises": [
-        { "name": "Seated Dumbbell Press", "sets": 5, "reps": 15 },
-        { "name": "Lateral Raises",        "sets": 4, "reps": 15 },
-        { "name": "Front Raises",          "sets": 4, "reps": 15 },
-        { "name": "Squat",                 "sets": 4, "reps": 12 },
-        { "name": "Walking Lunges",        "sets": 3, "reps": 20 },
-        { "name": "Leg Extension",         "sets": 5, "reps": 15 }
+        {
+          "name": "Seated Dumbbell Press",
+          "sets": [
+            { "reps": 15, "weight": 2.5,  "count": 1 },
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 10, "weight": 7.5,  "count": 1 },
+            { "reps": 8,  "weight": 10.0, "count": 1 },
+            { "reps": 5,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Lateral Raises",
+          "sets": [
+            { "reps": 15, "weight": 2.5,  "count": 1 },
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 10, "weight": 7.5,  "count": 1 },
+            { "reps": 8,  "weight": 10.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Front Raises",
+          "sets": [
+            { "reps": 15, "weight": 2.5,  "count": 1 },
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 10, "weight": 7.5,  "count": 1 },
+            { "reps": 8,  "weight": 10.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Squat",
+          "sets": [
+            { "reps": 12, "weight": 10.0, "count": 1 },
+            { "reps": 10, "weight": 12.5, "count": 1 },
+            { "reps": 8,  "weight": 15.0, "count": 1 },
+            { "reps": 5,  "weight": 20.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Walking Lunges",
+          "sets": [
+            { "reps": 20, "weight": 12.5, "count": 1 },
+            { "reps": 20, "weight": 15.0, "count": 1 },
+            { "reps": 20, "weight": 17.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Leg Extension",
+          "sets": [
+            { "reps": 15, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 },
+            { "reps": 5,  "count": 1 }
+          ]
+        }
       ]
     },
     {
@@ -45,14 +199,74 @@
       "category": "STRENGTH",
       "notes": "Monday · Advanced",
       "exercises": [
-        { "name": "Bicep Curl",             "sets": 6,  "reps": 14 },
-        { "name": "Hammer Curl",            "sets": 5,  "reps": 12 },
-        { "name": "Inward Hammer Curl",     "sets": 7,  "reps": 12 },
-        { "name": "Cable Bicep Curl",       "sets": 5,  "reps": 15 },
-        { "name": "Reverse Grip Cable Curl","sets": 6,  "reps": 12 },
-        { "name": "Tricep Bar Pulldown",    "sets": 4,  "reps": 12 },
-        { "name": "Tricep Rope Pulldown",   "sets": 4,  "reps": 12 },
-        { "name": "Skull Crushers",         "sets": 4,  "reps": 15 }
+        {
+          "name": "Bicep Curl",
+          "sets": [
+            { "reps": 14, "weight": 7.5,  "count": 2 },
+            { "reps": 12, "weight": 10.0, "count": 2 },
+            { "reps": 8,  "weight": 12.5, "count": 1 },
+            { "reps": 3,  "weight": 15.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Hammer Curl",
+          "sets": [
+            { "reps": 12, "weight": 7.5,  "count": 2 },
+            { "reps": 10, "weight": 10.0, "count": 2 },
+            { "reps": 8,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Inward Hammer Curl",
+          "sets": [
+            { "reps": 12, "weight": 5.0,  "count": 2 },
+            { "reps": 12, "weight": 7.5,  "count": 2 },
+            { "reps": 10, "weight": 10.0, "count": 2 },
+            { "reps": 8,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Cable Bicep Curl",
+          "sets": [
+            { "reps": 15, "count": 2 },
+            { "reps": 12, "count": 2 },
+            { "reps": 10, "count": 1 }
+          ]
+        },
+        {
+          "name": "Reverse Grip Cable Curl",
+          "sets": [
+            { "reps": 12, "count": 2 },
+            { "reps": 10, "count": 2 },
+            { "reps": 8,  "count": 2 }
+          ]
+        },
+        {
+          "name": "Tricep Bar Pulldown",
+          "sets": [
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Tricep Rope Pulldown",
+          "sets": [
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Skull Crushers",
+          "sets": [
+            { "reps": 15, "count": 2 },
+            { "reps": 12, "count": 1 },
+            { "reps": 5,  "count": 1 }
+          ]
+        }
       ]
     },
     {
@@ -60,11 +274,51 @@
       "category": "STRENGTH",
       "notes": "Tuesday · Advanced",
       "exercises": [
-        { "name": "Push-Up",            "sets": 3, "reps": 12 },
-        { "name": "Bench Press",        "sets": 6, "reps": 12 },
-        { "name": "Incline Bench Press","sets": 6, "reps": 15 },
-        { "name": "Decline Bench Press","sets": 3, "reps": 10 },
-        { "name": "Cable Crossover",    "sets": 4, "reps": 12 }
+        {
+          "name": "Push-Up",
+          "sets": [
+            { "reps": 12, "count": 3 }
+          ]
+        },
+        {
+          "name": "Bench Press",
+          "sets": [
+            { "reps": 12, "weight": 10.0, "count": 1 },
+            { "reps": 10, "weight": 12.5, "count": 1 },
+            { "reps": 5,  "weight": 15.0, "count": 1 },
+            { "reps": 3,  "weight": 20.0, "count": 1 },
+            { "reps": 3,  "weight": 25.0, "count": 1 },
+            { "reps": 3,  "weight": 30.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Incline Bench Press",
+          "sets": [
+            { "reps": 15, "weight": 10.0, "count": 1 },
+            { "reps": 12, "weight": 12.5, "count": 1 },
+            { "reps": 10, "weight": 15.0, "count": 1 },
+            { "reps": 5,  "weight": 20.0, "count": 1 },
+            { "reps": 3,  "weight": 25.0, "count": 1 },
+            { "reps": 3,  "weight": 30.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Decline Bench Press",
+          "sets": [
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 10, "weight": 12.5, "count": 1 },
+            { "reps": 5,  "weight": 15.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Cable Crossover",
+          "sets": [
+            { "reps": 12, "count": 1 },
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 }
+          ]
+        }
       ]
     },
     {
@@ -72,9 +326,34 @@
       "category": "STRENGTH",
       "notes": "Wednesday · Advanced",
       "exercises": [
-        { "name": "Seated Dumbbell Press", "sets": 5, "reps": 12 },
-        { "name": "Front Raises",          "sets": 4, "reps": 12 },
-        { "name": "Lateral Raises",        "sets": 4, "reps": 15 }
+        {
+          "name": "Seated Dumbbell Press",
+          "sets": [
+            { "reps": 12, "weight": 7.5,  "count": 1 },
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 8,  "weight": 12.5, "count": 1 },
+            { "reps": 8,  "weight": 15.0, "count": 1 },
+            { "reps": 5,  "weight": 17.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Front Raises",
+          "sets": [
+            { "reps": 12, "weight": 5.0,  "count": 1 },
+            { "reps": 12, "weight": 7.5,  "count": 1 },
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 5,  "weight": 12.5, "count": 1 }
+          ]
+        },
+        {
+          "name": "Lateral Raises",
+          "sets": [
+            { "reps": 15, "weight": 5.0,  "count": 1 },
+            { "reps": 12, "weight": 7.5,  "count": 1 },
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 8,  "weight": 12.5, "count": 1 }
+          ]
+        }
       ]
     },
     {
@@ -82,9 +361,36 @@
       "category": "STRENGTH",
       "notes": "Thursday · Advanced",
       "exercises": [
-        { "name": "Lat Pulldown",              "sets": 10, "reps": 15 },
-        { "name": "Deadlift",                  "sets": 5,  "reps": 10 },
-        { "name": "Reverse Grip Lat Pulldown", "sets": 5,  "reps": 12 }
+        {
+          "name": "Lat Pulldown",
+          "sets": [
+            { "reps": 15, "count": 2 },
+            { "reps": 12, "count": 2 },
+            { "reps": 10, "count": 2 },
+            { "reps": 8,  "count": 2 },
+            { "reps": 5,  "count": 2 }
+          ]
+        },
+        {
+          "name": "Deadlift",
+          "sets": [
+            { "reps": 10, "weight": 20.0, "count": 1 },
+            { "reps": 8,  "weight": 25.0, "count": 1 },
+            { "reps": 5,  "weight": 30.0, "count": 1 },
+            { "reps": 5,  "weight": 35.0, "count": 1 },
+            { "reps": 5,  "weight": 40.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Reverse Grip Lat Pulldown",
+          "sets": [
+            { "reps": 12, "count": 1 },
+            { "reps": 10, "count": 1 },
+            { "reps": 8,  "count": 1 },
+            { "reps": 8,  "count": 1 },
+            { "reps": 5,  "count": 1 }
+          ]
+        }
       ]
     },
     {
@@ -92,9 +398,36 @@
       "category": "STRENGTH",
       "notes": "Friday · Advanced",
       "exercises": [
-        { "name": "Squat",          "sets": 6, "reps": 10 },
-        { "name": "Leg Extension",  "sets": 9, "reps": 15 },
-        { "name": "Walking Lunges", "sets": 4, "reps": 12 }
+        {
+          "name": "Squat",
+          "sets": [
+            { "reps": 10, "weight": 10.0, "count": 1 },
+            { "reps": 8,  "weight": 12.5, "count": 1 },
+            { "reps": 5,  "weight": 15.0, "count": 1 },
+            { "reps": 3,  "weight": 20.0, "count": 1 },
+            { "reps": 3,  "weight": 30.0, "count": 1 },
+            { "reps": 3,  "weight": 35.0, "count": 1 }
+          ]
+        },
+        {
+          "name": "Leg Extension",
+          "sets": [
+            { "reps": 15, "count": 2 },
+            { "reps": 12, "count": 2 },
+            { "reps": 10, "count": 2 },
+            { "reps": 8,  "count": 2 },
+            { "reps": 5,  "count": 1 }
+          ]
+        },
+        {
+          "name": "Walking Lunges",
+          "sets": [
+            { "reps": 12, "weight": 10.0, "count": 1 },
+            { "reps": 10, "weight": 15.0, "count": 1 },
+            { "reps": 8,  "weight": 17.5, "count": 1 },
+            { "reps": 8,  "weight": 20.0, "count": 1 }
+          ]
+        }
       ]
     }
   ]

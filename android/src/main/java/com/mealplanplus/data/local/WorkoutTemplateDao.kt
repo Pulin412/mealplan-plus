@@ -9,6 +9,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import com.mealplanplus.data.model.WorkoutTemplate
 import com.mealplanplus.data.model.WorkoutTemplateExercise
+import com.mealplanplus.data.model.WorkoutTemplateSet
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import kotlinx.coroutines.flow.Flow
 
@@ -40,4 +41,20 @@ interface WorkoutTemplateDao {
 
     @Delete
     suspend fun deleteTemplateExercise(exercise: WorkoutTemplateExercise)
+
+    // ── Per-set pyramid data ──────────────────────────────────────────────────
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTemplateSets(sets: List<WorkoutTemplateSet>)
+
+    @Query("DELETE FROM workout_template_sets WHERE templateExerciseId = :templateExerciseId")
+    suspend fun clearSetsForExercise(templateExerciseId: Long)
+
+    @Query("""
+        DELETE FROM workout_template_sets
+        WHERE templateExerciseId IN (
+            SELECT id FROM workout_template_exercises WHERE templateId = :templateId
+        )
+    """)
+    suspend fun clearSetsForTemplate(templateId: Long)
 }

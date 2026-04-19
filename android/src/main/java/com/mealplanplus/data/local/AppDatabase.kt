@@ -30,9 +30,10 @@ import com.mealplanplus.data.model.*
         WorkoutSet::class,
         WorkoutTemplate::class,
         WorkoutTemplateExercise::class,
+        WorkoutTemplateSet::class,
         PlannedWorkout::class
     ],
-    version = 34,
+    version = 35,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
