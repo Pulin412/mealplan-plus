@@ -35,9 +35,13 @@ class ExerciseSeeder @Inject constructor(
 
     suspend fun seedIfNeeded(context: Context) = withContext(Dispatchers.IO) {
         val storedVersion = context.dataStore.data.first()[EXERCISE_DATA_VERSION_KEY] ?: 0
-        if (storedVersion == EXERCISE_DATA_VERSION) {
-            Log.d(TAG, "Exercises up-to-date (v$EXERCISE_DATA_VERSION), skipping")
+        val actualCount = exerciseDao.getSystemExerciseCount()
+        if (storedVersion == EXERCISE_DATA_VERSION && actualCount > 0) {
+            Log.d(TAG, "Exercises up-to-date (v$EXERCISE_DATA_VERSION, count=$actualCount), skipping")
             return@withContext
+        }
+        if (storedVersion == EXERCISE_DATA_VERSION && actualCount == 0) {
+            Log.w(TAG, "Exercise flag says v$EXERCISE_DATA_VERSION but DB is empty — re-seeding")
         }
 
         Log.d(TAG, "Seeding exercises (stored=$storedVersion, current=$EXERCISE_DATA_VERSION)")

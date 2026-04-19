@@ -52,9 +52,16 @@ class WorkoutTemplateSeeder @Inject constructor(
         }
 
         val key = flagKey(firebaseUid)
-        if (context.dataStore.data.first()[key] == true) {
-            Log.d(TAG, "Workout templates already seeded for $email (v$VERSION), skipping")
+        val flagDone = context.dataStore.data.first()[key] == true
+        val actualCount = workoutTemplateDao.getTemplatesForUser(firebaseUid).first().size
+        if (flagDone && actualCount > 0) {
+            Log.d(TAG, "Workout templates already seeded for $email (v$VERSION, count=$actualCount), skipping")
             return@withContext
+        }
+        if (flagDone && actualCount == 0) {
+            Log.w(TAG, "Template flag is set for $email but DB is empty — re-seeding")
+            // Reset the flag so it gets written again after successful seed
+            context.dataStore.edit { it.remove(key) }
         }
 
         // Guard: exercises must be seeded first. If they're not ready yet, abort WITHOUT
