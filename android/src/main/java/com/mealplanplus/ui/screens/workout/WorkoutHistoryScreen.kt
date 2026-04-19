@@ -32,6 +32,7 @@ import java.util.Locale
 fun WorkoutHistoryScreen(
     onNavigateToLog: () -> Unit,
     onNavigateToExercises: () -> Unit,
+    onNavigateToTemplates: () -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -86,13 +87,11 @@ fun WorkoutHistoryScreen(
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
+                    TextButton(onClick = onNavigateToTemplates) {
+                        Text("Templates", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignGreen)
+                    }
                     TextButton(onClick = onNavigateToExercises) {
-                        Text(
-                            "Exercises",
-                            fontSize   = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color      = DesignGreen
-                        )
+                        Text("Exercises", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignGreen)
                     }
                 }
             }

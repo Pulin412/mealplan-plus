@@ -5,9 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.model.Exercise
 import com.mealplanplus.data.model.ExerciseCategory
+import com.mealplanplus.data.model.PlannedWorkout
+import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
 import com.mealplanplus.data.model.WorkoutSession
 import com.mealplanplus.data.model.WorkoutSet
 import com.mealplanplus.data.model.WorkoutSessionWithSets
+import com.mealplanplus.data.model.WorkoutTemplate
+import com.mealplanplus.data.model.WorkoutTemplateCategory
+import com.mealplanplus.data.model.WorkoutTemplateExercise
+import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,11 +25,12 @@ import javax.inject.Inject
 data class WorkoutUiState(
     val sessions: List<WorkoutSessionWithSets> = emptyList(),
     val exercises: List<Exercise> = emptyList(),
+    val templates: List<WorkoutTemplateWithExercises> = emptyList(),
+    val plannedForDate: List<PlannedWorkoutWithTemplate> = emptyList(),
     val selectedCategory: ExerciseCategory? = null,
     val searchQuery: String = "",
     val loading: Boolean = false,
     val error: String? = null,
-    // active session being logged
     val activeSession: WorkoutSession? = null,
     val activeSets: List<WorkoutSet> = emptyList()
 )
@@ -41,6 +48,7 @@ class WorkoutViewModel @Inject constructor(
     init {
         loadHistory()
         loadExercises()
+        loadTemplates()
     }
 
     private fun loadHistory() {
@@ -57,11 +65,29 @@ class WorkoutViewModel @Inject constructor(
 
     private fun loadExercises() {
         viewModelScope.launch {
-            workoutRepository.getAllExercises().collect { list ->
+            workoutRepository.getAllExercisesForUser(userId).collect { list ->
                 _uiState.update { it.copy(exercises = list) }
             }
         }
     }
+
+    private fun loadTemplates() {
+        viewModelScope.launch {
+            workoutRepository.getTemplatesForUser(userId).collect { list ->
+                _uiState.update { it.copy(templates = list) }
+            }
+        }
+    }
+
+    fun loadPlannedForDate(date: LocalDate) {
+        viewModelScope.launch {
+            workoutRepository.getPlannedForDate(userId, date.toEpochMs()).collect { list ->
+                _uiState.update { it.copy(plannedForDate = list) }
+            }
+        }
+    }
+
+    // ── Exercise filtering ────────────────────────────────────────────────────
 
     fun filterByCategory(category: ExerciseCategory?) {
         _uiState.update { it.copy(selectedCategory = category) }
@@ -73,26 +99,95 @@ class WorkoutViewModel @Inject constructor(
 
     fun filteredExercises(): List<Exercise> {
         val state = _uiState.value
-        return state.exercises
-            .filter { ex ->
-                (state.selectedCategory == null || ex.category == state.selectedCategory) &&
-                (state.searchQuery.isBlank() || ex.name.contains(state.searchQuery, ignoreCase = true))
-            }
+        return state.exercises.filter { ex ->
+            (state.selectedCategory == null || ex.category == state.selectedCategory) &&
+            (state.searchQuery.isBlank() || ex.name.contains(state.searchQuery, ignoreCase = true))
+        }
     }
 
-    fun startSession(name: String, date: LocalDate) {
+    // ── Exercise CRUD ─────────────────────────────────────────────────────────
+
+    fun saveExercise(
+        existingId: Long?,
+        name: String,
+        category: ExerciseCategory,
+        muscleGroup: String,
+        equipment: String,
+        description: String,
+        videoLink: String,
+        onDone: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val exercise = Exercise(
+                id = existingId ?: 0L,
+                name = name.trim(),
+                category = category,
+                muscleGroup = muscleGroup.trim().ifBlank { null },
+                equipment = equipment.trim().ifBlank { null },
+                description = description.trim().ifBlank { null },
+                videoLink = videoLink.trim().ifBlank { null },
+                isSystem = false,
+                userId = userId
+            )
+            if (existingId == null) {
+                workoutRepository.insertExercise(exercise)
+            } else {
+                workoutRepository.updateExercise(exercise)
+            }
+            onDone()
+        }
+    }
+
+    fun deleteExercise(exercise: Exercise) {
+        viewModelScope.launch { workoutRepository.deleteExercise(exercise) }
+    }
+
+    // ── Template CRUD ─────────────────────────────────────────────────────────
+
+    fun saveTemplate(
+        existingId: Long?,
+        name: String,
+        category: WorkoutTemplateCategory,
+        notes: String,
+        exercises: List<WorkoutTemplateExercise>,
+        onDone: (Long) -> Unit
+    ) {
+        viewModelScope.launch {
+            val template = WorkoutTemplate(
+                id = existingId ?: 0L,
+                userId = userId,
+                name = name.trim(),
+                category = category,
+                notes = notes.trim().ifBlank { null }
+            )
+            val id = workoutRepository.saveTemplate(template, exercises)
+            onDone(id)
+        }
+    }
+
+    fun deleteTemplate(template: WorkoutTemplate) {
+        viewModelScope.launch { workoutRepository.deleteTemplate(template) }
+    }
+
+    suspend fun getTemplateWithExercises(id: Long): WorkoutTemplateWithExercises? =
+        workoutRepository.getTemplateWithExercises(id)
+
+    // ── Session logging ───────────────────────────────────────────────────────
+
+    fun startSession(name: String, date: LocalDate, templateId: Long? = null) {
         viewModelScope.launch {
             val session = WorkoutSession(
                 userId = userId,
                 name = name,
-                date = date.toEpochMs()
+                date = date.toEpochMs(),
+                notes = templateId?.toString()
             )
             val id = workoutRepository.createSession(session)
             _uiState.update { it.copy(activeSession = session.copy(id = id), activeSets = emptyList()) }
         }
     }
 
-    fun addSet(exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?) {
+    fun addSet(exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?, notes: String? = null) {
         val session = _uiState.value.activeSession ?: return
         viewModelScope.launch {
             val setNumber = _uiState.value.activeSets.count { it.exerciseId == exerciseId } + 1
@@ -102,7 +197,8 @@ class WorkoutViewModel @Inject constructor(
                 setNumber = setNumber,
                 reps = reps,
                 weightKg = weightKg,
-                durationSeconds = durationSec
+                durationSeconds = durationSec,
+                notes = notes
             )
             workoutRepository.addSet(set)
             _uiState.update { it.copy(activeSets = it.activeSets + set) }
@@ -118,8 +214,22 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun deleteSession(session: WorkoutSession) {
+        viewModelScope.launch { workoutRepository.deleteSession(session) }
+    }
+
+    // ── Planning ──────────────────────────────────────────────────────────────
+
+    fun planWorkout(date: LocalDate, templateId: Long) {
         viewModelScope.launch {
-            workoutRepository.deleteSession(session)
+            workoutRepository.planWorkout(
+                PlannedWorkout(userId = userId, date = date.toEpochMs(), templateId = templateId)
+            )
+        }
+    }
+
+    fun unplanWorkout(date: LocalDate, templateId: Long) {
+        viewModelScope.launch {
+            workoutRepository.unplanWorkout(userId, date.toEpochMs(), templateId)
         }
     }
 }

@@ -27,9 +27,12 @@ import com.mealplanplus.data.model.*
         GroceryItem::class,
         Exercise::class,
         WorkoutSession::class,
-        WorkoutSet::class
+        WorkoutSet::class,
+        WorkoutTemplate::class,
+        WorkoutTemplateExercise::class,
+        PlannedWorkout::class
     ],
-    version = 33,
+    version = 34,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -47,4 +50,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun workoutSetDao(): WorkoutSetDao
+    abstract fun workoutTemplateDao(): WorkoutTemplateDao
+    abstract fun plannedWorkoutDao(): PlannedWorkoutDao
 }

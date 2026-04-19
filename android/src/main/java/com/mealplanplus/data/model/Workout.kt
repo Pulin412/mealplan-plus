@@ -4,10 +4,12 @@ import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
+import androidx.room.Junction
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 
 enum class ExerciseCategory { STRENGTH, CARDIO, FLEXIBILITY, OTHER }
+enum class WorkoutTemplateCategory { STRENGTH, CARDIO, FLEXIBILITY, MIXED }
 
 @Entity(tableName = "exercises")
 data class Exercise(
@@ -17,8 +19,100 @@ data class Exercise(
     val muscleGroup: String? = null,
     val equipment: String? = null,
     val description: String? = null,
+    val videoLink: String? = null,
     val isSystem: Boolean = true,
+    val userId: String? = null,
     val createdAt: Long = System.currentTimeMillis()
+)
+
+// ── Workout Templates (like Diet — a reusable plan) ──────────────────────────
+
+@Entity(tableName = "workout_templates")
+data class WorkoutTemplate(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
+    val name: String,
+    val category: WorkoutTemplateCategory = WorkoutTemplateCategory.STRENGTH,
+    val notes: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(
+    tableName = "workout_template_exercises",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutTemplate::class,
+            parentColumns = ["id"],
+            childColumns = ["templateId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Exercise::class,
+            parentColumns = ["id"],
+            childColumns = ["exerciseId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("templateId"), Index("exerciseId")]
+)
+data class WorkoutTemplateExercise(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val templateId: Long,
+    val exerciseId: Long,
+    val orderIndex: Int = 0,
+    val targetSets: Int? = null,
+    val targetReps: Int? = null,
+    val targetWeightKg: Double? = null,
+    val targetDurationSeconds: Int? = null,
+    val notes: String? = null
+)
+
+data class WorkoutTemplateExerciseWithDetails(
+    @Embedded val templateExercise: WorkoutTemplateExercise,
+    @Relation(parentColumn = "exerciseId", entityColumn = "id")
+    val exercise: Exercise
+)
+
+data class WorkoutTemplateWithExercises(
+    @Embedded val template: WorkoutTemplate,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "templateId",
+        entity = WorkoutTemplateExercise::class
+    )
+    val exercises: List<WorkoutTemplateExerciseWithDetails>
+)
+
+// ── Planned Workouts (calendar integration — like DayPlan for meals) ─────────
+
+@Entity(
+    tableName = "planned_workouts",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutTemplate::class,
+            parentColumns = ["id"],
+            childColumns = ["templateId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("templateId")]
+)
+data class PlannedWorkout(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
+    val date: Long,
+    val templateId: Long
+)
+
+data class PlannedWorkoutWithTemplate(
+    @Embedded val plannedWorkout: PlannedWorkout,
+    @Relation(
+        parentColumn = "templateId",
+        entityColumn = "id",
+        entity = WorkoutTemplate::class
+    )
+    val template: WorkoutTemplateWithExercises
 )
 
 @Entity(tableName = "workout_sessions")

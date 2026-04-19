@@ -28,6 +28,7 @@ import com.mealplanplus.ui.theme.*
 @Composable
 fun ExerciseCatalogueScreen(
     onBack: () -> Unit,
+    onAddExercise: () -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -146,7 +147,7 @@ fun ExerciseCatalogueScreen(
                         modifier = Modifier.padding(start = 64.dp)
                     )
                 }
-                item { AddCustomExerciseButton() }
+                item { AddCustomExerciseButton(onClick = onAddExercise) }
             }
         } else {
             // Grouped by category when showing all
@@ -185,7 +186,7 @@ fun ExerciseCatalogueScreen(
                         }
                     }
                 }
-                item { AddCustomExerciseButton() }
+                item { AddCustomExerciseButton(onClick = onAddExercise) }
             }
         }
     }
@@ -194,15 +195,15 @@ fun ExerciseCatalogueScreen(
 // ── "+ Add custom exercise" outline button (.form-btn-outline) ────────────────
 
 @Composable
-private fun AddCustomExerciseButton() {
+private fun AddCustomExerciseButton(onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp))
             .border(1.5.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .clickable { }
+            .background(CardBg)
+            .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {

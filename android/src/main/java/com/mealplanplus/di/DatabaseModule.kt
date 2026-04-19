@@ -1656,6 +1656,58 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_33_34 = object : Migration(33, 34) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add videoLink + userId to exercises (new custom exercise support)
+            db.execSQL("ALTER TABLE exercises ADD COLUMN videoLink TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE exercises ADD COLUMN userId TEXT DEFAULT NULL")
+
+            // Workout templates (reusable named plans like "Chest Day")
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_templates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    category TEXT NOT NULL DEFAULT 'STRENGTH',
+                    notes TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+
+            // Exercises per template with targets
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_template_exercises (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    templateId INTEGER NOT NULL,
+                    exerciseId INTEGER NOT NULL,
+                    orderIndex INTEGER NOT NULL DEFAULT 0,
+                    targetSets INTEGER,
+                    targetReps INTEGER,
+                    targetWeightKg REAL,
+                    targetDurationSeconds INTEGER,
+                    notes TEXT,
+                    FOREIGN KEY(templateId) REFERENCES workout_templates(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_template_exercises_templateId` ON workout_template_exercises(templateId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_template_exercises_exerciseId` ON workout_template_exercises(exerciseId)")
+
+            // Planned workouts per date (like day_plans for meals)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS planned_workouts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    date INTEGER NOT NULL,
+                    templateId INTEGER NOT NULL,
+                    FOREIGN KEY(templateId) REFERENCES workout_templates(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_workouts_templateId` ON planned_workouts(templateId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -1664,7 +1716,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34)
             // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()
@@ -1708,4 +1760,10 @@ object DatabaseModule {
 
     @Provides
     fun provideWorkoutSetDao(database: AppDatabase): WorkoutSetDao = database.workoutSetDao()
+
+    @Provides
+    fun provideWorkoutTemplateDao(database: AppDatabase): WorkoutTemplateDao = database.workoutTemplateDao()
+
+    @Provides
+    fun providePlannedWorkoutDao(database: AppDatabase): PlannedWorkoutDao = database.plannedWorkoutDao()
 }
