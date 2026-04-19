@@ -547,16 +547,3 @@ private fun HeaderStat(value: String, label: String) {
     }
 }
 
-private fun categoryEmoji(category: ExerciseCategory?) = when (category) {
-    ExerciseCategory.STRENGTH    -> "💪"
-    ExerciseCategory.CARDIO      -> "🏃"
-    ExerciseCategory.FLEXIBILITY -> "🧘"
-    else                         -> "🏋️"
-}
-
-private fun WorkoutTemplateCategory.emoji() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> "💪"
-    WorkoutTemplateCategory.CARDIO      -> "🏃"
-    WorkoutTemplateCategory.FLEXIBILITY -> "🧘"
-    WorkoutTemplateCategory.MIXED       -> "🏋️"
-}

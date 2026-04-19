@@ -72,7 +72,7 @@ fun WorkoutHistoryScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment     = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "Workouts",
                             fontSize      = 20.sp,
@@ -88,10 +88,7 @@ fun WorkoutHistoryScreen(
                         )
                     }
                     TextButton(onClick = onNavigateToTemplates) {
-                        Text("Templates", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignGreen)
-                    }
-                    TextButton(onClick = onNavigateToExercises) {
-                        Text("Exercises", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignGreen)
+                        Text("My Workouts", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignGreen)
                     }
                 }
             }
@@ -108,65 +105,38 @@ fun WorkoutHistoryScreen(
                 }
             }
 
-            if (state.sessions.isEmpty()) {
-                item { EmptyWorkoutsState(onNavigateToLog) }
-            } else {
-                // ── "Log a session" prompt card (black, like design) ──────
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF111111))
-                            .clickable(onClick = onNavigateToLog)
-                            .padding(16.dp)
+            // ── "Log a Workout" button — always visible below stats ───────────
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFF111111))
+                        .clickable(onClick = onNavigateToLog)
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier              = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment     = Alignment.CenterVertically
+                        Column {
+                            Text("LOG A WORKOUT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF888888), letterSpacing = 0.5.sp)
+                            Text("Start a new session", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 3.dp))
+                        }
+                        Box(
+                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White).padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            Column {
-                                Text(
-                                    "TODAY'S SESSION",
-                                    fontSize      = 10.sp,
-                                    fontWeight    = FontWeight.Bold,
-                                    color         = Color(0xFF888888),
-                                    letterSpacing = 0.5.sp
-                                )
-                                Text(
-                                    "Start a new workout",
-                                    fontSize   = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color      = Color.White,
-                                    modifier   = Modifier.padding(top = 4.dp)
-                                )
-                                Text(
-                                    "Tap to log your session",
-                                    fontSize = 11.sp,
-                                    color    = Color(0xFF888888),
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(Color.White)
-                                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                            ) {
-                                Text(
-                                    "▶ Start",
-                                    fontSize   = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color      = Color(0xFF111111)
-                                )
-                            }
+                            Text("▶ Start", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111))
                         }
                     }
                 }
+            }
 
-                // ── "Recent sessions" section ─────────────────────────────
+            if (state.sessions.isEmpty()) {
+                item { EmptyWorkoutsState(onNavigateToLog) }
+            } else {
                 item {
                     Text(
                         "Recent sessions",

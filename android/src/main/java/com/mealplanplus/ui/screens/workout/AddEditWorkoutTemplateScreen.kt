@@ -33,12 +33,13 @@ import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Suppress("UNUSED_VARIABLE")
 @Composable
 fun AddEditWorkoutTemplateScreen(
     existingTemplateId: Long? = null,
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    onPickExercise: (excludeIds: List<Long>) -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -55,7 +56,6 @@ fun AddEditWorkoutTemplateScreen(
     var category    by remember(existing) { mutableStateOf(existing?.template?.category ?: WorkoutTemplateCategory.STRENGTH) }
     var notes       by remember(existing) { mutableStateOf(existing?.template?.notes ?: "") }
 
-    // Mutable list of (exerciseId, targetSets, targetReps, targetWeightKg, notes) draft entries
     val templateExercises = remember(existing) {
         mutableStateListOf<TemplateDraftExercise>().also { list ->
             existing?.exercises?.forEach { ex ->
@@ -74,8 +74,17 @@ fun AddEditWorkoutTemplateScreen(
         }
     }
 
-    var showExercisePicker by remember { mutableStateOf(false) }
     var expandedIndex by remember { mutableStateOf<Int?>(null) }
+
+    // Consume pending exercise selection returned from ExercisePickerScreen
+    LaunchedEffect(state.pendingExercise) {
+        val picked = state.pendingExercise ?: return@LaunchedEffect
+        if (templateExercises.none { it.exercise.id == picked.id }) {
+            templateExercises.add(TemplateDraftExercise(exercise = picked))
+            expandedIndex = templateExercises.lastIndex
+        }
+        viewModel.consumeSelectedExercise()
+    }
 
     val canSave = name.isNotBlank() && templateExercises.isNotEmpty()
 
@@ -94,7 +103,7 @@ fun AddEditWorkoutTemplateScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
             }
             Text(
-                if (existingTemplateId == null) "New Template" else "Edit Template",
+                if (existingTemplateId == null) "New Workout" else "Edit Workout",
                 fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary,
                 letterSpacing = (-0.3).sp
             )
@@ -212,7 +221,7 @@ fun AddEditWorkoutTemplateScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(CardBg)
-                        .clickable { showExercisePicker = true }
+                        .clickable { onPickExercise(templateExercises.map { it.exercise.id }) }
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -265,7 +274,7 @@ fun AddEditWorkoutTemplateScreen(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = TextPrimary)
             ) {
-                Text("Save Template", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = CardBg)
+                    Text("Save Workout", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = CardBg)
             }
             OutlinedButton(
                 onClick = onBack,
@@ -277,19 +286,6 @@ fun AddEditWorkoutTemplateScreen(
         }
     }
 
-    // Exercise picker
-    if (showExercisePicker) {
-        ExercisePickerSheet(
-            exercises = state.exercises,
-            excludeIds = templateExercises.map { it.exercise.id }.toSet(),
-            onSelect = { exercise ->
-                templateExercises.add(TemplateDraftExercise(exercise = exercise))
-                expandedIndex = templateExercises.lastIndex
-                showExercisePicker = false
-            },
-            onDismiss = { showExercisePicker = false }
-        )
-    }
 }
 
 // ── Template exercise row (expandable) ───────────────────────────────────────
@@ -525,9 +521,3 @@ private fun FormLabel(text: String, required: Boolean = false) {
     }
 }
 
-private fun categoryEmoji(category: com.mealplanplus.data.model.ExerciseCategory?) = when (category) {
-    com.mealplanplus.data.model.ExerciseCategory.STRENGTH    -> "💪"
-    com.mealplanplus.data.model.ExerciseCategory.CARDIO      -> "🏃"
-    com.mealplanplus.data.model.ExerciseCategory.FLEXIBILITY -> "🧘"
-    else -> "🏋️"
-}

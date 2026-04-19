@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
@@ -106,9 +107,11 @@ import com.mealplanplus.ui.screens.grocery.GroceryDetailScreen
 import com.mealplanplus.ui.screens.workout.WorkoutHistoryScreen
 import com.mealplanplus.ui.screens.workout.WorkoutLogScreen
 import com.mealplanplus.ui.screens.workout.WorkoutTemplatesScreen
+import com.mealplanplus.ui.screens.workout.WorkoutTemplateDetailScreen
 import com.mealplanplus.ui.screens.workout.AddEditWorkoutTemplateScreen
 import com.mealplanplus.ui.screens.workout.AddEditExerciseScreen
 import com.mealplanplus.ui.screens.workout.ExerciseCatalogueScreen
+import com.mealplanplus.ui.screens.workout.ExercisePickerScreen
 import android.app.Activity
 import android.content.Intent
 import com.mealplanplus.util.AuthPreferences
@@ -202,6 +205,10 @@ sealed class Screen(val route: String) {
         fun create(templateId: Long? = null) = if (templateId != null) "workout_log?templateId=$templateId" else "workout_log?templateId=-1"
     }
     object WorkoutTemplates : Screen("workout_templates")
+    object WorkoutTemplateDetail : Screen("workout_template_detail/{templateId}") {
+        fun create(templateId: Long) = "workout_template_detail/$templateId"
+    }
+    object ExercisePicker : Screen("exercise_picker")
     object AddWorkoutTemplate : Screen("add_workout_template/{templateId}") {
         fun create(templateId: Long? = null) = "add_workout_template/${templateId ?: -1}"
     }
@@ -908,11 +915,25 @@ fun MealPlanNavHost(
                 WorkoutTemplatesScreen(
                     onBack = { navController.popBackStack() },
                     onCreateTemplate = { navController.navigate(Screen.AddWorkoutTemplate.create()) },
+                    onViewTemplate = { id -> navController.navigate(Screen.WorkoutTemplateDetail.create(id)) },
                     onEditTemplate = { id -> navController.navigate(Screen.AddWorkoutTemplate.create(id)) },
                     onStartFromTemplate = { id ->
-                        navController.navigate(Screen.WorkoutLog.create(id)) {
-                            launchSingleTop = true
-                        }
+                        navController.navigate(Screen.WorkoutLog.create(id)) { launchSingleTop = true }
+                    },
+                    onNavigateToExercises = { navController.navigate(Screen.ExerciseCatalogue.route) }
+                )
+            }
+            composable(
+                route = Screen.WorkoutTemplateDetail.route,
+                arguments = listOf(navArgument("templateId") { type = NavType.LongType })
+            ) { backStack ->
+                val templateId = backStack.arguments?.getLong("templateId") ?: return@composable
+                WorkoutTemplateDetailScreen(
+                    templateId = templateId,
+                    onBack = { navController.popBackStack() },
+                    onEdit = { id -> navController.navigate(Screen.AddWorkoutTemplate.create(id)) },
+                    onStartWorkout = { id ->
+                        navController.navigate(Screen.WorkoutLog.create(id)) { launchSingleTop = true }
                     }
                 )
             }
@@ -926,7 +947,25 @@ fun MealPlanNavHost(
                 AddEditWorkoutTemplateScreen(
                     existingTemplateId = existingId,
                     onBack = { navController.popBackStack() },
-                    onSaved = { navController.popBackStack() }
+                    onSaved = { navController.popBackStack() },
+                    onPickExercise = { excludeIds ->
+                        navController.navigate(Screen.ExercisePicker.route)
+                    }
+                )
+            }
+            composable(Screen.ExercisePicker.route) { currentEntry ->
+                // Share the WorkoutViewModel with the AddEditWorkoutTemplateScreen so
+                // selectExercise() updates the same state that screen observes.
+                val prevEntry = remember(currentEntry) { navController.previousBackStackEntry }
+                val sharedVm: com.mealplanplus.ui.screens.workout.WorkoutViewModel =
+                    if (prevEntry != null) hiltViewModel(prevEntry) else hiltViewModel()
+                ExercisePickerScreen(
+                    onBack = { navController.popBackStack() },
+                    onPicked = { exercise ->
+                        sharedVm.selectExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    viewModel = sharedVm
                 )
             }
             composable(
@@ -934,15 +973,18 @@ fun MealPlanNavHost(
                 arguments = listOf(navArgument("exerciseId") {
                     type = NavType.LongType; defaultValue = -1L
                 })
-            ) {
+            ) { backStack ->
+                val exerciseId = backStack.arguments?.getLong("exerciseId")?.takeIf { it > 0 }
                 AddEditExerciseScreen(
+                    existingId = exerciseId,
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.ExerciseCatalogue.route) {
                 ExerciseCatalogueScreen(
                     onBack = { navController.popBackStack() },
-                    onAddExercise = { navController.navigate(Screen.AddExercise.create()) }
+                    onAddExercise = { navController.navigate(Screen.AddExercise.create()) },
+                    onEditExercise = { id -> navController.navigate(Screen.AddExercise.create(id)) }
                 )
             }
             composable(Screen.FoodPickerForCustomSlot.route) {

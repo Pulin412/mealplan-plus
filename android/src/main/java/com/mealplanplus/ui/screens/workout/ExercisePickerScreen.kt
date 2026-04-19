@@ -7,12 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,43 +25,38 @@ import com.mealplanplus.data.model.Exercise
 import com.mealplanplus.data.model.ExerciseCategory
 import com.mealplanplus.ui.theme.*
 
+/**
+ * Full-screen exercise picker used when adding exercises to a workout template.
+ * Calls [viewModel.selectExercise] and pops back; the template screen observes
+ * [WorkoutUiState.pendingExercise] to consume the selection.
+ */
 @Composable
-fun ExerciseCatalogueScreen(
+fun ExercisePickerScreen(
+    excludeIds: Set<Long> = emptySet(),
     onBack: () -> Unit,
-    onAddExercise: () -> Unit = {},
-    onEditExercise: (Long) -> Unit = {},
+    onPicked: (Exercise) -> Unit,
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // Derived from state so it reacts to filter/search changes correctly
-    val exercises = remember(state.exercises, state.selectedCategory, state.searchQuery) {
+    var search   by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf<ExerciseCategory?>(null) }
+
+    val filtered = remember(state.exercises, search, category, excludeIds) {
         state.exercises.filter { ex ->
-            (state.selectedCategory == null || ex.category == state.selectedCategory) &&
-            (state.searchQuery.isBlank() || ex.name.contains(state.searchQuery, ignoreCase = true))
+            ex.id !in excludeIds &&
+            (category == null || ex.category == category) &&
+            (search.isBlank() || ex.name.contains(search, ignoreCase = true))
         }
     }
-    val grouped = remember(exercises) { exercises.groupBy { it.category } }
+    val grouped = remember(filtered) { filtered.groupBy { it.category } }
 
-    Scaffold(
-        containerColor = BgPage,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddExercise,
-                containerColor = TextPrimary,
-                contentColor = CardBg,
-                shape = CircleShape,
-                modifier = Modifier.size(52.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add exercise", modifier = Modifier.size(22.dp))
-            }
-        }
-    ) { scaffoldPadding ->
+    Scaffold(containerColor = BgPage) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BgPage)
-                .padding(scaffoldPadding)
+                .padding(padding)
         ) {
             // ── Header ────────────────────────────────────────────────────────
             Row(
@@ -78,19 +70,8 @@ fun ExerciseCatalogueScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Exercises",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        letterSpacing = (-0.3).sp
-                    )
-                    Text(
-                        "${state.exercises.size} exercises",
-                        fontSize = 12.sp,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(top = 1.dp)
-                    )
+                    Text("Add Exercise", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary, letterSpacing = (-0.3).sp)
+                    Text("${filtered.size} available", fontSize = 12.sp, color = TextSecondary, modifier = Modifier.padding(top = 1.dp))
                 }
             }
 
@@ -108,12 +89,10 @@ fun ExerciseCatalogueScreen(
             ) {
                 Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFFBBBBBB), modifier = Modifier.size(16.dp))
                 Box(modifier = Modifier.weight(1f)) {
-                    if (state.searchQuery.isEmpty()) {
-                        Text("Search exercises…", fontSize = 14.sp, color = Color(0xFFBBBBBB))
-                    }
+                    if (search.isEmpty()) Text("Search exercises…", fontSize = 14.sp, color = Color(0xFFBBBBBB))
                     androidx.compose.foundation.text.BasicTextField(
-                        value = state.searchQuery,
-                        onValueChange = { viewModel.setSearchQuery(it) },
+                        value = search,
+                        onValueChange = { search = it },
                         singleLine = true,
                         textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = TextPrimary),
                         modifier = Modifier.fillMaxWidth()
@@ -128,55 +107,49 @@ fun ExerciseCatalogueScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             ) {
                 item {
-                    ExCategoryChip(
-                        label = "All",
-                        selected = state.selectedCategory == null,
-                        count = state.exercises.size,
-                        onClick = { viewModel.filterByCategory(null) }
-                    )
+                    PickerChip(label = "All", selected = category == null, count = state.exercises.size - excludeIds.size) {
+                        category = null
+                    }
                 }
                 items(ExerciseCategory.entries) { cat ->
-                    ExCategoryChip(
+                    PickerChip(
                         label = cat.displayName(),
-                        selected = state.selectedCategory == cat,
-                        count = state.exercises.count { it.category == cat },
-                        onClick = { viewModel.filterByCategory(cat) }
-                    )
+                        selected = category == cat,
+                        count = state.exercises.count { it.category == cat && it.id !in excludeIds }
+                    ) { category = cat }
                 }
             }
 
             // ── Exercise list ─────────────────────────────────────────────────
-            if (exercises.isEmpty()) {
+            if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("🔍", fontSize = 36.sp)
                         Text("No exercises found", fontSize = 15.sp, color = TextSecondary)
                     }
                 }
-            } else if (state.selectedCategory != null || state.searchQuery.isNotBlank()) {
-                // Flat list when filtered
-                LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 88.dp)) {
-                    items(exercises, key = { it.id }) { ex ->
-                        ExerciseListItem(ex, onClick = { onEditExercise(ex.id) })
-                        HorizontalDivider(color = DividerColor, thickness = 1.dp, modifier = Modifier.padding(start = 64.dp))
+            } else if (category != null || search.isNotBlank()) {
+                LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp)) {
+                    items(filtered, key = { it.id }) { ex ->
+                        PickerExerciseRow(ex) {
+                            onPicked(ex)
+                        }
+                        HorizontalDivider(color = DividerColor, thickness = 1.dp, modifier = Modifier.padding(start = 62.dp))
                     }
                 }
             } else {
-                // Grouped by category when showing all
-                LazyColumn(contentPadding = PaddingValues(bottom = 88.dp)) {
+                LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
                     ExerciseCategory.entries.forEach { cat ->
                         val catExercises = grouped[cat] ?: return@forEach
-                        item(key = "header_${cat.name}") {
+                        item(key = "hdr_${cat.name}") {
                             Text(
                                 cat.displayName().uppercase(),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextSecondary,
+                                fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary,
                                 letterSpacing = 0.8.sp,
                                 modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 6.dp)
                             )
                         }
-                        item(key = "card_${cat.name}") {
+                        item(key = "grp_${cat.name}") {
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                                 shape = RoundedCornerShape(14.dp),
@@ -184,9 +157,9 @@ fun ExerciseCatalogueScreen(
                                 elevation = CardDefaults.cardElevation(0.dp)
                             ) {
                                 catExercises.forEachIndexed { idx, ex ->
-                                    ExerciseListItem(ex, onClick = { onEditExercise(ex.id) })
+                                    PickerExerciseRow(ex) { onPicked(ex) }
                                     if (idx < catExercises.lastIndex) {
-                                        HorizontalDivider(color = DividerColor, thickness = 1.dp, modifier = Modifier.padding(start = 64.dp))
+                                        HorizontalDivider(color = DividerColor, thickness = 1.dp, modifier = Modifier.padding(start = 62.dp))
                                     }
                                 }
                             }
@@ -198,14 +171,12 @@ fun ExerciseCatalogueScreen(
     }
 }
 
-// ── Exercise list item ─────────────────────────────────────────────────────────
-
 @Composable
-internal fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit = {}) {
+private fun PickerExerciseRow(exercise: Exercise, onSelect: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onSelect)
             .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -223,42 +194,35 @@ internal fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit = {}) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(exercise.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             Text(
-                listOfNotNull(exercise.muscleGroup, exercise.equipment)
-                    .joinToString(" · ")
-                    .ifEmpty { exercise.category.displayName() },
-                fontSize = 11.sp,
-                color = TextSecondary
+                listOfNotNull(exercise.muscleGroup, exercise.equipment).joinToString(" · ").ifEmpty { exercise.category.displayName() },
+                fontSize = 11.sp, color = TextSecondary
             )
         }
 
-        val isCustom = !exercise.isSystem
-        if (isCustom) {
+        if (!exercise.isSystem) {
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(DesignGreenLight)
-                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(DesignGreenLight).padding(horizontal = 7.dp, vertical = 3.dp)
             ) {
                 Text("Custom", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DesignGreen)
             }
         }
 
-        Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = Color(0xFFCCCCCC),
-            modifier = Modifier.size(16.dp)
-        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(TagGrayBg)
+                .padding(horizontal = 10.dp, vertical = 5.dp)
+        ) {
+            Text("Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        }
     }
 }
 
-// ── Filter chip ────────────────────────────────────────────────────────────────
-
 @Composable
-private fun ExCategoryChip(label: String, selected: Boolean, count: Int, onClick: () -> Unit) {
+private fun PickerChip(label: String, selected: Boolean, count: Int, onClick: () -> Unit) {
     val bg     = if (selected) TextPrimary else CardBg
     val border = if (selected) Modifier else Modifier.border(1.dp, DividerColor, RoundedCornerShape(16.dp))
-    val text   = if (selected || count == 0) label else "$label  $count"
+    val text   = if (selected || count <= 0) label else "$label  $count"
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -269,28 +233,4 @@ private fun ExCategoryChip(label: String, selected: Boolean, count: Int, onClick
     ) {
         Text(text, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (selected) CardBg else TextSecondary)
     }
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-internal fun ExerciseCategory.displayName() = when (this) {
-    ExerciseCategory.STRENGTH    -> "Strength"
-    ExerciseCategory.CARDIO      -> "Cardio"
-    ExerciseCategory.FLEXIBILITY -> "Flexibility"
-    ExerciseCategory.OTHER       -> "Other"
-}
-
-internal fun categoryEmoji(category: ExerciseCategory?) = when (category) {
-    ExerciseCategory.STRENGTH    -> "💪"
-    ExerciseCategory.CARDIO      -> "🏃"
-    ExerciseCategory.FLEXIBILITY -> "🧘"
-    else                         -> "🏋️"
-}
-
-@Composable
-internal fun categoryBg(category: ExerciseCategory?) = when (category) {
-    ExerciseCategory.STRENGTH    -> IconBgGray
-    ExerciseCategory.CARDIO      -> TagBlueBg
-    ExerciseCategory.FLEXIBILITY -> TagGreenBg
-    else                         -> TagGrayBg
 }

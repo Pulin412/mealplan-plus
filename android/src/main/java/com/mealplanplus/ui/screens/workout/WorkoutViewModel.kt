@@ -32,7 +32,9 @@ data class WorkoutUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val activeSession: WorkoutSession? = null,
-    val activeSets: List<WorkoutSet> = emptyList()
+    val activeSets: List<WorkoutSet> = emptyList(),
+    /** Set by ExercisePickerScreen when an exercise is picked; consumed by AddEditWorkoutTemplateScreen. */
+    val pendingExercise: Exercise? = null
 )
 
 @HiltViewModel
@@ -171,6 +173,19 @@ class WorkoutViewModel @Inject constructor(
 
     suspend fun getTemplateWithExercises(id: Long): WorkoutTemplateWithExercises? =
         workoutRepository.getTemplateWithExercises(id)
+
+    suspend fun getExerciseById(id: Long): Exercise? =
+        workoutRepository.getExerciseById(id)
+
+    /** Called by ExercisePickerScreen when the user picks an exercise. */
+    fun selectExercise(exercise: Exercise) {
+        _uiState.update { it.copy(pendingExercise = exercise) }
+    }
+
+    /** Called by AddEditWorkoutTemplateScreen after it has consumed the pending exercise. */
+    fun consumeSelectedExercise() {
+        _uiState.update { it.copy(pendingExercise = null) }
+    }
 
     // ── Session logging ───────────────────────────────────────────────────────
 

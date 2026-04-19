@@ -32,8 +32,10 @@ import com.mealplanplus.ui.theme.*
 fun WorkoutTemplatesScreen(
     onBack: () -> Unit,
     onCreateTemplate: () -> Unit,
+    onViewTemplate: (Long) -> Unit,
     onEditTemplate: (Long) -> Unit,
     onStartFromTemplate: (Long) -> Unit,
+    onNavigateToExercises: () -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -71,7 +73,7 @@ fun WorkoutTemplatesScreen(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "My Templates",
+                            "My Workouts",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary,
@@ -84,6 +86,9 @@ fun WorkoutTemplatesScreen(
                             modifier = Modifier.padding(top = 1.dp)
                         )
                     }
+                    TextButton(onClick = onNavigateToExercises) {
+                        Text("Exercises", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignGreen)
+                    }
                 }
             }
 
@@ -95,9 +100,9 @@ fun WorkoutTemplatesScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text("💪", fontSize = 44.sp)
-                        Text("No templates yet", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                        Text("No workouts yet", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                         Text(
-                            "Create templates like \"Chest Day\" to quickly\nstart structured sessions.",
+                            "Create workouts like \"Chest Day\" to quickly\nstart structured sessions.",
                             fontSize = 13.sp, color = TextSecondary, textAlign = TextAlign.Center
                         )
                         Spacer(Modifier.height(4.dp))
@@ -107,14 +112,14 @@ fun WorkoutTemplatesScreen(
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                         ) {
-                            Text("Create template", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CardBg)
+                            Text("Create workout", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CardBg)
                         }
                     }
                 }
             } else {
                 item {
                     Text(
-                        "TEMPLATES",
+                        "MY WORKOUTS",
                         fontSize = 10.sp, fontWeight = FontWeight.Bold,
                         color = TextSecondary, letterSpacing = 0.8.sp,
                         modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 6.dp)
@@ -124,7 +129,7 @@ fun WorkoutTemplatesScreen(
                 items(state.templates, key = { it.template.id }) { item ->
                     TemplateCard(
                         item = item,
-                        onTap = { onStartFromTemplate(item.template.id) },
+                        onTap = { onViewTemplate(item.template.id) },
                         onEdit = { onEditTemplate(item.template.id) },
                         onDelete = { toDelete = item.template },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -237,7 +242,7 @@ private fun TemplateCard(
     }
 }
 
-private fun WorkoutTemplateCategory.emoji() = when (this) {
+internal fun WorkoutTemplateCategory.emoji() = when (this) {
     WorkoutTemplateCategory.STRENGTH    -> "💪"
     WorkoutTemplateCategory.CARDIO      -> "🏃"
     WorkoutTemplateCategory.FLEXIBILITY -> "🧘"
@@ -245,7 +250,7 @@ private fun WorkoutTemplateCategory.emoji() = when (this) {
 }
 
 @Composable
-private fun WorkoutTemplateCategory.bgColor() = when (this) {
+internal fun WorkoutTemplateCategory.bgColor() = when (this) {
     WorkoutTemplateCategory.STRENGTH    -> IconBgGray
     WorkoutTemplateCategory.CARDIO      -> TagBlueBg
     WorkoutTemplateCategory.FLEXIBILITY -> TagGreenBg
