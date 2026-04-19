@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,32 +37,31 @@ fun WorkoutHistoryScreen(
     val state by viewModel.uiState.collectAsState()
     var toDelete by remember { mutableStateOf<WorkoutSessionWithSets?>(null) }
 
-    val totalSessions = state.sessions.size
-    val totalSets = state.sessions.sumOf { it.sets.size }
-    val totalMins = state.sessions.mapNotNull { it.session.durationMinutes }.sum()
-    val uniqueExercises = state.sessions.flatMap { it.sets.map { s -> s.exercise.id } }.distinct().size
+    // Stats computed from all sessions
+    val totalSessions  = state.sessions.size
+    val totalMinutes   = state.sessions.mapNotNull { it.session.durationMinutes }.sum()
+    val totalSets      = state.sessions.sumOf { it.sets.size }
 
     Scaffold(
         containerColor = BgPage,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToLog,
-                containerColor = TextPrimary,
-                contentColor = CardBg,
-                shape = CircleShape,
-                modifier = Modifier.size(52.dp)
+                onClick     = onNavigateToLog,
+                containerColor = Color(0xFF111111),
+                contentColor   = Color.White,
+                shape          = CircleShape,
+                modifier       = Modifier.size(52.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Log workout", modifier = Modifier.size(22.dp))
             }
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = 88.dp)
+            modifier        = Modifier.fillMaxSize().padding(padding),
+            contentPadding  = PaddingValues(bottom = 100.dp)
         ) {
-            // ── Page header ──────────────────────────────────────────────────
+
+            // ── Page header ───────────────────────────────────────────────
             item {
                 Row(
                     modifier = Modifier
@@ -71,70 +69,135 @@ fun WorkoutHistoryScreen(
                         .background(BgPage)
                         .padding(start = 20.dp, end = 16.dp, top = 56.dp, bottom = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment     = Alignment.CenterVertically
                 ) {
                     Column {
                         Text(
                             "Workouts",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
+                            fontSize      = 20.sp,
+                            fontWeight    = FontWeight.Bold,
+                            color         = TextPrimary,
                             letterSpacing = (-0.3).sp
                         )
                         Text(
                             "Training history",
                             fontSize = 12.sp,
-                            color = TextSecondary,
+                            color    = TextSecondary,
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                     TextButton(onClick = onNavigateToExercises) {
                         Text(
                             "Exercises",
-                            fontSize = 13.sp,
+                            fontSize   = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = DesignGreen
+                            color      = DesignGreen
                         )
                     }
                 }
             }
 
-            // ── Stat row ─────────────────────────────────────────────────────
+            // ── Stat row: 3 cards matching .ws (no emoji) ────────────────
             item {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    WorkoutStatCard("$totalSessions", "Sessions",  "🏋️", Modifier.weight(1f))
-                    WorkoutStatCard("$totalSets",     "Total sets", "🔁",  Modifier.weight(1f))
-                    WorkoutStatCard(if (totalMins > 0) "${totalMins}m" else "--", "Minutes", "⏱️", Modifier.weight(1f))
-                    WorkoutStatCard("$uniqueExercises", "Exercises", "💪",  Modifier.weight(1f))
+                    WsCard(value = "$totalSessions",                                      label = "Sessions",  modifier = Modifier.weight(1f))
+                    WsCard(value = if (totalMinutes > 0) "$totalMinutes" else "--",       label = "Minutes",   modifier = Modifier.weight(1f))
+                    WsCard(value = "$totalSets",                                          label = "Total sets",modifier = Modifier.weight(1f))
                 }
             }
 
             if (state.sessions.isEmpty()) {
-                item { EmptyWorkoutState(onNavigateToLog) }
+                item { EmptyWorkoutsState(onNavigateToLog) }
             } else {
-                // ── Section label ─────────────────────────────────────────
+                // ── "Log a session" prompt card (black, like design) ──────
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF111111))
+                            .clickable(onClick = onNavigateToLog)
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier              = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment     = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    "TODAY'S SESSION",
+                                    fontSize      = 10.sp,
+                                    fontWeight    = FontWeight.Bold,
+                                    color         = Color(0xFF888888),
+                                    letterSpacing = 0.5.sp
+                                )
+                                Text(
+                                    "Start a new workout",
+                                    fontSize   = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color      = Color.White,
+                                    modifier   = Modifier.padding(top = 4.dp)
+                                )
+                                Text(
+                                    "Tap to log your session",
+                                    fontSize = 11.sp,
+                                    color    = Color(0xFF888888),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.White)
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    "▶ Start",
+                                    fontSize   = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color      = Color(0xFF111111)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── "Recent sessions" section ─────────────────────────────
                 item {
                     Text(
-                        "RECENT SESSIONS",
-                        fontSize = 10.sp,
+                        "Recent sessions",
+                        fontSize   = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSecondary,
-                        letterSpacing = 0.8.sp,
-                        modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 6.dp)
+                        color      = TextSecondary,
+                        modifier   = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 6.dp)
                     )
                 }
 
-                items(state.sessions, key = { it.session.id }) { item ->
-                    SessionListItem(
-                        item = item,
-                        onDelete = { toDelete = item },
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
+                item {
+                    Card(
+                        modifier  = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        shape     = RoundedCornerShape(14.dp),
+                        colors    = CardDefaults.cardColors(containerColor = CardBg),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
+                        state.sessions.forEachIndexed { idx, item ->
+                            SessionRow(
+                                item     = item,
+                                onDelete = { toDelete = item }
+                            )
+                            if (idx < state.sessions.lastIndex) {
+                                HorizontalDivider(
+                                    color     = Color(0xFFF5F5F5),
+                                    thickness = 1.dp
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -143,167 +206,111 @@ fun WorkoutHistoryScreen(
     toDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { toDelete = null },
-            title = { Text("Delete workout?", fontWeight = FontWeight.Bold) },
-            text = { Text("\"${item.session.name}\" will be permanently removed.") },
+            title   = { Text("Delete workout?", fontWeight = FontWeight.Bold) },
+            text    = { Text("\"${item.session.name}\" will be permanently removed.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.deleteSession(item.session); toDelete = null }) {
                     Text("Delete", color = TextDestructive, fontWeight = FontWeight.SemiBold)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { toDelete = null }) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { toDelete = null }) { Text("Cancel") } },
             shape = RoundedCornerShape(16.dp)
         )
     }
 }
 
-// ── Stat card (matches design-future .ws pattern) ────────────────────────────
+// ── .ws stat card — value 20sp bold, label 10sp #AAA ──────────────────────────
 @Composable
-private fun WorkoutStatCard(value: String, label: String, emoji: String, modifier: Modifier = Modifier) {
+private fun WsCard(value: String, label: String, modifier: Modifier = Modifier) {
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        modifier  = modifier,
+        shape     = RoundedCornerShape(12.dp),
+        colors    = CardDefaults.cardColors(containerColor = CardBg),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(emoji, fontSize = 16.sp)
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
                 value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                letterSpacing = (-0.3).sp
+                fontSize      = 20.sp,
+                fontWeight    = FontWeight.Bold,
+                color         = TextPrimary,
+                letterSpacing = (-0.4).sp
             )
-            Text(label, fontSize = 10.sp, color = TextSecondary, textAlign = TextAlign.Center)
+            Text(label, fontSize = 10.sp, color = Color(0xFFAAAAAA))
         }
     }
 }
 
-// ── Session list item (matches design-future .ex-item pattern) ────────────────
+// ── Session row — date column (.li pattern) + name + duration + kcal ──────────
 @Composable
-private fun SessionListItem(
-    item: WorkoutSessionWithSets,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val date = Instant.ofEpochMilli(item.session.date)
-        .atZone(ZoneId.systemDefault()).toLocalDate()
-    val isToday = date == LocalDate.now()
-    val dateLabel = when {
-        isToday -> "Today"
-        date == LocalDate.now().minusDays(1) -> "Yesterday"
-        else -> date.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()))
-    }
+private fun SessionRow(item: WorkoutSessionWithSets, onDelete: () -> Unit) {
+    val zone      = ZoneId.systemDefault()
+    val date      = Instant.ofEpochMilli(item.session.date).atZone(zone).toLocalDate()
+    val isToday   = date == LocalDate.now()
+    val dayName   = if (isToday) "TODAY"
+                    else date.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault())).uppercase()
+    val dayNum    = date.dayOfMonth.toString()
 
-    val exerciseCount = item.sets.map { it.exercise.id }.distinct().size
-    val setCount = item.sets.size
-    val detailText = buildString {
-        append("$exerciseCount exercise${if (exerciseCount != 1) "s" else ""}")
-        append(" · $setCount set${if (setCount != 1) "s" else ""}")
-        item.session.durationMinutes?.let { append(" · ${it}min") }
-    }
+    val setCount  = item.sets.size
+    val exCount   = item.sets.map { it.exercise.id }.distinct().size
+    val durLabel  = item.session.durationMinutes?.let { "${it} min" } ?: "$setCount sets"
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    Row(
+        modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment     = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        // Date column (design: 9sp day name + 15sp day number)
+        Column(
+            modifier            = Modifier.width(34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Icon box — 38×38, 11dp radius (design-future .ex-item icon)
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(IconBgGray),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("🏋️", fontSize = 18.sp)
-            }
+            Text(dayName, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFAAAAAA))
+            Text(dayNum,  fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        }
 
-            // Name + detail
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    item.session.name,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
-                Text(
-                    "$dateLabel · $detailText",
-                    fontSize = 11.sp,
-                    color = TextSecondary
-                )
-            }
+        // Name + detail
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(item.session.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text(
+                "$durLabel · $exCount exercise${if (exCount != 1) "s" else ""}",
+                fontSize = 11.sp,
+                color    = Color(0xFFAAAAAA)
+            )
+        }
 
-            // Sets badge (design-future .sets-badge)
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(TagGrayBg)
-                    .padding(horizontal = 9.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    "$setCount sets",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondary
-                )
-            }
+        // Right side — sets count
+        Text(
+            "$setCount sets",
+            fontSize   = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color      = TextSecondary
+        )
 
-            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFCCCCCC), modifier = Modifier.size(16.dp))
         }
     }
 }
 
 @Composable
-private fun EmptyWorkoutState(onNavigateToLog: () -> Unit) {
+private fun EmptyWorkoutsState(onLog: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 80.dp, bottom = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier              = Modifier.fillMaxWidth().padding(top = 80.dp, bottom = 40.dp),
+        horizontalAlignment   = Alignment.CenterHorizontally,
+        verticalArrangement   = Arrangement.spacedBy(10.dp)
     ) {
         Text("🏋️", fontSize = 44.sp)
-        Text(
-            "No workouts yet",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        Text(
-            "Tap + to log your first session",
-            fontSize = 13.sp,
-            color = TextSecondary
-        )
+        Text("No workouts yet", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text("Tap + to log your first session", fontSize = 13.sp, color = TextSecondary)
         Spacer(Modifier.height(4.dp))
         Button(
-            onClick = onNavigateToLog,
-            colors = ButtonDefaults.buttonColors(containerColor = TextPrimary),
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+            onClick          = onLog,
+            colors           = ButtonDefaults.buttonColors(containerColor = Color(0xFF111111)),
+            shape            = RoundedCornerShape(12.dp),
+            contentPadding   = PaddingValues(horizontal = 28.dp, vertical = 13.dp)
         ) {
-            Text("Log a workout", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CardBg)
+            Text("Log a workout", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.mealplanplus.ui.screens.workout
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -145,6 +146,7 @@ fun ExerciseCatalogueScreen(
                         modifier = Modifier.padding(start = 64.dp)
                     )
                 }
+                item { AddCustomExerciseButton() }
             }
         } else {
             // Grouped by category when showing all
@@ -183,8 +185,33 @@ fun ExerciseCatalogueScreen(
                         }
                     }
                 }
+                item { AddCustomExerciseButton() }
             }
         }
+    }
+}
+
+// ── "+ Add custom exercise" outline button (.form-btn-outline) ────────────────
+
+@Composable
+private fun AddCustomExerciseButton() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.5.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .clickable { }
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "+ Add custom exercise",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
     }
 }
 
@@ -228,18 +255,19 @@ private fun ExerciseListItem(exercise: Exercise) {
             )
         }
 
-        // Category badge
+        // Category badge — Strength: blue (.tag.tb), others: gray (.tag.tgr)
+        val isStrength = exercise.category == ExerciseCategory.STRENGTH
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(7.dp))
-                .background(TagGrayBg)
+                .background(if (isStrength) TagBlueBg else TagGrayBg)
                 .padding(horizontal = 9.dp, vertical = 4.dp)
         ) {
             Text(
                 exercise.category.displayName(),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextSecondary
+                color = if (isStrength) TagBlue else TagGray
             )
         }
     }
@@ -257,7 +285,11 @@ private fun CategoryFilterChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(if (selected) TextPrimary else CardBg)
+            .then(
+                if (!selected) Modifier.border(1.dp, Color(0xFFE8E8E8), RoundedCornerShape(16.dp))
+                else Modifier
+            )
+            .background(if (selected) Color(0xFF111111) else Color.White)
             .clickable(onClick = onClick)
             .padding(horizontal = 13.dp, vertical = 7.dp)
     ) {
@@ -265,7 +297,7 @@ private fun CategoryFilterChip(
             if (count > 0 && !selected) "$label  $count" else label,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = if (selected) CardBg else TextSecondary
+            color = if (selected) Color.White else Color(0xFF555555)
         )
     }
 }
