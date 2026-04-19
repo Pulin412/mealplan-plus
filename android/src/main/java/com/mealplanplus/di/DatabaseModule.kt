@@ -1617,7 +1617,7 @@ object DatabaseModule {
                     muscleGroup TEXT,
                     equipment TEXT,
                     description TEXT,
-                    isSystem INTEGER NOT NULL DEFAULT 1,
+                    isSystem INTEGER NOT NULL,
                     createdAt INTEGER NOT NULL
                 )
             """.trimIndent())
@@ -1629,7 +1629,7 @@ object DatabaseModule {
                     date INTEGER NOT NULL,
                     durationMinutes INTEGER,
                     notes TEXT,
-                    isCompleted INTEGER NOT NULL DEFAULT 0,
+                    isCompleted INTEGER NOT NULL,
                     createdAt INTEGER NOT NULL,
                     updatedAt INTEGER NOT NULL,
                     serverId TEXT,
@@ -1647,13 +1647,12 @@ object DatabaseModule {
                     durationSeconds INTEGER,
                     distanceMeters REAL,
                     notes TEXT,
-                    FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON DELETE CASCADE,
-                    FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON DELETE RESTRICT
+                    FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON UPDATE NO ACTION ON DELETE RESTRICT
                 )
             """.trimIndent())
-            db.execSQL("CREATE INDEX IF NOT EXISTS idx_workout_sessions_user ON workout_sessions(userId)")
-            db.execSQL("CREATE INDEX IF NOT EXISTS idx_workout_sets_session ON workout_sets(sessionId)")
-            db.execSQL("CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(exerciseId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_sets_sessionId` ON workout_sets(sessionId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_sets_exerciseId` ON workout_sets(exerciseId)")
         }
     }
 
