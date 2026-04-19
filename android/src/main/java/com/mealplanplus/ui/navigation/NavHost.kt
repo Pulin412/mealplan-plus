@@ -103,6 +103,9 @@ import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.grocery.GroceryListsScreen
 import com.mealplanplus.ui.screens.grocery.CreateGroceryListScreen
 import com.mealplanplus.ui.screens.grocery.GroceryDetailScreen
+import com.mealplanplus.ui.screens.workout.WorkoutHistoryScreen
+import com.mealplanplus.ui.screens.workout.WorkoutLogScreen
+import com.mealplanplus.ui.screens.workout.ExerciseCatalogueScreen
 import android.app.Activity
 import android.content.Intent
 import com.mealplanplus.util.AuthPreferences
@@ -117,6 +120,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.draw.alpha
 import com.mealplanplus.ui.theme.CardBg
@@ -190,6 +194,9 @@ sealed class Screen(val route: String) {
     }
     object FoodPickerForCustomSlot : Screen("food_picker_custom_slot")
     object WidgetSettings : Screen("widget_settings")
+    object WorkoutHistory : Screen("workout_history")
+    object WorkoutLog : Screen("workout_log")
+    object ExerciseCatalogue : Screen("exercise_catalogue")
 }
 
 // Bottom nav tab definitions (4 visible + 1 FAB)
@@ -862,6 +869,23 @@ fun MealPlanNavHost(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+            composable(Screen.WorkoutHistory.route) {
+                WorkoutHistoryScreen(
+                    onNavigateToLog = { navController.navigate(Screen.WorkoutLog.route) },
+                    onNavigateToExercises = { navController.navigate(Screen.ExerciseCatalogue.route) }
+                )
+            }
+            composable(Screen.WorkoutLog.route) {
+                WorkoutLogScreen(
+                    onBack = { navController.popBackStack() },
+                    onFinished = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.ExerciseCatalogue.route) {
+                ExerciseCatalogueScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
             composable(Screen.FoodPickerForCustomSlot.route) {
                 com.mealplanplus.ui.screens.foods.FoodsScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -1212,6 +1236,7 @@ private fun MiscSheet(
         QuickAction(Icons.Default.List,           Color(0xFFC05200), "Meals",    "Your meal library",             Screen.Meals.route),
         QuickAction(Icons.Default.Star,           Color(0xFF1E4FBF), "Foods",    "Food catalogue & nutrition",    Screen.Foods.route),
         QuickAction(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health",   "Metrics, weight & activity",    Screen.Health.route),
+        QuickAction(Icons.Default.FitnessCenter,  Color(0xFF00796B), "Workouts", "Log & track gym sessions",      Screen.WorkoutHistory.route),
         QuickAction(Icons.Default.ShoppingCart,   Color(0xFF6A1B9A), "Grocery",  "Your shopping lists",           Screen.GroceryLists.route),
         QuickAction(Icons.Default.Settings,       Color(0xFF555555), "Settings", "Preferences & notifications",   Screen.Settings.route),
     )
