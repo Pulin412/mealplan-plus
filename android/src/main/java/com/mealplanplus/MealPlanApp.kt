@@ -4,10 +4,12 @@ import android.app.Application
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.local.BackupDataImporter
 import com.mealplanplus.data.local.DatabaseSeeder
 import com.mealplanplus.data.local.ExerciseSeeder
 import com.mealplanplus.data.local.MealSlotReseeder
+import com.mealplanplus.data.local.WorkoutTemplateSeeder
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.mealplanplus.notification.NotificationAlarmBootstrapper
 import com.mealplanplus.util.AnalyticsManager
@@ -36,6 +38,9 @@ class MealPlanApp : Application() {
     lateinit var exerciseSeeder: ExerciseSeeder
 
     @Inject
+    lateinit var workoutTemplateSeeder: WorkoutTemplateSeeder
+
+    @Inject
     lateinit var backupDataImporter: BackupDataImporter
 
     @Inject
@@ -59,6 +64,11 @@ class MealPlanApp : Application() {
             databaseSeeder.seedIfNeeded(this@MealPlanApp)
             mealSlotReseeder.reseedIfNeeded(this@MealPlanApp)
             exerciseSeeder.seedIfNeeded(this@MealPlanApp)
+            // Personal workout templates — runs after exercises so lookups succeed.
+            // Firebase Auth restores the current user synchronously from its local cache,
+            // so currentUser?.uid is available here even before any network call.
+            val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            workoutTemplateSeeder.seedIfNeeded(this@MealPlanApp, firebaseUid)
             // One-time restore of user data from v26 backup (runs only once, guarded by DataStore flag)
             backupDataImporter.importIfNeeded(this@MealPlanApp)
         }

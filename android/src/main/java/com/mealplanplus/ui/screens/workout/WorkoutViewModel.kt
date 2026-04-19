@@ -1,13 +1,9 @@
 package com.mealplanplus.ui.screens.workout
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
-import com.mealplanplus.data.local.WorkoutTemplateSeeder
-
 import com.mealplanplus.data.model.Exercise
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mealplanplus.data.model.ExerciseCategory
 import com.mealplanplus.data.model.PlannedWorkout
 import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
@@ -21,7 +17,10 @@ import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -43,9 +42,7 @@ data class WorkoutUiState(
 
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val workoutRepository: WorkoutRepository,
-    private val workoutTemplateSeeder: WorkoutTemplateSeeder
+    private val workoutRepository: WorkoutRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
@@ -57,16 +54,6 @@ class WorkoutViewModel @Inject constructor(
         loadHistory()
         loadExercises()
         loadTemplates()
-        // Seed personal templates reactively: wait until system exercises are in the DB,
-        // then run the seeder. This handles the race condition where ExerciseSeeder
-        // (MealPlanApp.onCreate) hasn't finished yet when the ViewModel is created.
-        viewModelScope.launch {
-            uiState
-                .map { it.exercises }
-                .filter { it.isNotEmpty() }
-                .first()
-            workoutTemplateSeeder.seedIfNeeded(context, userId)
-        }
     }
 
     private fun loadHistory() {
