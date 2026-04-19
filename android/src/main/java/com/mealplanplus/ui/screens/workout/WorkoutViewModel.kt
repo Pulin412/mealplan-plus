@@ -54,12 +54,19 @@ class WorkoutViewModel @Inject constructor(
     private val userId get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     init {
-        viewModelScope.launch {
-            workoutTemplateSeeder.seedIfNeeded(context, userId)
-        }
         loadHistory()
         loadExercises()
         loadTemplates()
+        // Seed personal templates reactively: wait until system exercises are in the DB,
+        // then run the seeder. This handles the race condition where ExerciseSeeder
+        // (MealPlanApp.onCreate) hasn't finished yet when the ViewModel is created.
+        viewModelScope.launch {
+            uiState
+                .map { it.exercises }
+                .filter { it.isNotEmpty() }
+                .first()
+            workoutTemplateSeeder.seedIfNeeded(context, userId)
+        }
     }
 
     private fun loadHistory() {
