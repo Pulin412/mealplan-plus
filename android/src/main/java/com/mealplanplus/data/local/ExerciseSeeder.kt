@@ -28,7 +28,7 @@ class ExerciseSeeder @Inject constructor(
     private val exerciseDao: ExerciseDao
 ) {
     companion object {
-        const val EXERCISE_DATA_VERSION = 1
+        const val EXERCISE_DATA_VERSION = 2
         private val EXERCISE_DATA_VERSION_KEY = intPreferencesKey("exercise_data_version")
         private const val TAG = "ExerciseSeeder"
     }
