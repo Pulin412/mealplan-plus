@@ -451,7 +451,8 @@ class ProfileViewModel @Inject constructor(
                                     templateId = templateId,
                                     exerciseId = exercise.id,
                                     orderIndex = j,
-                                    targetSets = ex.optInt("sets", 3).takeIf { it > 0 }
+                                    targetSets = ex.optInt("sets", 3).takeIf { it > 0 },
+                                    targetReps = ex.optInt("reps", 0).takeIf { it > 0 }
                                 ))
                             }
                             if (templateExercises.isNotEmpty()) {
