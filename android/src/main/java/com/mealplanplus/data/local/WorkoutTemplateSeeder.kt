@@ -15,9 +15,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Seeds pre-built workout templates (Beginner + Advanced regimes) for each Firebase user.
- * Idempotent: guarded by a per-user DataStore boolean flag (v1).
+ * Seeds personal workout templates (Beginner + Advanced regimes) for the owner's 3 accounts only.
+ * New users who sign up fresh will NOT receive these templates.
  *
+ * Idempotent: guarded by a per-user DataStore boolean flag (v1).
  * Called from WorkoutViewModel.init() so it fires the first time a user opens the Workouts tab.
  * Exercises must already be seeded (ExerciseSeeder runs first at app startup).
  */
@@ -30,19 +31,34 @@ class WorkoutTemplateSeeder @Inject constructor(
         private const val VERSION = 1
         private const val TAG = "WorkoutTemplateSeeder"
         private fun flagKey(uid: String) = booleanPreferencesKey("workout_templates_v${VERSION}_$uid")
+
+        /** Only these accounts receive the personal workout templates. */
+        private val OWNER_EMAILS = setOf(
+            "pulins412@gmail.com",
+            "rajni@gmail.com",
+            "pulin4122001@gmail.com"
+        )
     }
 
     suspend fun seedIfNeeded(context: Context, firebaseUid: String) = withContext(Dispatchers.IO) {
         if (firebaseUid.isBlank()) return@withContext
-        val key = flagKey(firebaseUid)
-        if (context.dataStore.data.first()[key] == true) {
-            Log.d(TAG, "Workout templates already seeded for user $firebaseUid, skipping")
+
+        // Check if the logged-in user is one of the owner accounts
+        val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: ""
+        if (email !in OWNER_EMAILS) {
+            Log.d(TAG, "User $email is not an owner account — skipping personal workout seed")
             return@withContext
         }
-        Log.d(TAG, "Seeding workout templates for user $firebaseUid")
+
+        val key = flagKey(firebaseUid)
+        if (context.dataStore.data.first()[key] == true) {
+            Log.d(TAG, "Workout templates already seeded for $email, skipping")
+            return@withContext
+        }
+        Log.d(TAG, "Seeding personal workout templates for $email")
         seedAllTemplates(firebaseUid)
         context.dataStore.edit { it[key] = true }
-        Log.d(TAG, "Seeded ${TEMPLATES.size} workout templates for user $firebaseUid")
+        Log.d(TAG, "Seeded ${TEMPLATES.size} workout templates for $email")
     }
 
     private suspend fun seedAllTemplates(userId: String) {
