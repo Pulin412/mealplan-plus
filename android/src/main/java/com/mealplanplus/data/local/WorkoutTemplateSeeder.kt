@@ -1,0 +1,213 @@
+package com.mealplanplus.data.local
+
+import android.content.Context
+import android.util.Log
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import com.mealplanplus.data.model.WorkoutTemplate
+import com.mealplanplus.data.model.WorkoutTemplateCategory
+import com.mealplanplus.data.model.WorkoutTemplateExercise
+import com.mealplanplus.util.dataStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Seeds pre-built workout templates (Beginner + Advanced regimes) for each Firebase user.
+ * Idempotent: guarded by a per-user DataStore boolean flag (v1).
+ *
+ * Called from WorkoutViewModel.init() so it fires the first time a user opens the Workouts tab.
+ * Exercises must already be seeded (ExerciseSeeder runs first at app startup).
+ */
+@Singleton
+class WorkoutTemplateSeeder @Inject constructor(
+    private val workoutTemplateDao: WorkoutTemplateDao,
+    private val exerciseDao: ExerciseDao
+) {
+    companion object {
+        private const val VERSION = 1
+        private const val TAG = "WorkoutTemplateSeeder"
+        private fun flagKey(uid: String) = booleanPreferencesKey("workout_templates_v${VERSION}_$uid")
+    }
+
+    suspend fun seedIfNeeded(context: Context, firebaseUid: String) = withContext(Dispatchers.IO) {
+        if (firebaseUid.isBlank()) return@withContext
+        val key = flagKey(firebaseUid)
+        if (context.dataStore.data.first()[key] == true) {
+            Log.d(TAG, "Workout templates already seeded for user $firebaseUid, skipping")
+            return@withContext
+        }
+        Log.d(TAG, "Seeding workout templates for user $firebaseUid")
+        seedAllTemplates(firebaseUid)
+        context.dataStore.edit { it[key] = true }
+        Log.d(TAG, "Seeded ${TEMPLATES.size} workout templates for user $firebaseUid")
+    }
+
+    private suspend fun seedAllTemplates(userId: String) {
+        // Build exercise name → ID lookup once
+        val exerciseMap = mutableMapOf<String, Long>()
+
+        TEMPLATES.forEach { def ->
+            val templateId = workoutTemplateDao.insertTemplate(
+                WorkoutTemplate(
+                    userId = userId,
+                    name = def.name,
+                    category = def.category,
+                    notes = def.notes
+                )
+            )
+
+            val templateExercises = def.exercises.mapIndexedNotNull { idx, exDef ->
+                val exerciseId = exerciseMap.getOrPut(exDef.name) {
+                    exerciseDao.getByName(exDef.name)?.id ?: run {
+                        Log.w(TAG, "Exercise not found in DB: '${exDef.name}' — skipping")
+                        -1L
+                    }
+                }
+                if (exerciseId < 0) return@mapIndexedNotNull null
+                WorkoutTemplateExercise(
+                    templateId = templateId,
+                    exerciseId = exerciseId,
+                    orderIndex = idx,
+                    targetSets = exDef.sets,
+                    targetReps = null,
+                    targetWeightKg = null,
+                    notes = null
+                )
+            }
+
+            if (templateExercises.isNotEmpty()) {
+                workoutTemplateDao.upsertTemplateExercises(templateExercises)
+                Log.d(TAG, "  Created '${def.name}' with ${templateExercises.size} exercises")
+            } else {
+                Log.w(TAG, "  No exercises resolved for '${def.name}'")
+            }
+        }
+    }
+
+    // ── Template definitions ────────────────────────────────────────────────────
+
+    private data class ExerciseDef(val name: String, val sets: Int = 3)
+
+    private data class TemplateDef(
+        val name: String,
+        val category: WorkoutTemplateCategory,
+        val notes: String?,
+        val exercises: List<ExerciseDef>
+    )
+
+    private val TEMPLATES = listOf(
+
+        // ── BEGINNER ────────────────────────────────────────────────────────────
+
+        TemplateDef(
+            name = "Beginner — Chest & Bicep",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Monday · Beginner regime",
+            exercises = listOf(
+                ExerciseDef("Bench Press"),
+                ExerciseDef("Incline Dumbbell Press"),
+                ExerciseDef("Flat Dumbbell Press"),
+                ExerciseDef("Bicep Curl"),
+                ExerciseDef("Cable Bicep Curl"),
+                ExerciseDef("Hammer Curl")
+            )
+        ),
+
+        TemplateDef(
+            name = "Beginner — Back & Triceps",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Tuesday · Beginner regime",
+            exercises = listOf(
+                ExerciseDef("Deadlift"),
+                ExerciseDef("Lat Pulldown"),
+                ExerciseDef("Reverse Grip Lat Pulldown"),
+                ExerciseDef("Seated Cable Row"),
+                ExerciseDef("Tricep Bar Pulldown"),
+                ExerciseDef("Tricep Rope Pulldown"),
+                ExerciseDef("Skull Crushers")
+            )
+        ),
+
+        TemplateDef(
+            name = "Beginner — Shoulders & Legs",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Wednesday · Beginner regime",
+            exercises = listOf(
+                ExerciseDef("Seated Dumbbell Press"),
+                ExerciseDef("Lateral Raises"),
+                ExerciseDef("Front Raises"),
+                ExerciseDef("Squat"),
+                ExerciseDef("Walking Lunges"),
+                ExerciseDef("Leg Extension")
+            )
+        ),
+
+        // ── ADVANCED ────────────────────────────────────────────────────────────
+
+        TemplateDef(
+            name = "Advanced — Biceps & Triceps",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Monday · Advanced regime",
+            exercises = listOf(
+                ExerciseDef("Bicep Curl"),
+                ExerciseDef("Hammer Curl"),
+                ExerciseDef("Inward Hammer Curl"),
+                ExerciseDef("Cable Bicep Curl"),
+                ExerciseDef("Reverse Grip Cable Curl"),
+                ExerciseDef("Tricep Bar Pulldown"),
+                ExerciseDef("Tricep Rope Pulldown"),
+                ExerciseDef("Skull Crushers")
+            )
+        ),
+
+        TemplateDef(
+            name = "Advanced — Chest",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Tuesday · Advanced regime",
+            exercises = listOf(
+                ExerciseDef("Push-Up"),
+                ExerciseDef("Bench Press"),
+                ExerciseDef("Incline Bench Press"),
+                ExerciseDef("Decline Bench Press"),
+                ExerciseDef("Cable Crossover")
+            )
+        ),
+
+        TemplateDef(
+            name = "Advanced — Shoulders",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Wednesday · Advanced regime",
+            exercises = listOf(
+                ExerciseDef("Seated Dumbbell Press"),
+                ExerciseDef("Front Raises"),
+                ExerciseDef("Lateral Raises")
+            )
+        ),
+
+        TemplateDef(
+            name = "Advanced — Back",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Thursday · Advanced regime",
+            exercises = listOf(
+                ExerciseDef("Lat Pulldown"),
+                ExerciseDef("Deadlift"),
+                ExerciseDef("Reverse Grip Lat Pulldown"),
+                ExerciseDef("Seated Cable Row")
+            )
+        ),
+
+        TemplateDef(
+            name = "Advanced — Legs",
+            category = WorkoutTemplateCategory.STRENGTH,
+            notes = "Friday · Advanced regime",
+            exercises = listOf(
+                ExerciseDef("Squat"),
+                ExerciseDef("Leg Extension"),
+                ExerciseDef("Walking Lunges")
+            )
+        )
+    )
+}

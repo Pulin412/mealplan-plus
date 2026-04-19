@@ -1,9 +1,13 @@
 package com.mealplanplus.ui.screens.workout
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.mealplanplus.data.local.WorkoutTemplateSeeder
+
 import com.mealplanplus.data.model.Exercise
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mealplanplus.data.model.ExerciseCategory
 import com.mealplanplus.data.model.PlannedWorkout
 import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
@@ -39,7 +43,9 @@ data class WorkoutUiState(
 
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
-    private val workoutRepository: WorkoutRepository
+    @ApplicationContext private val context: Context,
+    private val workoutRepository: WorkoutRepository,
+    private val workoutTemplateSeeder: WorkoutTemplateSeeder
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkoutUiState())
@@ -48,6 +54,9 @@ class WorkoutViewModel @Inject constructor(
     private val userId get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     init {
+        viewModelScope.launch {
+            workoutTemplateSeeder.seedIfNeeded(context, userId)
+        }
         loadHistory()
         loadExercises()
         loadTemplates()
