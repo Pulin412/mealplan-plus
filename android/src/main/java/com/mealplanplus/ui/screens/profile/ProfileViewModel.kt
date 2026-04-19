@@ -410,9 +410,8 @@ class ProfileViewModel @Inject constructor(
     // ── Workout Templates ─────────────────────────────────────────────────────
 
     fun importWorkoutTemplatesFromJson(uri: Uri) {
-        val firebaseUid: String = _uiState.value.user?.id
-            ?: FirebaseAuth.getInstance().currentUser?.uid
-            ?: run { _importResult.value = "Not logged in"; return }
+        val firebaseUid: String = FirebaseAuth.getInstance().currentUser?.uid
+            ?: run { _importResult.value = "Not logged in — try again in a moment"; return }
         viewModelScope.launch {
             try {
                 val json = context.contentResolver.openInputStream(uri)
