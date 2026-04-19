@@ -28,7 +28,8 @@ class WorkoutTemplateSeeder @Inject constructor(
     private val exerciseDao: ExerciseDao
 ) {
     companion object {
-        private const val VERSION = 1
+        // Bump this whenever the template list changes to force a re-seed.
+        private const val VERSION = 2
         private const val TAG = "WorkoutTemplateSeeder"
         private fun flagKey(uid: String) = booleanPreferencesKey("workout_templates_v${VERSION}_$uid")
 
@@ -43,7 +44,7 @@ class WorkoutTemplateSeeder @Inject constructor(
     suspend fun seedIfNeeded(context: Context, firebaseUid: String) = withContext(Dispatchers.IO) {
         if (firebaseUid.isBlank()) return@withContext
 
-        // Check if the logged-in user is one of the owner accounts
+        // Only owner accounts get the personal templates
         val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: ""
         if (email !in OWNER_EMAILS) {
             Log.d(TAG, "User $email is not an owner account — skipping personal workout seed")
@@ -52,16 +53,32 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         val key = flagKey(firebaseUid)
         if (context.dataStore.data.first()[key] == true) {
-            Log.d(TAG, "Workout templates already seeded for $email, skipping")
+            Log.d(TAG, "Workout templates already seeded for $email (v$VERSION), skipping")
             return@withContext
         }
-        Log.d(TAG, "Seeding personal workout templates for $email")
+
+        // Guard: exercises must be seeded first. If they're not ready yet, abort WITHOUT
+        // setting the flag so we'll retry on the next app launch / screen visit.
+        val exerciseCount = exerciseDao.getSystemExerciseCount()
+        if (exerciseCount == 0) {
+            Log.w(TAG, "Exercises not seeded yet (count=0) — will retry next time")
+            return@withContext
+        }
+
+        Log.d(TAG, "Seeding personal workout templates for $email ($exerciseCount exercises available)")
         seedAllTemplates(firebaseUid)
         context.dataStore.edit { it[key] = true }
         Log.d(TAG, "Seeded ${TEMPLATES.size} workout templates for $email")
     }
 
     private suspend fun seedAllTemplates(userId: String) {
+        // Remove any previously seeded (empty) templates so we start fresh
+        val existing = workoutTemplateDao.getTemplatesForUser(userId).first()
+        existing.forEach { twx -> workoutTemplateDao.deleteTemplate(twx.template) }
+        if (existing.isNotEmpty()) {
+            Log.d(TAG, "Removed ${existing.size} stale empty templates before re-seeding")
+        }
+
         // Build exercise name → ID lookup once
         val exerciseMap = mutableMapOf<String, Long>()
 
