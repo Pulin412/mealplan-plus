@@ -43,13 +43,18 @@ class WorkoutRepository @Inject constructor(
     fun getAllExercises() = exerciseDao.getAll()
     fun getExercisesByCategory(category: ExerciseCategory) = exerciseDao.getByCategory(category.name)
     suspend fun getExerciseById(id: Long): Exercise? = exerciseDao.getById(id)
+    suspend fun getExerciseByName(name: String): Exercise? = exerciseDao.getByName(name)
     suspend fun insertExercise(exercise: Exercise): Long = exerciseDao.insert(exercise)
     suspend fun updateExercise(exercise: Exercise) = exerciseDao.update(exercise)
     suspend fun deleteExercise(exercise: Exercise) = exerciseDao.delete(exercise)
+    suspend fun upsertSystemExercises(exercises: List<Exercise>) = exerciseDao.upsertAll(exercises)
 
     // ── Templates ─────────────────────────────────────────────────────────────
     fun getTemplatesForUser(userId: String) = templateDao.getTemplatesForUser(userId)
     suspend fun getTemplateWithExercises(id: Long) = templateDao.getTemplateWithExercises(id)
+    suspend fun insertTemplate(template: WorkoutTemplate): Long = templateDao.insertTemplate(template)
+    suspend fun upsertTemplateExercises(exercises: List<WorkoutTemplateExercise>) =
+        templateDao.upsertTemplateExercises(exercises)
 
     suspend fun saveTemplate(
         template: WorkoutTemplate,

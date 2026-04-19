@@ -1,0 +1,102 @@
+{
+  "templates": [
+    {
+      "name": "Beginner — Chest & Bicep",
+      "category": "STRENGTH",
+      "notes": "Monday · Beginner regime",
+      "exercises": [
+        { "name": "Bench Press", "sets": 3 },
+        { "name": "Incline Dumbbell Press", "sets": 3 },
+        { "name": "Flat Dumbbell Press", "sets": 3 },
+        { "name": "Bicep Curl", "sets": 3 },
+        { "name": "Cable Bicep Curl", "sets": 3 },
+        { "name": "Hammer Curl", "sets": 3 }
+      ]
+    },
+    {
+      "name": "Beginner — Back & Triceps",
+      "category": "STRENGTH",
+      "notes": "Tuesday · Beginner regime",
+      "exercises": [
+        { "name": "Deadlift", "sets": 3 },
+        { "name": "Lat Pulldown", "sets": 3 },
+        { "name": "Reverse Grip Lat Pulldown", "sets": 3 },
+        { "name": "Seated Cable Row", "sets": 3 },
+        { "name": "Tricep Bar Pulldown", "sets": 3 },
+        { "name": "Tricep Rope Pulldown", "sets": 3 },
+        { "name": "Skull Crushers", "sets": 3 }
+      ]
+    },
+    {
+      "name": "Beginner — Shoulders & Legs",
+      "category": "STRENGTH",
+      "notes": "Wednesday · Beginner regime",
+      "exercises": [
+        { "name": "Seated Dumbbell Press", "sets": 3 },
+        { "name": "Lateral Raises", "sets": 3 },
+        { "name": "Front Raises", "sets": 3 },
+        { "name": "Squat", "sets": 3 },
+        { "name": "Walking Lunges", "sets": 3 },
+        { "name": "Leg Extension", "sets": 3 }
+      ]
+    },
+    {
+      "name": "Advanced — Biceps & Triceps",
+      "category": "STRENGTH",
+      "notes": "Monday · Advanced regime",
+      "exercises": [
+        { "name": "Bicep Curl", "sets": 3 },
+        { "name": "Hammer Curl", "sets": 3 },
+        { "name": "Inward Hammer Curl", "sets": 3 },
+        { "name": "Cable Bicep Curl", "sets": 3 },
+        { "name": "Reverse Grip Cable Curl", "sets": 3 },
+        { "name": "Tricep Bar Pulldown", "sets": 3 },
+        { "name": "Tricep Rope Pulldown", "sets": 3 },
+        { "name": "Skull Crushers", "sets": 3 }
+      ]
+    },
+    {
+      "name": "Advanced — Chest",
+      "category": "STRENGTH",
+      "notes": "Tuesday · Advanced regime",
+      "exercises": [
+        { "name": "Push-Up", "sets": 3 },
+        { "name": "Bench Press", "sets": 3 },
+        { "name": "Incline Bench Press", "sets": 3 },
+        { "name": "Decline Bench Press", "sets": 3 },
+        { "name": "Cable Crossover", "sets": 3 }
+      ]
+    },
+    {
+      "name": "Advanced — Shoulders",
+      "category": "STRENGTH",
+      "notes": "Wednesday · Advanced regime",
+      "exercises": [
+        { "name": "Seated Dumbbell Press", "sets": 3 },
+        { "name": "Front Raises", "sets": 3 },
+        { "name": "Lateral Raises", "sets": 3 }
+      ]
+    },
+    {
+      "name": "Advanced — Back",
+      "category": "STRENGTH",
+      "notes": "Thursday · Advanced regime",
+      "exercises": [
+        { "name": "Lat Pulldown", "sets": 3 },
+        { "name": "Deadlift", "sets": 3 },
+        { "name": "Reverse Grip Lat Pulldown", "sets": 3 },
+        { "name": "Seated Cable Row", "sets": 3 }
+      ]
+    },
+    {
+      "name": "Advanced — Legs",
+      "category": "STRENGTH",
+      "notes": "Friday · Advanced regime",
+      "exercises": [
+        { "name": "Squat", "sets": 3 },
+        { "name": "Leg Extension", "sets": 3 },
+        { "name": "Walking Lunges", "sets": 3 }
+      ]
+    }
+  ]
+}

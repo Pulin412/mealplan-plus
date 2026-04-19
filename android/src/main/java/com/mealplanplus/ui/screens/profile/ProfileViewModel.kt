@@ -4,21 +4,32 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.mealplanplus.data.local.BackupDataImporter
 import com.mealplanplus.data.model.ActivityLevel
 import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.Exercise
+import com.mealplanplus.data.model.ExerciseCategory
+import com.mealplanplus.data.model.FoodItem
 import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.model.Gender
 import com.mealplanplus.data.model.GoalType
 import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.User
+import com.mealplanplus.data.model.WorkoutTemplate
+import com.mealplanplus.data.model.WorkoutTemplateCategory
+import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
+import com.mealplanplus.data.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
@@ -55,6 +66,8 @@ class ProfileViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val mealRepository: MealRepository,
     private val foodRepository: FoodRepository,
+    private val workoutRepository: WorkoutRepository,
+    private val backupDataImporter: BackupDataImporter,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -315,5 +328,157 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    // ── Foods ─────────────────────────────────────────────────────────────────
+
+    fun importFoodsFromJson(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val json = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()?.readText()
+                    ?: run { _importResult.value = "Failed to read file"; return@launch }
+
+                val array = JSONArray(json)
+                var imported = 0; var skipped = 0
+                for (i in 0 until array.length()) {
+                    try {
+                        val f = array.getJSONObject(i)
+                        val name = f.optString("name", "")
+                        if (name.isBlank()) { skipped++; continue }
+                        val food = FoodItem(
+                            name = name,
+                            caloriesPer100 = f.optDouble("caloriesPer100", 0.0),
+                            proteinPer100 = f.optDouble("proteinPer100", 0.0),
+                            carbsPer100 = f.optDouble("carbsPer100", 0.0),
+                            fatPer100 = f.optDouble("fatPer100", 0.0),
+                            gramsPerPiece = if (f.isNull("gramsPerPiece")) null else f.optDouble("gramsPerPiece"),
+                            gramsPerCup = if (f.isNull("gramsPerCup")) null else f.optDouble("gramsPerCup"),
+                            gramsPerTbsp = if (f.isNull("gramsPerTbsp")) null else f.optDouble("gramsPerTbsp"),
+                            gramsPerTsp = if (f.isNull("gramsPerTsp")) null else f.optDouble("gramsPerTsp"),
+                            glycemicIndex = if (f.isNull("glycemicIndex")) null else f.optInt("glycemicIndex"),
+                            isSystemFood = true
+                        )
+                        foodRepository.upsertSystemFood(food)
+                        imported++
+                    } catch (_: Exception) { skipped++ }
+                }
+                _importResult.value = "Imported $imported food(s)${if (skipped > 0) ", $skipped skipped" else ""}"
+            } catch (e: Exception) {
+                _importResult.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    // ── Exercises ─────────────────────────────────────────────────────────────
+
+    fun importExercisesFromJson(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val json = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()?.readText()
+                    ?: run { _importResult.value = "Failed to read file"; return@launch }
+
+                val array = JSONArray(json)
+                var imported = 0; var skipped = 0
+                val exercises = mutableListOf<Exercise>()
+                for (i in 0 until array.length()) {
+                    try {
+                        val e = array.getJSONObject(i)
+                        val name = e.optString("name", "")
+                        if (name.isBlank()) { skipped++; continue }
+                        val category = runCatching {
+                            ExerciseCategory.valueOf(e.optString("category", "OTHER"))
+                        }.getOrDefault(ExerciseCategory.OTHER)
+                        exercises.add(Exercise(
+                            name = name,
+                            category = category,
+                            muscleGroup = e.optString("muscleGroup", null).ifNullOrBlank(),
+                            equipment = e.optString("equipment", null).ifNullOrBlank(),
+                            isSystem = true
+                        ))
+                        imported++
+                    } catch (_: Exception) { skipped++ }
+                }
+                workoutRepository.upsertSystemExercises(exercises)
+                _importResult.value = "Imported $imported exercise(s)${if (skipped > 0) ", $skipped skipped" else ""}"
+            } catch (e: Exception) {
+                _importResult.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    // ── Workout Templates ─────────────────────────────────────────────────────
+
+    fun importWorkoutTemplatesFromJson(uri: Uri) {
+        val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid
+            ?: run { _importResult.value = "Not logged in"; return }
+        viewModelScope.launch {
+            try {
+                val json = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()?.readText()
+                    ?: run { _importResult.value = "Failed to read file"; return@launch }
+
+                val root = JSONObject(json)
+                val templates = root.optJSONArray("templates")
+                    ?: run { _importResult.value = "Invalid format: missing 'templates' array"; return@launch }
+
+                var imported = 0; var skipped = 0
+                for (i in 0 until templates.length()) {
+                    try {
+                        val t = templates.getJSONObject(i)
+                        val name = t.optString("name", "")
+                        if (name.isBlank()) { skipped++; continue }
+                        val category = runCatching {
+                            WorkoutTemplateCategory.valueOf(t.optString("category", "STRENGTH"))
+                        }.getOrDefault(WorkoutTemplateCategory.STRENGTH)
+
+                        val template = WorkoutTemplate(
+                            userId = firebaseUid,
+                            name = name,
+                            category = category,
+                            notes = t.optString("notes", null).ifNullOrBlank()
+                        )
+                        val templateId = workoutRepository.insertTemplate(template)
+
+                        val exercisesArr = t.optJSONArray("exercises")
+                        if (exercisesArr != null) {
+                            val templateExercises = mutableListOf<WorkoutTemplateExercise>()
+                            for (j in 0 until exercisesArr.length()) {
+                                val ex = exercisesArr.getJSONObject(j)
+                                val exName = ex.optString("name", "")
+                                if (exName.isBlank()) continue
+                                val exercise = workoutRepository.getExerciseByName(exName) ?: continue
+                                templateExercises.add(WorkoutTemplateExercise(
+                                    templateId = templateId,
+                                    exerciseId = exercise.id,
+                                    orderIndex = j,
+                                    targetSets = ex.optInt("sets", 3).takeIf { it > 0 }
+                                ))
+                            }
+                            if (templateExercises.isNotEmpty()) {
+                                workoutRepository.upsertTemplateExercises(templateExercises)
+                            }
+                        }
+                        imported++
+                    } catch (_: Exception) { skipped++ }
+                }
+                _importResult.value = "Imported $imported template(s)${if (skipped > 0) ", $skipped skipped" else ""}"
+            } catch (e: Exception) {
+                _importResult.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    // ── Backup restore ────────────────────────────────────────────────────────
+
+    fun importBackupFromJson(uri: Uri) {
+        viewModelScope.launch {
+            _importResult.value = null
+            val result = backupDataImporter.importFromUri(context, uri)
+            _importResult.value = result
+        }
+    }
+
     fun clearImportResult() { _importResult.value = null }
+
+    private fun String?.ifNullOrBlank(): String? = if (isNullOrBlank()) null else this
 }
