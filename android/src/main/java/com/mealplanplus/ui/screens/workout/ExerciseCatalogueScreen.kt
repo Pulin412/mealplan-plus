@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,17 +37,32 @@ fun ExerciseCatalogueScreen(
     val exercises = viewModel.filteredExercises()
     val grouped = exercises.groupBy { it.category }
 
+    Scaffold(
+        containerColor = BgPage,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddExercise,
+                containerColor = TextPrimary,
+                contentColor = CardBg,
+                shape = CircleShape,
+                modifier = Modifier.size(52.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add exercise", modifier = Modifier.size(22.dp))
+            }
+        }
+    ) { scaffoldPadding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BgPage)
+            .padding(scaffoldPadding)
     ) {
         // ── Header ───────────────────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(BgPage)
-                .padding(start = 4.dp, end = 16.dp, top = 52.dp, bottom = 8.dp),
+                .padding(start = 4.dp, end = 8.dp, top = 52.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -69,6 +86,9 @@ fun ExerciseCatalogueScreen(
                     color = TextSecondary,
                     modifier = Modifier.padding(top = 1.dp)
                 )
+            }
+            TextButton(onClick = onAddExercise) {
+                Text("+ Add", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignGreen)
             }
         }
 
@@ -190,6 +210,7 @@ fun ExerciseCatalogueScreen(
             }
         }
     }
+    } // end Scaffold
 }
 
 // ── "+ Add custom exercise" outline button (.form-btn-outline) ────────────────
