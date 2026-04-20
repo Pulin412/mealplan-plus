@@ -1727,6 +1727,7 @@ object DatabaseModule {
 
     private val MIGRATION_35_36 = object : Migration(35, 36) {
         override fun migrate(db: SupportSQLiteDatabase) {
+            // Add exercise_categories table
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS exercise_categories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1734,11 +1735,37 @@ object DatabaseModule {
                     isSystem INTEGER NOT NULL DEFAULT 0
                 )
             """.trimIndent())
-            // Seed the four built-in categories
             db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('STRENGTH', 1)")
             db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('CARDIO', 1)")
             db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('FLEXIBILITY', 1)")
             db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('OTHER', 1)")
+
+            // Recreate workout_sessions to normalise schema: add DEFAULT 0 on isCompleted
+            // and ensure the userId index exists. Some devices had it, some didn't.
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_sessions_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    date INTEGER NOT NULL,
+                    durationMinutes INTEGER,
+                    notes TEXT,
+                    isCompleted INTEGER NOT NULL DEFAULT 0,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    serverId TEXT,
+                    syncedAt INTEGER
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO workout_sessions_new
+                SELECT id, userId, name, date, durationMinutes, notes, isCompleted,
+                       createdAt, updatedAt, serverId, syncedAt
+                FROM workout_sessions
+            """.trimIndent())
+            db.execSQL("DROP TABLE workout_sessions")
+            db.execSQL("ALTER TABLE workout_sessions_new RENAME TO workout_sessions")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_workout_sessions_user ON workout_sessions (userId)")
         }
     }
 
