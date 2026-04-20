@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import java.time.format.DateTimeFormatter
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
@@ -64,10 +65,13 @@ class CalendarViewModel @Inject constructor(
 
     private val firebaseUid get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
-    val workoutTemplates: StateFlow<List<WorkoutTemplateWithExercises>> = kotlinx.coroutines.flow.flow {
-        emit(firebaseUid)
-    }.flatMapLatest { uid -> if (uid.isNotBlank()) workoutRepository.getTemplatesForUser(uid) else kotlinx.coroutines.flow.flowOf(emptyList()) }
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    val workoutTemplates: StateFlow<List<WorkoutTemplateWithExercises>> =
+        workoutRepository.getTemplatesForUser(firebaseUid)
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    val allExercises: StateFlow<List<Exercise>> =
+        workoutRepository.getAllExercisesForUser(firebaseUid)
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
         val startDate = savedStateHandle.get<String>("initialDate")
@@ -193,10 +197,26 @@ class CalendarViewModel @Inject constructor(
 
     fun unplanWorkout(templateId: Long) {
         val uid = firebaseUid
-        if (uid.isBlank()) return
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             workoutRepository.unplanWorkout(uid, date.toEpochMs(), templateId)
+        }
+    }
+
+    /** Creates an ad-hoc template from chosen exercises and plans it for the selected date. */
+    fun planQuickWorkout(exercises: List<Exercise>) {
+        if (exercises.isEmpty()) return
+        val uid = firebaseUid
+        viewModelScope.launch {
+            val date = _uiState.value.selectedDate
+            val name = "Quick Workout · ${date.format(DateTimeFormatter.ofPattern("d MMM"))}"
+            val template = WorkoutTemplate(userId = uid, name = name, category = WorkoutTemplateCategory.MIXED)
+            val templateExercises = exercises.mapIndexed { idx, ex ->
+                WorkoutTemplateExercise(templateId = 0L, exerciseId = ex.id, orderIndex = idx)
+            }
+            val templateId = workoutRepository.saveTemplate(template, templateExercises)
+            workoutRepository.planWorkout(PlannedWorkout(userId = uid, date = date.toEpochMs(), templateId = templateId))
+            hideWorkoutPicker()
         }
     }
 

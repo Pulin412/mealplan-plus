@@ -25,7 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.ExerciseCategory
+import com.mealplanplus.data.model.ExerciseCategoryEntity
+import com.mealplanplus.data.model.displayName
 import com.mealplanplus.ui.theme.*
 
 @Composable
@@ -37,7 +38,6 @@ fun ExerciseCatalogueScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // Derived from state so it reacts to filter/search changes correctly
     val exercises = remember(state.exercises, state.selectedCategory, state.searchQuery) {
         state.exercises.filter { ex ->
             (state.selectedCategory == null || ex.category == state.selectedCategory) &&
@@ -135,12 +135,12 @@ fun ExerciseCatalogueScreen(
                         onClick = { viewModel.filterByCategory(null) }
                     )
                 }
-                items(ExerciseCategory.entries) { cat ->
+                items(state.categories) { cat ->
                     ExCategoryChip(
                         label = cat.displayName(),
-                        selected = state.selectedCategory == cat,
-                        count = state.exercises.count { it.category == cat },
-                        onClick = { viewModel.filterByCategory(cat) }
+                        selected = state.selectedCategory == cat.name,
+                        count = state.exercises.count { it.category == cat.name },
+                        onClick = { viewModel.filterByCategory(cat.name) }
                     )
                 }
             }
@@ -164,8 +164,8 @@ fun ExerciseCatalogueScreen(
             } else {
                 // Grouped by category when showing all
                 LazyColumn(contentPadding = PaddingValues(bottom = 88.dp)) {
-                    ExerciseCategory.entries.forEach { cat ->
-                        val catExercises = grouped[cat] ?: return@forEach
+                    state.categories.forEach { cat ->
+                        val catExercises = grouped[cat.name] ?: return@forEach
                         item(key = "header_${cat.name}") {
                             Text(
                                 cat.displayName().uppercase(),
@@ -225,7 +225,7 @@ internal fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit = {}) {
             Text(
                 listOfNotNull(exercise.muscleGroup, exercise.equipment)
                     .joinToString(" · ")
-                    .ifEmpty { exercise.category.displayName() },
+                    .ifEmpty { categoryDisplayName(exercise.category) },
                 fontSize = 11.sp,
                 color = TextSecondary
             )
@@ -273,24 +273,17 @@ private fun ExCategoryChip(label: String, selected: Boolean, count: Int, onClick
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-internal fun ExerciseCategory.displayName() = when (this) {
-    ExerciseCategory.STRENGTH    -> "Strength"
-    ExerciseCategory.CARDIO      -> "Cardio"
-    ExerciseCategory.FLEXIBILITY -> "Flexibility"
-    ExerciseCategory.OTHER       -> "Other"
-}
-
-internal fun categoryEmoji(category: ExerciseCategory?) = when (category) {
-    ExerciseCategory.STRENGTH    -> "💪"
-    ExerciseCategory.CARDIO      -> "🏃"
-    ExerciseCategory.FLEXIBILITY -> "🧘"
-    else                         -> "🏋️"
+internal fun categoryEmoji(category: String?) = when (category?.uppercase()) {
+    "STRENGTH"    -> "💪"
+    "CARDIO"      -> "🏃"
+    "FLEXIBILITY" -> "🧘"
+    else          -> "🏋️"
 }
 
 @Composable
-internal fun categoryBg(category: ExerciseCategory?) = when (category) {
-    ExerciseCategory.STRENGTH    -> IconBgGray
-    ExerciseCategory.CARDIO      -> TagBlueBg
-    ExerciseCategory.FLEXIBILITY -> TagGreenBg
-    else                         -> TagGrayBg
+internal fun categoryBg(category: String?) = when (category?.uppercase()) {
+    "STRENGTH"    -> IconBgGray
+    "CARDIO"      -> TagBlueBg
+    "FLEXIBILITY" -> TagGreenBg
+    else          -> TagGrayBg
 }

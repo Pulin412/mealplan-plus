@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.ExerciseCategory
+import com.mealplanplus.data.model.ExerciseCategoryEntity
 import com.mealplanplus.data.model.PlannedWorkout
 import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
 import com.mealplanplus.data.model.WorkoutSession
@@ -29,14 +29,14 @@ data class WorkoutUiState(
     val sessions: List<WorkoutSessionWithSets> = emptyList(),
     val exercises: List<Exercise> = emptyList(),
     val templates: List<WorkoutTemplateWithExercises> = emptyList(),
+    val categories: List<ExerciseCategoryEntity> = emptyList(),
     val plannedForDate: List<PlannedWorkoutWithTemplate> = emptyList(),
-    val selectedCategory: ExerciseCategory? = null,
+    val selectedCategory: String? = null,
     val searchQuery: String = "",
     val loading: Boolean = false,
     val error: String? = null,
     val activeSession: WorkoutSession? = null,
     val activeSets: List<WorkoutSet> = emptyList(),
-    /** Set by ExercisePickerScreen when an exercise is picked; consumed by AddEditWorkoutTemplateScreen. */
     val pendingExercise: Exercise? = null
 )
 
@@ -54,6 +54,7 @@ class WorkoutViewModel @Inject constructor(
         loadHistory()
         loadExercises()
         loadTemplates()
+        loadCategories()
     }
 
     private fun loadHistory() {
@@ -84,6 +85,14 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    private fun loadCategories() {
+        viewModelScope.launch {
+            workoutRepository.getAllCategories().collect { list ->
+                _uiState.update { it.copy(categories = list) }
+            }
+        }
+    }
+
     fun loadPlannedForDate(date: LocalDate) {
         viewModelScope.launch {
             workoutRepository.getPlannedForDate(userId, date.toEpochMs()).collect { list ->
@@ -94,7 +103,7 @@ class WorkoutViewModel @Inject constructor(
 
     // ── Exercise filtering ────────────────────────────────────────────────────
 
-    fun filterByCategory(category: ExerciseCategory?) {
+    fun filterByCategory(category: String?) {
         _uiState.update { it.copy(selectedCategory = category) }
     }
 
@@ -115,7 +124,7 @@ class WorkoutViewModel @Inject constructor(
     fun saveExercise(
         existingId: Long?,
         name: String,
-        category: ExerciseCategory,
+        category: String,
         muscleGroup: String,
         equipment: String,
         description: String,
@@ -145,6 +154,16 @@ class WorkoutViewModel @Inject constructor(
 
     fun deleteExercise(exercise: Exercise) {
         viewModelScope.launch { workoutRepository.deleteExercise(exercise) }
+    }
+
+    // ── Category CRUD ─────────────────────────────────────────────────────────
+
+    fun addCategory(name: String) {
+        viewModelScope.launch { workoutRepository.addCategory(name) }
+    }
+
+    fun deleteCategory(category: ExerciseCategoryEntity) {
+        viewModelScope.launch { workoutRepository.deleteCategory(category) }
     }
 
     // ── Template CRUD ─────────────────────────────────────────────────────────
@@ -180,12 +199,10 @@ class WorkoutViewModel @Inject constructor(
     suspend fun getExerciseById(id: Long): Exercise? =
         workoutRepository.getExerciseById(id)
 
-    /** Called by ExercisePickerScreen when the user picks an exercise. */
     fun selectExercise(exercise: Exercise) {
         _uiState.update { it.copy(pendingExercise = exercise) }
     }
 
-    /** Called by AddEditWorkoutTemplateScreen after it has consumed the pending exercise. */
     fun consumeSelectedExercise() {
         _uiState.update { it.copy(pendingExercise = null) }
     }

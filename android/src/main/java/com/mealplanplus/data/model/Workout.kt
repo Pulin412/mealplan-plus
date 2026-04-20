@@ -8,6 +8,7 @@ import androidx.room.Junction
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 
+/** Kept for legacy references only; category is now stored as a plain String. */
 enum class ExerciseCategory { STRENGTH, CARDIO, FLEXIBILITY, OTHER }
 enum class WorkoutTemplateCategory { STRENGTH, CARDIO, FLEXIBILITY, MIXED }
 
@@ -15,7 +16,7 @@ enum class WorkoutTemplateCategory { STRENGTH, CARDIO, FLEXIBILITY, MIXED }
 data class Exercise(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val category: ExerciseCategory,
+    val category: String,            // stored as plain text, e.g. "STRENGTH", "CARDIO", custom
     val muscleGroup: String? = null,
     val equipment: String? = null,
     val description: String? = null,

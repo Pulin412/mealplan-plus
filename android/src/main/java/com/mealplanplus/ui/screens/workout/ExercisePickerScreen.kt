@@ -22,7 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.ExerciseCategory
+import com.mealplanplus.data.model.ExerciseCategoryEntity
+import com.mealplanplus.data.model.displayName
 import com.mealplanplus.ui.theme.*
 
 /**
@@ -40,7 +41,7 @@ fun ExercisePickerScreen(
     val state by viewModel.uiState.collectAsState()
 
     var search   by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf<ExerciseCategory?>(null) }
+    var category by remember { mutableStateOf<String?>(null) }
 
     val filtered = remember(state.exercises, search, category, excludeIds) {
         state.exercises.filter { ex ->
@@ -111,12 +112,12 @@ fun ExercisePickerScreen(
                         category = null
                     }
                 }
-                items(ExerciseCategory.entries) { cat ->
+                items(state.categories) { cat ->
                     PickerChip(
                         label = cat.displayName(),
-                        selected = category == cat,
-                        count = state.exercises.count { it.category == cat && it.id !in excludeIds }
-                    ) { category = cat }
+                        selected = category == cat.name,
+                        count = state.exercises.count { it.category == cat.name && it.id !in excludeIds }
+                    ) { category = cat.name }
                 }
             }
 
@@ -139,8 +140,8 @@ fun ExercisePickerScreen(
                 }
             } else {
                 LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
-                    ExerciseCategory.entries.forEach { cat ->
-                        val catExercises = grouped[cat] ?: return@forEach
+                    state.categories.forEach { cat ->
+                        val catExercises = grouped[cat.name] ?: return@forEach
                         item(key = "hdr_${cat.name}") {
                             Text(
                                 cat.displayName().uppercase(),
@@ -194,7 +195,7 @@ private fun PickerExerciseRow(exercise: Exercise, onSelect: () -> Unit) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(exercise.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             Text(
-                listOfNotNull(exercise.muscleGroup, exercise.equipment).joinToString(" · ").ifEmpty { exercise.category.displayName() },
+                listOfNotNull(exercise.muscleGroup, exercise.equipment).joinToString(" · ").ifEmpty { categoryDisplayName(exercise.category) },
                 fontSize = 11.sp, color = TextSecondary
             )
         }

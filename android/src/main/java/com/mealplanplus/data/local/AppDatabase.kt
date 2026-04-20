@@ -31,9 +31,10 @@ import com.mealplanplus.data.model.*
         WorkoutTemplate::class,
         WorkoutTemplateExercise::class,
         WorkoutTemplateSet::class,
-        PlannedWorkout::class
+        PlannedWorkout::class,
+        ExerciseCategoryEntity::class
     ],
-    version = 35,
+    version = 36,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -53,4 +54,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutSetDao(): WorkoutSetDao
     abstract fun workoutTemplateDao(): WorkoutTemplateDao
     abstract fun plannedWorkoutDao(): PlannedWorkoutDao
+    abstract fun exerciseCategoryDao(): ExerciseCategoryDao
 }

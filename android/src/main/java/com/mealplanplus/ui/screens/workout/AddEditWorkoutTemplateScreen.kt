@@ -481,7 +481,7 @@ internal fun ExercisePickerSheet(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(ex.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                         Text(
-                            listOfNotNull(ex.category.name.lowercase().replaceFirstChar { it.uppercase() }, ex.muscleGroup)
+                            listOfNotNull(categoryDisplayName(ex.category), ex.muscleGroup)
                                 .joinToString(" · "),
                             fontSize = 11.sp, color = TextSecondary
                         )

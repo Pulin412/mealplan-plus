@@ -8,7 +8,6 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.ExerciseCategory
 import com.mealplanplus.util.dataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -52,7 +51,7 @@ class ExerciseSeeder @Inject constructor(
         val exercises = items.map { e ->
             Exercise(
                 name = e.name,
-                category = ExerciseCategory.valueOf(e.category),
+                category = e.category.trim().uppercase().ifBlank { "OTHER" },
                 muscleGroup = e.muscleGroup,
                 equipment = e.equipment,
                 isSystem = true
