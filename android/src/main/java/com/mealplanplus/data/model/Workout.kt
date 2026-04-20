@@ -1,5 +1,6 @@
 package com.mealplanplus.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -137,7 +138,10 @@ data class PlannedWorkoutWithTemplate(
     val template: WorkoutTemplateWithExercises
 )
 
-@Entity(tableName = "workout_sessions")
+@Entity(
+    tableName = "workout_sessions",
+    indices = [Index("userId", name = "idx_workout_sessions_user")]
+)
 data class WorkoutSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: String,
@@ -145,7 +149,7 @@ data class WorkoutSession(
     val date: Long,
     val durationMinutes: Int? = null,
     val notes: String? = null,
-    val isCompleted: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isCompleted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val serverId: String? = null,
