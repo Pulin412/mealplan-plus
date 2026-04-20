@@ -13,3 +13,9 @@ local.properties
 # Personal developer seed data — not for distribution
 /developer_data/
 backup_snapshot_*/
+
+# Web app
+node_modules/
+webapp/.next/
+webapp/out/
+webapp/.env.local

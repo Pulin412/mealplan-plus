@@ -4,10 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DailyLogRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.PlanRepository
+import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.util.extractShortDietName
 import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,7 +32,9 @@ data class CalendarUiState(
     val isLoading: Boolean = false,
     val todayLoggedSlots: Map<String, Boolean> = emptyMap(),
     val grocerySnapshot: List<GrocerySnapshotItem>? = null,
-    val isGeneratingGroceries: Boolean = false
+    val isGeneratingGroceries: Boolean = false,
+    val plannedWorkouts: List<PlannedWorkoutWithTemplate> = emptyList(),
+    val showWorkoutPicker: Boolean = false
 )
 
 /** A single aggregated ingredient line for the grocery snapshot sheet. */
@@ -46,7 +50,8 @@ class CalendarViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val dailyLogRepository: DailyLogRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val workoutRepository: WorkoutRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CalendarUiState())
@@ -55,6 +60,13 @@ class CalendarViewModel @Inject constructor(
     val diets: StateFlow<List<Diet>> = authRepository.getCurrentUserId()
         .filterNotNull()
         .flatMapLatest { uid -> dietRepository.getDietsForUser(uid) }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    private val firebaseUid get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+    val workoutTemplates: StateFlow<List<WorkoutTemplateWithExercises>> = kotlinx.coroutines.flow.flow {
+        emit(firebaseUid)
+    }.flatMapLatest { uid -> if (uid.isNotBlank()) workoutRepository.getTemplatesForUser(uid) else kotlinx.coroutines.flow.flowOf(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
@@ -150,6 +162,41 @@ class CalendarViewModel @Inject constructor(
             val diet = planRepository.getDietForDate(date)
             _uiState.update { it.copy(selectedDiet = diet, selectedDietWithMeals = null, selectedDietTags = emptyList()) }
             if (diet != null) loadDietDetails(diet.id)
+        }
+        loadPlannedWorkoutsForDate(date)
+    }
+
+    private fun loadPlannedWorkoutsForDate(date: LocalDate) {
+        val uid = firebaseUid
+        if (uid.isBlank()) return
+        viewModelScope.launch {
+            workoutRepository.getPlannedForDate(uid, date.toEpochMs()).collect { list ->
+                _uiState.update { it.copy(plannedWorkouts = list) }
+            }
+        }
+    }
+
+    fun showWorkoutPicker() { _uiState.update { it.copy(showWorkoutPicker = true) } }
+    fun hideWorkoutPicker() { _uiState.update { it.copy(showWorkoutPicker = false) } }
+
+    fun planWorkout(templateId: Long) {
+        val uid = firebaseUid
+        if (uid.isBlank()) return
+        viewModelScope.launch {
+            val date = _uiState.value.selectedDate
+            workoutRepository.planWorkout(
+                PlannedWorkout(userId = uid, date = date.toEpochMs(), templateId = templateId)
+            )
+            hideWorkoutPicker()
+        }
+    }
+
+    fun unplanWorkout(templateId: Long) {
+        val uid = firebaseUid
+        if (uid.isBlank()) return
+        viewModelScope.launch {
+            val date = _uiState.value.selectedDate
+            workoutRepository.unplanWorkout(uid, date.toEpochMs(), templateId)
         }
     }
 

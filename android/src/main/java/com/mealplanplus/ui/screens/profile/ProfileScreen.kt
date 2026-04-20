@@ -46,11 +46,26 @@ fun ProfileScreen(
     val importResult by viewModel.importResult.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let { viewModel.importDietsFromJson(it) }
-    }
+    // Each import type gets its own launcher
+    val importDietsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { viewModel.importDietsFromJson(it) } }
+
+    val importFoodsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { viewModel.importFoodsFromJson(it) } }
+
+    val importExercisesLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { viewModel.importExercisesFromJson(it) } }
+
+    val importTemplatesLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { viewModel.importWorkoutTemplatesFromJson(it) } }
+
+    val importBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { viewModel.importBackupFromJson(it) } }
 
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
@@ -263,17 +278,29 @@ fun ProfileScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            "Data",
+                            "Import Data",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
-                        OutlinedButton(
-                            onClick = { importLauncher.launch("application/json") },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.Upload, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Import Diets (JSON)")
+                        Text(
+                            "Pick a JSON file from your device to import. Files are available in the app assets.",
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+                        ImportButton("Foods", Icons.Default.LocalDining) {
+                            importFoodsLauncher.launch("application/json")
+                        }
+                        ImportButton("Exercises", Icons.Default.FitnessCenter) {
+                            importExercisesLauncher.launch("application/json")
+                        }
+                        ImportButton("Workout Templates", Icons.Default.ViewList) {
+                            importTemplatesLauncher.launch("application/json")
+                        }
+                        ImportButton("Diets", Icons.Default.Restaurant) {
+                            importDietsLauncher.launch("application/json")
+                        }
+                        ImportButton("Full Backup", Icons.Default.RestoreFromTrash) {
+                            importBackupLauncher.launch("application/json")
                         }
                     }
                 }
@@ -515,5 +542,22 @@ private fun ActivityLevelDropdown(selected: ActivityLevel?, onSelect: (ActivityL
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ImportButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Import $label (JSON)", fontSize = 14.sp)
     }
 }
