@@ -12,6 +12,9 @@ import com.mealplanplus.api.domain.log.DailyLogDto
 import com.mealplanplus.api.domain.log.DailyLogService
 import com.mealplanplus.api.domain.meal.MealDto
 import com.mealplanplus.api.domain.meal.MealService
+import com.mealplanplus.api.domain.workout.ExerciseDto
+import com.mealplanplus.api.domain.workout.WorkoutService
+import com.mealplanplus.api.domain.workout.WorkoutSessionDto
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.security.core.Authentication
@@ -28,6 +31,7 @@ class SyncController(
     private val healthService: HealthMetricService,
     private val groceryService: GroceryService,
     private val logService: DailyLogService,
+    private val workoutService: WorkoutService,
     private val tombstoneService: TombstoneService
 ) {
     data class PushRequest(
@@ -36,7 +40,9 @@ class SyncController(
         val diets: List<DietDto> = emptyList(),
         val healthMetrics: List<HealthMetricDto> = emptyList(),
         val groceryLists: List<GroceryListDto> = emptyList(),
-        val dailyLogs: List<DailyLogDto> = emptyList()
+        val dailyLogs: List<DailyLogDto> = emptyList(),
+        val exercises: List<ExerciseDto> = emptyList(),
+        val workoutSessions: List<WorkoutSessionDto> = emptyList()
     )
 
     data class PushResponse(val accepted: Int)
@@ -48,6 +54,8 @@ class SyncController(
         val healthMetrics: List<HealthMetricDto>,
         val groceryLists: List<GroceryListDto>,
         val dailyLogs: List<DailyLogDto>,
+        val exercises: List<ExerciseDto>,
+        val workoutSessions: List<WorkoutSessionDto>,
         val tombstones: List<TombstoneDto>,
         val serverTime: Instant
     )
@@ -61,6 +69,8 @@ class SyncController(
         req.healthMetrics.forEach { healthService.upsert(it, auth.name); count++ }
         req.groceryLists.forEach { groceryService.upsert(it, auth.name); count++ }
         req.dailyLogs.forEach { logService.upsert(it, auth.name); count++ }
+        req.exercises.forEach { workoutService.upsertExercise(it, auth.name); count++ }
+        req.workoutSessions.forEach { workoutService.upsertSession(it, auth.name); count++ }
         return PushResponse(count)
     }
 
@@ -75,6 +85,8 @@ class SyncController(
         healthMetrics = healthService.since(auth.name, since),
         groceryLists = groceryService.since(auth.name, since),
         dailyLogs = logService.since(auth.name, since),
+        exercises = workoutService.exercisesSince(auth.name, since),
+        workoutSessions = workoutService.sessionsSince(auth.name, since),
         tombstones = tombstoneService.since(auth.name, since),
         serverTime = Instant.now()
     )
