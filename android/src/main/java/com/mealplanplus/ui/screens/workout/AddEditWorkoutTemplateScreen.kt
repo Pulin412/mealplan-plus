@@ -28,9 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.WorkoutTemplateCategory
+import com.mealplanplus.data.model.ExerciseCategoryEntity
 import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
+import com.mealplanplus.data.model.displayName
 import com.mealplanplus.ui.theme.*
 
 @Suppress("UNUSED_VARIABLE")
@@ -53,7 +54,7 @@ fun AddEditWorkoutTemplateScreen(
     }
 
     var name        by remember(existing) { mutableStateOf(existing?.template?.name ?: "") }
-    var category    by remember(existing) { mutableStateOf(existing?.template?.category ?: WorkoutTemplateCategory.STRENGTH) }
+    var category    by remember(existing) { mutableStateOf(existing?.template?.category ?: "STRENGTH") }
     var notes       by remember(existing) { mutableStateOf(existing?.template?.notes ?: "") }
 
     val templateExercises = remember(existing) {
@@ -79,10 +80,8 @@ fun AddEditWorkoutTemplateScreen(
     // Consume pending exercise selection returned from ExercisePickerScreen
     LaunchedEffect(state.pendingExercise) {
         val picked = state.pendingExercise ?: return@LaunchedEffect
-        if (templateExercises.none { it.exercise.id == picked.id }) {
-            templateExercises.add(TemplateDraftExercise(exercise = picked))
-            expandedIndex = templateExercises.lastIndex
-        }
+        templateExercises.add(TemplateDraftExercise(exercise = picked))
+        expandedIndex = templateExercises.lastIndex
         viewModel.consumeSelectedExercise()
     }
 
@@ -147,24 +146,78 @@ fun AddEditWorkoutTemplateScreen(
                         }
 
                         // Category
+                        var showAddCategory by remember { mutableStateOf(false) }
+                        var newCategoryName by remember { mutableStateOf("") }
+
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             FormLabel("CATEGORY")
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                items(WorkoutTemplateCategory.entries) { cat ->
-                                    val selected = cat == category
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(if (selected) TextPrimary else BgPage)
-                                            .clickable { category = cat }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            cat.displayName(),
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (selected) CardBg else TextSecondary
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    items(state.categories) { cat ->
+                                        val selected = cat.name == category
+                                        CategoryChipItem(
+                                            cat = cat,
+                                            selected = selected,
+                                            onSelect = { category = cat.name },
+                                            onDelete = if (cat.isSystem) null else ({
+                                                viewModel.deleteCategory(cat)
+                                                if (category == cat.name) category = "STRENGTH"
+                                            })
                                         )
+                                    }
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(BgPage)
+                                                .clickable { showAddCategory = true }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.Add, contentDescription = "Add category", tint = DesignGreen, modifier = Modifier.size(14.dp))
+                                                Text("New", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = DesignGreen)
+                                            }
+                                        }
+                                    }
+                                }
+                                if (showAddCategory) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = newCategoryName,
+                                            onValueChange = { newCategoryName = it },
+                                            placeholder = { Text("Category name", color = TextSecondary, fontSize = 13.sp) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            keyboardOptions = KeyboardOptions(
+                                                capitalization = KeyboardCapitalization.Words,
+                                                imeAction = ImeAction.Done
+                                            ),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                unfocusedContainerColor = BgPage,
+                                                focusedContainerColor = CardBg,
+                                                unfocusedBorderColor = Color(0xFFEBEBEB),
+                                                focusedBorderColor = TextPrimary
+                                            )
+                                        )
+                                        TextButton(onClick = {
+                                            if (newCategoryName.isNotBlank()) {
+                                                viewModel.addCategory(newCategoryName)
+                                                category = newCategoryName.trim().uppercase()
+                                            }
+                                            newCategoryName = ""
+                                            showAddCategory = false
+                                        }) {
+                                            Text("Add", fontWeight = FontWeight.Bold, color = DesignGreen)
+                                        }
+                                        TextButton(onClick = { showAddCategory = false; newCategoryName = "" }) {
+                                            Text("Cancel", color = TextSecondary)
+                                        }
                                     }
                                 }
                             }

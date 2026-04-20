@@ -11,6 +11,7 @@ import androidx.room.Relation
 
 /** Kept for legacy references only; category is now stored as a plain String. */
 enum class ExerciseCategory { STRENGTH, CARDIO, FLEXIBILITY, OTHER }
+/** Kept for reference only; WorkoutTemplate.category is now a plain String. */
 enum class WorkoutTemplateCategory { STRENGTH, CARDIO, FLEXIBILITY, MIXED }
 
 @Entity(tableName = "exercises")
@@ -34,7 +35,7 @@ data class WorkoutTemplate(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: String,
     val name: String,
-    val category: WorkoutTemplateCategory = WorkoutTemplateCategory.STRENGTH,
+    val category: String = "STRENGTH",
     val notes: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

@@ -210,7 +210,7 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             val name = "Quick Workout · ${date.format(DateTimeFormatter.ofPattern("d MMM"))}"
-            val template = WorkoutTemplate(userId = uid, name = name, category = WorkoutTemplateCategory.MIXED)
+            val template = WorkoutTemplate(userId = uid, name = name, category = "MIXED")
             val templateExercises = exercises.mapIndexed { idx, ex ->
                 WorkoutTemplateExercise(templateId = 0L, exerciseId = ex.id, orderIndex = idx)
             }

@@ -62,7 +62,7 @@ fun WorkoutTemplateDetailScreen(
                     if (t != null) {
                         val totalSets = t.exercises.sumOf { it.templateExercise.targetSets ?: 0 }
                         Text(
-                            "${t.exercises.size} exercise${if (t.exercises.size != 1) "s" else ""} · $totalSets sets · ${t.template.category.displayName()}",
+                            "${t.exercises.size} exercise${if (t.exercises.size != 1) "s" else ""} · $totalSets sets · ${workoutTemplateCategoryDisplayName(t.template.category)}",
                             fontSize = 12.sp, color = TextSecondary, modifier = Modifier.padding(top = 1.dp)
                         )
                     }
@@ -101,15 +101,15 @@ fun WorkoutTemplateDetailScreen(
                                     modifier = Modifier
                                         .size(48.dp)
                                         .clip(RoundedCornerShape(13.dp))
-                                        .background(t.template.category.bgColor()),
+                                        .background(workoutTemplateCategoryBg(t.template.category)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(t.template.category.emoji(), fontSize = 22.sp)
+                                    Text(workoutTemplateCategoryEmoji(t.template.category), fontSize = 22.sp)
                                 }
                                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     Text(t.template.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        CategoryBadge(t.template.category.displayName())
+                                        CategoryBadge(workoutTemplateCategoryDisplayName(t.template.category))
                                     }
                                     t.template.notes?.let {
                                         Text(it, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.padding(top = 1.dp))

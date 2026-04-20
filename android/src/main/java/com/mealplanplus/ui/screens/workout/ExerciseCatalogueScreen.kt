@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -140,7 +141,11 @@ fun ExerciseCatalogueScreen(
                         label = cat.displayName(),
                         selected = state.selectedCategory == cat.name,
                         count = state.exercises.count { it.category == cat.name },
-                        onClick = { viewModel.filterByCategory(cat.name) }
+                        onClick = { viewModel.filterByCategory(cat.name) },
+                        onDelete = if (cat.isSystem) null else ({
+                            viewModel.deleteCategory(cat)
+                            if (state.selectedCategory == cat.name) viewModel.filterByCategory(null)
+                        })
                     )
                 }
             }
@@ -255,19 +260,35 @@ internal fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit = {}) {
 // ── Filter chip ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ExCategoryChip(label: String, selected: Boolean, count: Int, onClick: () -> Unit) {
+private fun ExCategoryChip(
+    label: String,
+    selected: Boolean,
+    count: Int,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
     val bg     = if (selected) TextPrimary else CardBg
     val border = if (selected) Modifier else Modifier.border(1.dp, DividerColor, RoundedCornerShape(16.dp))
     val text   = if (selected || count == 0) label else "$label  $count"
-    Box(
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .then(border)
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 7.dp)
+            .padding(start = 13.dp, end = if (onDelete != null) 6.dp else 13.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(text, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (selected) CardBg else TextSecondary)
+        if (onDelete != null) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Delete category",
+                tint = if (selected) CardBg.copy(alpha = 0.7f) else TextMuted,
+                modifier = Modifier.size(12.dp).clickable(onClick = onDelete)
+            )
+        }
     }
 }
 

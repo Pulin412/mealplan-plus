@@ -16,7 +16,6 @@ import com.mealplanplus.data.model.GoalType
 import com.mealplanplus.data.model.Meal
 import com.mealplanplus.data.model.User
 import com.mealplanplus.data.model.WorkoutTemplate
-import com.mealplanplus.data.model.WorkoutTemplateCategory
 import com.mealplanplus.data.model.WorkoutTemplateSet
 import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.data.repository.AuthRepository
@@ -424,9 +423,7 @@ class ProfileViewModel @Inject constructor(
                         val t = templates.getJSONObject(i)
                         val name = t.optString("name", "")
                         if (name.isBlank()) { skipped++; continue }
-                        val category = runCatching {
-                            WorkoutTemplateCategory.valueOf(t.optString("category", "STRENGTH"))
-                        }.getOrDefault(WorkoutTemplateCategory.STRENGTH)
+                        val category = t.optString("category", "STRENGTH").ifBlank { "STRENGTH" }
 
                         val template = WorkoutTemplate(
                             userId = firebaseUid,

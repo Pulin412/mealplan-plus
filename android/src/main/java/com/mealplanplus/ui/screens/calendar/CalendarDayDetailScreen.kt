@@ -25,11 +25,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.WorkoutTemplateCategory
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.ui.screens.workout.categoryBg
 import com.mealplanplus.ui.screens.workout.categoryDisplayName
 import com.mealplanplus.ui.screens.workout.categoryEmoji
+import com.mealplanplus.ui.screens.workout.workoutTemplateCategoryDisplayName
+import com.mealplanplus.ui.screens.workout.workoutTemplateCategoryEmoji
 import com.mealplanplus.ui.theme.*
 import com.mealplanplus.util.toEpochMs
 import java.time.LocalDate
@@ -191,12 +192,12 @@ private fun PlannedWorkoutsSection(
                                 .background(IconBgGray),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(pw.template.template.category.workoutEmoji(), fontSize = 16.sp)
+                            Text(workoutTemplateCategoryEmoji(pw.template.template.category), fontSize = 16.sp)
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(pw.template.template.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                             Text(
-                                "${pw.template.exercises.size} exercises · ${pw.template.template.category.displayLabel()}",
+                                "${pw.template.exercises.size} exercises · ${workoutTemplateCategoryDisplayName(pw.template.template.category)}",
                                 fontSize = 11.sp, color = TextSecondary
                             )
                         }
@@ -274,11 +275,11 @@ private fun WorkoutPickerSheet(
                                 Box(
                                     modifier = Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(IconBgGray),
                                     contentAlignment = Alignment.Center
-                                ) { Text(t.template.category.workoutEmoji(), fontSize = 18.sp) }
+                                ) { Text(workoutTemplateCategoryEmoji(t.template.category), fontSize = 18.sp) }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(t.template.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                                         color = if (alreadyPlanned) TextMuted else TextPrimary)
-                                    Text("${t.exercises.size} exercises · ${t.template.category.displayLabel()}",
+                                    Text("${t.exercises.size} exercises · ${workoutTemplateCategoryDisplayName(t.template.category)}",
                                         fontSize = 11.sp, color = TextSecondary)
                                 }
                                 if (alreadyPlanned) {
@@ -350,19 +351,6 @@ private fun WorkoutPickerSheet(
     }
 }
 
-private fun WorkoutTemplateCategory.workoutEmoji() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> "💪"
-    WorkoutTemplateCategory.CARDIO      -> "🏃"
-    WorkoutTemplateCategory.FLEXIBILITY -> "🧘"
-    WorkoutTemplateCategory.MIXED       -> "🏋️"
-}
-
-private fun WorkoutTemplateCategory.displayLabel() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> "Strength"
-    WorkoutTemplateCategory.CARDIO      -> "Cardio"
-    WorkoutTemplateCategory.FLEXIBILITY -> "Flexibility"
-    WorkoutTemplateCategory.MIXED       -> "Mixed"
-}
 
 @Composable
 private fun DayDetailTopBar(date: LocalDate, onBack: () -> Unit) {

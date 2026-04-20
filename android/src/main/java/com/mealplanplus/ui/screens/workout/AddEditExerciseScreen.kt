@@ -300,7 +300,7 @@ fun AddEditExerciseScreen(
 // ── Category chip with optional delete ────────────────────────────────────────
 
 @Composable
-private fun CategoryChipItem(
+internal fun CategoryChipItem(
     cat: ExerciseCategoryEntity,
     selected: Boolean,
     onSelect: () -> Unit,

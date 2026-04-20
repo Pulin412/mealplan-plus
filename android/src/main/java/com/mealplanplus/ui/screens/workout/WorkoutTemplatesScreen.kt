@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.WorkoutTemplate
-import com.mealplanplus.data.model.WorkoutTemplateCategory
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.ui.theme.*
 
@@ -166,7 +165,7 @@ private fun TemplateCard(
     modifier: Modifier = Modifier
 ) {
     val exerciseCount = item.exercises.size
-    val catBg = item.template.category.bgColor()
+    val catBg = workoutTemplateCategoryBg(item.template.category)
 
     Card(
         modifier = modifier.fillMaxWidth().clickable(onClick = onTap),
@@ -187,14 +186,14 @@ private fun TemplateCard(
                     .background(catBg),
                 contentAlignment = Alignment.Center
             ) {
-                Text(item.template.category.emoji(), fontSize = 20.sp)
+                Text(workoutTemplateCategoryEmoji(item.template.category), fontSize = 20.sp)
             }
 
             // Name + detail
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(item.template.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                 Text(
-                    "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · ${item.template.category.displayName()}",
+                    "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · ${workoutTemplateCategoryDisplayName(item.template.category)}",
                     fontSize = 12.sp, color = TextSecondary
                 )
                 item.template.notes?.let {
@@ -242,25 +241,26 @@ private fun TemplateCard(
     }
 }
 
-internal fun WorkoutTemplateCategory.emoji() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> "💪"
-    WorkoutTemplateCategory.CARDIO      -> "🏃"
-    WorkoutTemplateCategory.FLEXIBILITY -> "🧘"
-    WorkoutTemplateCategory.MIXED       -> "🏋️"
+// Replace enum extensions with String helpers
+internal fun workoutTemplateCategoryEmoji(category: String) = when (category.uppercase()) {
+    "STRENGTH"    -> "💪"
+    "CARDIO"      -> "🏃"
+    "FLEXIBILITY" -> "🧘"
+    else          -> "🏋️"
 }
 
 @Composable
-internal fun WorkoutTemplateCategory.bgColor() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> IconBgGray
-    WorkoutTemplateCategory.CARDIO      -> TagBlueBg
-    WorkoutTemplateCategory.FLEXIBILITY -> TagGreenBg
-    WorkoutTemplateCategory.MIXED       -> TagOrangeBg
+internal fun workoutTemplateCategoryBg(category: String) = when (category.uppercase()) {
+    "STRENGTH"    -> IconBgGray
+    "CARDIO"      -> TagBlueBg
+    "FLEXIBILITY" -> TagGreenBg
+    else          -> TagOrangeBg
 }
 
-
-internal fun WorkoutTemplateCategory.displayName() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> "Strength"
-    WorkoutTemplateCategory.CARDIO      -> "Cardio"
-    WorkoutTemplateCategory.FLEXIBILITY -> "Flexibility"
-    WorkoutTemplateCategory.MIXED       -> "Mixed"
+internal fun workoutTemplateCategoryDisplayName(category: String) = when (category.uppercase()) {
+    "STRENGTH"    -> "Strength"
+    "CARDIO"      -> "Cardio"
+    "FLEXIBILITY" -> "Flexibility"
+    "MIXED"       -> "Mixed"
+    else          -> category.replaceFirstChar { it.uppercase() }
 }

@@ -11,7 +11,6 @@ import com.mealplanplus.data.model.WorkoutSession
 import com.mealplanplus.data.model.WorkoutSet
 import com.mealplanplus.data.model.WorkoutSessionWithSets
 import com.mealplanplus.data.model.WorkoutTemplate
-import com.mealplanplus.data.model.WorkoutTemplateCategory
 import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.data.repository.WorkoutRepository
@@ -171,7 +170,7 @@ class WorkoutViewModel @Inject constructor(
     fun saveTemplate(
         existingId: Long?,
         name: String,
-        category: WorkoutTemplateCategory,
+        category: String,
         notes: String,
         exercises: List<WorkoutTemplateExercise>,
         onDone: (Long) -> Unit

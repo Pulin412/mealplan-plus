@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -152,11 +153,11 @@ private fun TemplatePickStep(
                             Box(
                                 modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(IconBgGray),
                                 contentAlignment = Alignment.Center
-                            ) { Text(template.template.category.emoji(), fontSize = 20.sp) }
+                            ) { Text(workoutTemplateCategoryEmoji(template.template.category), fontSize = 20.sp) }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(template.template.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                                 Text(
-                                    "${template.exercises.size} exercises · ${template.template.category.displayName()}",
+                                    "${template.exercises.size} exercises · ${workoutTemplateCategoryDisplayName(template.template.category)}",
                                     fontSize = 12.sp, color = TextSecondary
                                 )
                             }
@@ -299,6 +300,22 @@ private fun ActiveSessionStep(
                                 Text(
                                     slot.exercise.muscleGroup ?: categoryDisplayName(slot.exercise.category),
                                     fontSize = 11.sp, color = TextSecondary
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    val key = "${slot.exercise.id}_$slotCounter"
+                                    slotCounter++
+                                    sessionSlots.add(ExerciseSlot(slot.exercise, key))
+                                    expandedSlotKey = key
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.ContentCopy,
+                                    contentDescription = "Copy exercise",
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                             Box(
