@@ -76,14 +76,9 @@ fun AddEditWorkoutTemplateScreen(
     }
 
     var expandedIndex by remember { mutableStateOf<Int?>(null) }
-
-    // Consume pending exercise selection returned from ExercisePickerScreen
-    LaunchedEffect(state.pendingExercise) {
-        val picked = state.pendingExercise ?: return@LaunchedEffect
-        templateExercises.add(TemplateDraftExercise(exercise = picked))
-        expandedIndex = templateExercises.lastIndex
-        viewModel.consumeSelectedExercise()
-    }
+    var showExercisePicker by remember { mutableStateOf(false) }
+    var showAddCategory by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
 
     val canSave = name.isNotBlank() && templateExercises.isNotEmpty()
 
@@ -146,9 +141,6 @@ fun AddEditWorkoutTemplateScreen(
                         }
 
                         // Category
-                        var showAddCategory by remember { mutableStateOf(false) }
-                        var newCategoryName by remember { mutableStateOf("") }
-
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             FormLabel("CATEGORY")
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -274,7 +266,7 @@ fun AddEditWorkoutTemplateScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(CardBg)
-                        .clickable { onPickExercise(templateExercises.map { it.exercise.id }) }
+                        .clickable { showExercisePicker = true }
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -339,6 +331,17 @@ fun AddEditWorkoutTemplateScreen(
         }
     }
 
+    if (showExercisePicker) {
+        ExercisePickerSheet(
+            exercises = state.exercises,
+            onSelect = { ex ->
+                templateExercises.add(TemplateDraftExercise(exercise = ex))
+                expandedIndex = templateExercises.lastIndex
+                showExercisePicker = false
+            },
+            onDismiss = { showExercisePicker = false }
+        )
+    }
 }
 
 // ── Template exercise row (expandable) ───────────────────────────────────────
