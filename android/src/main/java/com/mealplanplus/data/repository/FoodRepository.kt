@@ -32,6 +32,9 @@ class FoodRepository @Inject constructor(
 
     suspend fun insertFood(food: FoodItem): Long = foodDao.insertFood(food)
 
+    /** Upsert a system food by name (insert or replace). Used by the manual food import. */
+    suspend fun upsertSystemFood(food: FoodItem) = foodDao.upsertSystemFood(food)
+
     suspend fun updateFood(food: FoodItem) = foodDao.updateFood(food)
 
     suspend fun deleteFood(food: FoodItem) = foodDao.deleteFood(food)

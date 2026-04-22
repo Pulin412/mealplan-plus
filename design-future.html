@@ -488,8 +488,11 @@ const groups = {
   workouts: {
     screens: [
       { id: 'workout-home', label: 'Workouts', phase: 2 },
+      { id: 'workout-templates', label: 'My Templates', phase: 2 },
+      { id: 'add-template', label: 'Add Template', phase: 2 },
       { id: 'active-session', label: 'Active Session', phase: 2 },
-      { id: 'exercise-cat', label: 'Exercise Catalogue', phase: 2 }
+      { id: 'exercise-cat', label: 'Exercise Catalogue', phase: 2 },
+      { id: 'add-exercise', label: 'Add Exercise', phase: 2 }
     ]
   },
   health: {
@@ -1515,31 +1518,28 @@ calendar: `
 
 // ══ WORKOUT HOME ══ (Phase 2)
 'workout-home': `
-<div class="sh"><div class="sh-title">Workouts <span class="phase-mark tb">Phase 2</span></div></div>
+<div class="sh" style="display:flex;align-items:center;justify-content:space-between;padding-right:16px;">
+  <div><div class="sh-title">Workouts <span class="phase-mark tb">Phase 2</span></div></div>
+  <span style="font-size:12px;font-weight:600;color:#2E7D52;cursor:pointer;" onclick="setScreen('workout-templates')">Templates ›</span>
+</div>
 <div class="workout-stat-row" style="margin-top:8px;">
   <div class="ws"><div class="ws-val">4</div><div class="ws-label">This week</div></div>
   <div class="ws"><div class="ws-val">186</div><div class="ws-label">Minutes</div></div>
   <div class="ws"><div class="ws-val">1,240</div><div class="ws-label">kcal burned</div></div>
 </div>
-<div style="background:#111;border-radius:14px;margin:0 16px 10px;padding:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;">
+<div style="background:#111;border-radius:14px;margin:0 16px 10px;padding:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;" onclick="setScreen('active-session')">
   <div>
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Today's session</div>
-    <div style="font-size:17px;font-weight:700;margin-top:4px;">Upper Body Strength</div>
-    <div style="font-size:11px;color:#888;margin-top:2px;">6 exercises · est. 45 min</div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Planned today</div>
+    <div style="font-size:17px;font-weight:700;margin-top:4px;">Chest Day</div>
+    <div style="font-size:11px;color:#888;margin-top:2px;">4 exercises · Strength template</div>
   </div>
   <div style="background:#fff;color:#111;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;">▶ Start</div>
 </div>
-<div class="sec">Today's plan</div>
-<div class="card card-p0">
-  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico">🏋️</div><div><div class="ex-name">Bench Press</div><div class="ex-det">Chest · Strength</div></div><div class="ex-sets">4 × 10</div></div>
-  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico">💪</div><div><div class="ex-name">Pull-ups</div><div class="ex-det">Back · Strength</div></div><div class="ex-sets">4 × 8</div></div>
-  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico">🤸</div><div><div class="ex-name">Shoulder Press</div><div class="ex-det">Shoulders · Strength</div></div><div class="ex-sets">3 × 12</div></div>
-  <div class="ex-item"><div class="ex-ico">🧘</div><div><div class="ex-name">Tricep Dips</div><div class="ex-det">Arms · Strength</div></div><div class="ex-sets">3 × 15</div></div>
-</div>
+<div style="padding:0 16px 8px;"><button class="form-btn-outline" onclick="setScreen('active-session')" style="margin-top:0;font-size:13px;">+ Start blank session</button></div>
 <div class="sec">Recent sessions</div>
 <div class="card card-p0">
-  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div style="width:34px;text-align:center;"><div style="font-size:9px;color:#AAA;font-weight:700;">TUE</div><div style="font-size:15px;font-weight:700;">7</div></div><div style="flex:1;padding-left:4px;"><div class="li-title">Lower Body + Core</div><div class="li-sub">52 min</div></div><div class="li-right"><div class="li-val" style="font-size:12px;">340 kcal</div></div></div>
-  <div class="li"><div style="width:34px;text-align:center;"><div style="font-size:9px;color:#AAA;font-weight:700;">SUN</div><div style="font-size:15px;font-weight:700;">5</div></div><div style="flex:1;padding-left:4px;"><div class="li-title">Full Body HIIT</div><div class="li-sub">35 min</div></div><div class="li-right"><div class="li-val" style="font-size:12px;">410 kcal</div></div></div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;"><div style="width:34px;text-align:center;"><div style="font-size:9px;color:#AAA;font-weight:700;">TUE</div><div style="font-size:15px;font-weight:700;">7</div></div><div style="flex:1;padding-left:4px;"><div class="li-title">Leg Day</div><div class="li-sub">52 min · 5 exercises · 18 sets</div></div><div class="li-right"><div class="li-val" style="font-size:12px;">340 kcal</div></div></div>
+  <div class="li"><div style="width:34px;text-align:center;"><div style="font-size:9px;color:#AAA;font-weight:700;">SUN</div><div style="font-size:15px;font-weight:700;">5</div></div><div style="flex:1;padding-left:4px;"><div class="li-title">Full Body HIIT</div><div class="li-sub">35 min · 6 exercises · 12 sets</div></div><div class="li-right"><div class="li-val" style="font-size:12px;">410 kcal</div></div></div>
 </div>
 <div class="sp"></div>
 `,
@@ -1590,6 +1590,78 @@ calendar: `
 </div>
 `,
 
+// ══ WORKOUT TEMPLATES ══ (Phase 2)
+'workout-templates': `
+<div class="sh"><div class="sh-title">My Templates <span class="phase-mark tb">Phase 2</span></div><div class="sh-sub">Saved workout plans</div></div>
+<div class="card card-p0" style="margin:0 16px 10px;">
+  <div class="li" style="border-bottom:1px solid #F5F5F5;" onclick="setScreen('active-session')">
+    <div class="ex-ico" style="width:38px;height:38px;border-radius:11px;background:#E8F5EE;">💪</div>
+    <div style="flex:1;"><div class="li-title">Chest Day</div><div class="li-sub">4 exercises · Strength</div></div>
+    <div style="display:flex;gap:6px;align-items:center;"><span class="tag tg">Strength</span><span style="color:#BBB;font-size:18px;">›</span></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;" onclick="setScreen('active-session')">
+    <div class="ex-ico" style="width:38px;height:38px;border-radius:11px;background:#E8F5EE;">🦵</div>
+    <div style="flex:1;"><div class="li-title">Leg Day</div><div class="li-sub">5 exercises · Strength</div></div>
+    <div style="display:flex;gap:6px;align-items:center;"><span class="tag tg">Strength</span><span style="color:#BBB;font-size:18px;">›</span></div>
+  </div>
+  <div class="li" style="border-bottom:1px solid #F5F5F5;" onclick="setScreen('active-session')">
+    <div class="ex-ico" style="width:38px;height:38px;border-radius:11px;background:#E8F0FF;">🏃</div>
+    <div style="flex:1;"><div class="li-title">Morning Cardio</div><div class="li-sub">3 exercises · Cardio</div></div>
+    <div style="display:flex;gap:6px;align-items:center;"><span class="tag tb">Cardio</span><span style="color:#BBB;font-size:18px;">›</span></div>
+  </div>
+  <div class="li" onclick="setScreen('active-session')">
+    <div class="ex-ico" style="width:38px;height:38px;border-radius:11px;background:#F5F5F5;">🧘</div>
+    <div style="flex:1;"><div class="li-title">Flexibility & Stretch</div><div class="li-sub">6 exercises · Flexibility</div></div>
+    <div style="display:flex;gap:6px;align-items:center;"><span class="tag" style="background:#EEF0FF;color:#5C6BC0;">Flex</span><span style="color:#BBB;font-size:18px;">›</span></div>
+  </div>
+</div>
+<div style="padding:0 16px;"><button class="form-btn" onclick="setScreen('add-template')" style="margin-top:0;">+ New Template</button></div>
+<div class="sp"></div>
+`,
+
+// ══ ADD / EDIT TEMPLATE ══ (Phase 2)
+'add-template': `
+<div class="sh"><div class="sh-title">New Template <span class="phase-mark tb">Phase 2</span></div></div>
+<div class="card" style="margin:0 16px 10px;">
+  <div class="form-label">TEMPLATE NAME</div>
+  <div class="form-input" style="margin-bottom:14px;">Push Day A</div>
+  <div class="form-label">CATEGORY</div>
+  <div class="chips-row" style="padding:0;margin-bottom:14px;">
+    <div class="chip on">Strength</div><div class="chip">Cardio</div><div class="chip">Flexibility</div><div class="chip">Mixed</div>
+  </div>
+  <div class="form-label">NOTES (OPTIONAL)</div>
+  <div class="form-input" style="color:#AAA;">e.g. Monday push session...</div>
+</div>
+<div class="sec">Exercises</div>
+<div class="card card-p0" style="margin:0 16px 10px;">
+  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;">
+    <div class="ex-ico">💪</div>
+    <div style="flex:1;">
+      <div class="ex-name">Bench Press</div>
+      <div class="ex-det">4 sets · 10 reps · 60 kg target</div>
+    </div>
+    <div style="color:#BBB;font-size:18px;cursor:pointer;">✕</div>
+  </div>
+  <div class="ex-item" style="border-bottom:1px solid #F5F5F5;">
+    <div class="ex-ico">💪</div>
+    <div style="flex:1;">
+      <div class="ex-name">Overhead Press</div>
+      <div class="ex-det">3 sets · 12 reps · 40 kg target</div>
+    </div>
+    <div style="color:#BBB;font-size:18px;cursor:pointer;">✕</div>
+  </div>
+  <div class="ex-item">
+    <div class="ex-ico" style="background:#F5F5F5;color:#999;">+</div>
+    <div style="flex:1;color:#AAA;font-size:13px;">Add exercise…</div>
+  </div>
+</div>
+<div style="padding:0 16px;display:flex;gap:8px;">
+  <button class="form-btn-outline" style="flex:1;margin-top:0;">Cancel</button>
+  <button class="form-btn" style="flex:2;margin-top:0;">Save Template</button>
+</div>
+<div class="sp"></div>
+`,
+
 // ══ EXERCISE CATALOGUE ══ (Phase 2)
 'exercise-cat': `
 <div class="sh"><div class="sh-title">Exercises <span class="phase-mark tb">Phase 2</span></div><div class="sh-sub">Catalogue · 120+ exercises</div></div>
@@ -1609,7 +1681,33 @@ calendar: `
   <div class="li" style="border-bottom:1px solid #F5F5F5;"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">🧘</div><div style="flex:1;"><div class="li-title">Plank</div><div class="li-sub">Core · Bodyweight</div></div><span class="tag tgr">Core</span></div>
   <div class="li"><div class="ex-ico" style="width:38px;height:38px;border-radius:11px;">🚴</div><div style="flex:1;"><div class="li-title">Cycling</div><div class="li-sub">Cardio · Machine</div></div><span class="tag tgr">Cardio</span></div>
 </div>
-<div style="padding:0 16px;margin-top:2px;"><button class="form-btn-outline" style="margin-top:0;">+ Add custom exercise</button></div>
+<div style="padding:0 16px;margin-top:2px;"><button class="form-btn-outline" onclick="setScreen('add-exercise')" style="margin-top:0;">+ Add custom exercise</button></div>
+<div class="sp"></div>
+`,
+
+// ══ ADD EXERCISE ══ (Phase 2)
+'add-exercise': `
+<div class="sh"><div class="sh-title">Add Exercise <span class="phase-mark tb">Phase 2</span></div></div>
+<div class="card" style="margin:0 16px 10px;">
+  <div class="form-label">NAME</div>
+  <div class="form-input" style="margin-bottom:14px;">Bulgarian Split Squat</div>
+  <div class="form-label">CATEGORY</div>
+  <div class="chips-row" style="padding:0;margin-bottom:14px;">
+    <div class="chip on">Strength</div><div class="chip">Cardio</div><div class="chip">Flexibility</div><div class="chip">Other</div>
+  </div>
+  <div class="form-label">MUSCLE GROUP</div>
+  <div class="form-input" style="margin-bottom:14px;">Quadriceps, Glutes</div>
+  <div class="form-label">EQUIPMENT (OPTIONAL)</div>
+  <div class="form-input" style="margin-bottom:14px;">Dumbbells</div>
+  <div class="form-label">DESCRIPTION (OPTIONAL)</div>
+  <div class="form-input" style="color:#AAA;min-height:60px;margin-bottom:14px;">Step one foot back onto a bench, lower until front thigh is parallel...</div>
+  <div class="form-label">VIDEO LINK (OPTIONAL)</div>
+  <div class="form-input" style="color:#AAA;">https://youtube.com/...</div>
+</div>
+<div style="padding:0 16px;display:flex;gap:8px;">
+  <button class="form-btn-outline" style="flex:1;margin-top:0;">Cancel</button>
+  <button class="form-btn" style="flex:2;margin-top:0;">Save Exercise</button>
+</div>
 <div class="sp"></div>
 `,
 

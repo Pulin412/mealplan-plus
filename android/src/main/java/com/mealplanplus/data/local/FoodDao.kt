@@ -36,6 +36,10 @@ interface FoodDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFood(food: FoodItem): Long
 
+    /** Upsert a single food item (insert or replace on conflict). Used by manual import. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSystemFood(food: FoodItem)
+
     @Update
     suspend fun updateFood(food: FoodItem)
 

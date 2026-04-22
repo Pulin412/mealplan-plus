@@ -1,6 +1,7 @@
 package com.mealplanplus.data.local
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -39,6 +40,21 @@ class BackupDataImporter @Inject constructor(
     // v5: clean up orphan null-userId meals/diets left by the v3 import before re-inserting.
     private val BACKUP_IMPORTED_KEY = booleanPreferencesKey("backup_data_imported_v5")
 
+    /** Manual import from a URI picked by the user (no DataStore flag involved). */
+    suspend fun importFromUri(context: Context, uri: Uri): String {
+        return try {
+            val json = context.contentResolver.openInputStream(uri)
+                ?.bufferedReader()?.readText()
+                ?: return "Failed to read file"
+            val root = JSONObject(json)
+            doImport(root)
+        } catch (e: Exception) {
+            Log.e(TAG, "Manual backup import failed", e)
+            "Error: ${e.message}"
+        }
+    }
+
+    /** Legacy one-shot auto-import (still callable but no longer called from MealPlanApp). */
     suspend fun importIfNeeded(context: Context) {
         val prefs = context.dataStore.data.first()
         if (prefs[BACKUP_IMPORTED_KEY] == true) {
@@ -50,6 +66,17 @@ class BackupDataImporter @Inject constructor(
         try {
             val json = context.assets.open("backup_data.json").bufferedReader().readText()
             val root = JSONObject(json)
+            doImport(root)
+            context.dataStore.edit { it[BACKUP_IMPORTED_KEY] = true }
+            Log.i(TAG, "Backup import completed successfully ✓")
+        } catch (e: Exception) {
+            Log.e(TAG, "Backup import failed", e)
+        }
+    }
+
+    private suspend fun doImport(root: JSONObject): String {
+        Log.i(TAG, "Starting backup import…")
+        try {
 
             // ------------------------------------------------------------------
             // 1. Build name → current-DB-id map for system foods (already seeded)
@@ -351,15 +378,11 @@ class BackupDataImporter @Inject constructor(
             // ------------------------------------------------------------------
             importUserSpecificData(root, userIdMap, dietIdMap, foodIdMap)
 
-            // ------------------------------------------------------------------
-            // Mark done
-            // ------------------------------------------------------------------
-            context.dataStore.edit { it[BACKUP_IMPORTED_KEY] = true }
             Log.i(TAG, "Backup import completed successfully ✓")
-
+            return "Backup imported: ${dietIdMap.size} diets, ${mealIdMap.size} meals, ${foodIdMap.size} foods"
         } catch (e: Exception) {
             Log.e(TAG, "Backup import failed", e)
-            // Do NOT set the flag — will retry on next launch
+            return "Error: ${e.message}"
         }
     }
 

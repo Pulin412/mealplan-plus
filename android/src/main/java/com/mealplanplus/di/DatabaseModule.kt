@@ -1607,6 +1607,175 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_32_33 = object : Migration(32, 33) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS exercises (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    muscleGroup TEXT,
+                    equipment TEXT,
+                    description TEXT,
+                    isSystem INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    date INTEGER NOT NULL,
+                    durationMinutes INTEGER,
+                    notes TEXT,
+                    isCompleted INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    serverId TEXT,
+                    syncedAt INTEGER
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_sets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    sessionId INTEGER NOT NULL,
+                    exerciseId INTEGER NOT NULL,
+                    setNumber INTEGER NOT NULL,
+                    reps INTEGER,
+                    weightKg REAL,
+                    durationSeconds INTEGER,
+                    distanceMeters REAL,
+                    notes TEXT,
+                    FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON UPDATE NO ACTION ON DELETE RESTRICT
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_sets_sessionId` ON workout_sets(sessionId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_sets_exerciseId` ON workout_sets(exerciseId)")
+        }
+    }
+
+    private val MIGRATION_33_34 = object : Migration(33, 34) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add videoLink + userId to exercises (new custom exercise support)
+            db.execSQL("ALTER TABLE exercises ADD COLUMN videoLink TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE exercises ADD COLUMN userId TEXT DEFAULT NULL")
+
+            // Workout templates (reusable named plans like "Chest Day")
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_templates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    category TEXT NOT NULL DEFAULT 'STRENGTH',
+                    notes TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+
+            // Exercises per template with targets
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_template_exercises (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    templateId INTEGER NOT NULL,
+                    exerciseId INTEGER NOT NULL,
+                    orderIndex INTEGER NOT NULL DEFAULT 0,
+                    targetSets INTEGER,
+                    targetReps INTEGER,
+                    targetWeightKg REAL,
+                    targetDurationSeconds INTEGER,
+                    notes TEXT,
+                    FOREIGN KEY(templateId) REFERENCES workout_templates(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_template_exercises_templateId` ON workout_template_exercises(templateId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_template_exercises_exerciseId` ON workout_template_exercises(exerciseId)")
+
+            // Planned workouts per date (like day_plans for meals)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS planned_workouts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    date INTEGER NOT NULL,
+                    templateId INTEGER NOT NULL,
+                    FOREIGN KEY(templateId) REFERENCES workout_templates(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_planned_workouts_templateId` ON planned_workouts(templateId)")
+        }
+    }
+
+    private val MIGRATION_34_35 = object : Migration(34, 35) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_template_sets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    templateExerciseId INTEGER NOT NULL,
+                    setIndex INTEGER NOT NULL DEFAULT 0,
+                    reps INTEGER,
+                    weightKg REAL,
+                    FOREIGN KEY(templateExerciseId) REFERENCES workout_template_exercises(id)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_template_sets_templateExerciseId ON workout_template_sets(templateExerciseId)")
+        }
+    }
+
+    private val MIGRATION_36_37 = object : Migration(36, 37) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // WorkoutTemplate.category changed from WorkoutTemplateCategory enum to String.
+            // Column was already TEXT NOT NULL — no SQL change needed.
+        }
+    }
+
+    private val MIGRATION_35_36 = object : Migration(35, 36) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add exercise_categories table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS exercise_categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    isSystem INTEGER NOT NULL DEFAULT 0
+                )
+            """.trimIndent())
+            db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('STRENGTH', 1)")
+            db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('CARDIO', 1)")
+            db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('FLEXIBILITY', 1)")
+            db.execSQL("INSERT INTO exercise_categories (name, isSystem) VALUES ('OTHER', 1)")
+
+            // Recreate workout_sessions to normalise schema: add DEFAULT 0 on isCompleted
+            // and ensure the userId index exists. Some devices had it, some didn't.
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_sessions_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    date INTEGER NOT NULL,
+                    durationMinutes INTEGER,
+                    notes TEXT,
+                    isCompleted INTEGER NOT NULL DEFAULT 0,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    serverId TEXT,
+                    syncedAt INTEGER
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO workout_sessions_new
+                SELECT id, userId, name, date, durationMinutes, notes, isCompleted,
+                       createdAt, updatedAt, serverId, syncedAt
+                FROM workout_sessions
+            """.trimIndent())
+            db.execSQL("DROP TABLE workout_sessions")
+            db.execSQL("ALTER TABLE workout_sessions_new RENAME TO workout_sessions")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_workout_sessions_user ON workout_sessions (userId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -1615,7 +1784,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37)
             // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()
@@ -1650,4 +1819,22 @@ object DatabaseModule {
 
     @Provides
     fun provideGroceryDao(database: AppDatabase): GroceryDao = database.groceryDao()
+
+    @Provides
+    fun provideExerciseDao(database: AppDatabase): ExerciseDao = database.exerciseDao()
+
+    @Provides
+    fun provideWorkoutSessionDao(database: AppDatabase): WorkoutSessionDao = database.workoutSessionDao()
+
+    @Provides
+    fun provideWorkoutSetDao(database: AppDatabase): WorkoutSetDao = database.workoutSetDao()
+
+    @Provides
+    fun provideWorkoutTemplateDao(database: AppDatabase): WorkoutTemplateDao = database.workoutTemplateDao()
+
+    @Provides
+    fun providePlannedWorkoutDao(database: AppDatabase): PlannedWorkoutDao = database.plannedWorkoutDao()
+
+    @Provides
+    fun provideExerciseCategoryDao(database: AppDatabase): ExerciseCategoryDao = database.exerciseCategoryDao()
 }

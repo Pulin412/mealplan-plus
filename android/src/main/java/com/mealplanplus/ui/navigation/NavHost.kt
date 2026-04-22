@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
@@ -103,6 +104,15 @@ import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.grocery.GroceryListsScreen
 import com.mealplanplus.ui.screens.grocery.CreateGroceryListScreen
 import com.mealplanplus.ui.screens.grocery.GroceryDetailScreen
+import com.mealplanplus.ui.screens.workout.WorkoutHistoryScreen
+import com.mealplanplus.ui.screens.workout.WorkoutSessionDetailScreen
+import com.mealplanplus.ui.screens.workout.WorkoutLogScreen
+import com.mealplanplus.ui.screens.workout.WorkoutTemplatesScreen
+import com.mealplanplus.ui.screens.workout.WorkoutTemplateDetailScreen
+import com.mealplanplus.ui.screens.workout.AddEditWorkoutTemplateScreen
+import com.mealplanplus.ui.screens.workout.AddEditExerciseScreen
+import com.mealplanplus.ui.screens.workout.ExerciseCatalogueScreen
+import com.mealplanplus.ui.screens.workout.ExercisePickerScreen
 import android.app.Activity
 import android.content.Intent
 import com.mealplanplus.util.AuthPreferences
@@ -117,6 +127,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.draw.alpha
 import com.mealplanplus.ui.theme.CardBg
@@ -190,6 +201,26 @@ sealed class Screen(val route: String) {
     }
     object FoodPickerForCustomSlot : Screen("food_picker_custom_slot")
     object WidgetSettings : Screen("widget_settings")
+    object WorkoutHistory : Screen("workout_history")
+    object WorkoutSessionDetail : Screen("workout_session/{sessionId}") {
+        fun create(sessionId: Long) = "workout_session/$sessionId"
+    }
+    object WorkoutLog : Screen("workout_log?templateId={templateId}&date={date}") {
+        fun create(templateId: Long? = null, date: LocalDate? = null) =
+            "workout_log?templateId=${templateId ?: -1}&date=${date ?: ""}"
+    }
+    object WorkoutTemplates : Screen("workout_templates")
+    object WorkoutTemplateDetail : Screen("workout_template_detail/{templateId}") {
+        fun create(templateId: Long) = "workout_template_detail/$templateId"
+    }
+    object ExercisePicker : Screen("exercise_picker")
+    object AddWorkoutTemplate : Screen("add_workout_template/{templateId}") {
+        fun create(templateId: Long? = null) = "add_workout_template/${templateId ?: -1}"
+    }
+    object AddExercise : Screen("add_exercise/{exerciseId}") {
+        fun create(exerciseId: Long? = null) = "add_exercise/${exerciseId ?: -1}"
+    }
+    object ExerciseCatalogue : Screen("exercise_catalogue")
 }
 
 // Bottom nav tab definitions (4 visible + 1 FAB)
@@ -780,6 +811,12 @@ fun MealPlanNavHost(
                     onNavigateToLog = { date ->
                         navController.navigate(Screen.DailyLogWithDate.createRoute(date))
                     },
+                    onNavigateToStartWorkout = { templateId, date ->
+                        navController.navigate(Screen.WorkoutLog.create(templateId, date))
+                    },
+                    onNavigateToSession = { sessionId ->
+                        navController.navigate(Screen.WorkoutSessionDetail.create(sessionId))
+                    },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
@@ -860,6 +897,118 @@ fun MealPlanNavHost(
             ) {
                 GroceryDetailScreen(
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.WorkoutHistory.route) {
+                WorkoutHistoryScreen(
+                    onNavigateToLog = { navController.navigate(Screen.WorkoutLog.create()) },
+                    onNavigateToExercises = { navController.navigate(Screen.ExerciseCatalogue.route) },
+                    onNavigateToTemplates = { navController.navigate(Screen.WorkoutTemplates.route) },
+                    onNavigateToSession = { sessionId ->
+                        navController.navigate(Screen.WorkoutSessionDetail.create(sessionId))
+                    }
+                )
+            }
+            composable(
+                route = Screen.WorkoutSessionDetail.route,
+                arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+            ) { backStack ->
+                val sessionId = backStack.arguments?.getLong("sessionId") ?: return@composable
+                WorkoutSessionDetailScreen(
+                    sessionId = sessionId,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.WorkoutLog.route,
+                arguments = listOf(
+                    navArgument("templateId") { type = NavType.LongType; defaultValue = -1L },
+                    navArgument("date") { type = NavType.StringType; defaultValue = "" }
+                )
+            ) { backStack ->
+                val templateId = backStack.arguments?.getLong("templateId")?.takeIf { it > 0 }
+                val dateStr = backStack.arguments?.getString("date")?.takeIf { it.isNotBlank() }
+                val date = dateStr?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                WorkoutLogScreen(
+                    preselectedTemplateId = templateId,
+                    preselectedDate = date,
+                    onBack = { navController.popBackStack() },
+                    onFinished = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.WorkoutTemplates.route) {
+                WorkoutTemplatesScreen(
+                    onBack = { navController.popBackStack() },
+                    onCreateTemplate = { navController.navigate(Screen.AddWorkoutTemplate.create()) },
+                    onViewTemplate = { id ->
+                        navController.navigate(Screen.WorkoutLog.create(id)) { launchSingleTop = true }
+                    },
+                    onEditTemplate = { id -> navController.navigate(Screen.AddWorkoutTemplate.create(id)) },
+                    onStartFromTemplate = { id ->
+                        navController.navigate(Screen.WorkoutLog.create(id)) { launchSingleTop = true }
+                    },
+                    onNavigateToExercises = { navController.navigate(Screen.ExerciseCatalogue.route) }
+                )
+            }
+            composable(
+                route = Screen.WorkoutTemplateDetail.route,
+                arguments = listOf(navArgument("templateId") { type = NavType.LongType })
+            ) { backStack ->
+                val templateId = backStack.arguments?.getLong("templateId") ?: return@composable
+                WorkoutTemplateDetailScreen(
+                    templateId = templateId,
+                    onBack = { navController.popBackStack() },
+                    onEdit = { id -> navController.navigate(Screen.AddWorkoutTemplate.create(id)) },
+                    onStartWorkout = { id ->
+                        navController.navigate(Screen.WorkoutLog.create(id)) { launchSingleTop = true }
+                    }
+                )
+            }
+            composable(
+                route = Screen.AddWorkoutTemplate.route,
+                arguments = listOf(navArgument("templateId") {
+                    type = NavType.LongType; defaultValue = -1L
+                })
+            ) { backStack ->
+                val existingId = backStack.arguments?.getLong("templateId")?.takeIf { it > 0 }
+                AddEditWorkoutTemplateScreen(
+                    existingTemplateId = existingId,
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.ExercisePicker.route) { currentEntry ->
+                // Share the WorkoutViewModel with the AddEditWorkoutTemplateScreen so
+                // selectExercise() updates the same state that screen observes.
+                val prevEntry = remember(currentEntry) { navController.previousBackStackEntry }
+                val sharedVm: com.mealplanplus.ui.screens.workout.WorkoutViewModel =
+                    if (prevEntry != null) hiltViewModel(prevEntry) else hiltViewModel()
+                ExercisePickerScreen(
+                    onBack = { navController.popBackStack() },
+                    onPicked = { exercise ->
+                        sharedVm.selectExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    viewModel = sharedVm
+                )
+            }
+            composable(
+                route = Screen.AddExercise.route,
+                arguments = listOf(navArgument("exerciseId") {
+                    type = NavType.LongType; defaultValue = -1L
+                })
+            ) { backStack ->
+                val exerciseId = backStack.arguments?.getLong("exerciseId")?.takeIf { it > 0 }
+                AddEditExerciseScreen(
+                    existingId = exerciseId,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.ExerciseCatalogue.route) {
+                ExerciseCatalogueScreen(
+                    onBack = { navController.popBackStack() },
+                    onAddExercise = { navController.navigate(Screen.AddExercise.create()) },
+                    onEditExercise = { id -> navController.navigate(Screen.AddExercise.create(id)) }
                 )
             }
             composable(Screen.FoodPickerForCustomSlot.route) {
@@ -1212,6 +1361,7 @@ private fun MiscSheet(
         QuickAction(Icons.Default.List,           Color(0xFFC05200), "Meals",    "Your meal library",             Screen.Meals.route),
         QuickAction(Icons.Default.Star,           Color(0xFF1E4FBF), "Foods",    "Food catalogue & nutrition",    Screen.Foods.route),
         QuickAction(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health",   "Metrics, weight & activity",    Screen.Health.route),
+        QuickAction(Icons.Default.FitnessCenter,  Color(0xFF00796B), "Workouts", "Log & track gym sessions",      Screen.WorkoutHistory.route),
         QuickAction(Icons.Default.ShoppingCart,   Color(0xFF6A1B9A), "Grocery",  "Your shopping lists",           Screen.GroceryLists.route),
         QuickAction(Icons.Default.Settings,       Color(0xFF555555), "Settings", "Preferences & notifications",   Screen.Settings.route),
     )
