@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,9 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.WorkoutTemplateCategory
+import com.mealplanplus.data.model.ExerciseCategoryEntity
 import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
+import com.mealplanplus.data.model.displayName
 import com.mealplanplus.ui.theme.*
 
 @Suppress("UNUSED_VARIABLE")
@@ -39,7 +41,6 @@ fun AddEditWorkoutTemplateScreen(
     existingTemplateId: Long? = null,
     onBack: () -> Unit,
     onSaved: () -> Unit,
-    onPickExercise: (excludeIds: List<Long>) -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -53,7 +54,7 @@ fun AddEditWorkoutTemplateScreen(
     }
 
     var name        by remember(existing) { mutableStateOf(existing?.template?.name ?: "") }
-    var category    by remember(existing) { mutableStateOf(existing?.template?.category ?: WorkoutTemplateCategory.STRENGTH) }
+    var category    by remember(existing) { mutableStateOf(existing?.template?.category ?: "STRENGTH") }
     var notes       by remember(existing) { mutableStateOf(existing?.template?.notes ?: "") }
 
     val templateExercises = remember(existing) {
@@ -75,19 +76,13 @@ fun AddEditWorkoutTemplateScreen(
     }
 
     var expandedIndex by remember { mutableStateOf<Int?>(null) }
-
-    // Consume pending exercise selection returned from ExercisePickerScreen
-    LaunchedEffect(state.pendingExercise) {
-        val picked = state.pendingExercise ?: return@LaunchedEffect
-        if (templateExercises.none { it.exercise.id == picked.id }) {
-            templateExercises.add(TemplateDraftExercise(exercise = picked))
-            expandedIndex = templateExercises.lastIndex
-        }
-        viewModel.consumeSelectedExercise()
-    }
+    var showExercisePicker by remember { mutableStateOf(false) }
+    var showAddCategory by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
 
     val canSave = name.isNotBlank() && templateExercises.isNotEmpty()
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.fillMaxSize().background(BgPage)
     ) {
@@ -149,22 +144,73 @@ fun AddEditWorkoutTemplateScreen(
                         // Category
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             FormLabel("CATEGORY")
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                items(WorkoutTemplateCategory.entries) { cat ->
-                                    val selected = cat == category
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(if (selected) TextPrimary else BgPage)
-                                            .clickable { category = cat }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            cat.displayName(),
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (selected) CardBg else TextSecondary
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    items(state.categories) { cat ->
+                                        val selected = cat.name == category
+                                        CategoryChipItem(
+                                            cat = cat,
+                                            selected = selected,
+                                            onSelect = { category = cat.name },
+                                            onDelete = if (cat.isSystem) null else ({
+                                                viewModel.deleteCategory(cat)
+                                                if (category == cat.name) category = "STRENGTH"
+                                            })
                                         )
+                                    }
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(BgPage)
+                                                .clickable { showAddCategory = true }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.Add, contentDescription = "Add category", tint = DesignGreen, modifier = Modifier.size(14.dp))
+                                                Text("New", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = DesignGreen)
+                                            }
+                                        }
+                                    }
+                                }
+                                if (showAddCategory) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = newCategoryName,
+                                            onValueChange = { newCategoryName = it },
+                                            placeholder = { Text("Category name", color = TextSecondary, fontSize = 13.sp) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            keyboardOptions = KeyboardOptions(
+                                                capitalization = KeyboardCapitalization.Words,
+                                                imeAction = ImeAction.Done
+                                            ),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                unfocusedContainerColor = BgPage,
+                                                focusedContainerColor = CardBg,
+                                                unfocusedBorderColor = Color(0xFFEBEBEB),
+                                                focusedBorderColor = TextPrimary
+                                            )
+                                        )
+                                        TextButton(onClick = {
+                                            if (newCategoryName.isNotBlank()) {
+                                                viewModel.addCategory(newCategoryName)
+                                                category = newCategoryName.trim().uppercase()
+                                            }
+                                            newCategoryName = ""
+                                            showAddCategory = false
+                                        }) {
+                                            Text("Add", fontWeight = FontWeight.Bold, color = DesignGreen)
+                                        }
+                                        TextButton(onClick = { showAddCategory = false; newCategoryName = "" }) {
+                                            Text("Cancel", color = TextSecondary)
+                                        }
                                     }
                                 }
                             }
@@ -221,7 +267,7 @@ fun AddEditWorkoutTemplateScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(CardBg)
-                        .clickable { onPickExercise(templateExercises.map { it.exercise.id }) }
+                        .clickable { showExercisePicker = true }
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -286,6 +332,18 @@ fun AddEditWorkoutTemplateScreen(
         }
     }
 
+    if (showExercisePicker) {
+        TemplateExercisePickerOverlay(
+            state = state,
+            onPicked = { ex ->
+                templateExercises.add(TemplateDraftExercise(exercise = ex))
+                expandedIndex = templateExercises.lastIndex
+                showExercisePicker = false
+            },
+            onDismiss = { showExercisePicker = false }
+        )
+    }
+    } // end Box
 }
 
 // ── Template exercise row (expandable) ───────────────────────────────────────
@@ -481,7 +539,7 @@ internal fun ExercisePickerSheet(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(ex.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                         Text(
-                            listOfNotNull(ex.category.name.lowercase().replaceFirstChar { it.uppercase() }, ex.muscleGroup)
+                            listOfNotNull(categoryDisplayName(ex.category), ex.muscleGroup)
                                 .joinToString(" · "),
                             fontSize = 11.sp, color = TextSecondary
                         )
@@ -498,6 +556,189 @@ internal fun ExercisePickerSheet(
                     }
                 }
                 HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
+            }
+        }
+    }
+}
+
+// ── Template exercise picker overlay (full-screen, in-composition) ────────────
+
+@Composable
+private fun TemplateExercisePickerOverlay(
+    state: WorkoutUiState,
+    onPicked: (Exercise) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+
+    val filtered = state.exercises.filter { ex ->
+        (selectedCategory == null || ex.category.uppercase() == selectedCategory) &&
+        (query.isBlank() || ex.name.contains(query, ignoreCase = true) ||
+            (ex.muscleGroup?.contains(query, ignoreCase = true) == true))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgPage)
+    ) {
+        // ── Header ──────────────────────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(CardBg)
+                .statusBarsPadding()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+            }
+            Text(
+                "Add Exercise",
+                fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        HorizontalDivider(color = DividerColor, thickness = 1.dp)
+
+        // ── Search bar ──────────────────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardBg)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                if (query.isEmpty()) Text("Search exercises…", fontSize = 14.sp, color = TextSecondary)
+                androidx.compose.foundation.text.BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = TextPrimary),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { query = "" }, modifier = Modifier.size(20.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextMuted, modifier = Modifier.size(14.dp))
+                }
+            }
+        }
+
+        // ── Category chips ──────────────────────────────────────────────────
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            item {
+                val isSelected = selectedCategory == null
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedCategory = null },
+                    label = { Text("All", fontSize = 12.sp, fontWeight = FontWeight.Medium) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = TextPrimary,
+                        selectedLabelColor = CardBg,
+                        containerColor = CardBg,
+                        labelColor = TextSecondary
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true, selected = isSelected,
+                        borderColor = DividerColor, selectedBorderColor = TextPrimary,
+                        borderWidth = 1.dp, selectedBorderWidth = 0.dp
+                    )
+                )
+            }
+            items(state.categories) { cat ->
+                val isSelected = selectedCategory == cat.name
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedCategory = if (isSelected) null else cat.name },
+                    label = {
+                        Text(
+                            "${categoryEmoji(cat.name)} ${cat.displayName()}",
+                            fontSize = 12.sp, fontWeight = FontWeight.Medium
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = TextPrimary,
+                        selectedLabelColor = CardBg,
+                        containerColor = CardBg,
+                        labelColor = TextSecondary
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true, selected = isSelected,
+                        borderColor = DividerColor, selectedBorderColor = TextPrimary,
+                        borderWidth = 1.dp, selectedBorderWidth = 0.dp
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // ── Exercise list ───────────────────────────────────────────────────
+        if (filtered.isEmpty()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(
+                    if (state.exercises.isEmpty()) "No exercises found.\nImport from Profile first."
+                    else "No exercises match your search.",
+                    fontSize = 13.sp, color = TextMuted,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 32.dp)
+            ) {
+                items(filtered, key = { it.id }) { ex ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPicked(ex) }
+                            .padding(vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(categoryBg(ex.category)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(categoryEmoji(ex.category), fontSize = 18.sp)
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(ex.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                            Text(
+                                listOfNotNull(categoryDisplayName(ex.category), ex.muscleGroup, ex.equipment)
+                                    .joinToString(" · "),
+                                fontSize = 11.sp, color = TextSecondary
+                            )
+                        }
+                        if (!ex.isSystem) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(DesignGreenLight)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text("Custom", fontSize = 10.sp, color = DesignGreen, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    HorizontalDivider(color = DividerColor, thickness = 1.dp)
+                }
             }
         }
     }

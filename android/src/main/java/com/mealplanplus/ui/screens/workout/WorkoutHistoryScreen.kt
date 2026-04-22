@@ -33,6 +33,7 @@ fun WorkoutHistoryScreen(
     onNavigateToLog: () -> Unit,
     onNavigateToExercises: () -> Unit,
     onNavigateToTemplates: () -> Unit = {},
+    onNavigateToSession: (Long) -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -157,6 +158,7 @@ fun WorkoutHistoryScreen(
                         state.sessions.forEachIndexed { idx, item ->
                             SessionRow(
                                 item     = item,
+                                onTap    = { onNavigateToSession(item.session.id) },
                                 onDelete = { toDelete = item }
                             )
                             if (idx < state.sessions.lastIndex) {
@@ -212,7 +214,7 @@ private fun WsCard(value: String, label: String, modifier: Modifier = Modifier) 
 
 // ── Session row — date column (.li pattern) + name + duration + kcal ──────────
 @Composable
-private fun SessionRow(item: WorkoutSessionWithSets, onDelete: () -> Unit) {
+private fun SessionRow(item: WorkoutSessionWithSets, onTap: () -> Unit = {}, onDelete: () -> Unit) {
     val zone      = ZoneId.systemDefault()
     val date      = Instant.ofEpochMilli(item.session.date).atZone(zone).toLocalDate()
     val isToday   = date == LocalDate.now()
@@ -225,7 +227,7 @@ private fun SessionRow(item: WorkoutSessionWithSets, onDelete: () -> Unit) {
     val durLabel  = item.session.durationMinutes?.let { "${it} min" } ?: "$setCount sets"
 
     Row(
-        modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier              = Modifier.fillMaxWidth().clickable(onClick = onTap).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {

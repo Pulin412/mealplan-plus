@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.WorkoutTemplate
-import com.mealplanplus.data.model.WorkoutTemplateCategory
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.ui.theme.*
 
@@ -51,7 +50,7 @@ fun WorkoutTemplatesScreen(
                 shape = CircleShape,
                 modifier = Modifier.size(52.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New template", modifier = Modifier.size(22.dp))
+                Icon(Icons.Default.Add, contentDescription = "New workout", modifier = Modifier.size(22.dp))
             }
         }
     ) { padding ->
@@ -142,7 +141,7 @@ fun WorkoutTemplatesScreen(
     toDelete?.let { t ->
         AlertDialog(
             onDismissRequest = { toDelete = null },
-            title = { Text("Delete template?", fontWeight = FontWeight.Bold) },
+            title = { Text("Delete workout?", fontWeight = FontWeight.Bold) },
             text = { Text("\"${t.name}\" will be permanently removed.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.deleteTemplate(t); toDelete = null }) {
@@ -158,15 +157,15 @@ fun WorkoutTemplatesScreen(
 }
 
 @Composable
-private fun TemplateCard(
+internal fun TemplateCard(
     item: WorkoutTemplateWithExercises,
     onTap: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEdit: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null
 ) {
     val exerciseCount = item.exercises.size
-    val catBg = item.template.category.bgColor()
+    val catBg = workoutTemplateCategoryBg(item.template.category)
 
     Card(
         modifier = modifier.fillMaxWidth().clickable(onClick = onTap),
@@ -187,14 +186,14 @@ private fun TemplateCard(
                     .background(catBg),
                 contentAlignment = Alignment.Center
             ) {
-                Text(item.template.category.emoji(), fontSize = 20.sp)
+                Text(workoutTemplateCategoryEmoji(item.template.category), fontSize = 20.sp)
             }
 
             // Name + detail
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(item.template.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                 Text(
-                    "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · ${item.template.category.displayName()}",
+                    "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · ${workoutTemplateCategoryDisplayName(item.template.category)}",
                     fontSize = 12.sp, color = TextSecondary
                 )
                 item.template.notes?.let {
@@ -203,12 +202,18 @@ private fun TemplateCard(
             }
 
             // Actions
-            Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextSecondary, modifier = Modifier.size(16.dp))
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextSecondary, modifier = Modifier.size(16.dp))
+            if (onEdit != null || onDelete != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                    onEdit?.let {
+                        IconButton(onClick = it, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    onDelete?.let {
+                        IconButton(onClick = it, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
             }
         }
@@ -242,25 +247,26 @@ private fun TemplateCard(
     }
 }
 
-internal fun WorkoutTemplateCategory.emoji() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> "💪"
-    WorkoutTemplateCategory.CARDIO      -> "🏃"
-    WorkoutTemplateCategory.FLEXIBILITY -> "🧘"
-    WorkoutTemplateCategory.MIXED       -> "🏋️"
+// Replace enum extensions with String helpers
+internal fun workoutTemplateCategoryEmoji(category: String) = when (category.uppercase()) {
+    "STRENGTH"    -> "💪"
+    "CARDIO"      -> "🏃"
+    "FLEXIBILITY" -> "🧘"
+    else          -> "🏋️"
 }
 
 @Composable
-internal fun WorkoutTemplateCategory.bgColor() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> IconBgGray
-    WorkoutTemplateCategory.CARDIO      -> TagBlueBg
-    WorkoutTemplateCategory.FLEXIBILITY -> TagGreenBg
-    WorkoutTemplateCategory.MIXED       -> TagOrangeBg
+internal fun workoutTemplateCategoryBg(category: String) = when (category.uppercase()) {
+    "STRENGTH"    -> IconBgGray
+    "CARDIO"      -> TagBlueBg
+    "FLEXIBILITY" -> TagGreenBg
+    else          -> TagOrangeBg
 }
 
-
-internal fun WorkoutTemplateCategory.displayName() = when (this) {
-    WorkoutTemplateCategory.STRENGTH    -> "Strength"
-    WorkoutTemplateCategory.CARDIO      -> "Cardio"
-    WorkoutTemplateCategory.FLEXIBILITY -> "Flexibility"
-    WorkoutTemplateCategory.MIXED       -> "Mixed"
+internal fun workoutTemplateCategoryDisplayName(category: String) = when (category.uppercase()) {
+    "STRENGTH"    -> "Strength"
+    "CARDIO"      -> "Cardio"
+    "FLEXIBILITY" -> "Flexibility"
+    "MIXED"       -> "Mixed"
+    else          -> category.replaceFirstChar { it.uppercase() }
 }

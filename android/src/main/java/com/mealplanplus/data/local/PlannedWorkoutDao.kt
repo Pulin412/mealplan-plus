@@ -14,11 +14,11 @@ import kotlinx.coroutines.flow.Flow
 interface PlannedWorkoutDao {
 
     @Transaction
-    @Query("SELECT * FROM planned_workouts WHERE userId = :userId AND date = :date")
+    @Query("SELECT * FROM planned_workouts WHERE (userId = :userId OR userId = '') AND date = :date")
     fun getPlannedForDate(userId: String, date: Long): Flow<List<PlannedWorkoutWithTemplate>>
 
     @Transaction
-    @Query("SELECT * FROM planned_workouts WHERE userId = :userId AND date BETWEEN :from AND :to ORDER BY date ASC")
+    @Query("SELECT * FROM planned_workouts WHERE (userId = :userId OR userId = '') AND date BETWEEN :from AND :to ORDER BY date ASC")
     fun getPlannedInRange(userId: String, from: Long, to: Long): Flow<List<PlannedWorkoutWithTemplate>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

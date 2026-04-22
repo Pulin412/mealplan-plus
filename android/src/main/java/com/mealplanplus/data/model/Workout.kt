@@ -1,5 +1,6 @@
 package com.mealplanplus.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -8,14 +9,16 @@ import androidx.room.Junction
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 
+/** Kept for legacy references only; category is now stored as a plain String. */
 enum class ExerciseCategory { STRENGTH, CARDIO, FLEXIBILITY, OTHER }
+/** Kept for reference only; WorkoutTemplate.category is now a plain String. */
 enum class WorkoutTemplateCategory { STRENGTH, CARDIO, FLEXIBILITY, MIXED }
 
 @Entity(tableName = "exercises")
 data class Exercise(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val category: ExerciseCategory,
+    val category: String,            // stored as plain text, e.g. "STRENGTH", "CARDIO", custom
     val muscleGroup: String? = null,
     val equipment: String? = null,
     val description: String? = null,
@@ -32,7 +35,7 @@ data class WorkoutTemplate(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: String,
     val name: String,
-    val category: WorkoutTemplateCategory = WorkoutTemplateCategory.STRENGTH,
+    val category: String = "STRENGTH",
     val notes: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
@@ -136,7 +139,10 @@ data class PlannedWorkoutWithTemplate(
     val template: WorkoutTemplateWithExercises
 )
 
-@Entity(tableName = "workout_sessions")
+@Entity(
+    tableName = "workout_sessions",
+    indices = [Index("userId", name = "idx_workout_sessions_user")]
+)
 data class WorkoutSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: String,
@@ -144,7 +150,7 @@ data class WorkoutSession(
     val date: Long,
     val durationMinutes: Int? = null,
     val notes: String? = null,
-    val isCompleted: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isCompleted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val serverId: String? = null,

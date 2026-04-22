@@ -129,6 +129,7 @@ fun CalendarScreen(
                     currentMonth = uiState.currentMonth,
                     selectedDate = uiState.selectedDate,
                     plans = uiState.plans,
+                    workoutCounts = uiState.workoutCounts,
                     onDateSelected = { date ->
                         viewModel.selectDate(date)
                         onNavigateToDayDetail(date)
@@ -143,6 +144,7 @@ fun CalendarScreen(
                 UpcomingSection(
                     plans = uiState.plans,
                     dietNames = uiState.dietNames,
+                    workoutCounts = uiState.workoutCounts,
                     selectedDate = uiState.selectedDate,
                     onDaySelected = { date ->
                         viewModel.selectDate(date)
@@ -150,7 +152,7 @@ fun CalendarScreen(
                     },
                     onAssignDiet = { date ->
                         viewModel.selectDate(date)
-                        onNavigateToDietPicker(date.toString())
+                        onNavigateToDayDetail(date)
                     }
                 )
             }
@@ -199,6 +201,7 @@ private fun PlanMiniCalendar(
     currentMonth: YearMonth,
     selectedDate: LocalDate,
     plans: Map<Long, Plan>,
+    workoutCounts: Map<Long, Int> = emptyMap(),
     onDateSelected: (LocalDate) -> Unit,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit
@@ -264,6 +267,7 @@ private fun PlanMiniCalendar(
                 month = currentMonth,
                 selectedDate = selectedDate,
                 plans = plans,
+                workoutCounts = workoutCounts,
                 onDateSelected = onDateSelected
             )
 
@@ -294,6 +298,7 @@ private fun PlanCalendarGrid(
     month: YearMonth,
     selectedDate: LocalDate,
     plans: Map<Long, Plan>,
+    workoutCounts: Map<Long, Int> = emptyMap(),
     onDateSelected: (LocalDate) -> Unit
 ) {
     val today       = LocalDate.now()
@@ -320,6 +325,7 @@ private fun PlanCalendarGrid(
                             hasPlan    = hasPlan,
                             isCompleted = plan?.isCompleted ?: false,
                             isPast     = date.isBefore(today),
+                            hasWorkout = (workoutCounts[dateMs] ?: 0) > 0,
                             onClick    = { onDateSelected(date) },
                             modifier   = Modifier.weight(1f)
                         )
@@ -338,6 +344,7 @@ private fun PlanCalendarGrid(
 private fun UpcomingSection(
     plans: Map<Long, Plan>,
     dietNames: Map<Long, String>,
+    workoutCounts: Map<Long, Int> = emptyMap(),
     selectedDate: LocalDate,
     onDaySelected: (LocalDate) -> Unit,
     onAssignDiet: (LocalDate) -> Unit
@@ -362,12 +369,13 @@ private fun UpcomingSection(
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             upcoming.forEachIndexed { index, date ->
-                val dateMs   = date.toEpochMs()
-                val plan     = plans[dateMs]
-                val hasPlan  = plan != null && plan.dietId != null
-                val dietName = dietNames[dateMs]
-                val isToday  = date == today
-                val isSelected = date == selectedDate
+                val dateMs      = date.toEpochMs()
+                val plan        = plans[dateMs]
+                val hasPlan     = plan != null && plan.dietId != null
+                val dietName    = dietNames[dateMs]
+                val workoutCount = workoutCounts[dateMs] ?: 0
+                val isToday     = date == today
+                val isSelected  = date == selectedDate
 
                 Row(
                     modifier = Modifier
@@ -399,15 +407,22 @@ private fun UpcomingSection(
                         )
                     }
 
-                    // Diet info
-                    Column(modifier = Modifier.weight(1f)) {
+                    // Diet + workout info
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         if (hasPlan && dietName != null) {
                             Text(dietName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                            // Meal preview from dietNames if available, otherwise empty
-                            Text("Tap to see meals", fontSize = 11.sp, color = TextMuted, modifier = Modifier.padding(top = 1.dp))
                         } else {
-                            Text("Not planned", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
-                            Text("Tap to assign a diet", fontSize = 11.sp, color = Color(0xFFDDDDDD), modifier = Modifier.padding(top = 1.dp))
+                            Text("No diet planned", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
+                        }
+                        if (workoutCount > 0) {
+                            Text(
+                                "💪 ${if (workoutCount == 1) "1 workout" else "$workoutCount workouts"}",
+                                fontSize = 11.sp, color = Color(0xFF1E4FBF)
+                            )
+                        } else if (hasPlan) {
+                            Text("Tap to see meals", fontSize = 11.sp, color = TextMuted)
+                        } else {
+                            Text("Tap to plan", fontSize = 11.sp, color = Color(0xFFDDDDDD))
                         }
                     }
 
@@ -458,7 +473,7 @@ private fun CalendarCard(
     onToggleView: () -> Unit
 ) {
     // Replaced by PlanMiniCalendar — kept for compile compatibility
-    PlanMiniCalendar(currentMonth, selectedDate, plans, onDateSelected, onPreviousMonth, onNextMonth)
+    PlanMiniCalendar(currentMonth, selectedDate, plans, onDateSelected = onDateSelected, onPreviousMonth = onPreviousMonth, onNextMonth = onNextMonth)
 }
 
 @Composable
@@ -1642,7 +1657,7 @@ fun DietPickerDialog(
         title = { Text("Select Diet") },
         text = {
             if (diets.isEmpty()) {
-                Text("No diets available. Create some diet templates first!")
+                Text("No diets available. Create some diets first!")
             } else {
                 LazyColumn {
                     items(diets.distinctBy { it.id }, key = { it.id }) { diet ->

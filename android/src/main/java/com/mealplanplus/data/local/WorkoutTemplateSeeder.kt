@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import com.mealplanplus.data.model.WorkoutTemplate
-import com.mealplanplus.data.model.WorkoutTemplateCategory
 import com.mealplanplus.data.model.WorkoutTemplateExercise
 import com.mealplanplus.util.dataStore
 import kotlinx.coroutines.Dispatchers
@@ -133,7 +132,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
     private data class TemplateDef(
         val name: String,
-        val category: WorkoutTemplateCategory,
+        val category: String,
         val notes: String?,
         val exercises: List<ExerciseDef>
     )
@@ -144,7 +143,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Beginner — Chest & Bicep",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Monday · Beginner regime",
             exercises = listOf(
                 ExerciseDef("Bench Press"),
@@ -158,7 +157,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Beginner — Back & Triceps",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Tuesday · Beginner regime",
             exercises = listOf(
                 ExerciseDef("Deadlift"),
@@ -173,7 +172,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Beginner — Shoulders & Legs",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Wednesday · Beginner regime",
             exercises = listOf(
                 ExerciseDef("Seated Dumbbell Press"),
@@ -189,7 +188,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Advanced — Biceps & Triceps",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Monday · Advanced regime",
             exercises = listOf(
                 ExerciseDef("Bicep Curl"),
@@ -205,7 +204,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Advanced — Chest",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Tuesday · Advanced regime",
             exercises = listOf(
                 ExerciseDef("Push-Up"),
@@ -218,7 +217,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Advanced — Shoulders",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Wednesday · Advanced regime",
             exercises = listOf(
                 ExerciseDef("Seated Dumbbell Press"),
@@ -229,7 +228,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Advanced — Back",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Thursday · Advanced regime",
             exercises = listOf(
                 ExerciseDef("Lat Pulldown"),
@@ -241,7 +240,7 @@ class WorkoutTemplateSeeder @Inject constructor(
 
         TemplateDef(
             name = "Advanced — Legs",
-            category = WorkoutTemplateCategory.STRENGTH,
+            category = "STRENGTH",
             notes = "Friday · Advanced regime",
             exercises = listOf(
                 ExerciseDef("Squat"),

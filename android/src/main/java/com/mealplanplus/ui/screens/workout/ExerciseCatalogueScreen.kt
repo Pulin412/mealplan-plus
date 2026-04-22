@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.ExerciseCategory
+import com.mealplanplus.data.model.ExerciseCategoryEntity
+import com.mealplanplus.data.model.displayName
 import com.mealplanplus.ui.theme.*
 
 @Composable
@@ -37,7 +39,6 @@ fun ExerciseCatalogueScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // Derived from state so it reacts to filter/search changes correctly
     val exercises = remember(state.exercises, state.selectedCategory, state.searchQuery) {
         state.exercises.filter { ex ->
             (state.selectedCategory == null || ex.category == state.selectedCategory) &&
@@ -135,12 +136,16 @@ fun ExerciseCatalogueScreen(
                         onClick = { viewModel.filterByCategory(null) }
                     )
                 }
-                items(ExerciseCategory.entries) { cat ->
+                items(state.categories) { cat ->
                     ExCategoryChip(
                         label = cat.displayName(),
-                        selected = state.selectedCategory == cat,
-                        count = state.exercises.count { it.category == cat },
-                        onClick = { viewModel.filterByCategory(cat) }
+                        selected = state.selectedCategory == cat.name,
+                        count = state.exercises.count { it.category == cat.name },
+                        onClick = { viewModel.filterByCategory(cat.name) },
+                        onDelete = if (cat.isSystem) null else ({
+                            viewModel.deleteCategory(cat)
+                            if (state.selectedCategory == cat.name) viewModel.filterByCategory(null)
+                        })
                     )
                 }
             }
@@ -164,8 +169,8 @@ fun ExerciseCatalogueScreen(
             } else {
                 // Grouped by category when showing all
                 LazyColumn(contentPadding = PaddingValues(bottom = 88.dp)) {
-                    ExerciseCategory.entries.forEach { cat ->
-                        val catExercises = grouped[cat] ?: return@forEach
+                    state.categories.forEach { cat ->
+                        val catExercises = grouped[cat.name] ?: return@forEach
                         item(key = "header_${cat.name}") {
                             Text(
                                 cat.displayName().uppercase(),
@@ -225,7 +230,7 @@ internal fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit = {}) {
             Text(
                 listOfNotNull(exercise.muscleGroup, exercise.equipment)
                     .joinToString(" · ")
-                    .ifEmpty { exercise.category.displayName() },
+                    .ifEmpty { categoryDisplayName(exercise.category) },
                 fontSize = 11.sp,
                 color = TextSecondary
             )
@@ -255,42 +260,51 @@ internal fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit = {}) {
 // ── Filter chip ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ExCategoryChip(label: String, selected: Boolean, count: Int, onClick: () -> Unit) {
+private fun ExCategoryChip(
+    label: String,
+    selected: Boolean,
+    count: Int,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
     val bg     = if (selected) TextPrimary else CardBg
     val border = if (selected) Modifier else Modifier.border(1.dp, DividerColor, RoundedCornerShape(16.dp))
     val text   = if (selected || count == 0) label else "$label  $count"
-    Box(
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .then(border)
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 7.dp)
+            .padding(start = 13.dp, end = if (onDelete != null) 6.dp else 13.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(text, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (selected) CardBg else TextSecondary)
+        if (onDelete != null) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Delete category",
+                tint = if (selected) CardBg.copy(alpha = 0.7f) else TextMuted,
+                modifier = Modifier.size(12.dp).clickable(onClick = onDelete)
+            )
+        }
     }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-internal fun ExerciseCategory.displayName() = when (this) {
-    ExerciseCategory.STRENGTH    -> "Strength"
-    ExerciseCategory.CARDIO      -> "Cardio"
-    ExerciseCategory.FLEXIBILITY -> "Flexibility"
-    ExerciseCategory.OTHER       -> "Other"
-}
-
-internal fun categoryEmoji(category: ExerciseCategory?) = when (category) {
-    ExerciseCategory.STRENGTH    -> "💪"
-    ExerciseCategory.CARDIO      -> "🏃"
-    ExerciseCategory.FLEXIBILITY -> "🧘"
-    else                         -> "🏋️"
+internal fun categoryEmoji(category: String?) = when (category?.uppercase()) {
+    "STRENGTH"    -> "💪"
+    "CARDIO"      -> "🏃"
+    "FLEXIBILITY" -> "🧘"
+    else          -> "🏋️"
 }
 
 @Composable
-internal fun categoryBg(category: ExerciseCategory?) = when (category) {
-    ExerciseCategory.STRENGTH    -> IconBgGray
-    ExerciseCategory.CARDIO      -> TagBlueBg
-    ExerciseCategory.FLEXIBILITY -> TagGreenBg
-    else                         -> TagGrayBg
+internal fun categoryBg(category: String?) = when (category?.uppercase()) {
+    "STRENGTH"    -> IconBgGray
+    "CARDIO"      -> TagBlueBg
+    "FLEXIBILITY" -> TagGreenBg
+    else          -> TagGrayBg
 }

@@ -293,7 +293,7 @@ fun ProfileScreen(
                         ImportButton("Exercises", Icons.Default.FitnessCenter) {
                             importExercisesLauncher.launch("application/json")
                         }
-                        ImportButton("Workout Templates", Icons.Default.ViewList) {
+                        ImportButton("Workouts", Icons.Default.ViewList) {
                             importTemplatesLauncher.launch("application/json")
                         }
                         ImportButton("Diets", Icons.Default.Restaurant) {

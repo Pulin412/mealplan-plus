@@ -36,6 +36,7 @@ fun CalendarDayCell(
     hasPlan: Boolean,
     isCompleted: Boolean = false,
     isPast: Boolean = false,
+    hasWorkout: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -77,14 +78,21 @@ fun CalendarDayCell(
                 color = numberColor,
                 lineHeight = 14.sp
             )
-            // Always reserve dot-row height so numbers stay vertically centered
-            Box(
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(if (hasPlan && !isToday) dotColor else Color.Transparent)
-            )
+            // Dot row — always same height; up to two dots (diet + workout)
+            Row(
+                modifier = Modifier.padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(5.dp).clip(CircleShape)
+                        .background(if (hasPlan && !isToday) dotColor else Color.Transparent)
+                )
+                Box(
+                    modifier = Modifier.size(5.dp).clip(CircleShape)
+                        .background(if (hasWorkout && !isToday) Color(0xFF1E4FBF) else Color.Transparent)
+                )
+            }
         }
     }
 }
