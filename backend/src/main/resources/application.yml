@@ -27,7 +27,7 @@ server:
   port: ${PORT:8080}
 
 firebase:
-  project-id: ${FIREBASE_PROJECT_ID:mealplanplus-dev}
+  project-id: ${FIREBASE_PROJECT_ID:mealplan-plus}
 
 springdoc:
   api-docs:
