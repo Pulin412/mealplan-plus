@@ -40,6 +40,26 @@ class DietService(
     }
 
     @Transactional
+    fun update(id: Long, dto: DietDto, firebaseUid: String): DietDto {
+        val diet = dietRepo.findById(id).orElseThrow()
+        require(diet.firebaseUid == firebaseUid) { "Forbidden" }
+        dietMealRepo.deleteByDietId(id)
+        crossRefRepo.deleteByDietId(id)
+        val updated = Diet(
+            id = diet.id, firebaseUid = diet.firebaseUid, name = dto.name,
+            description = dto.description, targetCalories = dto.targetCalories,
+            targetProtein = dto.targetProtein, targetCarbs = dto.targetCarbs, targetFat = dto.targetFat
+        ).also { it.serverId = diet.serverId }
+        val saved = dietRepo.save(updated)
+        dto.meals.forEach { m ->
+            dietMealRepo.save(DietMeal(dietId = saved.id, mealId = m.mealId,
+                dayOfWeek = m.dayOfWeek, slot = m.slot, instructions = m.instructions))
+        }
+        dto.tagIds.forEach { tagId -> crossRefRepo.save(DietTagCrossRef(dietId = saved.id, tagId = tagId)) }
+        return saved.toFullDto()
+    }
+
+    @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val diet = dietRepo.findById(id).orElseThrow()
         require(diet.firebaseUid == firebaseUid) { "Forbidden" }

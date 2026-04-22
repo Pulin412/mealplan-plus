@@ -12,6 +12,7 @@ class HealthMetric(
     val firebaseUid: String = "",
     val type: String = "",          // WEIGHT, STEPS, BLOOD_PRESSURE, etc.
     val subType: String? = null,    // e.g. SYSTOLIC / DIASTOLIC for blood pressure
+    @Column(name = "metric_value")
     val value: Double = 0.0,
     val secondaryValue: Double? = null,
     val unit: String = "",
