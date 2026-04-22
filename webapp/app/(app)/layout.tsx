@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, CalendarDays, Activity, Salad, ShoppingCart, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, BookOpen, CalendarDays, Activity, Salad, ShoppingCart, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logout } from "@/lib/firebase/auth";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -51,6 +52,13 @@ function BottomNavLink({ href, label, icon: Icon }: (typeof navItems)[0]) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await logout();
+    router.replace("/login");
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Sidebar — desktop only */}
@@ -59,6 +67,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {navItems.map((item) => (
           <NavLink key={item.href} {...item} />
         ))}
+        <div className="flex-1" />
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mt-2"
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          <span>Sign out</span>
+        </button>
       </aside>
 
       {/* Main content */}
