@@ -12,18 +12,26 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WorkoutSessionDao {
-    @Query("SELECT * FROM workout_sessions WHERE userId = :userId ORDER BY date DESC")
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND isCompleted = 1 ORDER BY date DESC")
     fun getSessions(userId: String): Flow<List<WorkoutSession>>
 
-    @Query("SELECT * FROM workout_sessions WHERE userId = :userId AND date = :date ORDER BY createdAt DESC")
+    @Transaction
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND isCompleted = 1 ORDER BY date DESC")
+    fun getSessionsWithSets(userId: String): Flow<List<WorkoutSessionWithSets>>
+
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND date = :date ORDER BY createdAt DESC")
     fun getSessionsForDate(userId: String, date: Long): Flow<List<WorkoutSession>>
 
-    @Query("SELECT * FROM workout_sessions WHERE userId = :userId AND date BETWEEN :from AND :to ORDER BY date DESC")
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND date BETWEEN :from AND :to ORDER BY date DESC")
     fun getSessionsInRange(userId: String, from: Long, to: Long): Flow<List<WorkoutSession>>
 
     @Transaction
     @Query("SELECT * FROM workout_sessions WHERE id = :sessionId LIMIT 1")
     suspend fun getSessionWithSets(sessionId: Long): WorkoutSessionWithSets?
+
+    @Transaction
+    @Query("SELECT * FROM workout_sessions WHERE id = :sessionId LIMIT 1")
+    fun observeSessionWithSets(sessionId: Long): Flow<WorkoutSessionWithSets?>
 
     @Insert
     suspend fun insert(session: WorkoutSession): Long

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
+import com.mealplanplus.data.model.WorkoutSessionWithSets
 import java.time.format.DateTimeFormatter
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.repository.AuthRepository
@@ -14,6 +15,9 @@ import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.util.extractShortDietName
 import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -35,7 +39,9 @@ data class CalendarUiState(
     val grocerySnapshot: List<GrocerySnapshotItem>? = null,
     val isGeneratingGroceries: Boolean = false,
     val plannedWorkouts: List<PlannedWorkoutWithTemplate> = emptyList(),
-    val showWorkoutPicker: Boolean = false
+    val loggedWorkouts: List<WorkoutSessionWithSets> = emptyList(),
+    val showWorkoutPicker: Boolean = false,
+    val workoutCounts: Map<Long, Int> = emptyMap()   // epoch ms → count for the visible month
 )
 
 /** A single aggregated ingredient line for the grocery snapshot sheet. */
@@ -45,6 +51,7 @@ data class GrocerySnapshotItem(
     val unitLabel: String
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
     private val planRepository: PlanRepository,
@@ -63,14 +70,25 @@ class CalendarViewModel @Inject constructor(
         .flatMapLatest { uid -> dietRepository.getDietsForUser(uid) }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    private val firebaseUid get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    // Reactive Firebase UID — emits whenever Firebase auth state changes (including cold start)
+    private val firebaseUidFlow: StateFlow<String> = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            trySend(auth.currentUser?.uid ?: "")
+        }
+        FirebaseAuth.getInstance().addAuthStateListener(listener)
+        awaitClose { FirebaseAuth.getInstance().removeAuthStateListener(listener) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, FirebaseAuth.getInstance().currentUser?.uid ?: "")
+
+    private val firebaseUid get() = firebaseUidFlow.value
 
     val workoutTemplates: StateFlow<List<WorkoutTemplateWithExercises>> =
-        workoutRepository.getTemplatesForUser(firebaseUid)
+        firebaseUidFlow
+            .flatMapLatest { uid -> workoutRepository.getTemplatesForUser(uid) }
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val allExercises: StateFlow<List<Exercise>> =
-        workoutRepository.getAllExercisesForUser(firebaseUid)
+        firebaseUidFlow
+            .flatMapLatest { uid -> workoutRepository.getAllExercisesForUser(uid) }
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
@@ -87,7 +105,9 @@ class CalendarViewModel @Inject constructor(
             }
         }
         loadPlansForMonth()
+        loadWorkoutsForMonth()
         selectDate(startDate)
+        loadLoggedWorkoutsForDate(startDate)
         observeTodayLog()
     }
 
@@ -168,15 +188,48 @@ class CalendarViewModel @Inject constructor(
             if (diet != null) loadDietDetails(diet.id)
         }
         loadPlannedWorkoutsForDate(date)
+        loadLoggedWorkoutsForDate(date)
     }
 
+    private var workoutCountsJob: Job? = null
+
+    private fun loadWorkoutsForMonth() {
+        val month = _uiState.value.currentMonth
+        val startMs = month.atDay(1).minusDays(6).toEpochMs()
+        val endMs   = month.atEndOfMonth().plusDays(6).toEpochMs()
+        workoutCountsJob?.cancel()
+        workoutCountsJob = viewModelScope.launch {
+            firebaseUidFlow
+                .flatMapLatest { uid -> workoutRepository.getPlannedInRange(uid, startMs, endMs) }
+                .collect { list ->
+                    val counts = list.groupBy { it.plannedWorkout.date }.mapValues { it.value.size }
+                    _uiState.update { it.copy(workoutCounts = counts) }
+                }
+        }
+    }
+
+    private var plannedWorkoutsJob: Job? = null
+
     private fun loadPlannedWorkoutsForDate(date: LocalDate) {
-        val uid = firebaseUid
-        if (uid.isBlank()) return
-        viewModelScope.launch {
-            workoutRepository.getPlannedForDate(uid, date.toEpochMs()).collect { list ->
-                _uiState.update { it.copy(plannedWorkouts = list) }
-            }
+        plannedWorkoutsJob?.cancel()
+        plannedWorkoutsJob = viewModelScope.launch {
+            firebaseUidFlow
+                .flatMapLatest { uid -> workoutRepository.getPlannedForDate(uid, date.toEpochMs()) }
+                .collect { list -> _uiState.update { it.copy(plannedWorkouts = list) } }
+        }
+    }
+
+    private var loggedWorkoutsJob: Job? = null
+
+    fun loadLoggedWorkoutsForDate(date: LocalDate) {
+        loggedWorkoutsJob?.cancel()
+        val dateMs = date.toEpochMs()
+        loggedWorkoutsJob = viewModelScope.launch {
+            firebaseUidFlow
+                .flatMapLatest { uid -> workoutRepository.getSessionsWithSets(uid) }
+                .collect { sessions ->
+                    _uiState.update { it.copy(loggedWorkouts = sessions.filter { it.session.date == dateMs }) }
+                }
         }
     }
 
@@ -185,7 +238,6 @@ class CalendarViewModel @Inject constructor(
 
     fun planWorkout(templateId: Long) {
         val uid = firebaseUid
-        if (uid.isBlank()) return
         viewModelScope.launch {
             val date = _uiState.value.selectedDate
             workoutRepository.planWorkout(
@@ -203,7 +255,7 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    /** Creates an ad-hoc template from chosen exercises and plans it for the selected date. */
+    /** Creates an ad-hoc workout from chosen exercises and plans it for the selected date. */
     fun planQuickWorkout(exercises: List<Exercise>) {
         if (exercises.isEmpty()) return
         val uid = firebaseUid
@@ -235,11 +287,13 @@ class CalendarViewModel @Inject constructor(
     fun goToPreviousMonth() {
         _uiState.update { it.copy(currentMonth = it.currentMonth.minusMonths(1)) }
         loadPlansForMonth()
+        loadWorkoutsForMonth()
     }
 
     fun goToNextMonth() {
         _uiState.update { it.copy(currentMonth = it.currentMonth.plusMonths(1)) }
         loadPlansForMonth()
+        loadWorkoutsForMonth()
     }
 
     fun goToToday() {
@@ -248,6 +302,7 @@ class CalendarViewModel @Inject constructor(
             it.copy(currentMonth = YearMonth.from(today), selectedDate = today)
         }
         loadPlansForMonth()
+        loadWorkoutsForMonth()
         selectDate(today)
     }
 

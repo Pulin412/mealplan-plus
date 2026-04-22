@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +19,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Exercise
+import com.mealplanplus.data.model.WorkoutSet
 import com.mealplanplus.data.model.WorkoutTemplateExerciseWithDetails
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.ui.theme.*
@@ -54,26 +59,35 @@ private data class DraftSet(
     val isDone: Boolean = false
 )
 
-private enum class Step { PICK_TEMPLATE, ACTIVE_SESSION }
+private enum class Step { PICK_TEMPLATE, ACTIVE_SESSION, SUMMARY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutLogScreen(
     preselectedTemplateId: Long? = null,
+    preselectedDate: LocalDate? = null,
     onBack: () -> Unit,
     onFinished: () -> Unit,
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     var step by remember { mutableStateOf(if (preselectedTemplateId != null) Step.ACTIVE_SESSION else Step.PICK_TEMPLATE) }
-    var chosenTemplate by remember { mutableStateOf<WorkoutTemplateWithExercises?>(null) }
     var sessionName by remember { mutableStateOf("") }
+    val sessionDate = preselectedDate ?: LocalDate.now()
+
+    // Hoisted so ActiveSessionStep mutations are visible to SummaryStep
+    val sessionSlots = remember { mutableStateListOf<ExerciseSlot>() }
 
     LaunchedEffect(preselectedTemplateId) {
         if (preselectedTemplateId != null) {
             val t = viewModel.getTemplateWithExercises(preselectedTemplateId)
-            chosenTemplate = t
-            sessionName = t?.template?.name ?: "Workout"
+            val name = t?.template?.name ?: "Workout"
+            sessionName = name
+            viewModel.startSession(name, sessionDate, preselectedTemplateId)
+            sessionSlots.clear()
+            t?.exercises?.forEachIndexed { idx, entry ->
+                sessionSlots.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
+            }
         }
     }
 
@@ -81,24 +95,34 @@ fun WorkoutLogScreen(
         Step.PICK_TEMPLATE -> TemplatePickStep(
             templates = state.templates,
             onPickTemplate = { template ->
-                chosenTemplate = template
                 sessionName = template.template.name
-                viewModel.startSession(template.template.name, LocalDate.now(), template.template.id)
+                viewModel.startSession(template.template.name, sessionDate, template.template.id)
+                sessionSlots.clear()
+                template.exercises.forEachIndexed { idx, entry ->
+                    sessionSlots.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
+                }
                 step = Step.ACTIVE_SESSION
             },
             onStartBlank = {
-                viewModel.startSession("Workout", LocalDate.now())
+                viewModel.startSession("Workout", sessionDate)
                 step = Step.ACTIVE_SESSION
             },
             onBack = onBack
         )
         Step.ACTIVE_SESSION -> ActiveSessionStep(
             state = state,
-            template = chosenTemplate,
+            sessionSlots = sessionSlots,
             onAddSet = viewModel::addSet,
-            onFinish = { viewModel.finishSession(); onFinished() },
-            onBack = onBack,
+            onFinish = { step = Step.SUMMARY },
+            onBack = { viewModel.cancelSession(); onBack() },
             allExercises = state.exercises
+        )
+        Step.SUMMARY -> SummaryStep(
+            sessionName = state.activeSession?.name ?: sessionName,
+            sessionSlots = sessionSlots,
+            activeSets = state.activeSets,
+            onDone = { viewModel.finishSession(); onFinished() },
+            onEdit = { step = Step.ACTIVE_SESSION }
         )
     }
 }
@@ -188,7 +212,7 @@ private fun TemplatePickStep(
 @Composable
 private fun ActiveSessionStep(
     state: WorkoutUiState,
-    template: WorkoutTemplateWithExercises?,
+    sessionSlots: androidx.compose.runtime.snapshots.SnapshotStateList<ExerciseSlot>,
     allExercises: List<Exercise>,
     onAddSet: (Long, Int?, Double?, Int?, String?) -> Unit,
     onFinish: () -> Unit,
@@ -197,21 +221,25 @@ private fun ActiveSessionStep(
     val draftSets = remember { mutableStateListOf<DraftSet>() }
     var expandedSlotKey by remember { mutableStateOf<String?>(null) }
     var showExercisePicker by remember { mutableStateOf(false) }
-    var slotCounter by remember { mutableStateOf(0) }
+    var slotCounter by remember { mutableStateOf(sessionSlots.size) }
 
-    // Build initial slots from template
-    val sessionSlots = remember {
-        mutableStateListOf<ExerciseSlot>().also { list ->
-            template?.exercises?.forEachIndexed { idx, entry ->
-                list.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
-            }
-            expandedSlotKey = list.firstOrNull()?.slotKey
-            slotCounter = list.size
+    // Auto-open first slot when slots load asynchronously (preselected template)
+    LaunchedEffect(sessionSlots.size) {
+        if (expandedSlotKey == null && sessionSlots.isNotEmpty()) {
+            expandedSlotKey = sessionSlots.first().slotKey
         }
     }
 
+    // Seed a pending draft for the expanded slot (must not mutate state during composition)
+    LaunchedEffect(expandedSlotKey) {
+        val key = expandedSlotKey ?: return@LaunchedEffect
+        val hasPending = draftSets.any { it.slotKey == key && !it.isDone }
+        if (!hasPending) draftSets.add(DraftSet(slotKey = key))
+    }
+
+    var isTimerRunning by remember { mutableStateOf(false) }
     var elapsedSeconds by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) { while (true) { delay(1000); elapsedSeconds++ } }
+    LaunchedEffect(isTimerRunning) { while (isTimerRunning) { delay(1000); elapsedSeconds++ } }
     val timerLabel = "%02d:%02d".format(elapsedSeconds / 60, elapsedSeconds % 60)
 
     Scaffold(containerColor = BgPage) { padding ->
@@ -230,7 +258,16 @@ private fun ActiveSessionStep(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF888888))
                         }
                         Text(state.activeSession?.name ?: "Workout", fontSize = 13.sp, color = Color(0xFF888888), modifier = Modifier.weight(1f))
-                        Text(timerLabel, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(end = 12.dp))
+                        if (isTimerRunning) {
+                            Text(timerLabel, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                            IconButton(onClick = { isTimerRunning = false }, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Default.Pause, contentDescription = "Pause timer", tint = Color(0xFF888888), modifier = Modifier.size(16.dp))
+                            }
+                        } else {
+                            IconButton(onClick = { isTimerRunning = true }, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Start timer", tint = Color(0xFF888888), modifier = Modifier.size(20.dp))
+                            }
+                        }
                         Box(
                             modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(DesignGreen)
                                 .clickable(onClick = onFinish).padding(horizontal = 16.dp, vertical = 8.dp)
@@ -350,7 +387,12 @@ private fun ActiveSessionStep(
                                             groups.add(SetGroup(s.reps, s.weightKg, 1))
                                         }
                                     }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    @OptIn(ExperimentalLayoutApi::class)
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
                                         groups.forEach { g ->
                                             val label = buildString {
                                                 g.weightKg?.let { w ->
@@ -390,17 +432,25 @@ private fun ActiveSessionStep(
                                 // ── Logged sets ───────────────────────────────
                                 setsForSlot.forEachIndexed { idx, draftSet ->
                                     if (draftSet.isDone) {
-                                        DoneSetRow(setNumber = idx + 1, draft = draftSet)
+                                        val draftIdx = draftSets.indexOf(draftSet)
+                                        DoneSetRow(
+                                            setNumber = idx + 1,
+                                            draft = draftSet,
+                                            onEdit = {
+                                                if (draftIdx >= 0) draftSets[draftIdx] = draftSets[draftIdx].copy(isDone = false)
+                                            }
+                                        )
                                         Spacer(Modifier.height(6.dp))
                                     }
                                 }
 
                                 // ── New set input ─────────────────────────────
+                                // Draft is seeded by LaunchedEffect(expandedSlotKey); skip render until ready
                                 val pendingDraft = setsForSlot.firstOrNull { !it.isDone }
-                                    ?: DraftSet(slotKey = slot.slotKey).also { draftSets.add(it) }
-                                val pendingIdx = draftSets.indexOfFirst { it === pendingDraft }.takeIf { it >= 0 } ?: draftSets.lastIndex
+                                val pendingIdx = pendingDraft?.let { d -> draftSets.indexOfFirst { it === d } } ?: -1
                                 val isCardio = slot.exercise.category.uppercase() == "CARDIO"
 
+                                if (pendingDraft != null) {
                                 Spacer(Modifier.height(4.dp))
                                 Text("SET ${doneSets + 1}", fontSize = 10.sp, fontWeight = FontWeight.Bold,
                                     color = TextSecondary, letterSpacing = 0.6.sp)
@@ -441,11 +491,10 @@ private fun ActiveSessionStep(
 
                                 Button(
                                     onClick = {
-                                        val d = if (pendingIdx >= 0) draftSets[pendingIdx] else pendingDraft
-                                        val reps = d.reps.toIntOrNull()
-                                        val weight = d.weightKg.toDoubleOrNull()
-                                        val dur = d.durationSec.replace(":", "").toIntOrNull()
-                                        onAddSet(slot.exercise.id, reps, weight, dur, d.notes.ifBlank { null })
+                                        val reps = pendingDraft.reps.toIntOrNull()
+                                        val weight = pendingDraft.weightKg.toDoubleOrNull()
+                                        val dur = pendingDraft.durationSec.replace(":", "").toIntOrNull()
+                                        onAddSet(slot.exercise.id, reps, weight, dur, pendingDraft.notes.ifBlank { null })
                                         if (pendingIdx >= 0) draftSets[pendingIdx] = draftSets[pendingIdx].copy(isDone = true)
                                         draftSets.add(DraftSet(slotKey = slot.slotKey))
                                     },
@@ -457,6 +506,7 @@ private fun ActiveSessionStep(
                                     Spacer(Modifier.width(6.dp))
                                     Text("Log Set", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CardBg)
                                 }
+                                } // end if pendingDraft != null
                             }
                         }
                     }
@@ -499,12 +549,137 @@ private fun ActiveSessionStep(
     }
 }
 
+// ── Summary (read-only post-workout view) ─────────────────────────────────────
+
+@Composable
+private fun SummaryStep(
+    sessionName: String,
+    sessionSlots: List<ExerciseSlot>,
+    activeSets: List<WorkoutSet>,
+    onDone: () -> Unit,
+    onEdit: () -> Unit
+) {
+    val totalSets = activeSets.size
+    // Deduplicate slots by exerciseId to avoid repeating the same exercise header
+    val uniqueSlots = sessionSlots.distinctBy { it.exercise.id }
+
+    Scaffold(containerColor = BgPage) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(bottom = 100.dp)
+        ) {
+            // ── Dark header ───────────────────────────────────────────────────
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().background(Color(0xFF111111))
+                        .padding(start = 16.dp, end = 16.dp, top = 56.dp, bottom = 20.dp)
+                ) {
+                    Text("💪 Workout done!", fontSize = 13.sp, color = DesignGreen, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(sessionName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = (-0.3).sp)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        HeaderStat("$totalSets", "Sets logged")
+                        HeaderStat("${uniqueSlots.size}", "Exercises")
+                    }
+                }
+            }
+
+            // ── Per-exercise set log ──────────────────────────────────────────
+            if (activeSets.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.Center) {
+                        Text("No sets were logged.", fontSize = 14.sp, color = TextMuted)
+                    }
+                }
+            } else {
+                items(uniqueSlots, key = { it.exercise.id }) { slot ->
+                    val setsForExercise = activeSets
+                        .filter { it.exerciseId == slot.exercise.id }
+                        .sortedBy { it.setNumber }
+                    if (setsForExercise.isEmpty()) return@items
+
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        slot.exercise.name.uppercase(),
+                        fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary,
+                        letterSpacing = 0.8.sp,
+                        modifier = Modifier.padding(start = 20.dp, bottom = 4.dp)
+                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = CardBg),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                            setsForExercise.forEachIndexed { idx, set ->
+                                if (idx > 0) HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(24.dp).clip(CircleShape).background(DesignGreenLight),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("${idx + 1}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DesignGreen)
+                                    }
+                                    Text("Set ${idx + 1}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                                    Spacer(Modifier.weight(1f))
+                                    val summary = buildString {
+                                        set.reps?.let { append("$it reps") }
+                                        set.weightKg?.let { w ->
+                                            if (isNotEmpty()) append(" · ")
+                                            append(if (w % 1 == 0.0) "${w.toInt()} kg" else "${"%.1f".format(w)} kg")
+                                        }
+                                        set.durationSeconds?.let { d ->
+                                            if (isNotEmpty()) append(" · ")
+                                            append("%02d:%02d".format(d / 60, d % 60))
+                                        }
+                                    }
+                                    Text(summary.ifBlank { "—" }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Actions ───────────────────────────────────────────────────────
+            item {
+                Spacer(Modifier.height(24.dp))
+                Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = onDone,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = TextPrimary)
+                    ) {
+                        Text("Done", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = CardBg)
+                    }
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DividerColor)
+                    ) {
+                        Text("Edit", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ── Done set row ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun DoneSetRow(setNumber: Int, draft: DraftSet) {
+private fun DoneSetRow(setNumber: Int, draft: DraftSet, onEdit: () -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(BgPage)
+            .clickable(onClick = onEdit)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -520,13 +695,14 @@ private fun DoneSetRow(setNumber: Int, draft: DraftSet) {
         } else if (draft.durationSec.isNotBlank()) {
             Text(draft.durationSec, fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
         }
+        Text("Edit", fontSize = 10.sp, color = TextMuted)
     }
 }
 
 // ── Set input field ───────────────────────────────────────────────────────────
 
 @Composable
-private fun SetInputField(label: String, value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier, decimal: Boolean = false) {
+internal fun SetInputField(label: String, value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier, decimal: Boolean = false) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = TextSecondary)
         OutlinedTextField(
@@ -545,7 +721,7 @@ private fun SetInputField(label: String, value: String, onValueChange: (String) 
 }
 
 @Composable
-private fun HeaderStat(value: String, label: String) {
+internal fun HeaderStat(value: String, label: String) {
     Column {
         Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = (-0.3).sp)
         Text(label, fontSize = 11.sp, color = Color(0xFF888888))

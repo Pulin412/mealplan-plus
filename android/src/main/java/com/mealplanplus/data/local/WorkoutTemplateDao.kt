@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.Flow
 interface WorkoutTemplateDao {
 
     @Transaction
-    @Query("SELECT * FROM workout_templates WHERE userId = :userId ORDER BY name ASC")
+    @Query("SELECT * FROM workout_templates WHERE userId = :userId OR userId = '' ORDER BY name ASC")
     fun getTemplatesForUser(userId: String): Flow<List<WorkoutTemplateWithExercises>>
 
     @Transaction

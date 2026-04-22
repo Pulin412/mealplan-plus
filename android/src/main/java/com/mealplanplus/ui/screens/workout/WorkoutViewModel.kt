@@ -3,6 +3,11 @@ package com.mealplanplus.ui.screens.workout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import com.mealplanplus.data.model.Exercise
 import com.mealplanplus.data.model.ExerciseCategoryEntity
 import com.mealplanplus.data.model.PlannedWorkout
@@ -19,7 +24,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -39,6 +46,7 @@ data class WorkoutUiState(
     val pendingExercise: Exercise? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository
@@ -47,7 +55,19 @@ class WorkoutViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WorkoutUiState())
     val uiState: StateFlow<WorkoutUiState> = _uiState.asStateFlow()
 
-    private val userId get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    private val _detailSession = MutableStateFlow<WorkoutSessionWithSets?>(null)
+    val detailSession: StateFlow<WorkoutSessionWithSets?> = _detailSession.asStateFlow()
+    private var detailSessionJob: Job? = null
+
+    private val firebaseUidFlow: StateFlow<String> = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            trySend(auth.currentUser?.uid ?: "")
+        }
+        FirebaseAuth.getInstance().addAuthStateListener(listener)
+        awaitClose { FirebaseAuth.getInstance().removeAuthStateListener(listener) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, FirebaseAuth.getInstance().currentUser?.uid ?: "")
+
+    private val userId get() = firebaseUidFlow.value
 
     init {
         loadHistory()
@@ -58,29 +78,25 @@ class WorkoutViewModel @Inject constructor(
 
     private fun loadHistory() {
         viewModelScope.launch {
-            workoutRepository.getSessions(userId).collect { list ->
-                val withSets = list.map { session ->
-                    workoutRepository.getSessionWithSets(session.id)
-                        ?: WorkoutSessionWithSets(session, emptyList())
-                }
-                _uiState.update { it.copy(sessions = withSets) }
-            }
+            firebaseUidFlow
+                .flatMapLatest { uid -> workoutRepository.getSessionsWithSets(uid) }
+                .collect { list -> _uiState.update { it.copy(sessions = list) } }
         }
     }
 
     private fun loadExercises() {
         viewModelScope.launch {
-            workoutRepository.getAllExercisesForUser(userId).collect { list ->
-                _uiState.update { it.copy(exercises = list) }
-            }
+            firebaseUidFlow
+                .flatMapLatest { uid -> workoutRepository.getAllExercisesForUser(uid) }
+                .collect { list -> _uiState.update { it.copy(exercises = list) } }
         }
     }
 
     private fun loadTemplates() {
         viewModelScope.launch {
-            workoutRepository.getTemplatesForUser(userId).collect { list ->
-                _uiState.update { it.copy(templates = list) }
-            }
+            firebaseUidFlow
+                .flatMapLatest { uid -> workoutRepository.getTemplatesForUser(uid) }
+                .collect { list -> _uiState.update { it.copy(templates = list) } }
         }
     }
 
@@ -249,6 +265,58 @@ class WorkoutViewModel @Inject constructor(
 
     fun deleteSession(session: WorkoutSession) {
         viewModelScope.launch { workoutRepository.deleteSession(session) }
+    }
+
+    // ── Session detail (view / edit past session) ─────────────────────────────
+
+    fun loadDetailSession(sessionId: Long) {
+        detailSessionJob?.cancel()
+        detailSessionJob = viewModelScope.launch {
+            workoutRepository.observeSessionWithSets(sessionId).collect { s ->
+                _detailSession.value = s
+            }
+        }
+    }
+
+    fun clearDetailSession() {
+        detailSessionJob?.cancel()
+        _detailSession.value = null
+    }
+
+    fun deleteSet(set: WorkoutSet) {
+        viewModelScope.launch { workoutRepository.deleteSet(set) }
+    }
+
+    fun updateSessionDate(sessionId: Long, newDate: LocalDate) {
+        val session = _detailSession.value?.session ?: return
+        viewModelScope.launch {
+            workoutRepository.updateSession(session.copy(date = newDate.toEpochMs(), updatedAt = System.currentTimeMillis()))
+        }
+    }
+
+    fun addSetToSession(sessionId: Long, exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?, notes: String?) {
+        viewModelScope.launch {
+            val existingCount = _detailSession.value?.sets?.count { it.workoutSet.exerciseId == exerciseId } ?: 0
+            workoutRepository.addSet(
+                WorkoutSet(
+                    sessionId = sessionId,
+                    exerciseId = exerciseId,
+                    setNumber = existingCount + 1,
+                    reps = reps,
+                    weightKg = weightKg,
+                    durationSeconds = durationSec,
+                    notes = notes
+                )
+            )
+        }
+    }
+
+    fun cancelSession() {
+        val session = _uiState.value.activeSession ?: return
+        viewModelScope.launch {
+            workoutRepository.deleteSession(session)
+            _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
+        }
     }
 
     // ── Planning ──────────────────────────────────────────────────────────────

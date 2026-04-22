@@ -28,9 +28,11 @@ class WorkoutRepository @Inject constructor(
 ) {
     // ── Sessions ─────────────────────────────────────────────────────────────
     fun getSessions(userId: String) = sessionDao.getSessions(userId)
+    fun getSessionsWithSets(userId: String) = sessionDao.getSessionsWithSets(userId)
     fun getSessionsForDate(userId: String, date: Long) = sessionDao.getSessionsForDate(userId, date)
     fun getSessionsInRange(userId: String, from: Long, to: Long) = sessionDao.getSessionsInRange(userId, from, to)
     suspend fun getSessionWithSets(id: Long) = sessionDao.getSessionWithSets(id)
+    fun observeSessionWithSets(id: Long) = sessionDao.observeSessionWithSets(id)
     suspend fun createSession(session: WorkoutSession): Long = sessionDao.insert(session)
     suspend fun updateSession(session: WorkoutSession) = sessionDao.update(session)
     suspend fun deleteSession(session: WorkoutSession) = sessionDao.delete(session)

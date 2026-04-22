@@ -105,6 +105,7 @@ import com.mealplanplus.ui.screens.grocery.GroceryListsScreen
 import com.mealplanplus.ui.screens.grocery.CreateGroceryListScreen
 import com.mealplanplus.ui.screens.grocery.GroceryDetailScreen
 import com.mealplanplus.ui.screens.workout.WorkoutHistoryScreen
+import com.mealplanplus.ui.screens.workout.WorkoutSessionDetailScreen
 import com.mealplanplus.ui.screens.workout.WorkoutLogScreen
 import com.mealplanplus.ui.screens.workout.WorkoutTemplatesScreen
 import com.mealplanplus.ui.screens.workout.WorkoutTemplateDetailScreen
@@ -201,8 +202,12 @@ sealed class Screen(val route: String) {
     object FoodPickerForCustomSlot : Screen("food_picker_custom_slot")
     object WidgetSettings : Screen("widget_settings")
     object WorkoutHistory : Screen("workout_history")
-    object WorkoutLog : Screen("workout_log?templateId={templateId}") {
-        fun create(templateId: Long? = null) = if (templateId != null) "workout_log?templateId=$templateId" else "workout_log?templateId=-1"
+    object WorkoutSessionDetail : Screen("workout_session/{sessionId}") {
+        fun create(sessionId: Long) = "workout_session/$sessionId"
+    }
+    object WorkoutLog : Screen("workout_log?templateId={templateId}&date={date}") {
+        fun create(templateId: Long? = null, date: LocalDate? = null) =
+            "workout_log?templateId=${templateId ?: -1}&date=${date ?: ""}"
     }
     object WorkoutTemplates : Screen("workout_templates")
     object WorkoutTemplateDetail : Screen("workout_template_detail/{templateId}") {
@@ -806,8 +811,11 @@ fun MealPlanNavHost(
                     onNavigateToLog = { date ->
                         navController.navigate(Screen.DailyLogWithDate.createRoute(date))
                     },
-                    onNavigateToStartWorkout = { templateId ->
-                        navController.navigate(Screen.WorkoutLog.create(templateId))
+                    onNavigateToStartWorkout = { templateId, date ->
+                        navController.navigate(Screen.WorkoutLog.create(templateId, date))
+                    },
+                    onNavigateToSession = { sessionId ->
+                        navController.navigate(Screen.WorkoutSessionDetail.create(sessionId))
                     },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
@@ -895,18 +903,35 @@ fun MealPlanNavHost(
                 WorkoutHistoryScreen(
                     onNavigateToLog = { navController.navigate(Screen.WorkoutLog.create()) },
                     onNavigateToExercises = { navController.navigate(Screen.ExerciseCatalogue.route) },
-                    onNavigateToTemplates = { navController.navigate(Screen.WorkoutTemplates.route) }
+                    onNavigateToTemplates = { navController.navigate(Screen.WorkoutTemplates.route) },
+                    onNavigateToSession = { sessionId ->
+                        navController.navigate(Screen.WorkoutSessionDetail.create(sessionId))
+                    }
+                )
+            }
+            composable(
+                route = Screen.WorkoutSessionDetail.route,
+                arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+            ) { backStack ->
+                val sessionId = backStack.arguments?.getLong("sessionId") ?: return@composable
+                WorkoutSessionDetailScreen(
+                    sessionId = sessionId,
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(
                 route = Screen.WorkoutLog.route,
-                arguments = listOf(navArgument("templateId") {
-                    type = NavType.LongType; defaultValue = -1L
-                })
+                arguments = listOf(
+                    navArgument("templateId") { type = NavType.LongType; defaultValue = -1L },
+                    navArgument("date") { type = NavType.StringType; defaultValue = "" }
+                )
             ) { backStack ->
                 val templateId = backStack.arguments?.getLong("templateId")?.takeIf { it > 0 }
+                val dateStr = backStack.arguments?.getString("date")?.takeIf { it.isNotBlank() }
+                val date = dateStr?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
                 WorkoutLogScreen(
                     preselectedTemplateId = templateId,
+                    preselectedDate = date,
                     onBack = { navController.popBackStack() },
                     onFinished = { navController.popBackStack() }
                 )
@@ -915,7 +940,9 @@ fun MealPlanNavHost(
                 WorkoutTemplatesScreen(
                     onBack = { navController.popBackStack() },
                     onCreateTemplate = { navController.navigate(Screen.AddWorkoutTemplate.create()) },
-                    onViewTemplate = { id -> navController.navigate(Screen.WorkoutTemplateDetail.create(id)) },
+                    onViewTemplate = { id ->
+                        navController.navigate(Screen.WorkoutLog.create(id)) { launchSingleTop = true }
+                    },
                     onEditTemplate = { id -> navController.navigate(Screen.AddWorkoutTemplate.create(id)) },
                     onStartFromTemplate = { id ->
                         navController.navigate(Screen.WorkoutLog.create(id)) { launchSingleTop = true }
@@ -947,10 +974,7 @@ fun MealPlanNavHost(
                 AddEditWorkoutTemplateScreen(
                     existingTemplateId = existingId,
                     onBack = { navController.popBackStack() },
-                    onSaved = { navController.popBackStack() },
-                    onPickExercise = { excludeIds ->
-                        navController.navigate(Screen.ExercisePicker.route)
-                    }
+                    onSaved = { navController.popBackStack() }
                 )
             }
             composable(Screen.ExercisePicker.route) { currentEntry ->

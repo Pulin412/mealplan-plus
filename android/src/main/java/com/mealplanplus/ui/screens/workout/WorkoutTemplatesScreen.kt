@@ -50,7 +50,7 @@ fun WorkoutTemplatesScreen(
                 shape = CircleShape,
                 modifier = Modifier.size(52.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New template", modifier = Modifier.size(22.dp))
+                Icon(Icons.Default.Add, contentDescription = "New workout", modifier = Modifier.size(22.dp))
             }
         }
     ) { padding ->
@@ -141,7 +141,7 @@ fun WorkoutTemplatesScreen(
     toDelete?.let { t ->
         AlertDialog(
             onDismissRequest = { toDelete = null },
-            title = { Text("Delete template?", fontWeight = FontWeight.Bold) },
+            title = { Text("Delete workout?", fontWeight = FontWeight.Bold) },
             text = { Text("\"${t.name}\" will be permanently removed.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.deleteTemplate(t); toDelete = null }) {
@@ -157,12 +157,12 @@ fun WorkoutTemplatesScreen(
 }
 
 @Composable
-private fun TemplateCard(
+internal fun TemplateCard(
     item: WorkoutTemplateWithExercises,
     onTap: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEdit: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null
 ) {
     val exerciseCount = item.exercises.size
     val catBg = workoutTemplateCategoryBg(item.template.category)
@@ -202,12 +202,18 @@ private fun TemplateCard(
             }
 
             // Actions
-            Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextSecondary, modifier = Modifier.size(16.dp))
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextSecondary, modifier = Modifier.size(16.dp))
+            if (onEdit != null || onDelete != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                    onEdit?.let {
+                        IconButton(onClick = it, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    onDelete?.let {
+                        IconButton(onClick = it, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
             }
         }
