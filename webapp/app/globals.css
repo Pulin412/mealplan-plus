@@ -3,36 +3,80 @@
 @tailwind utilities;
 
 :root {
-  --background: #F5F5F5;
-  --foreground: #111111;
-  --card: #FFFFFF;
-  --card-foreground: #111111;
-  --popover: #FFFFFF;
-  --popover-foreground: #111111;
-  --primary: #2E7D52;
+  /* Page & surface */
+  --bg-page:            #F7F7F7;
+  --bg-card:            #FFFFFF;
+  --divider:            #EEEEEE;
+  --outline:            #DEDEDE;
+  --outline-variant:    #CCCCCC;
+
+  /* Text hierarchy */
+  --text-primary:       #111111;
+  --text-secondary:     #444444;
+  --text-muted:         #666666;
+  --text-placeholder:   #999999;
+  --text-destructive:   #E53E3E;
+
+  /* Brand green */
+  --green:              #2E7D52;
+  --green-light:        #E8F5EE;
+  --green-container:    #E8F5EE;
+
+  /* Macro nutrition */
+  --macro-protein:      #2E7D52;
+  --macro-carbs:        #C05200;
+  --macro-fat:          #1E4FBF;
+  --macro-cal:          #F59E0B;
+
+  /* Meal slot dots */
+  --slot-breakfast:     #F59E0B;
+  --slot-lunch:         #2E7D52;
+  --slot-dinner:        #7C3AED;
+  --slot-snack:         #2196F3;
+
+  /* Section icon tints */
+  --icon-diets:         #2E7D52;
+  --icon-meals:         #C05200;
+  --icon-foods:         #1E4FBF;
+  --icon-health:        #D32F2F;
+  --icon-workouts:      #00796B;
+  --icon-grocery:       #6A1B9A;
+  --icon-settings:      #555555;
+
+  /* shadcn compatibility aliases */
+  --background:         var(--bg-page);
+  --foreground:         var(--text-primary);
+  --card:               var(--bg-card);
+  --card-foreground:    var(--text-primary);
+  --popover:            var(--bg-card);
+  --popover-foreground: var(--text-primary);
+  --primary:            var(--green);
   --primary-foreground: #FFFFFF;
-  --secondary: #E8F5EE;
-  --secondary-foreground: #2E7D52;
-  --muted: #F0F0F0;
-  --muted-foreground: #888888;
-  --accent: #E8F5EE;
-  --accent-foreground: #2E7D52;
-  --destructive: #D32F2F;
+  --secondary:          #F0F0F0;
+  --secondary-foreground: var(--text-primary);
+  --muted:              #F0F0F0;
+  --muted-foreground:   var(--text-muted);
+  --accent:             var(--green-light);
+  --accent-foreground:  var(--green);
+  --destructive:        var(--text-destructive);
   --destructive-foreground: #FFFFFF;
-  --border: #E5E5E5;
-  --input: #E5E5E5;
-  --ring: #2E7D52;
-  --radius: 0.5rem;
+  --border:             var(--outline);
+  --input:              var(--outline);
+  --ring:               var(--green);
+  --radius:             0.5rem;
+}
+
+* {
+  border-color: var(--outline);
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }
