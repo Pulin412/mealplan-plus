@@ -2,13 +2,10 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Moon, Sun, RefreshCw } from "lucide-react";
+import { RefreshCw, LogOut, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { logout } from "@/lib/firebase/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
 
@@ -18,16 +15,34 @@ type SyncPullResponse = components["schemas"]["SyncPullResponse"];
 const THEME_KEY = "mealplan_theme";
 
 function getStoredTheme(): "light" | "dark" {
-  try {
-    return (localStorage.getItem(THEME_KEY) as "light" | "dark") ?? "light";
-  } catch {
-    return "light";
-  }
+  try { return (localStorage.getItem(THEME_KEY) as "light" | "dark") ?? "light"; }
+  catch { return "light"; }
 }
 
 function applyTheme(theme: "light" | "dark") {
   document.documentElement.classList.toggle("dark", theme === "dark");
   localStorage.setItem(THEME_KEY, theme);
+}
+
+function SettingRow({ label, subtitle, right, onClick, danger = false }: {
+  label: string; subtitle?: string; right?: React.ReactNode; onClick?: () => void; danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={!onClick}
+      className={[
+        "w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors",
+        onClick ? "hover:bg-bg-page" : "cursor-default",
+      ].join(" ")}
+    >
+      <div className="flex-1 min-w-0">
+        <p className={["text-[14px] font-medium", danger ? "text-red-500" : "text-text-primary"].join(" ")}>{label}</p>
+        {subtitle && <p className="text-[11px] text-text-muted mt-0.5">{subtitle}</p>}
+      </div>
+      {right ?? (onClick && <ChevronRight size={16} className="text-text-muted shrink-0" />)}
+    </button>
+  );
 }
 
 export default function SettingsPage() {
@@ -42,7 +57,6 @@ export default function SettingsPage() {
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
   useEffect(() => {
-    // Restore theme on mount
     const stored = getStoredTheme();
     setTheme(stored);
     applyTheme(stored);
@@ -58,123 +72,130 @@ export default function SettingsPage() {
 
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light";
-    setTheme(next);
-    applyTheme(next);
+    setTheme(next); applyTheme(next);
   };
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    try {
-      await logout();
-      router.replace("/login");
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Sign out failed");
-      setSigningOut(false);
-    }
+    try { await logout(); router.replace("/login"); }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : "Sign out failed"); setSigningOut(false); }
   };
 
   const handleSync = async () => {
-    setSyncing(true);
-    setSyncResult(null);
+    setSyncing(true); setSyncResult(null);
     try {
       const result = await api.get<SyncPullResponse>("/api/v1/sync/pull?since=1970-01-01T00:00:00Z");
-      const total =
-        result.foods.length +
-        result.meals.length +
-        result.diets.length +
-        result.healthMetrics.length +
-        result.groceryLists.length +
-        result.dailyLogs.length;
-      setSyncResult(`Pulled ${total} records from server (as of ${new Date(result.serverTime).toLocaleTimeString()})`);
+      const total = result.foods.length + result.meals.length + result.diets.length +
+        result.healthMetrics.length + result.groceryLists.length + result.dailyLogs.length;
+      setSyncResult(`Pulled ${total} records · ${new Date(result.serverTime).toLocaleTimeString()}`);
     } catch (e: unknown) {
       setSyncResult(`Sync failed: ${e instanceof Error ? e.message : "unknown error"}`);
-    } finally {
-      setSyncing(false);
-    }
+    } finally { setSyncing(false); }
   };
 
+  const displayName = profile?.displayName ?? user?.displayName ?? user?.email?.split("@")[0] ?? "You";
+  const initial = displayName[0]?.toUpperCase() ?? "?";
+
   return (
-    <div className="space-y-6 max-w-md">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="space-y-4">
+      <h1 className="text-[22px] font-semibold text-text-primary pt-1">Settings</h1>
 
-      {error && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">{error}</p>
-      )}
+      {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
 
-      {/* Profile */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Account</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {loading ? (
-            <>
-              <Skeleton className="h-5 w-48" />
-              <Skeleton className="h-4 w-32" />
-            </>
-          ) : (
-            <>
-              <p className="font-semibold">{profile?.displayName ?? user?.displayName ?? "—"}</p>
-              <p className="text-sm text-muted-foreground">{profile?.email ?? user?.email ?? "—"}</p>
-              {profile?.id && <p className="text-xs text-muted-foreground">User ID: {profile.id}</p>}
-            </>
-          )}
-          <Separator className="my-3" />
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleSignOut}
-            disabled={signingOut}
-          >
-            {signingOut ? "Signing out…" : "Sign out"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Appearance */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Appearance</CardTitle></CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Theme</p>
-              <p className="text-xs text-muted-foreground">{theme === "dark" ? "Dark mode" : "Light mode"}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={toggleTheme}>
-              {theme === "dark" ? <Sun className="h-4 w-4 mr-1" /> : <Moon className="h-4 w-4 mr-1" />}
-              {theme === "dark" ? "Light" : "Dark"}
-            </Button>
+      {/* ── Profile ── */}
+      <div className="bg-bg-card rounded-xl border border-divider overflow-hidden">
+        <div className="flex items-center gap-4 px-4 py-4 border-b border-divider">
+          {/* Avatar */}
+          <div className="w-12 h-12 rounded-full bg-text-primary flex items-center justify-center shrink-0">
+            <span className="text-[18px] font-bold text-bg-card">{initial}</span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex-1 min-w-0">
+            {loading ? (
+              <><Skeleton className="h-5 w-36 mb-1" /><Skeleton className="h-4 w-48" /></>
+            ) : (
+              <>
+                <p className="text-[15px] font-semibold text-text-primary truncate">{displayName}</p>
+                <p className="text-[12px] text-text-muted truncate">{profile?.email ?? user?.email ?? "—"}</p>
+              </>
+            )}
+          </div>
+        </div>
+        <SettingRow
+          label={signingOut ? "Signing out…" : "Sign out"}
+          subtitle="Log out of your account"
+          danger
+          onClick={handleSignOut}
+          right={<LogOut size={16} className="text-red-400 shrink-0" />}
+        />
+      </div>
 
-      {/* Data / Sync */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Data</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
+      {/* ── Appearance ── */}
+      <div>
+        <p className="text-[10px] font-extrabold tracking-widest text-text-muted uppercase mb-2">Appearance</p>
+        <div className="bg-bg-card rounded-xl border border-divider overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium">Sync now</p>
-              <p className="text-xs text-muted-foreground">Pull all records from the server</p>
+              <p className="text-[14px] font-medium text-text-primary">Theme</p>
+              <p className="text-[11px] text-text-muted mt-0.5">{theme === "dark" ? "Dark mode on" : "Light mode on"}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
-              <RefreshCw className={["h-4 w-4 mr-1", syncing ? "animate-spin" : ""].join(" ")} />
+            <button
+              onClick={toggleTheme}
+              className={[
+                "relative w-12 h-6 rounded-full transition-colors",
+                theme === "dark" ? "bg-text-primary" : "bg-bg-page border border-divider",
+              ].join(" ")}
+            >
+              <span className={[
+                "absolute top-0.5 w-5 h-5 rounded-full bg-bg-card shadow transition-transform",
+                theme === "dark" ? "translate-x-6" : "translate-x-0.5",
+              ].join(" ")} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Data & Sync ── */}
+      <div>
+        <p className="text-[10px] font-extrabold tracking-widest text-text-muted uppercase mb-2">Data</p>
+        <div className="bg-bg-card rounded-xl border border-divider overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <div>
+              <p className="text-[14px] font-medium text-text-primary">Sync now</p>
+              <p className="text-[11px] text-text-muted mt-0.5">Pull all records from the server</p>
+            </div>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-1.5 rounded-xl bg-bg-page border border-divider px-3 py-1.5 text-sm font-medium text-text-secondary disabled:opacity-50"
+            >
+              <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
               {syncing ? "Syncing…" : "Sync"}
-            </Button>
+            </button>
           </div>
           {syncResult && (
-            <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1.5">{syncResult}</p>
+            <div className="border-t border-divider px-4 py-2">
+              <p className="text-[11px] text-text-muted">{syncResult}</p>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* App info */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">About</CardTitle></CardHeader>
-        <CardContent className="space-y-1 text-sm text-muted-foreground">
-          <p>MealPlan+</p>
-          <p>Version 0.1.0</p>
-          <p>Phase 3 — Web App (Next.js 14 PWA)</p>
-        </CardContent>
-      </Card>
+      {/* ── About ── */}
+      <div>
+        <p className="text-[10px] font-extrabold tracking-widest text-text-muted uppercase mb-2">About</p>
+        <div className="bg-bg-card rounded-xl border border-divider overflow-hidden divide-y divide-divider">
+          {[
+            { label: "App", val: "MealPlan+" },
+            { label: "Version", val: "0.1.0" },
+            { label: "Phase", val: "3 · Web App (Next.js 14 PWA)" },
+          ].map(({ label, val }) => (
+            <div key={label} className="flex items-center justify-between px-4 py-3">
+              <p className="text-[13px] text-text-muted">{label}</p>
+              <p className="text-[13px] font-medium text-text-primary">{val}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

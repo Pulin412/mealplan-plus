@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Search } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

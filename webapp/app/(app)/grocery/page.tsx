@@ -1,20 +1,16 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Trash2, Plus } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import type { components } from "@/lib/api/types.generated";
 
 type GroceryListDto = components["schemas"]["GroceryListDto"];
 type GroceryItemDto = components["schemas"]["GroceryItemDto"];
+
+const UNITS = ["PIECE", "GRAM", "ML", "CUP", "TBSP", "TSP"] as const;
 
 export default function GroceryPage() {
   const { user } = useAuth();
@@ -32,7 +28,7 @@ export default function GroceryPage() {
   const [addingToList, setAddingToList] = useState<number | null>(null);
   const [itemName, setItemName] = useState("");
   const [itemQty, setItemQty] = useState("1");
-  const [itemUnit, setItemUnit] = useState("PIECE");
+  const [itemUnit, setItemUnit] = useState<typeof UNITS[number]>("PIECE");
   const [itemCategory, setItemCategory] = useState("");
 
   useEffect(() => {
@@ -48,16 +44,12 @@ export default function GroceryPage() {
     if (!newListName.trim()) return;
     setCreatingList(true);
     try {
-      const payload: GroceryListDto = { name: newListName.trim(), items: [] };
-      const created = await api.post<GroceryListDto>("/api/v1/grocery-lists", payload);
+      const created = await api.post<GroceryListDto>("/api/v1/grocery-lists", { name: newListName.trim(), items: [] });
       setLists((prev) => [created, ...prev]);
       setNewListName("");
       setExpandedId(created.id ?? null);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create");
-    } finally {
-      setCreatingList(false);
-    }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Failed to create"); }
+    finally { setCreatingList(false); }
   };
 
   const deleteList = async (id: number) => {
@@ -66,52 +58,39 @@ export default function GroceryPage() {
       await api.delete(`/api/v1/grocery-lists/${id}`);
       setLists((prev) => prev.filter((l) => l.id !== id));
       if (expandedId === id) setExpandedId(null);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to delete");
-    }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Failed to delete"); }
   };
 
-  // Save full list back to server (PUT-style via POST with serverId)
   const saveList = async (list: GroceryListDto) => {
     setSavingId(list.id ?? null);
     try {
-      const updated = await api.post<GroceryListDto>("/api/v1/grocery-lists", list);
+      let updated: GroceryListDto;
+      if (list.id && list.id > 0) {
+        updated = await api.put<GroceryListDto>(`/api/v1/grocery-lists/${list.id}`, list);
+      } else {
+        updated = await api.post<GroceryListDto>("/api/v1/grocery-lists", list);
+      }
       setLists((prev) => prev.map((l) => (l.id === list.id ? updated : l)));
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSavingId(null);
-    }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Failed to save"); }
+    finally { setSavingId(null); }
   };
 
-  const toggleItem = async (list: GroceryListDto, itemIdx: number) => {
-    const updated: GroceryListDto = {
-      ...list,
-      items: (list.items ?? []).map((item, i) =>
-        i === itemIdx ? { ...item, done: !item.done } : item
-      ),
-    };
-    await saveList(updated);
-  };
+  const toggleItem = (list: GroceryListDto, idx: number) =>
+    saveList({ ...list, items: (list.items ?? []).map((it, i) => i === idx ? { ...it, done: !it.done } : it) });
 
   const addItem = async (list: GroceryListDto) => {
     if (!itemName.trim()) return;
     const newItem: GroceryItemDto = {
       name: itemName.trim(),
       quantity: parseFloat(itemQty) || 1,
-      unit: itemUnit as GroceryItemDto["unit"],
+      unit: itemUnit,
       category: itemCategory.trim() || undefined,
       done: false,
     };
-    const updated: GroceryListDto = {
-      ...list,
-      items: [...(list.items ?? []), newItem],
-    };
-    await saveList(updated);
+    await saveList({ ...list, items: [...(list.items ?? []), newItem] });
     setItemName(""); setItemQty("1"); setItemCategory(""); setAddingToList(null);
   };
 
-  // Group items by category
   function groupByCategory(items: GroceryItemDto[]): Map<string, GroceryItemDto[]> {
     const map = new Map<string, GroceryItemDto[]>();
     for (const item of items) {
@@ -122,165 +101,197 @@ export default function GroceryPage() {
     return map;
   }
 
-  const doneCounts = (items: GroceryItemDto[]) => {
-    const done = items.filter((i) => i.done).length;
-    return { done, total: items.length };
-  };
-
   return (
-    <div className="space-y-6 max-w-xl">
-      <h1 className="text-2xl font-bold">Grocery</h1>
+    <div className="space-y-4">
+      {/* Header */}
+      <h1 className="text-[22px] font-semibold text-text-primary pt-1">Grocery</h1>
 
-      {error && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">{error}</p>
-      )}
+      {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
 
       {/* Create new list */}
       <form onSubmit={createList} className="flex gap-2">
-        <Input
+        <input
           placeholder="New list name…"
           value={newListName}
           onChange={(e) => setNewListName(e.target.value)}
-          className="h-9 text-sm"
+          className="flex-1 rounded-xl border border-divider bg-bg-card px-4 py-2.5 text-sm text-text-primary outline-none focus:border-text-primary placeholder:text-text-placeholder"
         />
-        <Button type="submit" size="sm" disabled={creatingList || !newListName.trim()}>
-          {creatingList ? "Creating…" : <><Plus className="h-4 w-4 mr-1" />Create</>}
-        </Button>
+        <button
+          type="submit"
+          disabled={creatingList || !newListName.trim()}
+          className="rounded-xl bg-text-primary px-4 py-2.5 text-sm font-semibold text-bg-card disabled:opacity-40 flex items-center gap-1.5"
+        >
+          <Plus size={15} /> {creatingList ? "…" : "Create"}
+        </button>
       </form>
 
       {/* Lists */}
       {loading ? (
-        Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)
+        <div className="space-y-3">
+          {[1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+        </div>
       ) : lists.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No grocery lists yet. Create one above.
-          </CardContent>
-        </Card>
+        <div className="bg-bg-card rounded-xl border border-divider flex flex-col items-center py-12 gap-3">
+          <span className="text-4xl">🛒</span>
+          <p className="text-sm text-text-muted">No grocery lists yet</p>
+          <p className="text-xs text-text-placeholder">Create one using the form above</p>
+        </div>
       ) : (
-        lists.map((list) => {
-          const isExpanded = expandedId === list.id;
-          const items = list.items ?? [];
-          const { done, total } = doneCounts(items);
-          const byCategory = groupByCategory(items);
-          const isSaving = savingId === list.id;
+        <div className="space-y-3">
+          {lists.map((list) => {
+            const isExpanded = expandedId === list.id;
+            const items = list.items ?? [];
+            const done = items.filter((i) => i.done).length;
+            const total = items.length;
+            const isSaving = savingId === list.id;
+            const byCategory = groupByCategory(items);
+            const progress = total > 0 ? (done / total) * 100 : 0;
 
-          return (
-            <Card key={list.id} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <button
-                      className="flex-1 text-left"
-                      onClick={() => setExpandedId(isExpanded ? null : (list.id ?? null))}
-                    >
-                      <p className="font-semibold text-sm truncate">{list.name}</p>
-                      <p className="text-xs text-muted-foreground">{done}/{total} done</p>
-                    </button>
-                    {total > 0 && done === total && (
-                      <Badge variant="secondary" className="text-xs shrink-0">Complete</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button size="icon" variant="ghost" className="h-7 w-7"
-                      onClick={() => setExpandedId(isExpanded ? null : (list.id ?? null))}>
-                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => list.id !== undefined && deleteList(list.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+            return (
+              <div key={list.id} className="bg-bg-card rounded-xl border border-divider overflow-hidden">
+                {/* List header */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <button
+                    className="flex-1 text-left min-w-0"
+                    onClick={() => setExpandedId(isExpanded ? null : (list.id ?? null))}
+                  >
+                    <p className="text-[14px] font-semibold text-text-primary truncate">{list.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {total > 0 && (
+                        <div className="flex-1 h-1.5 rounded-full bg-bg-page overflow-hidden max-w-[80px]">
+                          <div className="h-full rounded-full bg-green transition-all" style={{ width: `${progress}%` }} />
+                        </div>
+                      )}
+                      <p className="text-[11px] text-text-muted">{done}/{total} done</p>
+                    </div>
+                  </button>
+                  {done === total && total > 0 && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-light text-green">Done</span>
+                  )}
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : (list.id ?? null))}
+                    className="text-text-muted hover:text-text-primary"
+                  >
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  <button
+                    onClick={() => list.id !== undefined && deleteList(list.id)}
+                    className="text-text-muted hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
-              </CardHeader>
 
-              {isExpanded && (
-                <CardContent className="pt-0">
-                  <Separator className="mb-3" />
-
-                  {items.length === 0 ? (
-                    <p className="text-xs text-muted-foreground mb-3">No items yet. Add one below.</p>
-                  ) : (
-                    <div className="space-y-3 mb-3">
-                      {Array.from(byCategory.entries()).map(([category, catItems]) => (
-                        <div key={category}>
-                          {byCategory.size > 1 && (
-                            <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">{category}</p>
-                          )}
-                          <ul className="space-y-1">
-                            {catItems.map((item, catIdx) => {
-                              // Find global index for toggling
+                {/* Expanded content */}
+                {isExpanded && (
+                  <div className="border-t border-divider">
+                    {/* Items grouped by category */}
+                    {items.length === 0 ? (
+                      <p className="px-4 py-3 text-xs text-text-muted">No items yet. Add one below.</p>
+                    ) : (
+                      <div className="divide-y divide-divider">
+                        {Array.from(byCategory.entries()).map(([category, catItems]) => (
+                          <div key={category}>
+                            {byCategory.size > 1 && (
+                              <p className="px-4 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-text-muted">{category}</p>
+                            )}
+                            {catItems.map((item) => {
                               const globalIdx = items.findIndex(
-                                (gi) => gi === item || (gi.name === item.name && gi.quantity === item.quantity && gi.category === item.category)
+                                (gi) => gi.name === item.name && gi.quantity === item.quantity && gi.category === item.category
                               );
                               return (
-                                <li key={catIdx} className="flex items-center gap-2 text-sm">
-                                  <input
-                                    type="checkbox"
-                                    checked={item.done}
+                                <div key={globalIdx} className="flex items-center gap-3 px-4 py-2.5">
+                                  <button
                                     disabled={isSaving}
-                                    onChange={() => toggleItem(list, globalIdx)}
-                                    className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
-                                  />
-                                  <span className={item.done ? "line-through text-muted-foreground" : ""}>
+                                    onClick={() => toggleItem(list, globalIdx)}
+                                    className={[
+                                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                      item.done ? "bg-green border-green" : "border-divider hover:border-green",
+                                    ].join(" ")}
+                                  >
+                                    {item.done && <span className="text-white text-[10px] font-bold">✓</span>}
+                                  </button>
+                                  <p className={["flex-1 text-[13px]", item.done ? "line-through text-text-muted" : "text-text-primary"].join(" ")}>
                                     {item.name}
-                                  </span>
-                                  <span className="text-muted-foreground text-xs">{item.quantity} {item.unit.toLowerCase()}</span>
-                                </li>
+                                  </p>
+                                  <p className="text-[11px] text-text-muted shrink-0">{item.quantity} {item.unit.toLowerCase()}</p>
+                                </div>
                               );
                             })}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
-                  {/* Add item */}
-                  {addingToList === list.id ? (
-                    <div className="space-y-2 border rounded-md p-3 bg-muted/30">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="col-span-2 space-y-1">
-                          <Label className="text-xs">Item name</Label>
-                          <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g. Chicken breast" className="h-8 text-sm" autoFocus />
+                    {/* Add item form */}
+                    {addingToList === list.id ? (
+                      <div className="border-t border-divider px-4 py-3 space-y-3 bg-bg-page">
+                        <div>
+                          <p className="text-[10px] font-bold text-text-muted uppercase mb-1">Item name</p>
+                          <input
+                            autoFocus value={itemName} onChange={(e) => setItemName(e.target.value)}
+                            placeholder="e.g. Chicken breast"
+                            className="w-full rounded-lg border border-divider bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary placeholder:text-text-placeholder"
+                          />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Quantity</Label>
-                          <Input type="number" value={itemQty} onChange={(e) => setItemQty(e.target.value)} className="h-8 text-sm" min={0} />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[10px] font-bold text-text-muted uppercase mb-1">Qty</p>
+                            <input
+                              type="number" min={0} value={itemQty} onChange={(e) => setItemQty(e.target.value)}
+                              className="w-full rounded-lg border border-divider bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary"
+                            />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-text-muted uppercase mb-1">Unit</p>
+                            <select
+                              value={itemUnit} onChange={(e) => setItemUnit(e.target.value as typeof UNITS[number])}
+                              className="w-full rounded-lg border border-divider bg-bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                            >
+                              {UNITS.map((u) => <option key={u} value={u}>{u.toLowerCase()}</option>)}
+                            </select>
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Unit</Label>
-                          <select value={itemUnit} onChange={(e) => setItemUnit(e.target.value)}
-                            className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm">
-                            <option value="PIECE">piece</option>
-                            <option value="GRAM">gram</option>
-                            <option value="ML">ml</option>
-                            <option value="CUP">cup</option>
-                            <option value="TBSP">tbsp</option>
-                            <option value="TSP">tsp</option>
-                          </select>
+                        <div>
+                          <p className="text-[10px] font-bold text-text-muted uppercase mb-1">Category (optional)</p>
+                          <input
+                            value={itemCategory} onChange={(e) => setItemCategory(e.target.value)}
+                            placeholder="e.g. Meat, Dairy…"
+                            className="w-full rounded-lg border border-divider bg-bg-card px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-placeholder"
+                          />
                         </div>
-                        <div className="col-span-2 space-y-1">
-                          <Label className="text-xs">Category (optional)</Label>
-                          <Input value={itemCategory} onChange={(e) => setItemCategory(e.target.value)} placeholder="e.g. Meat, Dairy…" className="h-8 text-sm" />
+                        <div className="flex gap-2">
+                          <button
+                            disabled={isSaving || !itemName.trim()}
+                            onClick={() => addItem(list)}
+                            className="flex-1 rounded-xl bg-text-primary py-2.5 text-sm font-semibold text-bg-card disabled:opacity-40"
+                          >
+                            {isSaving ? "Saving…" : "Add item"}
+                          </button>
+                          <button
+                            onClick={() => setAddingToList(null)}
+                            className="px-4 rounded-xl border border-divider text-sm font-medium text-text-secondary"
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" disabled={isSaving || !itemName.trim()} onClick={() => addItem(list)}>
-                          {isSaving ? "Saving…" : "Add"}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setAddingToList(null)}>Cancel</Button>
+                    ) : (
+                      <div className="border-t border-divider px-4 py-2">
+                        <button
+                          onClick={() => setAddingToList(list.id ?? null)}
+                          className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors py-1.5"
+                        >
+                          <Plus size={14} /> Add item
+                        </button>
                       </div>
-                    </div>
-                  ) : (
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => setAddingToList(list.id ?? null)}>
-                      <Plus className="h-4 w-4 mr-1" />Add item
-                    </Button>
-                  )}
-                </CardContent>
-              )}
-            </Card>
-          );
-        })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

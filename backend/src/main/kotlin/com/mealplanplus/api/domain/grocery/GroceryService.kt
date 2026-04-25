@@ -45,6 +45,22 @@ class GroceryService(
             .map { it.toDto(itemRepo.findByGroceryListId(it.id)) }
 
     @Transactional
+    fun update(id: Long, dto: GroceryListDto, firebaseUid: String): GroceryListDto {
+        val existing = listRepo.findById(id).orElseThrow()
+        require(existing.firebaseUid == firebaseUid) { "Forbidden" }
+        itemRepo.deleteByGroceryListId(existing.id)
+        val updated = GroceryList(id = existing.id, firebaseUid = existing.firebaseUid,
+            name = dto.name, dietId = dto.dietId)
+            .also { it.serverId = existing.serverId }
+        val saved = listRepo.save(updated)
+        val items = dto.items.map { item ->
+            itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
+                quantity = item.quantity, unit = item.unit, category = item.category, done = item.done))
+        }
+        return saved.toDto(items)
+    }
+
+    @Transactional
     fun upsert(dto: GroceryListDto, firebaseUid: String): GroceryListDto {
         val existing = dto.serverId?.let { listRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)

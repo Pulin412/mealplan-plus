@@ -1,0 +1,856 @@
+# MealPlan+ Android App — Machine-Readable Capability Spec
+# Format: YAML  |  Audience: AI agents  |  Purpose: replicate, port, or document any feature
+# Last sync: database v35, Room schema exported to android/schemas/
+# ──────────────────────────────────────────────────────────────────────────────
+
+meta:
+  app: MealPlan+
+  platform: Android (min SDK 26, target SDK 34)
+  language: Kotlin 1.9.24
+  ui: Jetpack Compose + Material 3 + Dynamic Color
+  architecture: MVVM + Repository + Hilt DI (Google NowInAndroid pattern)
+  db: Room v2.6.1 | version 35 | exported schemas in android/schemas/
+  auth: Firebase Auth (email/password + Google SSO) + local Room User table
+  offline_first: true  # Room is source of truth; sync pushes to Spring Boot backend
+  sync_strategy: delta-sync (updatedAt-based) via SyncWorker (WorkManager)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LAYER WIRING  (Compose → ViewModel → Repository → DAO / Retrofit)
+# ──────────────────────────────────────────────────────────────────────────────
+layer_wiring:
+  viewmodels:
+    annotation: "@HiltViewModel"
+    state: "StateFlow<XxxState> (data class)"
+    scope: viewModelScope
+  repositories:
+    annotation: "@Singleton"
+    reads: "Flow<T>"
+    writes: "suspend fun"
+  room:
+    migrations: explicit only — no destructive fallback ever
+    dates: "Long (epoch ms at midnight UTC) — use DateUtils.toEpochMs / toLocalDate"
+  datastore: all user prefs use shared 'settings' store in ThemePreferences.kt
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DATA ENTITIES  (Room @Entity — abridged key fields only)
+# ──────────────────────────────────────────────────────────────────────────────
+entities:
+
+  FoodItem:
+    table: food_items
+    pk: id (Long, autoGenerate)
+    fields: [name, brand?, barcode?, caloriesPer100, proteinPer100, carbsPer100,
+             fatPer100, gramsPerPiece?, gramsPerCup?, gramsPerTbsp?, gramsPerTsp?,
+             glycemicIndex?, preferredUnit?, isFavorite, lastUsed?, isSystemFood,
+             serverId?, updatedAt, syncedAt?]
+    notes:
+      - system foods seeded from assets/common_foods.json via safe upsert (never delete)
+      - unit helpers convert piece/cup/tbsp/tsp → grams on the fly
+      - search by name uses LIKE on Room DAO; also FTS if needed
+      - online lookup: USDA FoodData Central (DEMO_KEY) + OpenFoodFacts (free)
+
+  Meal:
+    table: meals
+    pk: id (Long, autoGenerate)
+    fields: [name, description?, isSystem, userId? (Long|null), serverId?, createdAt, updatedAt, syncedAt?]
+    junction: meal_food_items (mealId PK + foodId PK, quantity Double, unit String)
+    notes:
+      - userId NULL = system/global; non-null = user-owned (per-user isolation)
+      - MealWithFoods = @Relation joining meal_food_items → food_items
+
+  Diet:
+    table: diets
+    pk: id (Long, autoGenerate)
+    fields: [name, description?, isSystem, userId? (Long|null), isFavourite, serverId?, updatedAt, syncedAt?]
+    junctions:
+      diet_slots: "(dietId PK + slotType PK) → mealId FK, instructions?"
+      diet_tags:  "(dietId + tagId) cross-ref"
+    notes:
+      - userId NULL = system; non-null = user-owned
+      - slot types: BREAKFAST | LUNCH | DINNER (enum SlotType)
+      - DietWithMeals: @Relation chain Diet → diet_slots → Meal
+      - DietFullSummary: includes tags + slot count + calorie estimate
+
+  DailyLog:
+    table: daily_logs
+    pk: composite (userId, date)
+    fields: [userId, date (Long epoch ms), plannedDietId?, notes?, createdAt]
+    child:
+      logged_foods:
+        fields: [userId, logDate, foodId FK, slotType, quantity Double, unit String, loggedAt]
+        note: slotType is on logged_foods (not on DailyLog)
+    notes:
+      - one row per user per day
+      - DailyLogWithFoods: @Relation joining logged_foods → food_items
+      - streak = consecutive days with ≥1 logged food
+
+  Plan:
+    table: plans
+    pk: composite (userId, date)  # unique index enforced
+    fields: [userId, date (Long), dietId? FK, notes?, isCompleted]
+    notes:
+      - intent: which diet to follow on a day
+      - PlannedSlots table (planned_slots) overrides diet_slots per date
+      - slot resolution: read planned_slots first, fall back to diet.diet_slots
+
+  PlannedSlot:
+    table: planned_slots
+    fields: [userId, date, slotType, mealId FK]
+    notes: per-date meal assignment overriding the diet template
+
+  GroceryList:
+    table: grocery_lists
+    pk: id (Long, autoGenerate)
+    fields: [userId FK, name, startDate?, endDate?, serverId?, updatedAt, syncedAt?]
+    child:
+      grocery_items:
+        fields: [listId FK, foodId? FK, name, quantity Double, unit, category?,
+                 isChecked, addedAt]
+    capabilities:
+      - manual creation with custom items
+      - auto-generate from a Diet (aggregates foods across all diet meals)
+      - regenerate (re-aggregate after diet changes)
+      - group items by category on display
+      - toggle item checked/unchecked
+
+  HealthMetric:
+    table: health_metrics
+    pk: id (Long, autoGenerate)
+    fields: [userId FK, date (Long), metricType (enum), customTypeId? FK, value Double, unit, notes?]
+    metric_types: [WEIGHT, BLOOD_PRESSURE_SYSTOLIC, BLOOD_PRESSURE_DIASTOLIC,
+                   BLOOD_SUGAR, HEART_RATE, BODY_FAT, CUSTOM]
+    custom_types_table: custom_metric_types (userId, name, unit, min?, max?, isActive)
+    health_connect:
+      reads: [StepsRecord, TotalCaloriesBurnedRecord, WeightRecord]
+      permissions: READ_STEPS, READ_TOTAL_CALORIES_BURNED, READ_WEIGHT
+      auto_log: latest WeightRecord → HealthMetric once per day
+
+  Exercise:
+    table: exercises
+    pk: id (Long, autoGenerate)
+    fields: [name, category (String: STRENGTH|CARDIO|FLEXIBILITY|BALANCE|SPORT),
+             muscleGroup?, equipment?, description?, videoLink?, isSystem, userId? (String)]
+    notes:
+      - isSystem=true = visible to all; userId non-null = personal
+      - seeded via Profile import from assets/exercises.json (not auto-seeded at startup)
+
+  WorkoutTemplate:
+    table: workout_templates
+    pk: id (Long, autoGenerate)
+    fields: [userId (String), name, category, notes?, createdAt, updatedAt]
+    children:
+      workout_template_exercises:
+        fields: [templateId FK, exerciseId FK, orderIndex, targetSets, targetReps?]
+      workout_template_sets:
+        fields: [templateExerciseId FK, setIndex, reps?, weightKg?]
+        note: pyramid training — each set can have different reps/weight
+    notes:
+      - WorkoutTemplateWithExercises: nested @Relation chain
+      - seeded via Profile import from assets/workout_templates.json
+
+  WorkoutSession:
+    table: workout_sessions
+    pk: id (Long, autoGenerate)
+    fields: [userId (String), name, date (Long), durationMinutes?, notes?, isCompleted, serverId?, updatedAt]
+    child:
+      workout_sets:
+        fields: [sessionId FK, exerciseId FK, setNumber, reps?, weightKg?, durationSeconds?,
+                 distanceMeters?, notes?]
+
+  User:
+    table: users
+    pk: id (Long, autoGenerate)
+    fields: [email (unique), passwordHash (SHA-256), displayName?, photoUrl?,
+             age?, contact?, weightKg?, heightCm?, gender?, activityLevel?,
+             targetCalories?, goalType?, createdAt, updatedAt]
+    notes:
+      - local Room auth (email/SHA-256); Firebase Auth used for Google SSO + backend JWT
+      - AuthPreferences (DataStore): stores loggedIn bool + userId Long
+
+  Tag:
+    table: tags
+    pk: id (Long, autoGenerate)
+    fields: [name, color?]
+    cross_refs: [DietTagCrossRef (dietId, tagId), FoodTagCrossRef (foodId, tagId)]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SCREENS  (40 total)
+# Each entry: route | ViewModel | key capabilities | data flow
+# ──────────────────────────────────────────────────────────────────────────────
+screens:
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  LandingScreen:
+    route: landing
+    nav_to: [LoginScreen, SignUpScreen]
+    capabilities: [email sign-in CTA, Google sign-in CTA, guest browse hint]
+
+  LoginScreen:
+    route: login
+    vm: AuthViewModel
+    capabilities:
+      - email + password sign-in → Room SHA-256 verify
+      - Google Sign-In (Firebase) → upsert Room User row
+      - navigate to ForgotPasswordScreen
+      - on success → HomeScreen (popUpTo landing inclusive)
+
+  SignUpScreen:
+    route: signup
+    vm: AuthViewModel
+    capabilities:
+      - email + password + name registration → Room insert
+      - duplicate email check
+      - password strength validation
+
+  ForgotPasswordScreen:
+    route: forgot_password
+    vm: AuthViewModel
+    capabilities: [Firebase sendPasswordResetEmail, success/error snackbar]
+
+  # ── HOME ──────────────────────────────────────────────────────────────────
+  HomeScreen:
+    route: home
+    vm: HomeViewModel
+    capabilities:
+      - greeting + current date display
+      - today macro summary bar (calories, protein, carbs, fat)
+      - per-slot (Breakfast/Lunch/Dinner) today panel showing logged meal name + foods
+      - active diet chip (current plan's diet name)
+      - activity strip: steps today, calories burned (from HealthConnect)
+      - streak counter (consecutive logged days)
+      - quick-log FAB → QuickAddSheet (opens Log or Plan or Grocery or Health)
+      - water tracker widget strip (optional)
+    data_sources:
+      - DailyLogRepository.getLogWithFoods(today)
+      - PlanRepository.getPlanForDate(today)
+      - HealthConnectRepository.getActivitySummary()
+      - DailyLogRepository.getLoggedDatesForStreak()
+
+  # ── FOOD LOG ──────────────────────────────────────────────────────────────
+  DailyLogScreen:
+    route: log/{date}
+    vm: DailyLogViewModel
+    capabilities:
+      - date navigator (prev/next day, jump to today)
+      - three slots: Breakfast, Lunch, Dinner — each expandable
+      - within each slot: list logged foods with qty + kcal
+      - add food to slot → FoodPickerScreen (inline search or open dedicated picker)
+      - edit quantity of logged food (inline number input)
+      - delete logged food (swipe or delete icon)
+      - macro summary ring (calories + P/C/F)
+      - "Apply diet" button → DietPickerScreen → auto-populates slots from selected diet
+      - clear all foods for a slot
+      - notes field per day
+    data_flow:
+      load: DailyLogRepository.getLogWithFoods(date) as Flow
+      write: logFood(date, slotType, foodId, qty, unit) / deleteLoggedFood(id)
+
+  DietPickerScreen:
+    route: diet_picker
+    vm: DietPickerViewModel
+    capabilities:
+      - list user's diets + system diets
+      - search/filter by name
+      - expandable diet card showing assigned meals per slot
+      - confirm selection → DailyLogRepository.applyDiet(date, dietWithMeals)
+      - applyDiet clears existing slot foods and inserts all foods from diet meals
+
+  LogMealPickerScreen:
+    route: log_meal_picker/{date}/{slotType}
+    vm: LogMealPickerViewModel
+    capabilities:
+      - select a meal → all foods in that meal logged to the slot in one go
+      - filtered by slot type suggestion
+
+  # ── PLANNING ──────────────────────────────────────────────────────────────
+  CalendarScreen:
+    route: calendar
+    vm: CalendarViewModel
+    capabilities:
+      - month grid with day cells
+      - day cell shows: planned diet chip, completion dot if logged
+      - tap day → CalendarDayDetailScreen
+      - swipe month left/right
+      - "Plan week" shortcut: assign same diet to all days in current week
+    data_sources:
+      - PlanRepository.getPlansForMonth(userId, month)
+      - DailyLogRepository.getDailyMacroTotals(range)
+
+  CalendarDayDetailScreen:
+    route: calendar_day/{date}
+    vm: CalendarDayDetailViewModel
+    capabilities:
+      - show planned diet for date (with meals)
+      - change planned diet → DietPickerSheet
+      - show logged foods breakdown by slot
+      - macro totals for the day
+      - notes field
+      - planned workout for the day (PlannedWorkout)
+      - add/change planned workout → WorkoutTemplatesScreen picker
+
+  # ── FOOD CATALOGUE ────────────────────────────────────────────────────────
+  FoodsScreen:
+    route: foods
+    vm: FoodsViewModel
+    capabilities:
+      - full catalogue list (system + personal)
+      - live search (Room LIKE query)
+      - filter by favorite
+      - sort: name / last used / calories
+      - tap food → detail sheet (macros, unit conversions, tags)
+      - long press → delete (non-system foods only)
+      - FAB → AddFoodScreen
+      - favorite toggle per food item
+    data_flow: FoodRepository.getAllFoods() as Flow
+
+  AddFoodScreen:
+    route: add_food
+    vm: AddFoodViewModel
+    capabilities:
+      - barcode scanner (CameraX + ML Kit) → lookupBarcode → OpenFoodFacts API
+      - USDA text search (searchFoods) → pre-fill macro form
+      - OpenFoodFacts text search → pre-fill macro form
+      - manual form: name, brand, barcode, kcal/100g, P/C/F per 100g,
+                     gramsPerPiece, gramsPerCup, gramsPerTbsp, gramsPerTsp, GI
+      - save → FoodRepository.insertFood()
+      - edit mode (route: edit_food/{id})
+    external_apis:
+      USDA:
+        base: https://api.nal.usda.gov
+        key: DEMO_KEY (rate limited) | free key at api.nal.usda.gov
+        endpoint: "GET /fdc/v1/foods/search?query=X&pageSize=25&dataType=Foundation,SR Legacy,Branded"
+        nutrients: "{1008: kcal, 1003: protein, 1005: carbs, 1004: fat}"
+        normalize: macros returned per servingSize → multiply by (100/servingSize)
+      OpenFoodFacts:
+        base: https://world.openfoodfacts.org
+        barcode: "GET /api/v0/product/{barcode}.json  → response.product.nutriments"
+        search: "GET /cgi/search.pl?search_terms=X&json=1&page_size=20"
+        key_fields: "product_name, brands, nutriments.energy-kcal_100g, proteins_100g, carbohydrates_100g, fat_100g"
+        fallback: "energy_100g (kJ) / 4.184 when kcal field absent"
+
+  BarcodeScannerScreen:
+    route: barcode_scanner
+    vm: BarcodeScannerViewModel
+    capabilities:
+      - live camera preview (CameraX)
+      - real-time barcode detection (ML Kit BarcodeScanning)
+      - on detect → OpenFoodFacts lookup → pre-fill AddFoodScreen fields
+      - torch toggle
+      - manual barcode entry fallback
+
+  OnlineSearchScreen:
+    route: online_search
+    vm: OnlineSearchViewModel
+    capabilities:
+      - tab switch: USDA | OpenFoodFacts
+      - debounced search (500ms) → external API
+      - result list with name, brand, kcal/100g, P/C/F badges
+      - tap result → pre-fill AddFoodScreen form fields
+      - "Use this food" → saves immediately without editing
+
+  # ── MEALS ─────────────────────────────────────────────────────────────────
+  MealsScreen:
+    route: meals
+    vm: MealsViewModel
+    capabilities:
+      - list meals (user-owned + system)
+      - search by name
+      - expand meal → see food list with quantities + per-meal macro total
+      - delete meal (user-owned only)
+      - FAB → AddMealScreen
+
+  AddMealScreen:
+    route: add_meal
+    vm: AddEditMealViewModel
+    capabilities:
+      - name + description fields
+      - add foods → FoodPickerScreen → returns (foodId, qty, unit)
+      - inline food list with qty editor and delete
+      - save → MealRepository.insertMeal() + insertMealFoodItems()
+
+  EditMealScreen:
+    route: edit_meal/{id}
+    vm: AddEditMealViewModel
+    capabilities:
+      - pre-load existing meal
+      - add / remove / edit food quantities
+      - update name/description
+      - save → MealRepository.updateMeal() + replace meal_food_items
+
+  FoodPickerScreen:
+    route: food_picker
+    vm: FoodPickerViewModel
+    capabilities:
+      - searchable food list
+      - quantity input + unit picker (GRAM, ML, PIECE, CUP, TBSP, TSP)
+      - auto-calc grams from unit using FoodItem unit helper fields
+      - returns result to caller via SavedStateHandle
+
+  # ── DIETS ─────────────────────────────────────────────────────────────────
+  DietsScreen:
+    route: diets
+    vm: DietsViewModel
+    capabilities:
+      - list diets (user + system)
+      - search + filter by tag
+      - diet card: name, tag chips, slot summary (B/L/D meal names), calorie estimate
+      - favorite toggle
+      - delete diet (user-owned)
+      - FAB → AddDietScreen
+      - tap diet → DietDetailScreen
+
+  AddDietScreen:
+    route: add_diet
+    vm: AddEditDietViewModel
+    capabilities:
+      - name + description fields
+      - target calories (optional)
+      - type/tag selection (existing tags + create new inline)
+      - assign meal to each slot → DietMealPickerScreen
+      - save → DietRepository.insertDiet() + setMealForSlot() per slot
+
+  DietDetailScreen:
+    route: diet_detail/{id}
+    vm: DietDetailViewModel
+    capabilities:
+      - full diet view: name, tags, description, target calories
+      - per-slot meal cards with food list + macro summary
+      - edit diet → AddDietScreen in edit mode
+      - generate grocery list from this diet
+      - duplicate diet (new name prompt)
+      - delete diet
+      - assign/change meal per slot inline
+
+  DietMealPickerScreen:
+    route: diet_meal_picker/{dietId}/{slotType}
+    vm: DietMealPickerViewModel
+    capabilities:
+      - filtered meal list (all user + system meals)
+      - search
+      - expand meal to preview foods
+      - select → returns mealId to caller
+
+  DietMealSlotScreen:
+    route: diet_meal_slot/{dietId}/{slotType}
+    vm: DietMealSlotViewModel
+    capabilities:
+      - show current meal assigned to slot
+      - replace meal
+      - add per-slot instructions text
+      - remove meal from slot
+
+  MealDetailScreen:
+    route: meal_detail/{id}
+    vm: MealDetailViewModel
+    capabilities:
+      - food list with quantities and per-item kcal
+      - total macro summary
+      - edit → EditMealScreen
+      - delete meal
+
+  # ── GROCERY ───────────────────────────────────────────────────────────────
+  GroceryListsScreen:
+    route: grocery
+    vm: GroceryViewModel
+    capabilities:
+      - list grocery lists (user-owned)
+      - progress bar per list (checked/total items)
+      - create new empty list (name only)
+      - create from diet → picks a diet → GroceryRepository.generateFromDiet()
+      - delete list
+      - tap → GroceryDetailScreen
+
+  GroceryDetailScreen:
+    route: grocery_detail/{id}
+    vm: GroceryDetailViewModel
+    capabilities:
+      - grouped items by category
+      - toggle item checked/unchecked
+      - add item manually (name, qty, unit, category)
+      - edit item quantity inline
+      - delete item
+      - uncheck all
+      - regenerate list (re-aggregate from original diet)
+      - share list as text
+
+  CreateGroceryListScreen:
+    route: create_grocery/{dietId?}
+    vm: CreateGroceryListViewModel
+    capabilities:
+      - name field
+      - optional date range picker
+      - if dietId provided: auto-generates items from all diet meals
+      - if no dietId: blank list
+
+  # ── HEALTH ────────────────────────────────────────────────────────────────
+  HealthScreen:
+    route: health
+    vm: HealthViewModel
+    capabilities:
+      - metric tiles: latest weight, 7d avg weight, BMI, body fat %
+      - weight trend sparkline (Vico chart, last 30 entries)
+      - log metric form: type picker (built-in + custom), date, value, unit
+      - history list: last 20 entries per type; expandable per type
+      - delete entry
+      - "View All / Streak & Stats" → ChartsScreen
+      - Health Connect status banner (install prompt if unavailable on API < 34)
+      - sync weight from Health Connect (HealthConnectRepository)
+      - custom metric type creation inline
+    data_flow:
+      hc_sync: "SettingsViewModel.checkHealthConnectStatus() → auto-log weight once/day"
+
+  ChartsScreen:
+    route: charts
+    vm: ChartsViewModel
+    capabilities:
+      - calorie trend chart (Vico, last 30 days)
+      - macro breakdown chart (stacked bar)
+      - weight history chart
+      - streak stat card
+      - longest streak stat card
+      - total days logged stat
+
+  # ── PROFILE ───────────────────────────────────────────────────────────────
+  ProfileScreen:
+    route: profile
+    vm: ProfileViewModel
+    capabilities:
+      - display name, email, avatar
+      - edit profile fields: displayName, age, weight, height, gender,
+                            activityLevel, targetCalories, goalType
+      - TDEE calculator (from age/weight/height/gender/activityLevel)
+      - data import buttons (file picker via SAF):
+          - Import Foods (JSON)
+          - Import Meals & Diets (backup JSON)
+          - Import Exercises (JSON)
+          - Import Workout Templates (JSON)
+      - export data as JSON (full backup)
+      - account deletion
+    import_formats:
+      common_foods: "assets/common_foods.json → [{name, caloriesPer100, proteinPer100, carbsPer100, fatPer100, ...}]"
+      exercises: "assets/exercises.json → [{name, category, muscleGroup, equipment, description, videoLink}]"
+      workout_templates: "assets/workout_templates.json → [{name, category, exercises: [{name, sets: [{reps, weight, count}]}]}]"
+      backup: "mealplan_data_export.json → {diets, meals, foods, logs, ...}"
+
+  # ── SETTINGS ──────────────────────────────────────────────────────────────
+  SettingsScreen:
+    route: settings
+    vm: SettingsViewModel
+    capabilities:
+      - theme picker: System / Light / Dark
+      - font scale adjustment
+      - notification toggles: Breakfast / Lunch / Dinner / Streak / Weekly Plan
+      - notification time pickers (hour + minute) per meal type
+      - SCHEDULE_EXACT_ALARM permission banner (API 31+)
+      - Health Connect: connect/disconnect, sync status, install prompt (API < 34)
+      - backup & restore section (link to ProfileScreen import/export)
+      - sign out
+      - app version display
+    notification_system:
+      types: [BREAKFAST, LUNCH, DINNER, STREAK, WEEKLY_PLAN]
+      request_codes: [1, 2, 3, 4, 5]
+      mechanism: AlarmManager (setExactAndAllowWhileIdle) — NOT WorkManager
+      fire_condition: "shouldPostMealAlarm() — only if slot NOT yet logged today"
+      re_schedule: receiver re-schedules next occurrence after each fire
+      entry_point: NotificationAlarmBootstrapper.scheduleAll(context)
+
+  WidgetSettingsScreen:
+    route: widget_settings
+    vm: WidgetSettingsViewModel
+    capabilities:
+      - configure home-screen Glance widget content (macro summary vs today's plan)
+
+  # ── WORKOUT ───────────────────────────────────────────────────────────────
+  ExerciseCatalogueScreen:
+    route: exercise_catalogue
+    vm: ExerciseCatalogueViewModel
+    capabilities:
+      - paginated exercise list (system + user-owned)
+      - filter by category chip row
+      - filter by muscle group chip row
+      - search by name
+      - tap exercise → detail sheet (description, video link, muscle group, equipment)
+      - edit exercise → AddEditExerciseScreen
+      - delete exercise (user-owned only)
+      - FAB → AddEditExerciseScreen (new)
+    categories: [STRENGTH, CARDIO, FLEXIBILITY, BALANCE, SPORT]
+
+  AddEditExerciseScreen:
+    route: add_exercise | edit_exercise/{id}
+    vm: AddEditExerciseViewModel
+    capabilities:
+      - fields: name, category (dropdown), muscleGroup (dropdown), equipment (dropdown),
+                description (multiline), videoLink (URL)
+      - save → WorkoutRepository.upsertExercise()
+      - pre-fill all fields in edit mode
+
+  WorkoutTemplatesScreen:
+    route: workout_templates
+    vm: WorkoutTemplatesViewModel
+    capabilities:
+      - list user's workout templates grouped by category
+      - tap → WorkoutTemplateDetailScreen
+      - long press → delete template
+      - FAB → AddEditWorkoutTemplateScreen (new)
+      - also used as picker (when called from CalendarDayDetailScreen)
+
+  WorkoutTemplateDetailScreen:
+    route: workout_template_detail/{id}
+    vm: WorkoutTemplateDetailViewModel
+    capabilities:
+      - exercise list with pyramid set breakdown (e.g. "7.5kg · 14 reps ×2")
+      - total sets count in header
+      - edit → AddEditWorkoutTemplateScreen
+      - "Start workout" → WorkoutLogScreen pre-loaded with this template
+
+  AddEditWorkoutTemplateScreen:
+    route: add_workout_template | edit_workout_template/{id}
+    vm: AddEditWorkoutTemplateViewModel
+    capabilities:
+      - name, category, notes fields
+      - add exercises → ExercisePickerScreen → returns exerciseId
+      - per-exercise: reorder (drag), targetSets, targetReps
+      - per-exercise: add per-set details (reps, weightKg) for pyramid training
+      - delete exercise from template
+      - save → WorkoutRepository.upsertTemplate() + upsertTemplateExercises() + insertTemplateSets()
+
+  ExercisePickerScreen:
+    route: exercise_picker
+    vm: ExercisePickerViewModel
+    capabilities:
+      - searchable exercise list with category/muscle filters
+      - single or multi-select mode
+      - returns selected exercise ids to caller
+
+  WorkoutLogScreen:
+    route: workout_log/{templateId?}
+    vm: WorkoutLogViewModel
+    capabilities:
+      - workout name (pre-filled from template if provided)
+      - date picker
+      - duration timer (optional)
+      - dynamic set rows per exercise:
+          - reps input
+          - weight (kg) input
+          - duration (seconds) input
+          - notes input
+      - add extra set per exercise
+      - remove set
+      - mark session complete toggle
+      - save → WorkoutRepository.insertSession() + insertSets()
+      - pre-fills from WorkoutTemplate if templateId provided (uses plannedSets)
+
+  WorkoutHistoryScreen:
+    route: workout_history
+    vm: WorkoutHistoryViewModel
+    capabilities:
+      - list sessions grouped by month
+      - session card: name, date, duration, sets count, completion badge
+      - tap → WorkoutSessionDetailScreen
+      - delete session
+
+  WorkoutSessionDetailScreen:
+    route: workout_session_detail/{id}
+    vm: WorkoutSessionDetailViewModel
+    capabilities:
+      - session metadata: name, date, duration, notes, isCompleted
+      - exercise breakdown: per-exercise set list (setNumber, reps, weight, duration)
+      - total volume calculation (sum reps × weight across all sets)
+      - delete session
+
+# ──────────────────────────────────────────────────────────────────────────────
+# BUSINESS RULES  (non-obvious logic every port must replicate)
+# ──────────────────────────────────────────────────────────────────────────────
+business_rules:
+
+  slot_resolution:
+    - "When loading a day's plan, read planned_slots first for overrides"
+    - "Fall back to plan.dietId → diet_slots only for slots NOT in planned_slots"
+    - "If no plan for date, all slots empty"
+
+  food_ownership:
+    - "isSystemFood=true foods are never deleted during re-seed (upsert only)"
+    - "userId=null on Meal/Diet = visible to all users"
+    - "userId=non-null on Meal/Diet = visible only to that user"
+
+  notifications:
+    - "Only fire if the meal slot has NOT been logged yet today (shouldPostMealAlarm)"
+    - "Use AlarmManager not WorkManager for notifications"
+    - "Re-schedule next day's alarm inside the BroadcastReceiver after each fire"
+    - "SCHEDULE_EXACT_ALARM permission required on API 31+"
+
+  streak:
+    - "Streak = consecutive calendar days where ≥1 food is logged in any slot"
+    - "Source of truth: daily_logs / logged_foods only (planned does not count)"
+    - "Calculated from DailyLogRepository.getLoggedDatesForStreak()"
+
+  food_unit_conversion:
+    - "GRAM / ML: value is already in grams/ml → use directly"
+    - "PIECE: grams = quantity × gramsPerPiece (null → default 100g)"
+    - "CUP: grams = quantity × gramsPerCup (null → default 240g)"
+    - "TBSP: grams = quantity × gramsPerTbsp (null → default 15g)"
+    - "TSP: grams = quantity × gramsPerTsp (null → default 5g)"
+    - "Macro per serving = (macroPerHundred × grams) / 100"
+
+  grocery_generation:
+    - "generateFromDiet: iterate diet_slots → for each slot → MealWithFoods → aggregate qty per foodId"
+    - "Same food across multiple slots → sum quantities"
+    - "Items stored with foodId FK; name copied at creation time for display if food deleted"
+
+  workout_pyramid_sets:
+    - "WorkoutTemplateSet stores individual set reps+weight (for pyramid/progressive)"
+    - "count field in JSON import: each object with count=N expands to N individual sets"
+    - "WorkoutTemplateExercise.targetSets = sum of all count values across sets array"
+
+  data_seeding:
+    - "NO automatic seeding on app startup (removed)"
+    - "System foods / exercises / templates / backup: import only via Profile screen file picker"
+    - "MealSlotReseeder still runs automatically (configuration data, not user data)"
+
+  sync:
+    - "SyncWorker (WorkManager) handles delta sync with Spring Boot backend"
+    - "delta = ?since=<lastSyncedAt ISO timestamp>"
+    - "Tombstones table tracks deletes for sync propagation"
+    - "No sync for WorkoutTemplates/WorkoutTemplateSets yet (backend #91 pending)"
+
+  auth_dual_layer:
+    - "Local: Room User table with SHA-256 hashed password + AuthPreferences DataStore"
+    - "Firebase: used for Google SSO + generating JWT for backend API calls"
+    - "On Google sign-in: upsert local User row from Firebase profile"
+    - "Backend auth: Firebase ID token in Authorization: Bearer header"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EXTERNAL INTEGRATIONS
+# ──────────────────────────────────────────────────────────────────────────────
+integrations:
+
+  health_connect:
+    availability: "API 34+: built-in. API 26-33: user must install from Play Store"
+    reads: [StepsRecord (today), TotalCaloriesBurnedRecord (today), WeightRecord (last 30d)]
+    auto_log_weight: "once per day to health_metrics if newer than last entry"
+    permissions: [READ_STEPS, READ_TOTAL_CALORIES_BURNED, READ_WEIGHT]
+    sdk_version: "1.1.0-alpha08"
+
+  firebase:
+    used_for: [Authentication, Crashlytics, Remote Config, Analytics]
+    NOT_used: [Firestore, Cloud Functions, Firebase Storage, Realtime Database]
+    bom: "32.7.0"
+    note: "Zero-billing rule: any billable Firebase product fails CI build"
+
+  backend_api:
+    base: "Spring Boot 3.2.5 on Cloud Run"
+    auth: "Firebase ID token as Bearer JWT"
+    endpoints:
+      foods:    [GET /api/v1/foods, GET /{id}, POST, DELETE /{id}]
+      meals:    [GET, GET /{id}, POST, PUT /{id}, DELETE /{id}]
+      diets:    [GET, GET /{id}, POST, PUT /{id}, DELETE /{id}]
+      daily_logs: [GET, GET /{id}, POST, PUT /{id}, DELETE /{id}]
+      grocery:  [GET, GET /{id}, POST, PUT /{id}, DELETE /{id}]
+      health:   [GET, POST, DELETE /{id}, GET /custom-types, POST /custom-types]
+      user:     [GET /api/v1/users/me]
+      exercises: [GET /api/v1/exercises, POST, DELETE /{id}]
+      workout_sessions: [GET /api/v1/workout-sessions, GET /{id}, POST, DELETE /{id}]
+      sync:     [GET /api/v1/sync/pull?since=ISO, POST /api/v1/sync/push]
+
+  glance_widget:
+    type: home-screen widget (Jetpack Glance 1.1.0)
+    shows: today's macro summary or today's plan diet name + slots
+    updates: on log change via GlanceAppWidgetManager.update()
+
+  notifications:
+    type: AlarmManager (exact, allow-while-idle)
+    types: [BREAKFAST(1), LUNCH(2), DINNER(3), STREAK(4), WEEKLY_PLAN(5)]
+    channels: meal-reminders, streak-reminders
+    guard: "only fires if slot not yet logged (NotificationDecider.shouldPostMealAlarm)"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PARITY MATRIX  (what exists where)
+# ──────────────────────────────────────────────────────────────────────────────
+parity:
+  legend: "✅ complete | 🔄 partial | ⬜ missing"
+
+  feature:
+    food_catalogue_browse:          {android: ✅, webapp: ✅, backend: ✅}
+    food_add_manual:                {android: ✅, webapp: ✅, backend: ✅}
+    food_add_usda_search:           {android: ✅, webapp: ✅, backend: N/A}
+    food_add_openfoodfacts_search:  {android: ✅, webapp: ✅, backend: N/A}
+    food_barcode_scan:              {android: ✅, webapp: ⬜, backend: N/A}
+    food_favorites:                 {android: ✅, webapp: ⬜, backend: ⬜}
+    food_delete:                    {android: ✅, webapp: ✅, backend: ✅}
+    meal_crud:                      {android: ✅, webapp: ✅, backend: ✅}
+    diet_crud:                      {android: ✅, webapp: ✅, backend: ✅}
+    diet_tags:                      {android: ✅, webapp: ⬜, backend: ⬜}
+    diet_duplicate:                 {android: ✅, webapp: ⬜, backend: ⬜}
+    diet_generate_grocery:          {android: ✅, webapp: ⬜, backend: ⬜}
+    daily_log_per_slot:             {android: ✅, webapp: ✅, backend: ✅}
+    daily_log_apply_diet:           {android: ✅, webapp: ⬜, backend: ⬜}
+    daily_log_macro_summary:        {android: ✅, webapp: ✅, backend: N/A}
+    plan_calendar:                  {android: ✅, webapp: 🔄 (localStorage), backend: ⬜}
+    plan_planned_slots:             {android: ✅, webapp: ⬜, backend: ⬜}
+    grocery_manual:                 {android: ✅, webapp: ✅, backend: ✅}
+    grocery_from_diet:              {android: ✅, webapp: ⬜, backend: ⬜}
+    grocery_regenerate:             {android: ✅, webapp: ⬜, backend: ⬜}
+    health_metrics_log:             {android: ✅, webapp: ✅, backend: ✅}
+    health_metrics_charts:          {android: ✅, webapp: ⬜, backend: N/A}
+    health_connect_steps:           {android: ✅, webapp: N/A, backend: N/A}
+    health_connect_weight_sync:     {android: ✅, webapp: N/A, backend: N/A}
+    streak_counter:                 {android: ✅, webapp: ⬜, backend: N/A}
+    exercise_catalogue:             {android: ✅, webapp: ✅, backend: ✅}
+    exercise_add_edit:              {android: ✅, webapp: ✅, backend: ✅}
+    workout_templates:              {android: ✅, webapp: ⬜, backend: ⬜}
+    workout_log_session:            {android: ✅, webapp: ✅, backend: ✅}
+    workout_history:                {android: ✅, webapp: ✅, backend: ✅}
+    workout_pyramid_sets:           {android: ✅, webapp: ⬜, backend: ⬜}
+    notifications:                  {android: ✅, webapp: N/A, backend: N/A}
+    home_widget:                    {android: ✅, webapp: N/A, backend: N/A}
+    delta_sync:                     {android: ✅, webapp: 🔄 pull-only, backend: ✅}
+    profile_import_export:          {android: ✅, webapp: ⬜, backend: N/A}
+    auth_email_password:            {android: ✅, webapp: ✅, backend: N/A}
+    auth_google_sso:                {android: ✅, webapp: ✅, backend: N/A}
+    profile_edit:                   {android: ✅, webapp: ⬜, backend: ⬜}
+    tdee_calculator:                {android: ✅, webapp: ⬜, backend: N/A}
+    theme_dark_mode:                {android: ✅, webapp: 🔄 localStorage, backend: N/A}
+    font_scale:                     {android: ✅, webapp: ⬜, backend: N/A}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NAVIGATION GRAPH  (Android NavHost route structure)
+# ──────────────────────────────────────────────────────────────────────────────
+navigation:
+  bottom_nav: [home, log/{today}, calendar, more_sheet]
+  more_sheet:
+    opens: [diets, meals, foods, grocery, health, workout_templates, exercise_catalogue,
+            workout_history, settings, profile]
+  quick_add_fab:
+    opens: [log/{today}, add_diet, create_grocery, add_food, add_exercise, workout_log]
+  deep_links_from_notifications:
+    meal_reminder: "log/{date}?slot={slotType}"
+    streak_reminder: "log/{today}"
+    weekly_plan: "calendar"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# KEY PACKAGES
+# ──────────────────────────────────────────────────────────────────────────────
+packages:
+  ui_screens:  "com.mealplanplus.ui.screens.<domain>/<ScreenName>.kt + <ScreenName>ViewModel.kt"
+  repos:       "com.mealplanplus.data.repository.<Domain>Repository.kt"
+  daos:        "com.mealplanplus.data.local.<Domain>Dao.kt"
+  entities:    "com.mealplanplus.data.model.<Domain>.kt"
+  di:          "com.mealplanplus.di.{DatabaseModule, NetworkModule, AuthModule}.kt"
+  notifications: "com.mealplanplus.notification.{NotificationAlarmReceiver, NotificationAlarmBootstrapper, BootReceiver}.kt"
+  widget:      "com.mealplanplus.widget.*"
+  sync:        "com.mealplanplus.work.SyncWorker.kt"
+  health:      "com.mealplanplus.data.healthconnect.{HealthConnectManager, HealthConnectRepository}.kt"
+  utils:       "com.mealplanplus.util.{DateUtils, NotificationDecider, AlarmScheduler, SortUtils}.kt"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HARD CONSTRAINTS  (never violate when porting or extending)
+# ──────────────────────────────────────────────────────────────────────────────
+hard_constraints:
+  - "NO destructive Room migrations — always explicit MIGRATION_X_Y"
+  - "NO Firestore / Cloud Functions / Firebase Storage / Realtime Database (CI enforced)"
+  - "NO automatic seeding of user-facing data at app startup"
+  - "Notifications only fire if slot NOT yet logged (shouldPostMealAlarm)"
+  - "AlarmManager for notifications — NOT WorkManager"
+  - "System food rows are never deleted during re-seed (upsert only, preserves FK refs)"
+  - "planned_slots is source of truth for day planning — fall back to diet_slots"
+  - "Dates stored as Long epoch ms at midnight UTC — always use DateUtils helpers"

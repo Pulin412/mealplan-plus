@@ -1,51 +1,42 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
 
 type DietDto = components["schemas"]["DietDto"];
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const PLAN_STORAGE_KEY = "mealplan_plan_assignments";
+const DAYS_HEADER = ["M", "T", "W", "T", "F", "S", "S"]; // Mon-first
+const PLAN_KEY = "mealplan_plan_assignments";
 
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
-}
+function todayStr() { return new Date().toISOString().split("T")[0]; }
 
-function getMonthStart(year: number, month: number): Date {
-  return new Date(year, month, 1);
-}
-
-function getMonthEnd(year: number, month: number): Date {
-  return new Date(year, month + 1, 0);
-}
-
-function dateStr(year: number, month: number, day: number): string {
+function isoDate(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function loadPlanFromStorage(): Map<string, number> {
-  try {
-    const raw = localStorage.getItem(PLAN_STORAGE_KEY);
-    if (!raw) return new Map();
-    const obj = JSON.parse(raw) as Record<string, number>;
-    return new Map(Object.entries(obj));
-  } catch {
-    return new Map();
-  }
+function addDaysToStr(dateStr: string, n: number) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split("T")[0];
 }
 
-function savePlanToStorage(map: Map<string, number>) {
+
+function loadPlan(): Map<string, number> {
+  try {
+    const raw = localStorage.getItem(PLAN_KEY);
+    if (!raw) return new Map();
+    return new Map(Object.entries(JSON.parse(raw) as Record<string, number>));
+  } catch { return new Map(); }
+}
+
+function savePlan(map: Map<string, number>) {
   const obj: Record<string, number> = {};
   map.forEach((v, k) => { obj[k] = v; });
-  localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(obj));
+  localStorage.setItem(PLAN_KEY, JSON.stringify(obj));
 }
 
 export default function PlanPage() {
@@ -59,9 +50,7 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setPlan(loadPlanFromStorage());
-  }, []);
+  useEffect(() => { setPlan(loadPlan()); }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -74,182 +63,209 @@ export default function PlanPage() {
   const assignDiet = useCallback((date: string, dietId: number | null) => {
     setPlan((prev) => {
       const next = new Map(prev);
-      if (dietId === null) {
-        next.delete(date);
-      } else {
-        next.set(date, dietId);
-      }
-      savePlanToStorage(next);
+      if (dietId === null) next.delete(date); else next.set(date, dietId);
+      savePlan(next);
       return next;
     });
   }, []);
 
-  const monthStart = getMonthStart(year, month);
-  const monthEnd = getMonthEnd(year, month);
-  const startPadding = monthStart.getDay(); // 0=Sun
-  const totalDays = monthEnd.getDate();
-
-  // Build calendar cells: padding + days
-  const cells: (number | null)[] = [
-    ...Array.from({ length: startPadding }, () => null),
-    ...Array.from({ length: totalDays }, (_, i) => i + 1),
-  ];
-  // Pad to complete the last row
-  while (cells.length % 7 !== 0) cells.push(null);
-
   const today = todayStr();
+  const monthStart = new Date(year, month, 1);
+  // Monday-first offset (0=Mon…6=Sun)
+  const startOffset = (monthStart.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Next 7 days list
-  const next7: string[] = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    return d.toISOString().split("T")[0];
-  });
-
-  const prevMonth = () => {
-    if (month === 0) { setYear(y => y - 1); setMonth(11); }
-    else setMonth(m => m - 1);
-    setSelectedDate(null);
-  };
-  const nextMonth = () => {
-    if (month === 11) { setYear(y => y + 1); setMonth(0); }
-    else setMonth(m => m + 1);
-    setSelectedDate(null);
-  };
+  const cells: (number | null)[] = [
+    ...Array.from({ length: startOffset }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
 
   const monthLabel = new Date(year, month, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
+  const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1); setSelectedDate(null); };
+  const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1); setSelectedDate(null); };
+
+  const upcoming = Array.from({ length: 7 }, (_, i) => addDaysToStr(today, i));
+
+  const selectedDietId = selectedDate ? plan.get(selectedDate) : undefined;
+
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold">Plan</h1>
+    <div className="space-y-4">
+      {/* Page title */}
+      <h1 className="text-[22px] font-semibold text-text-primary pt-1">Plan</h1>
 
-      {error && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">{error}</p>
-      )}
+      {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
 
-      {/* Calendar */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
-            <CardTitle className="text-sm font-semibold">{monthLabel}</CardTitle>
-            <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+      {/* ── Mini calendar ── */}
+      <div className="bg-bg-card rounded-xl border border-divider overflow-hidden">
+        {/* Month header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-divider">
+          <button onClick={prevMonth} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors">
+            <ChevronLeft size={16} />
+          </button>
+          <p className="text-[14px] font-semibold text-text-primary">{monthLabel}</p>
+          <button onClick={nextMonth} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors">
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        <div className="px-3 py-3">
+          {/* Day-of-week headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {DAYS_HEADER.map((d, i) => (
+              <div key={i} className="text-center text-[10px] font-bold text-text-muted py-1">{d}</div>
+            ))}
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : (
-            <>
-              {/* Day headers */}
-              <div className="grid grid-cols-7 mb-1">
-                {DAYS.map((d) => (
-                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
-                ))}
-              </div>
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-px">
-                {cells.map((day, idx) => {
-                  if (day === null) return <div key={idx} />;
-                  const ds = dateStr(year, month, day);
-                  const dietId = plan.get(ds);
-                  const diet = dietId !== undefined ? diets.find((d) => d.id === dietId) : undefined;
-                  const isToday = ds === today;
-                  const isSelected = ds === selectedDate;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedDate(isSelected ? null : ds)}
-                      className={[
-                        "rounded p-1 text-left min-h-[52px] transition-colors border",
-                        isSelected ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted",
-                      ].join(" ")}
-                    >
-                      <span className={["text-xs font-medium block", isToday ? "text-primary font-bold" : ""].join(" ")}>
-                        {day}
-                      </span>
-                      {diet && (
-                        <span className="text-[10px] leading-tight text-primary/80 block truncate">{diet.name}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Day assignment panel */}
+          {/* Calendar grid */}
+          {loading ? <Skeleton className="h-40 w-full rounded-lg" /> : (
+            <div className="grid grid-cols-7">
+              {cells.map((day, idx) => {
+                if (day === null) return <div key={idx} />;
+                const ds = isoDate(year, month, day);
+                const dietId = plan.get(ds);
+                const diet = dietId !== undefined ? diets.find((d) => d.id === dietId) : undefined;
+                const isToday = ds === today;
+                const isSelected = ds === selectedDate;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedDate(isSelected ? null : ds)}
+                    className={[
+                      "relative flex flex-col items-center py-1.5 rounded-lg transition-colors min-h-[44px]",
+                      isSelected ? "bg-text-primary" : isToday ? "bg-green-light" : "hover:bg-bg-page",
+                    ].join(" ")}
+                  >
+                    <span className={[
+                      "text-[13px] font-semibold leading-none",
+                      isSelected ? "text-bg-card" : isToday ? "text-green" : "text-text-primary",
+                    ].join(" ")}>{day}</span>
+                    {diet && (
+                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-green shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-divider">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green" />
+              <span className="text-[10px] text-text-muted">Diet planned</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-light border border-green" />
+              <span className="text-[10px] text-text-muted">Today</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Day assignment panel ── */}
       {selectedDate && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-xs text-muted-foreground">Assign a diet to this day:</p>
+        <div className="bg-bg-card rounded-xl border border-divider overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-divider">
+            <div>
+              <p className="text-[13px] font-semibold text-text-primary">
+                {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+              </p>
+              {selectedDietId ? (
+                <p className="text-[11px] text-green mt-0.5">
+                  {diets.find((d) => d.id === selectedDietId)?.name ?? "Diet planned"}
+                </p>
+              ) : (
+                <p className="text-[11px] text-text-muted mt-0.5">No diet planned</p>
+              )}
+            </div>
+            <button onClick={() => setSelectedDate(null)} className="text-text-muted hover:text-text-primary">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10px] font-bold text-text-muted uppercase mb-2">Assign a diet</p>
             <div className="flex flex-wrap gap-2">
-              {diets.map((diet) => {
+              {diets.length === 0 ? (
+                <p className="text-sm text-text-muted">No diets yet — create one in the Diets screen.</p>
+              ) : diets.map((diet) => {
                 const assigned = plan.get(selectedDate) === diet.id;
                 return (
                   <button
                     key={diet.id}
                     onClick={() => assignDiet(selectedDate, assigned ? null : diet.id!)}
                     className={[
-                      "text-sm px-3 py-1.5 rounded-full border transition-colors",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
                       assigned
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "hover:bg-muted border-border",
+                        ? "bg-text-primary text-bg-card border-text-primary"
+                        : "border-divider text-text-secondary hover:bg-bg-page",
                     ].join(" ")}
                   >
+                    {assigned && <Check size={12} />}
                     {diet.name}
                   </button>
                 );
               })}
-              {diets.length === 0 && (
-                <p className="text-sm text-muted-foreground">No diets yet — create one in the Diets screen.</p>
-              )}
               {plan.has(selectedDate) && (
                 <button
                   onClick={() => assignDiet(selectedDate, null)}
-                  className="text-sm px-3 py-1.5 rounded-full border border-destructive text-destructive hover:bg-destructive/10 transition-colors"
+                  className="px-3 py-1.5 rounded-full text-sm font-medium border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
                 >
                   Remove
                 </button>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Next 7 days */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Next 7 days</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1">
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)
-          ) : (
-            next7.map((ds) => {
+      {/* ── Upcoming 7 days ── */}
+      <div>
+        <p className="text-[10px] font-extrabold tracking-widest text-text-muted uppercase mb-2">Upcoming</p>
+        <div className="bg-bg-card rounded-xl border border-divider overflow-hidden divide-y divide-divider">
+          {loading
+            ? Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
+            : upcoming.map((ds) => {
               const dietId = plan.get(ds);
               const diet = dietId !== undefined ? diets.find((d) => d.id === dietId) : undefined;
-              const label = ds === today ? "Today" : new Date(ds + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+              const isToday = ds === today;
+              const isSelected = ds === selectedDate;
+              const dayOfWeek = new Date(ds + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+              const dayNum = new Date(ds + "T00:00:00").getDate();
+
               return (
-                <div key={ds} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                  <span className={ds === today ? "font-semibold" : ""}>{label}</span>
-                  {diet
-                    ? <Badge variant="secondary">{diet.name}</Badge>
-                    : <span className="text-muted-foreground text-xs">No diet planned</span>
-                  }
-                </div>
+                <button
+                  key={ds}
+                  onClick={() => setSelectedDate(isSelected ? null : ds)}
+                  className={[
+                    "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                    isSelected ? "bg-bg-page" : "hover:bg-bg-page",
+                  ].join(" ")}
+                >
+                  {/* Date column */}
+                  <div className="w-9 text-center shrink-0">
+                    <p className="text-[9px] font-bold text-text-muted uppercase">{dayOfWeek}</p>
+                    <p className={["text-[16px] font-bold leading-tight", isToday ? "text-green" : "text-text-primary"].join(" ")}>{dayNum}</p>
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className={["text-[13px] font-semibold truncate", diet ? "text-text-primary" : "text-text-muted"].join(" ")}>
+                      {diet ? `Diet · ${diet.name}` : "No diet planned"}
+                    </p>
+                  </div>
+                  {/* Badge */}
+                  {isToday && (
+                    <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-lg bg-green-light text-green">Today</span>
+                  )}
+                  {!diet && !isToday && (
+                    <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-lg bg-bg-page text-text-muted border border-divider">+ Plan</span>
+                  )}
+                </button>
               );
-            })
-          )}
-        </CardContent>
-      </Card>
+            })}
+        </div>
+      </div>
     </div>
   );
 }

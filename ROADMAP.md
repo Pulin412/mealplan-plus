@@ -133,9 +133,9 @@ mealplan-plus/
 
 | GH Issue | Task | Status |
 |---|---|---|
-| [#92](https://github.com/Pulin412/mealplan-plus/issues/92) | Web App — Project scaffold (Next.js + TypeScript + PWA + Firebase Auth) | ⬜ Open |
-| [#93](https://github.com/Pulin412/mealplan-plus/issues/93) | Web App — Core screens (Dashboard, Diets, Meals, Daily Log, Calendar) | ⬜ Open |
-| [#94](https://github.com/Pulin412/mealplan-plus/issues/94) | Web App — Health Metrics, Grocery, Settings + data export | ⬜ Open |
+| [#92](https://github.com/Pulin412/mealplan-plus/issues/92) | Web App — Project scaffold (Next.js + TypeScript + PWA + Firebase Auth) | ✅ Done |
+| [#93](https://github.com/Pulin412/mealplan-plus/issues/93) | Web App — Core screens (Dashboard, Diets, Meals, Daily Log, Calendar, Foods, Exercises, Workouts) | ✅ Done |
+| [#94](https://github.com/Pulin412/mealplan-plus/issues/94) | Web App — Health Metrics, Grocery, Settings + data export | ✅ Done |
 
 ### Phase 3 Checklist
 
@@ -153,6 +153,68 @@ mealplan-plus/
 - Same Firebase project as Android — tokens work immediately, no backend auth changes
 - PWA on iOS: requires `display: standalone` in manifest + HTTPS; push notifications limited to iOS 16.4+
 - Offline: service worker caches last API responses; show "You are offline" banner; no stale writes
+
+---
+
+## Phase 3a — Web App Parity with Android
+> **Goal:** Close all feature gaps between the webapp and Android identified by the android-app-spec.yaml parity matrix.  
+> **Depends on:** Phase 3 scaffold + Phase 1 backend (both ✅ done)  
+> **Reference:** `docs/android-app-spec.yaml` → `parity` section is the source of truth for this phase.
+
+| GH Issue | Task | Backend change? | Status |
+|---|---|---|---|
+| [#99](https://github.com/Pulin412/mealplan-plus/issues/99) | Day Planning — server-backed plan screen + apply diet to log | ✅ needs `/plans` endpoints | ⬜ Open |
+| [#100](https://github.com/Pulin412/mealplan-plus/issues/100) | Health Charts + Streak counter | ❌ frontend only | ⬜ Open |
+| [#101](https://github.com/Pulin412/mealplan-plus/issues/101) | Workout Templates — full CRUD + pyramid set display + log from template | ✅ needs `/workout-templates` endpoints | ⬜ Open |
+| [#102](https://github.com/Pulin412/mealplan-plus/issues/102) | Diet enhancements — tags display, duplicate, generate grocery list | ✅ needs duplicate + grocery-from-diet endpoints | ⬜ Open |
+| [#103](https://github.com/Pulin412/mealplan-plus/issues/103) | Profile & Settings — edit profile, TDEE calc, dark mode toggle, font scale, data export | ✅ needs `PUT /users/me` | ⬜ Open |
+| [#104](https://github.com/Pulin412/mealplan-plus/issues/104) | Sync push + food favorites | ❌ frontend only (sync client already partially done) | ⬜ Open |
+
+### Phase 3a — Full Pending Feature List
+
+**#99 — Day Planning (server-backed)**
+- [ ] Backend: `GET/POST/DELETE /api/v1/plans` — store `(firebaseUid, date, dietId)` per day
+- [ ] Plan screen: replace localStorage with real API; month calendar; tap day → assign diet
+- [ ] Apply diet to day: on Log screen, "Apply diet" button → load diet meals → pre-fill all 3 slots
+
+**#100 — Health Charts + Streak**
+- [ ] Weight trend chart on Health screen (recharts LineChart, last 30 entries)
+- [ ] Calorie trend chart (recharts BarChart from daily_logs, last 30 days)
+- [ ] Streak counter: calculate client-side from `GET /api/v1/daily-logs` (consecutive days with ≥1 logged food)
+- [ ] Stats cards: total logged days, longest streak, avg daily calories
+
+**#101 — Workout Templates**
+- [ ] Backend: `GET/POST/PUT/DELETE /api/v1/workout-templates` with nested exercises + sets
+- [ ] Templates list screen (`/workouts/templates`)
+- [ ] Create/edit template: name, category, add exercises, per-exercise set details (reps, weight)
+- [ ] Template detail: pyramid set breakdown display (e.g. "7.5kg · 14 reps ×2")
+- [ ] Log workout: "Use template" button pre-populates all exercises and target sets
+
+**#102 — Diet Enhancements**
+- [ ] Backend: `POST /api/v1/diets/{id}/duplicate` — create copy with new name
+- [ ] Backend: `POST /api/v1/grocery-lists/from-diet/{dietId}` — aggregate all foods from diet meals → new list
+- [ ] Diets page: tag chips display per diet card
+- [ ] Diets page: duplicate button per diet
+- [ ] Grocery page: "Generate from diet" button → diet picker → calls from-diet endpoint
+
+**#103 — Profile & Settings**
+- [ ] Backend: `PUT /api/v1/users/me` — update displayName, age, weightKg, heightCm, gender, activityLevel, targetCalories, goalType
+- [ ] Settings screen: editable profile fields with save
+- [ ] TDEE calculator: inline (age + weight + height + gender + activityLevel → Mifflin-St Jeor formula)
+- [ ] Dark mode: proper toggle (CSS `dark` class on `<html>`) instead of localStorage workaround
+- [ ] Font scale: CSS `font-size` custom property on `<html>` (e.g. 90% / 100% / 110%)
+- [ ] Data export: `GET /api/v1/sync/pull?since=epoch` → format as JSON → browser download
+
+**#104 — Sync Push + Food Favorites**
+- [ ] Sync push: `POST /api/v1/sync/push` from Settings "Sync now" (currently pull-only)
+- [ ] Food favorites: star toggle on Foods page (needs `PATCH /api/v1/foods/{id}/favorite` backend endpoint)
+
+### Out of scope for Phase 3a (N/A on web or deferred)
+- Barcode scanner (camera API too complex for PWA, deprioritised)
+- Health Connect steps/calories (Android-only hardware integration)
+- Push notifications (iOS PWA limitations until 16.4+; deferred to Phase 4)
+- Home-screen widget (Android-only)
+- Font scale + on-device AI (Phase 5)
 
 ---
 
@@ -205,26 +267,27 @@ mealplan-plus/
 ```
 Foundation (#81, #82, #98 UI redesign)
     └── Phase 1 (Sync API)
-            ├── Phase 2 (Workout)        ← parallel with Phase 3 · screens spec'd in design-future.html
-            ├── Phase 3 (Web App)        ← same design language as Android (#98) · spec in design-future.html
-            │       └── Phase 4 (AI Web) ← needs web UI + pgvector data
-            │               └── Phase 5 (AI Android) ← same backend endpoint · AI overlay already designed
+            ├── Phase 2 (Workout)          ← parallel with Phase 3 · done ✅
+            ├── Phase 3 (Web App scaffold) ← done ✅ · screens, auth, design system
+            │       └── Phase 3a (Web App parity) ← close Android feature gaps · #99–#104
+            │               └── Phase 4 (AI Web) ← needs web UI + pgvector data
+            │                       └── Phase 5 (AI Android) ← same backend endpoint
             └── (pgvector enabled here)
 ```
 
-**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 4 → Phase 5  
-Phase 2 (Workout) can run in parallel with Phase 3 once Phase 1 is done.
+**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 4 → Phase 5
 
-### Phase order summary (with redesign)
+### Phase order summary (current state)
 
-| Order | Phase | Key dependency | Design work |
+| Order | Phase | Status | Notes |
 |---|---|---|---|
-| 0 | **Foundation** | — | #98: implement `design-future.html` on Android |
-| 1 | **Phase 1** · Backend Sync | Foundation stable | Backup/Sync/Restore screens (already designed) |
-| 2a | **Phase 2** · Workouts | Phase 1 API live | 3 workout screens already spec'd |
-| 2b | **Phase 3** · Web App | Phase 1 API live | Re-use same design tokens from #98 |
-| 3 | **Phase 4** · AI Web | Phase 1 + Phase 3 | AI overlay already designed |
-| 4 | **Phase 5** · AI Android | Phase 4 backend live | AI overlay already in Android design |
+| 0 | **Foundation** | ✅ Done | Android redesign, DB v35, all 19 screens |
+| 1 | **Phase 1** · Backend Sync | ✅ Done | Spring Boot API, delta sync, Cloud Run |
+| 2a | **Phase 2** · Workouts Android | ✅ Done | All workout screens, templates, logging |
+| 2b | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 8+ screens |
+| 2c | **Phase 3a** · Web Parity | ⬜ Next | #99–#104: close Android feature gaps |
+| 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3a + pgvector data |
+| 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
 ---
 

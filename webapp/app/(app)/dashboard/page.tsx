@@ -242,7 +242,7 @@ export default function DashboardPage() {
       {/* Today's meals */}
       <div className="bg-bg-card rounded-lg border border-outline overflow-hidden">
         <div className="px-4 pt-4 pb-2">
-          <p className="text-sm font-semibold text-text-primary">Today's meals</p>
+          <p className="text-sm font-semibold text-text-primary">Today&apos;s meals</p>
         </div>
         <div className="px-4 pb-2">
           {loading ? (
@@ -294,7 +294,7 @@ export default function DashboardPage() {
               {[1,2,3].map((i) => <Skeleton key={i} className="h-5 w-full" />)}
             </div>
           ) : !data || data.recentLogs.length === 0 ? (
-            <p className="text-sm text-text-muted py-3">No logs yet — start tracking in the Log tab.</p>
+            <p className="text-sm text-text-muted py-3">No logs yet &mdash; start tracking in the Log tab.</p>
           ) : (
             data.recentLogs.map((log) => {
               const cal = Math.round(calcCalories(log, data.foods));

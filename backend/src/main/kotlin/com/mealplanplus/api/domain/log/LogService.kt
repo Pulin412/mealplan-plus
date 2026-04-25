@@ -49,6 +49,22 @@ class DailyLogService(
             .map { it.toDto(foodRepo.findByDailyLogId(it.id)) }
 
     @Transactional
+    fun update(id: Long, dto: DailyLogDto, firebaseUid: String): DailyLogDto {
+        val existing = logRepo.findById(id).orElseThrow()
+        require(existing.firebaseUid == firebaseUid) { "Forbidden" }
+        foodRepo.deleteByDailyLogId(existing.id)
+        val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
+            date = dto.date ?: existing.date, notes = dto.notes)
+            .also { it.serverId = existing.serverId }
+        val saved = logRepo.save(updated)
+        val foods = dto.loggedFoods.map { f ->
+            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId,
+                mealSlot = f.mealSlot, quantity = f.quantity, unit = f.unit))
+        }
+        return saved.toDto(foods)
+    }
+
+    @Transactional
     fun upsert(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
         val existing = dto.serverId?.let { logRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
