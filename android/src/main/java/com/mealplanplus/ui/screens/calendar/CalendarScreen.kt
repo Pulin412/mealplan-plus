@@ -145,6 +145,7 @@ fun CalendarScreen(
                     plans = uiState.plans,
                     dietNames = uiState.dietNames,
                     workoutCounts = uiState.workoutCounts,
+                    workoutNames = uiState.workoutNames,
                     selectedDate = uiState.selectedDate,
                     onDaySelected = { date ->
                         viewModel.selectDate(date)
@@ -345,13 +346,14 @@ private fun UpcomingSection(
     plans: Map<Long, Plan>,
     dietNames: Map<Long, String>,
     workoutCounts: Map<Long, Int> = emptyMap(),
+    workoutNames: Map<Long, List<String>> = emptyMap(),
     selectedDate: LocalDate,
     onDaySelected: (LocalDate) -> Unit,
     onAssignDiet: (LocalDate) -> Unit
 ) {
-    val today     = LocalDate.now()
-    val upcoming  = (0..6).map { today.plusDays(it.toLong()) }
-    val dayFmt    = java.time.format.DateTimeFormatter.ofPattern("EEE").withLocale(Locale.getDefault())
+    val today    = LocalDate.now()
+    val upcoming = (0..6).map { today.plusDays(it.toLong()) }
+    val dayFmt   = java.time.format.DateTimeFormatter.ofPattern("EEE").withLocale(Locale.getDefault())
 
     Column(modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 4.dp)) {
         Text(
@@ -369,13 +371,14 @@ private fun UpcomingSection(
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             upcoming.forEachIndexed { index, date ->
-                val dateMs      = date.toEpochMs()
-                val plan        = plans[dateMs]
-                val hasPlan     = plan != null && plan.dietId != null
-                val dietName    = dietNames[dateMs]
+                val dateMs       = date.toEpochMs()
+                val plan         = plans[dateMs]
+                val hasPlan      = plan != null && plan.dietId != null
+                val dietName     = dietNames[dateMs]
+                val names        = workoutNames[dateMs] ?: emptyList()
                 val workoutCount = workoutCounts[dateMs] ?: 0
-                val isToday     = date == today
-                val isSelected  = date == selectedDate
+                val isToday      = date == today
+                val isSelected   = date == selectedDate
 
                 Row(
                     modifier = Modifier
@@ -409,24 +412,43 @@ private fun UpcomingSection(
 
                     // Diet + workout info
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        // Diet line — "Diet · M12" or "No diet planned"
                         if (hasPlan && dietName != null) {
-                            Text(dietName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                        } else {
-                            Text("No diet planned", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
-                        }
-                        if (workoutCount > 0) {
                             Text(
-                                "💪 ${if (workoutCount == 1) "1 workout" else "$workoutCount workouts"}",
-                                fontSize = 11.sp, color = Color(0xFF1E4FBF)
+                                text = "Diet · $dietName",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                        } else if (hasPlan) {
-                            Text("Tap to see meals", fontSize = 11.sp, color = TextMuted)
                         } else {
+                            Text(
+                                text = "No diet planned",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextMuted
+                            )
+                        }
+                        // Workout line — "WO · Chest, Shoulders" or nothing
+                        if (workoutCount > 0) {
+                            val woLabel = if (names.isNotEmpty())
+                                names.joinToString(", ")
+                            else
+                                if (workoutCount == 1) "1 workout" else "$workoutCount workouts"
+                            Text(
+                                text = "WO · $woLabel",
+                                fontSize = 11.sp,
+                                color = TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        } else if (!hasPlan) {
                             Text("Tap to plan", fontSize = 11.sp, color = Color(0xFFDDDDDD))
                         }
                     }
 
-                    // Tag / action
+                    // Tag / action badge
                     when {
                         isToday -> Box(
                             modifier = Modifier

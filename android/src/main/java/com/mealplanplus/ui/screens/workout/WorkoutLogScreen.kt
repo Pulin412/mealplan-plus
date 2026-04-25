@@ -97,22 +97,22 @@ fun WorkoutLogScreen(
     // Reopen an existing finished session for editing
     LaunchedEffect(reopenSessionId) {
         if (reopenSessionId != null) {
-            viewModel.reopenSession(reopenSessionId)
-            val sessionWithSets = state.activeSession // populated by reopenSession
-            sessionName = state.activeSession?.name ?: "Workout"
+            // Use returned data directly — never read from stale `state` snapshot after a suspend call
+            val sessionWithSets = viewModel.reopenSession(reopenSessionId) ?: return@LaunchedEffect
+            sessionName = sessionWithSets.session.name
 
             // Build slots: template exercises first, then any extras from logged sets
-            val templateId = state.activeSession?.notes?.toLongOrNull()
+            val templateId = sessionWithSets.session.notes?.toLongOrNull()
             val template = templateId?.let { viewModel.getTemplateWithExercises(it) }
             val templateEntries = template?.exercises ?: emptyList()
             val templateExIds = templateEntries.map { it.exercise.id }.toSet()
 
-            // Extra exercises from logged sets not in template
-            val extraExercises = state.activeSets
-                .map { it.exerciseId }
-                .distinct()
-                .filter { it !in templateExIds }
-                .mapNotNull { exId -> state.exercises.find { it.id == exId } }
+            // All logged sets and their exercise objects (no DB lookup needed)
+            val loggedSets = sessionWithSets.sets.map { it.workoutSet }
+            val extraExercises = sessionWithSets.sets
+                .map { it.exercise }
+                .distinctBy { it.id }
+                .filter { it.id !in templateExIds }
 
             sessionSlots.clear()
             templateEntries.forEachIndexed { idx, entry ->
@@ -125,24 +125,24 @@ fun WorkoutLogScreen(
             // Seed initial drafts from already-logged sets (isDone = true)
             initialDraftSets.clear()
             sessionSlots.forEach { slot ->
-                val logged = state.activeSets
+                val logged = loggedSets
                     .filter { it.exerciseId == slot.exercise.id }
                     .sortedBy { it.setNumber }
                 logged.forEach { set ->
                     initialDraftSets.add(
                         DraftSet(
-                            slotKey   = slot.slotKey,
-                            reps      = set.reps?.toString() ?: "",
-                            weightKg  = set.weightKg?.let { w ->
+                            slotKey     = slot.slotKey,
+                            reps        = set.reps?.toString() ?: "",
+                            weightKg    = set.weightKg?.let { w ->
                                 if (w % 1 == 0.0) w.toInt().toString() else "%.1f".format(w)
                             } ?: "",
                             durationSec = set.durationSeconds?.toString() ?: "",
-                            notes     = set.notes ?: "",
-                            isDone    = true
+                            notes       = set.notes ?: "",
+                            isDone      = true
                         )
                     )
                 }
-                // Add one pending draft for the next set of this slot
+                // Add one blank pending draft for the next set of this slot
                 initialDraftSets.add(DraftSet(slotKey = slot.slotKey))
             }
             reopenReady = true
