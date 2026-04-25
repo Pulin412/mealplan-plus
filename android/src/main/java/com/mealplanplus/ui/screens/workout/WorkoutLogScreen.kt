@@ -68,21 +68,90 @@ private enum class Step { PICK_TEMPLATE, ACTIVE_SESSION, SUMMARY }
 fun WorkoutLogScreen(
     preselectedTemplateId: Long? = null,
     preselectedDate: LocalDate? = null,
+    reopenSessionId: Long? = null,
     onBack: () -> Unit,
     onFinished: () -> Unit,
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
-    var step by remember { mutableStateOf(if (preselectedTemplateId != null) Step.ACTIVE_SESSION else Step.PICK_TEMPLATE) }
+
+    val isReopenMode = reopenSessionId != null
+    var step by remember {
+        mutableStateOf(
+            when {
+                isReopenMode || preselectedTemplateId != null -> Step.ACTIVE_SESSION
+                else -> Step.PICK_TEMPLATE
+            }
+        )
+    }
     var sessionName by remember { mutableStateOf("") }
     val sessionDate = preselectedDate ?: LocalDate.now()
 
     // Hoisted so ActiveSessionStep mutations are visible to SummaryStep
     val sessionSlots = remember { mutableStateListOf<ExerciseSlot>() }
+    // Initial draft sets (pre-filled with already-logged sets when reopening)
+    val initialDraftSets = remember { mutableStateListOf<DraftSet>() }
+    var reopenReady by remember { mutableStateOf(!isReopenMode) }
 
+    // Reopen an existing finished session for editing
+    LaunchedEffect(reopenSessionId) {
+        if (reopenSessionId != null) {
+            viewModel.reopenSession(reopenSessionId)
+            val sessionWithSets = state.activeSession // populated by reopenSession
+            sessionName = state.activeSession?.name ?: "Workout"
+
+            // Build slots: template exercises first, then any extras from logged sets
+            val templateId = state.activeSession?.notes?.toLongOrNull()
+            val template = templateId?.let { viewModel.getTemplateWithExercises(it) }
+            val templateEntries = template?.exercises ?: emptyList()
+            val templateExIds = templateEntries.map { it.exercise.id }.toSet()
+
+            // Extra exercises from logged sets not in template
+            val extraExercises = state.activeSets
+                .map { it.exerciseId }
+                .distinct()
+                .filter { it !in templateExIds }
+                .mapNotNull { exId -> state.exercises.find { it.id == exId } }
+
+            sessionSlots.clear()
+            templateEntries.forEachIndexed { idx, entry ->
+                sessionSlots.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
+            }
+            extraExercises.forEachIndexed { idx, ex ->
+                sessionSlots.add(ExerciseSlot(ex, "${ex.id}_extra_$idx"))
+            }
+
+            // Seed initial drafts from already-logged sets (isDone = true)
+            initialDraftSets.clear()
+            sessionSlots.forEach { slot ->
+                val logged = state.activeSets
+                    .filter { it.exerciseId == slot.exercise.id }
+                    .sortedBy { it.setNumber }
+                logged.forEach { set ->
+                    initialDraftSets.add(
+                        DraftSet(
+                            slotKey   = slot.slotKey,
+                            reps      = set.reps?.toString() ?: "",
+                            weightKg  = set.weightKg?.let { w ->
+                                if (w % 1 == 0.0) w.toInt().toString() else "%.1f".format(w)
+                            } ?: "",
+                            durationSec = set.durationSeconds?.toString() ?: "",
+                            notes     = set.notes ?: "",
+                            isDone    = true
+                        )
+                    )
+                }
+                // Add one pending draft for the next set of this slot
+                initialDraftSets.add(DraftSet(slotKey = slot.slotKey))
+            }
+            reopenReady = true
+        }
+    }
+
+    // Seed from preselected template (original flow)
     LaunchedEffect(preselectedTemplateId) {
-        if (preselectedTemplateId != null) {
+        if (preselectedTemplateId != null && !isReopenMode) {
             val t = viewModel.getTemplateWithExercises(preselectedTemplateId)
             val name = t?.template?.name ?: "Workout"
             sessionName = name
@@ -93,6 +162,8 @@ fun WorkoutLogScreen(
             }
         }
     }
+
+    if (!reopenReady) return  // wait until reopen state is seeded
 
     when (step) {
         Step.PICK_TEMPLATE -> TemplatePickStep(
@@ -115,9 +186,13 @@ fun WorkoutLogScreen(
         Step.ACTIVE_SESSION -> ActiveSessionStep(
             state = state,
             sessionSlots = sessionSlots,
+            initialDraftSets = if (isReopenMode) initialDraftSets.toList() else emptyList(),
             onAddSet = viewModel::addSet,
             onFinish = { step = Step.SUMMARY },
-            onBack = { viewModel.cancelSession(); onBack() },
+            onBack = {
+                if (isReopenMode) onFinished()   // in edit mode, "back" just closes
+                else { viewModel.cancelSession(); onBack() }
+            },
             allExercises = state.exercises
         )
         Step.SUMMARY -> SummaryStep(
@@ -126,7 +201,7 @@ fun WorkoutLogScreen(
             activeSets = state.activeSets,
             onDone = {
                 scope.launch {
-                    viewModel.finishSession() // suspend: DB write completes before navigation
+                    viewModel.finishSession()
                     onFinished()
                 }
             },
@@ -222,11 +297,12 @@ private fun ActiveSessionStep(
     state: WorkoutUiState,
     sessionSlots: androidx.compose.runtime.snapshots.SnapshotStateList<ExerciseSlot>,
     allExercises: List<Exercise>,
+    initialDraftSets: List<DraftSet> = emptyList(),
     onAddSet: (Long, Int?, Double?, Int?, String?) -> Unit,
     onFinish: () -> Unit,
     onBack: () -> Unit
 ) {
-    val draftSets = remember { mutableStateListOf<DraftSet>() }
+    val draftSets = remember { mutableStateListOf(*initialDraftSets.toTypedArray()) }
     var expandedSlotKey by remember { mutableStateOf<String?>(null) }
     var showExercisePicker by remember { mutableStateOf(false) }
     var slotCounter by remember { mutableStateOf(sessionSlots.size) }

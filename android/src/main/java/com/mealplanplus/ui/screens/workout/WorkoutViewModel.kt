@@ -224,6 +224,17 @@ class WorkoutViewModel @Inject constructor(
 
     // ── Session logging ───────────────────────────────────────────────────────
 
+    /** Re-opens an already-finished session for editing in WorkoutLogScreen. */
+    suspend fun reopenSession(sessionId: Long) {
+        val sessionWithSets = workoutRepository.getSessionWithSets(sessionId) ?: return
+        _uiState.update {
+            it.copy(
+                activeSession = sessionWithSets.session,
+                activeSets = sessionWithSets.sets.map { sws -> sws.workoutSet }
+            )
+        }
+    }
+
     fun startSession(name: String, date: LocalDate, templateId: Long? = null) {
         viewModelScope.launch {
             val session = WorkoutSession(

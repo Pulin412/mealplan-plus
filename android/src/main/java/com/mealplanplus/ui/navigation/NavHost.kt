@@ -205,9 +205,9 @@ sealed class Screen(val route: String) {
     object WorkoutSessionDetail : Screen("workout_session/{sessionId}") {
         fun create(sessionId: Long) = "workout_session/$sessionId"
     }
-    object WorkoutLog : Screen("workout_log?templateId={templateId}&date={date}") {
-        fun create(templateId: Long? = null, date: LocalDate? = null) =
-            "workout_log?templateId=${templateId ?: -1}&date=${date ?: ""}"
+    object WorkoutLog : Screen("workout_log?templateId={templateId}&date={date}&sessionId={sessionId}") {
+        fun create(templateId: Long? = null, date: LocalDate? = null, sessionId: Long? = null) =
+            "workout_log?templateId=${templateId ?: -1}&date=${date ?: ""}&sessionId=${sessionId ?: -1}"
     }
     object WorkoutTemplates : Screen("workout_templates")
     object WorkoutTemplateDetail : Screen("workout_template_detail/{templateId}") {
@@ -916,22 +916,28 @@ fun MealPlanNavHost(
                 val sessionId = backStack.arguments?.getLong("sessionId") ?: return@composable
                 WorkoutSessionDetailScreen(
                     sessionId = sessionId,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onEdit = { id ->
+                        navController.navigate(Screen.WorkoutLog.create(sessionId = id))
+                    }
                 )
             }
             composable(
                 route = Screen.WorkoutLog.route,
                 arguments = listOf(
                     navArgument("templateId") { type = NavType.LongType; defaultValue = -1L },
-                    navArgument("date") { type = NavType.StringType; defaultValue = "" }
+                    navArgument("date") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("sessionId") { type = NavType.LongType; defaultValue = -1L }
                 )
             ) { backStack ->
                 val templateId = backStack.arguments?.getLong("templateId")?.takeIf { it > 0 }
                 val dateStr = backStack.arguments?.getString("date")?.takeIf { it.isNotBlank() }
                 val date = dateStr?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                val reopenSessionId = backStack.arguments?.getLong("sessionId")?.takeIf { it > 0 }
                 WorkoutLogScreen(
                     preselectedTemplateId = templateId,
                     preselectedDate = date,
+                    reopenSessionId = reopenSessionId,
                     onBack = { navController.popBackStack() },
                     onFinished = { navController.popBackStack() }
                 )

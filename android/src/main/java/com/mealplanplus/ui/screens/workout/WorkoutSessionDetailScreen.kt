@@ -39,6 +39,7 @@ import java.util.Locale
 fun WorkoutSessionDetailScreen(
     sessionId: Long,
     onBack: () -> Unit,
+    onEdit: (Long) -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val detail by viewModel.detailSession.collectAsState()
@@ -133,14 +134,14 @@ fun WorkoutSessionDetailScreen(
                         }
                         Box(
                             modifier = Modifier.clip(RoundedCornerShape(20.dp))
-                                .background(if (isEditing) DesignGreen else Color.White)
-                                .clickable { isEditing = !isEditing }
+                                .background(DesignGreen)
+                                .clickable { onEdit(sessionId) }
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                if (isEditing) "Done" else "Edit",
+                                "Edit",
                                 fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                                color = if (isEditing) Color.White else Color(0xFF111111)
+                                color = Color.White
                             )
                         }
                     }
