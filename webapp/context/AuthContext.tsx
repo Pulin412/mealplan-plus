@@ -18,6 +18,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return onAuthChange((u) => {
       setUser(u);
       setLoading(false);
+      // Keep a lightweight cookie so edge middleware can guard routes
+      // without needing Firebase SDK (which can't run at the edge)
+      if (u) {
+        document.cookie = "mp_session=1; path=/; max-age=86400; SameSite=Lax";
+      } else {
+        document.cookie = "mp_session=; path=/; max-age=0; SameSite=Lax";
+      }
     });
   }, []);
 
