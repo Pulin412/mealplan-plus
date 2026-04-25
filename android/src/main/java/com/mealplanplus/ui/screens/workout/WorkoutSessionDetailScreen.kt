@@ -26,6 +26,7 @@ import com.mealplanplus.data.model.Exercise
 import com.mealplanplus.data.model.WorkoutSet
 import com.mealplanplus.data.model.WorkoutSetWithExercise
 import com.mealplanplus.ui.theme.*
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -48,7 +49,26 @@ fun WorkoutSessionDetailScreen(
 
     val session = detail?.session
     val sets    = detail?.sets ?: emptyList()
-    val exercises = sets.map { it.exercise }.distinctBy { it.id }
+
+    // Load template exercises when the session has a templateId stored in notes
+    val scope = rememberCoroutineScope()
+    var templateExercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+    LaunchedEffect(session?.notes) {
+        val templateId = session?.notes?.toLongOrNull()
+        if (templateId != null) {
+            val template = viewModel.getTemplateWithExercises(templateId)
+            templateExercises = template?.exercises?.map { it.exercise } ?: emptyList()
+        }
+    }
+
+    // Merge: template exercises (ordered) + any extra exercises only present in logged sets
+    val loggedExercises = sets.map { it.exercise }.distinctBy { it.id }
+    val exercises = if (templateExercises.isEmpty()) {
+        loggedExercises
+    } else {
+        val templateIds = templateExercises.map { it.id }.toSet()
+        templateExercises + loggedExercises.filter { it.id !in templateIds }
+    }
 
     // Draft inputs per exercise (edit mode: exerciseId → field values)
     val draftReps   = remember { mutableStateMapOf<Long, String>() }
@@ -125,13 +145,13 @@ fun WorkoutSessionDetailScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         HeaderStat("${sets.size}", "Sets logged")
-                        HeaderStat("${exercises.size}", "Exercises")
+                        HeaderStat("${exercises.size}", if (templateExercises.isNotEmpty()) "Planned" else "Exercises")
                     }
                 }
             }
 
             // ── Empty state ───────────────────────────────────────────────────
-            if (session != null && sets.isEmpty()) {
+            if (session != null && exercises.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.Center) {
                         Text("No sets were logged.", fontSize = 14.sp, color = TextMuted)
