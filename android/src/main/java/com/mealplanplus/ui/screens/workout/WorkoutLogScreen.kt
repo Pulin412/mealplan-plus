@@ -38,7 +38,9 @@ import com.mealplanplus.data.model.WorkoutSet
 import com.mealplanplus.data.model.WorkoutTemplateExerciseWithDetails
 import com.mealplanplus.data.model.WorkoutTemplateWithExercises
 import com.mealplanplus.ui.theme.*
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -71,6 +73,7 @@ fun WorkoutLogScreen(
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
     var step by remember { mutableStateOf(if (preselectedTemplateId != null) Step.ACTIVE_SESSION else Step.PICK_TEMPLATE) }
     var sessionName by remember { mutableStateOf("") }
     val sessionDate = preselectedDate ?: LocalDate.now()
@@ -121,7 +124,12 @@ fun WorkoutLogScreen(
             sessionName = state.activeSession?.name ?: sessionName,
             sessionSlots = sessionSlots,
             activeSets = state.activeSets,
-            onDone = { viewModel.finishSession(); onFinished() },
+            onDone = {
+                scope.launch {
+                    viewModel.finishSession() // suspend: DB write completes before navigation
+                    onFinished()
+                }
+            },
             onEdit = { step = Step.ACTIVE_SESSION }
         )
     }

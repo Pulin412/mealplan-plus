@@ -255,12 +255,10 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun finishSession() {
+    suspend fun finishSession() {
         val session = _uiState.value.activeSession ?: return
-        viewModelScope.launch {
-            workoutRepository.updateSession(session.copy(isCompleted = true, updatedAt = System.currentTimeMillis()))
-            _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
-        }
+        workoutRepository.updateSession(session.copy(isCompleted = true, updatedAt = System.currentTimeMillis()))
+        _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
     }
 
     fun deleteSession(session: WorkoutSession) {
