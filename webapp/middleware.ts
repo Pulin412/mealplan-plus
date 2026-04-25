@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that don't require authentication
-const PUBLIC_PATHS = ["/login", "/api/icons"];
+const PUBLIC_PATHS = ["/login", "/api/icons", "/__/auth", "/api/auth"];
 
 // Paths that the middleware should ignore entirely (Next.js internals, static assets)
 const BYPASS_PATTERN =
-  /^(\/_next\/|\/favicon\.ico|\/sw\.js|\/manifest\.json|\/apple-icon|\/icon\.png|.*\.png$|.*\.svg$|.*\.ico$)/;
+  /^(\/_next\/|\/favicon\.ico|\/sw\.js|\/manifest\.json|\/apple-icon|\/apple-icon\.png|\/icon|\/icon\.png|.*\.png$|.*\.svg$|.*\.ico$|^\/__\/)/;
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -32,5 +32,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  matcher: ["/((?!_next/static|_next/image|__/auth|icon|apple-icon).*)"],
 };
