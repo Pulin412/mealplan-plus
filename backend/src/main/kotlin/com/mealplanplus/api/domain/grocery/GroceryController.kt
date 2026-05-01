@@ -18,4 +18,8 @@ class GroceryController(private val service: GroceryService) {
     fun update(@PathVariable id: Long, @RequestBody dto: GroceryListDto, auth: Authentication) = service.update(id, dto, auth.name)
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+
+    @PostMapping("/from-diet/{dietId}") @ResponseStatus(HttpStatus.CREATED)
+    fun createFromDiet(@PathVariable dietId: Long, auth: Authentication) =
+        service.createFromDiet(dietId, auth.name)
 }

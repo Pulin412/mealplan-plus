@@ -6,16 +6,22 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
+import {
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from "recharts";
 
 type HealthMetricDto = components["schemas"]["HealthMetricDto"];
+type DailyLogDto    = components["schemas"]["DailyLogDto"];
+type FoodDto        = components["schemas"]["FoodDto"];
 
 const METRIC_TYPES = [
-  { value: "WEIGHT",         label: "Weight",        unit: "kg",    emoji: "⚖️",  color: "#7C3AED", bg: "#F3EEFF" },
-  { value: "HEART_RATE",     label: "Heart Rate",    unit: "bpm",   emoji: "❤️",  color: "#D32F2F", bg: "#FFF0F0" },
-  { value: "STEPS",          label: "Steps",         unit: "steps", emoji: "👟",  color: "#2E7D52", bg: "#E8F5EE" },
-  { value: "SLEEP",          label: "Sleep",         unit: "h",     emoji: "😴",  color: "#1E4FBF", bg: "#E8EEFF" },
-  { value: "BLOOD_PRESSURE", label: "Blood Pressure",unit: "mmHg",  emoji: "💉",  color: "#C05200", bg: "#FFF0E6" },
-  { value: "CUSTOM",         label: "Custom",        unit: "",      emoji: "📊",  color: "#555555", bg: "#F0F0F0" },
+  { value: "WEIGHT",         label: "Weight",         unit: "kg",    emoji: "⚖️",  color: "#7C3AED", bg: "#F3EEFF" },
+  { value: "HEART_RATE",     label: "Heart Rate",     unit: "bpm",   emoji: "❤️",  color: "#D32F2F", bg: "#FFF0F0" },
+  { value: "STEPS",          label: "Steps",          unit: "steps", emoji: "👟",  color: "#2E7D52", bg: "#E8F5EE" },
+  { value: "SLEEP",          label: "Sleep",          unit: "h",     emoji: "😴",  color: "#1E4FBF", bg: "#E8EEFF" },
+  { value: "BLOOD_PRESSURE", label: "Blood Pressure", unit: "mmHg",  emoji: "💉",  color: "#C05200", bg: "#FFF0E6" },
+  { value: "CUSTOM",         label: "Custom",         unit: "",      emoji: "📊",  color: "#555555", bg: "#F0F0F0" },
 ];
 
 function metaMeta(type: string) {
@@ -27,11 +33,43 @@ function formatDate(iso: string | undefined) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function formatShort(iso: string | undefined) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 function avg(vals: number[]) { return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0; }
+
+function todayStr() { return new Date().toISOString().split("T")[0]; }
+
+function computeStreak(logs: DailyLogDto[]): number {
+  const loggedDates = new Set(logs.filter((l) => (l.loggedFoods ?? []).length > 0).map((l) => l.date));
+  const today = todayStr();
+  let i = loggedDates.has(today) ? 0 : 1;
+  let streak = 0;
+  while (true) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split("T")[0];
+    if (loggedDates.has(ds)) { streak++; i++; } else break;
+  }
+  return streak;
+}
+
+function calcDayCals(log: DailyLogDto, foods: FoodDto[]): number {
+  return (log.loggedFoods ?? []).reduce((sum, lf) => {
+    const food = foods.find((f) => f.id === lf.foodId);
+    if (!food) return sum;
+    const g = lf.unit === "GRAM" ? lf.quantity : lf.quantity * 100;
+    return sum + (food.caloriesPer100 * g) / 100;
+  }, 0);
+}
 
 export default function HealthPage() {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<HealthMetricDto[]>([]);
+  const [logs, setLogs] = useState<DailyLogDto[]>([]);
+  const [foods, setFoods] = useState<FoodDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -44,15 +82,17 @@ export default function HealthPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const loadMetrics = () => {
+  useEffect(() => {
     if (!user) return;
-    api.get<HealthMetricDto[]>("/api/v1/health-metrics")
-      .then(setMetrics)
+    Promise.all([
+      api.get<HealthMetricDto[]>("/api/v1/health-metrics"),
+      api.get<DailyLogDto[]>("/api/v1/daily-logs"),
+      api.get<FoodDto[]>("/api/v1/foods"),
+    ])
+      .then(([m, l, f]) => { setMetrics(m); setLogs(l); setFoods(f); })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { loadMetrics(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleTypeChange = (t: string) => {
     setFormType(t);
@@ -93,9 +133,26 @@ export default function HealthPage() {
   const latestWeight  = weightEntries[0];
   const thirtyDaysAgo = Date.now() - 30 * 86400000;
   const avgWeight30   = avg(weightEntries.filter((m) => new Date(m.recordedAt ?? 0).getTime() >= thirtyDaysAgo).map((m) => m.value));
+  const streak        = computeStreak(logs);
+  const totalLoggedDays = new Set(logs.filter((l) => (l.loggedFoods ?? []).length > 0).map((l) => l.date)).size;
 
   const latestPerType = new Map<string, HealthMetricDto>();
   sorted.forEach((m) => { if (!latestPerType.has(m.type)) latestPerType.set(m.type, m); });
+
+  // Chart data
+  const weightChartData = [...weightEntries].reverse().slice(-30).map((m) => ({
+    date: formatShort(m.recordedAt),
+    weight: m.value,
+  }));
+
+  const calChartData = [...logs]
+    .sort((a, b) => a.date < b.date ? -1 : 1)
+    .slice(-30)
+    .map((log) => ({
+      date: new Date(log.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+      cal: Math.round(calcDayCals(log, foods)),
+    }))
+    .filter((d) => d.cal > 0);
 
   return (
     <div className="space-y-4">
@@ -113,16 +170,17 @@ export default function HealthPage() {
       {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
 
       {/* ── Stat tiles ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {[
-          { label: "Latest weight", val: latestWeight ? `${latestWeight.value}` : "—", unit: latestWeight?.unit ?? "kg", color: "#7C3AED", bg: "#F3EEFF" },
-          { label: "30-day avg",    val: avgWeight30 > 0 ? avgWeight30.toFixed(1) : "—", unit: "kg", color: "#2E7D52", bg: "#E8F5EE" },
-          { label: "Total entries", val: `${metrics.length}`, unit: "", color: "#1E4FBF", bg: "#E8EEFF" },
+          { label: "Latest weight", val: latestWeight ? `${latestWeight.value}` : "—", unit: latestWeight?.unit ?? "kg", color: "#7C3AED" },
+          { label: "30-day avg",    val: avgWeight30 > 0 ? avgWeight30.toFixed(1) : "—", unit: "kg", color: "#2E7D52" },
+          { label: "Streak",        val: streak > 0 ? `${streak}` : "—", unit: streak === 1 ? "day" : "days", color: "#F59E0B" },
+          { label: "Days logged",   val: `${totalLoggedDays}`, unit: "total", color: "#1E4FBF" },
         ].map(({ label, val, unit, color }) => (
           <div key={label} className="bg-bg-card rounded-xl border border-divider px-3 py-3">
             {loading ? <Skeleton className="h-8 w-full" /> : (
               <>
-                <p className="text-[18px] font-bold leading-tight" style={{ color }}>
+                <p className="text-[20px] font-bold leading-tight" style={{ color }}>
                   {val}<span className="text-xs font-normal text-text-muted ml-0.5">{unit}</span>
                 </p>
                 <p className="text-[10px] text-text-muted mt-0.5">{label}</p>
@@ -153,35 +211,65 @@ export default function HealthPage() {
               </div>
               <div>
                 <p className="text-[10px] font-bold text-text-muted uppercase mb-1">Date</p>
-                <input
-                  type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary"
-                />
+                <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)}
+                  className="w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary" />
               </div>
               <div>
                 <p className="text-[10px] font-bold text-text-muted uppercase mb-1">Value</p>
-                <input
-                  type="number" step="any" placeholder="0" value={formValue}
+                <input type="number" step="any" placeholder="0" value={formValue}
                   onChange={(e) => setFormValue(e.target.value)}
-                  className="w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary"
-                />
+                  className="w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary" />
               </div>
               <div>
                 <p className="text-[10px] font-bold text-text-muted uppercase mb-1">Unit</p>
-                <input
-                  value={formUnit} onChange={(e) => setFormUnit(e.target.value)} placeholder="kg"
-                  className="w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary"
-                />
+                <input value={formUnit} onChange={(e) => setFormUnit(e.target.value)} placeholder="kg"
+                  className="w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary" />
               </div>
             </div>
             {formError && <p className="text-xs text-red-500">{formError}</p>}
-            <button
-              type="submit" disabled={submitting}
-              className="w-full rounded-xl bg-text-primary py-2.5 text-sm font-semibold text-bg-card disabled:opacity-50"
-            >
+            <button type="submit" disabled={submitting}
+              className="w-full rounded-xl bg-text-primary py-2.5 text-sm font-semibold text-bg-card disabled:opacity-50">
               {submitting ? "Saving…" : "Save metric"}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* ── Weight chart ── */}
+      {!loading && weightChartData.length >= 2 && (
+        <div className="bg-bg-card rounded-xl border border-divider p-4">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">Weight trend</p>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={weightChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#999" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#999" }} tickLine={false} domain={["auto", "auto"]} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E5E5E5" }}
+                formatter={(v) => [`${v} kg`, "Weight"]}
+              />
+              <Line type="monotone" dataKey="weight" stroke="#7C3AED" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* ── Calorie chart ── */}
+      {!loading && calChartData.length >= 2 && (
+        <div className="bg-bg-card rounded-xl border border-divider p-4">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">Daily calories (last 30 days)</p>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={calChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#999" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#999" }} tickLine={false} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E5E5E5" }}
+                formatter={(v) => [`${v} kcal`, "Calories"]}
+              />
+              <Bar dataKey="cal" fill="#2E7D52" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
 
@@ -194,8 +282,7 @@ export default function HealthPage() {
               const meta = metaMeta(type);
               return (
                 <div key={type} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base"
-                    style={{ background: meta.bg }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base" style={{ background: meta.bg }}>
                     {meta.emoji}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -222,10 +309,7 @@ export default function HealthPage() {
                 <p className="text-[13px] text-text-muted">{formatDate(m.recordedAt)}</p>
                 <div className="flex items-center gap-3">
                   <p className="text-[13px] font-semibold text-text-primary">{m.value} {m.unit}</p>
-                  <button
-                    onClick={() => m.id !== undefined && deleteMetric(m.id)}
-                    className="text-text-muted hover:text-red-500 transition-colors"
-                  >
+                  <button onClick={() => m.id !== undefined && deleteMetric(m.id)} className="text-text-muted hover:text-red-500 transition-colors">
                     <X size={14} />
                   </button>
                 </div>

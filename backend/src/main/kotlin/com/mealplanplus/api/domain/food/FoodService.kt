@@ -35,6 +35,14 @@ class FoodService(private val repo: FoodRepository, private val tombstones: Tomb
         tombstones.record(firebaseUid, "food", food.serverId)
     }
 
+    @Transactional
+    fun toggleFavorite(id: Long, firebaseUid: String): FoodDto {
+        val food = repo.findById(id).orElseThrow()
+        require(food.firebaseUid == firebaseUid || food.isSystemFood) { "Forbidden" }
+        food.isFavorite = !food.isFavorite
+        return repo.save(food).toDto()
+    }
+
     fun since(firebaseUid: String, since: Instant): List<FoodDto> =
         (repo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since) +
          repo.findByIsSystemFoodTrueAndUpdatedAtAfter(since)).map { it.toDto() }

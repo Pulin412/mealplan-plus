@@ -356,6 +356,8 @@ export interface components {
             glycemicIndex?: number | null;
             /** @default false */
             isSystemFood: boolean;
+            /** @default false */
+            isFavorite: boolean;
             /**
              * Format: date-time
              * @description Last-modified instant (server-set; used for sync conflict resolution)

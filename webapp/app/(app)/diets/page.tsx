@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
-import { ChevronDown, ChevronUp, Trash2, Plus, X, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, Plus, X, Search, Copy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -316,6 +316,15 @@ function DietsSection({ diets, meals, onDietsChange }: {
     }
   };
 
+  const handleDuplicate = async (id: number) => {
+    try {
+      const copy = await api.post<DietDto>(`/api/v1/diets/${id}/duplicate`, {});
+      onDietsChange([...diets, copy]);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to duplicate");
+    }
+  };
+
   const assignMeal = async (diet: DietDto) => {
     if (!assignMealId) return;
     setSavingId(diet.id ?? null);
@@ -410,6 +419,11 @@ function DietsSection({ diets, meals, onDietsChange }: {
                     <Button size="icon" variant="ghost" className="h-7 w-7"
                       onClick={() => setExpandedId(isExpanded ? null : (diet.id ?? null))}>
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground"
+                      title="Duplicate diet"
+                      onClick={() => diet.id !== undefined && handleDuplicate(diet.id)}>
+                      <Copy className="h-4 w-4" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
                       onClick={() => diet.id !== undefined && handleDelete(diet.id)}>

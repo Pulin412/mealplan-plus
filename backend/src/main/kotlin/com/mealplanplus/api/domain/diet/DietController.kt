@@ -18,4 +18,7 @@ class DietController(private val service: DietService) {
     fun update(@PathVariable id: Long, @RequestBody dto: DietDto, auth: Authentication) = service.update(id, dto, auth.name)
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+
+    @PostMapping("/{id}/duplicate") @ResponseStatus(HttpStatus.CREATED)
+    fun duplicate(@PathVariable id: Long, auth: Authentication) = service.duplicate(id, auth.name)
 }

@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, Search, Trash2, X, ChevronDown, ChevronUp, Loader2, Globe, PenLine } from "lucide-react";
+import { Plus, Search, Trash2, X, ChevronDown, ChevronUp, Loader2, Globe, PenLine, Star } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -314,6 +314,15 @@ export default function FoodsPage() {
     } finally { setDeletingId(null); }
   };
 
+  const toggleFavorite = async (id: number) => {
+    try {
+      const updated = await api.patch<FoodDto>(`/api/v1/foods/${id}/favorite`);
+      setFoods((p) => p.map((f) => f.id === id ? updated : f));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to update favourite");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -466,6 +475,12 @@ export default function FoodsPage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {isExpanded ? <ChevronUp size={14} className="text-text-muted" /> : <ChevronDown size={14} className="text-text-muted" />}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (food.id) toggleFavorite(food.id); }}
+                      className="p-1 transition-colors"
+                    >
+                      <Star size={14} className={food.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-text-muted"} />
+                    </button>
                     {!food.isSystemFood && (
                       <button
                         disabled={deletingId === food.id}

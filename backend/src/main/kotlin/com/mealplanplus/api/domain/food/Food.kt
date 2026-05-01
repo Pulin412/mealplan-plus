@@ -27,5 +27,6 @@ class Food(
     val gramsPerTsp: Double? = null,
 
     val glycemicIndex: Int? = null,
-    val isSystemFood: Boolean = false
+    val isSystemFood: Boolean = false,
+    var isFavorite: Boolean = false
 ) : SyncableEntity()

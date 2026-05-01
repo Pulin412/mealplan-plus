@@ -9,16 +9,21 @@ import type { components } from "@/lib/api/types.generated";
 
 type GroceryListDto = components["schemas"]["GroceryListDto"];
 type GroceryItemDto = components["schemas"]["GroceryItemDto"];
+type DietDto = components["schemas"]["DietDto"];
 
 const UNITS = ["PIECE", "GRAM", "ML", "CUP", "TBSP", "TSP"] as const;
 
 export default function GroceryPage() {
   const { user } = useAuth();
   const [lists, setLists] = useState<GroceryListDto[]>([]);
+  const [diets, setDiets] = useState<DietDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [showFromDiet, setShowFromDiet] = useState(false);
+  const [fromDietId, setFromDietId] = useState<string>("");
+  const [generatingFromDiet, setGeneratingFromDiet] = useState(false);
 
   // New list form
   const [newListName, setNewListName] = useState("");
@@ -33,8 +38,11 @@ export default function GroceryPage() {
 
   useEffect(() => {
     if (!user) return;
-    api.get<GroceryListDto[]>("/api/v1/grocery-lists")
-      .then(setLists)
+    Promise.all([
+      api.get<GroceryListDto[]>("/api/v1/grocery-lists"),
+      api.get<DietDto[]>("/api/v1/diets"),
+    ])
+      .then(([l, d]) => { setLists(l); setDiets(d); if (d.length > 0) setFromDietId(String(d[0].id ?? "")); })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [user]);
@@ -78,6 +86,18 @@ export default function GroceryPage() {
   const toggleItem = (list: GroceryListDto, idx: number) =>
     saveList({ ...list, items: (list.items ?? []).map((it, i) => i === idx ? { ...it, done: !it.done } : it) });
 
+  const generateFromDiet = async () => {
+    if (!fromDietId) return;
+    setGeneratingFromDiet(true);
+    try {
+      const created = await api.post<GroceryListDto>(`/api/v1/grocery-lists/from-diet/${fromDietId}`, {});
+      setLists((prev) => [created, ...prev]);
+      setExpandedId(created.id ?? null);
+      setShowFromDiet(false);
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Failed to generate"); }
+    finally { setGeneratingFromDiet(false); }
+  };
+
   const addItem = async (list: GroceryListDto) => {
     if (!itemName.trim()) return;
     const newItem: GroceryItemDto = {
@@ -104,9 +124,48 @@ export default function GroceryPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <h1 className="text-[22px] font-semibold text-text-primary pt-1">Grocery</h1>
+      <div className="flex items-center justify-between pt-1">
+        <h1 className="text-[22px] font-semibold text-text-primary">Grocery</h1>
+        {diets.length > 0 && (
+          <button
+            onClick={() => setShowFromDiet((v) => !v)}
+            className="text-[12px] font-semibold text-green border border-green/30 bg-green-light rounded-xl px-3 py-1.5"
+          >
+            From diet
+          </button>
+        )}
+      </div>
 
       {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
+
+      {/* Generate from diet panel */}
+      {showFromDiet && (
+        <div className="bg-bg-card rounded-xl border border-divider p-4 space-y-3">
+          <p className="text-[13px] font-semibold text-text-primary">Generate shopping list from diet</p>
+          <select
+            value={fromDietId}
+            onChange={(e) => setFromDietId(e.target.value)}
+            className="w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-primary outline-none focus:border-text-primary"
+          >
+            {diets.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={generateFromDiet}
+              disabled={generatingFromDiet || !fromDietId}
+              className="flex-1 rounded-xl bg-text-primary py-2.5 text-sm font-semibold text-bg-card disabled:opacity-50"
+            >
+              {generatingFromDiet ? "Generating…" : "Generate list"}
+            </button>
+            <button
+              onClick={() => setShowFromDiet(false)}
+              className="px-4 rounded-xl border border-divider text-sm font-medium text-text-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Create new list */}
       <form onSubmit={createList} className="flex gap-2">

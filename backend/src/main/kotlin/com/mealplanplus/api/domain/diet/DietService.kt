@@ -69,6 +69,29 @@ class DietService(
         tombstones.record(firebaseUid, "diet", diet.serverId)
     }
 
+    @Transactional
+    fun duplicate(id: Long, firebaseUid: String): DietDto {
+        val original = dietRepo.findById(id).orElseThrow()
+        val meals    = dietMealRepo.findByDietId(original.id)
+        val tagIds   = crossRefRepo.findByDietId(original.id).map { it.tagId }
+        val copy = Diet(
+            firebaseUid = firebaseUid,
+            name = "${original.name} (copy)",
+            description = original.description,
+            targetCalories = original.targetCalories,
+            targetProtein = original.targetProtein,
+            targetCarbs = original.targetCarbs,
+            targetFat = original.targetFat
+        )
+        val saved = dietRepo.save(copy)
+        meals.forEach { m ->
+            dietMealRepo.save(DietMeal(dietId = saved.id, mealId = m.mealId,
+                dayOfWeek = m.dayOfWeek, slot = m.slot, instructions = m.instructions))
+        }
+        tagIds.forEach { tagId -> crossRefRepo.save(DietTagCrossRef(dietId = saved.id, tagId = tagId)) }
+        return saved.toFullDto()
+    }
+
     fun since(firebaseUid: String, since: Instant): List<DietDto> =
         dietRepo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since).map { it.toFullDto() }
 
