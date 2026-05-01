@@ -223,8 +223,12 @@ class BackupRestoreViewModel @Inject constructor(
     private suspend fun resolveUserIds(): Pair<Long, String> {
         val userId = AuthPreferences.getUserId(context).first()
             ?: throw Exception("Not logged in")
-        val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid
-            ?: throw Exception("Firebase user not found")
+        // Prefer the UID persisted at login time; fall back to live Firebase session.
+        // Never throw — workout queries cope with an empty UID via OR userId = ''.
+        val firebaseUid =
+            AuthPreferences.getFirebaseUid(context).first()
+                ?: FirebaseAuth.getInstance().currentUser?.uid
+                ?: ""
         return Pair(userId, firebaseUid)
     }
 

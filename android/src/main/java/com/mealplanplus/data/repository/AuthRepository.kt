@@ -66,6 +66,7 @@ class AuthRepository @Inject constructor(
 
             AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, localUser.id)
             AuthPreferences.setLoggedIn(context, localUser.id)
+            AuthPreferences.setFirebaseUid(context, firebaseUser.uid)
             crashlytics.setUserId(localUser.id.toString())
             crashlytics.log("sign_in", "provider=email")
             analytics.setUserId(localUser.id.toString())
@@ -116,6 +117,7 @@ class AuthRepository @Inject constructor(
 
             AuthPreferences.setProviderSubjectMapping(context, "google", firebaseUser.uid, localUser.id)
             AuthPreferences.setLoggedIn(context, localUser.id)
+            AuthPreferences.setFirebaseUid(context, firebaseUser.uid)
             crashlytics.setUserId(localUser.id.toString())
             crashlytics.log("sign_in", "provider=google")
             analytics.setUserId(localUser.id.toString())
@@ -149,6 +151,7 @@ class AuthRepository @Inject constructor(
             val userId = userDao.insertUser(user)
 
             AuthPreferences.setProviderSubjectMapping(context, "email", firebaseUser.uid, userId)
+            AuthPreferences.setFirebaseUid(context, firebaseUser.uid)
 
             try {
                 userDataSeeder.seedUserData(context, userId)
