@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: May 1, 2026  
+> Last updated: May 1, 2026 (evening)  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -163,51 +163,49 @@ mealplan-plus/
 
 | GH Issue | Task | Backend change? | Status |
 |---|---|---|---|
-| [#99](https://github.com/Pulin412/mealplan-plus/issues/99) | Day Planning — server-backed plan screen + apply diet to log | ✅ needs `/plans` endpoints | ⬜ Open |
-| [#100](https://github.com/Pulin412/mealplan-plus/issues/100) | Health Charts + Streak counter | ❌ frontend only | ⬜ Open |
-| [#101](https://github.com/Pulin412/mealplan-plus/issues/101) | Workout Templates — full CRUD + pyramid set display + log from template | ✅ needs `/workout-templates` endpoints | ⬜ Open |
-| [#102](https://github.com/Pulin412/mealplan-plus/issues/102) | Diet enhancements — tags display, duplicate, generate grocery list | ✅ needs duplicate + grocery-from-diet endpoints | ⬜ Open |
-| [#103](https://github.com/Pulin412/mealplan-plus/issues/103) | Profile & Settings — edit profile, TDEE calc, dark mode toggle, font scale, data export | ✅ needs `PUT /users/me` | ⬜ Open |
-| [#104](https://github.com/Pulin412/mealplan-plus/issues/104) | Sync push + food favorites | ❌ frontend only (sync client already partially done) | ⬜ Open |
+| [#99](https://github.com/Pulin412/mealplan-plus/issues/99) | Day Planning — server-backed plan screen + apply diet to log | ✅ needs `/plans` endpoints | ✅ Done |
+| [#100](https://github.com/Pulin412/mealplan-plus/issues/100) | Health Charts + Streak counter | ❌ frontend only | ✅ Done |
+| [#101](https://github.com/Pulin412/mealplan-plus/issues/101) | Workout Templates — full CRUD + pyramid set display + log from template | ✅ needs `/workout-templates` endpoints | ✅ Done |
+| [#102](https://github.com/Pulin412/mealplan-plus/issues/102) | Diet enhancements — tags display, duplicate, generate grocery list | ✅ needs duplicate + grocery-from-diet endpoints | ✅ Done |
+| [#103](https://github.com/Pulin412/mealplan-plus/issues/103) | Profile & Settings — edit profile, TDEE calc, dark mode toggle, font scale, data export | ✅ needs `PUT /users/me` | ✅ Done |
+| [#104](https://github.com/Pulin412/mealplan-plus/issues/104) | Sync push + food favorites | ❌ frontend only (sync client already partially done) | ✅ Done |
 
 ### Phase 3a — Full Pending Feature List
 
 **#99 — Day Planning (server-backed)**
-- [ ] Backend: `GET/POST/DELETE /api/v1/plans` — store `(firebaseUid, date, dietId)` per day
-- [ ] Plan screen: replace localStorage with real API; month calendar; tap day → assign diet
-- [ ] Apply diet to day: on Log screen, "Apply diet" button → load diet meals → pre-fill all 3 slots
+- [x] Backend: `GET/PUT/DELETE /api/v1/plans/{date}` — store `(firebaseUid, date, dietId)` per day; V4 Flyway migration
+- [x] Plan screen: replaced localStorage with real API; diet picker; assign/remove per day
+- [x] Apply diet to day: on Log screen, "Apply diet" button → load diet meals → pre-fill all 3 slots
 
 **#100 — Health Charts + Streak**
-- [ ] Weight trend chart on Health screen (recharts LineChart, last 30 entries)
-- [ ] Calorie trend chart (recharts BarChart from daily_logs, last 30 days)
-- [ ] Streak counter: calculate client-side from `GET /api/v1/daily-logs` (consecutive days with ≥1 logged food)
-- [ ] Stats cards: total logged days, longest streak, avg daily calories
+- [x] Weight trend chart on Health screen (recharts LineChart, last 30 entries)
+- [x] Calorie trend chart (recharts BarChart from daily_logs, last 30 days)
+- [x] Streak counter: calculate client-side from `GET /api/v1/daily-logs` (consecutive days with ≥1 logged food)
+- [x] Stats cards: latest weight, 30-day avg weight, streak, total logged days
 
 **#101 — Workout Templates**
-- [ ] Backend: `GET/POST/PUT/DELETE /api/v1/workout-templates` with nested exercises + sets
-- [ ] Templates list screen (`/workouts/templates`)
-- [ ] Create/edit template: name, category, add exercises, per-exercise set details (reps, weight)
-- [ ] Template detail: pyramid set breakdown display (e.g. "7.5kg · 14 reps ×2")
-- [ ] Log workout: "Use template" button pre-populates all exercises and target sets
+- [x] Backend: V6 migration; `WorkoutTemplate` + `TemplateExercise` entities; full CRUD endpoints; `POST /{id}/start` creates pre-filled session
+- [x] Workouts page restructured: Log | Templates | History tab switcher
+- [x] Create/edit template: name, category, add exercises with targetSets/reps/weightKg
+- [x] Template card: expand to see exercise breakdown (N × reps @ kg); edit + delete inline
+- [x] "Start session from template" → server creates full session → prepended to History tab
 
 **#102 — Diet Enhancements**
-- [ ] Backend: `POST /api/v1/diets/{id}/duplicate` — create copy with new name
-- [ ] Backend: `POST /api/v1/grocery-lists/from-diet/{dietId}` — aggregate all foods from diet meals → new list
-- [ ] Diets page: tag chips display per diet card
-- [ ] Diets page: duplicate button per diet
-- [ ] Grocery page: "Generate from diet" button → diet picker → calls from-diet endpoint
+- [x] Backend: `POST /api/v1/diets/{id}/duplicate` — create copy with "(copy)" suffix
+- [x] Backend: `POST /api/v1/grocery-lists/from-diet/{dietId}` — aggregate grams per food across all diet meals
+- [x] Diets page: duplicate button per diet card
+- [x] Grocery page: "From diet" panel → diet picker → Generate button
 
 **#103 — Profile & Settings**
-- [ ] Backend: `PUT /api/v1/users/me` — update displayName, age, weightKg, heightCm, gender, activityLevel, targetCalories, goalType
-- [ ] Settings screen: editable profile fields with save
-- [ ] TDEE calculator: inline (age + weight + height + gender + activityLevel → Mifflin-St Jeor formula)
-- [ ] Dark mode: proper toggle (CSS `dark` class on `<html>`) instead of localStorage workaround
-- [ ] Font scale: CSS `font-size` custom property on `<html>` (e.g. 90% / 100% / 110%)
-- [ ] Data export: `GET /api/v1/sync/pull?since=epoch` → format as JSON → browser download
+- [x] Backend: `PUT /api/v1/users/me`; V5 migration (age, weightKg, heightCm, gender, activityLevel, targetCalories, goalType)
+- [x] Settings screen: editable profile form with save; stats preview strip when not editing
+- [x] TDEE calculator: live preview (Mifflin-St Jeor formula, all activity multipliers)
+- [x] Dark mode toggle (CSS `dark` class on `<html>`)
+- [x] Data export: `GET /api/v1/sync/pull?since=epoch` → JSON blob → browser download
 
 **#104 — Sync Push + Food Favorites**
-- [ ] Sync push: `POST /api/v1/sync/push` from Settings "Sync now" (currently pull-only)
-- [ ] Food favorites: star toggle on Foods page (needs `PATCH /api/v1/foods/{id}/favorite` backend endpoint)
+- [x] Food favorites: star toggle on Foods page; `PATCH /api/v1/foods/{id}/favorite` backend endpoint; V5 migration
+- [x] SecurityConfig: added `PATCH` to CORS allowed methods
 
 ### Out of scope for Phase 3a (N/A on web or deferred)
 - Barcode scanner (camera API too complex for PWA, deprioritised)
@@ -286,8 +284,8 @@ Foundation (#81, #82, #98 UI redesign)
 | 2a | **Phase 2** · Workouts Android | ✅ Done | All workout screens, templates, logging, edit mode (#89, #90) |
 | 2b | **Phase 2** · Workout Backend sync | ⬜ Open | #91: extend sync push/pull for workouts |
 | 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
-| 2d | **Phase 3a** · Web Parity | 🔄 Next | #99–#104: close Android feature gaps |
-| 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3a + pgvector data |
+| 2d | **Phase 3a** · Web Parity | ✅ Done | #99–#104: all 6 issues complete |
+| 3 | **Phase 4** · AI Web | 🔄 Next | Needs Phase 3a + pgvector data |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
 ---
