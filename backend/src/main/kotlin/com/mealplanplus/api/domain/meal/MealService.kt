@@ -32,6 +32,21 @@ class MealService(
     }
 
     @Transactional
+    fun update(id: Long, dto: MealDto, firebaseUid: String): MealDto {
+        val meal = mealRepo.findById(id).orElseThrow()
+        require(meal.firebaseUid == firebaseUid) { "Forbidden" }
+        itemRepo.deleteByMealId(id)
+        val updated = Meal(id = meal.id, firebaseUid = meal.firebaseUid, name = dto.name, slot = dto.slot)
+            .also { it.serverId = meal.serverId }
+        val saved = mealRepo.save(updated)
+        val items = dto.items.map { item ->
+            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = item.foodId,
+                quantity = item.quantity, unit = item.unit, notes = item.notes))
+        }
+        return saved.toDto(items)
+    }
+
+    @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val meal = mealRepo.findById(id).orElseThrow()
         require(meal.firebaseUid == firebaseUid) { "Forbidden" }

@@ -41,7 +41,8 @@ data class CalendarUiState(
     val plannedWorkouts: List<PlannedWorkoutWithTemplate> = emptyList(),
     val loggedWorkouts: List<WorkoutSessionWithSets> = emptyList(),
     val showWorkoutPicker: Boolean = false,
-    val workoutCounts: Map<Long, Int> = emptyMap()   // epoch ms → count for the visible month
+    val workoutCounts: Map<Long, Int> = emptyMap(),   // epoch ms → count for the visible month
+    val workoutNames: Map<Long, List<String>> = emptyMap() // epoch ms → template names for the visible month
 )
 
 /** A single aggregated ingredient line for the grocery snapshot sheet. */
@@ -202,8 +203,12 @@ class CalendarViewModel @Inject constructor(
             firebaseUidFlow
                 .flatMapLatest { uid -> workoutRepository.getPlannedInRange(uid, startMs, endMs) }
                 .collect { list ->
-                    val counts = list.groupBy { it.plannedWorkout.date }.mapValues { it.value.size }
-                    _uiState.update { it.copy(workoutCounts = counts) }
+                    val grouped = list.groupBy { it.plannedWorkout.date }
+                    val counts = grouped.mapValues { it.value.size }
+                    val names  = grouped.mapValues { (_, plans) ->
+                        plans.map { it.template.template.name }
+                    }
+                    _uiState.update { it.copy(workoutCounts = counts, workoutNames = names) }
                 }
         }
     }

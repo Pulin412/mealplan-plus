@@ -16,4 +16,8 @@ class FoodController(private val service: FoodService) {
     fun create(@RequestBody dto: FoodDto, auth: Authentication) = service.create(dto, auth.name)
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+
+    @PatchMapping("/{id}/favorite")
+    fun toggleFavorite(@PathVariable id: Long, auth: Authentication) =
+        service.toggleFavorite(id, auth.name)
 }

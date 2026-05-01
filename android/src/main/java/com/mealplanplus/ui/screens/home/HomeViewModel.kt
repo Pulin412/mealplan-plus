@@ -1,8 +1,12 @@
 package com.mealplanplus.ui.screens.home
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.core.content.ContextCompat
 import com.mealplanplus.data.healthconnect.ActivitySummary
 import com.mealplanplus.data.model.DailyMacroSummary
 import com.mealplanplus.data.model.DefaultMealSlot
@@ -124,6 +128,7 @@ class HomeViewModel @Inject constructor(
     val weekOffset: StateFlow<Int> = _weekOffset.asStateFlow()
 
     private var weekDataJob: Job? = null
+    private var streakJob: Job? = null
 
     init {
         loadUserName()
@@ -141,11 +146,13 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Observes up to 365 days of logged-food dates and computes an unbounded streak.
+     * Cancels any previous subscription to avoid duplicate observers accumulating over time.
      */
     private fun loadStreakData() {
+        streakJob?.cancel()
         val today = LocalDate.now()
         val startDate = today.minusDays(365)
-        dailyLogRepository.getLoggedDatesForStreak(startDate, today)
+        streakJob = dailyLogRepository.getLoggedDatesForStreak(startDate, today)
             .onEach { entries ->
                 val loggedDates = entries.map { it.date }.toSet()
                 _uiState.update { it.copy(dayStreak = computeStreak(loggedDates)) }
@@ -402,12 +409,20 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Walks backwards from today until it finds a day with no logged food.
+     *
+     * Key rule: if today has no food logged yet (i.e. it's morning / user hasn't eaten yet),
+     * we don't count it but also don't break on it — we start counting from yesterday.
+     * This prevents the streak showing 0 for the entire morning every single day.
+     *
      * [loggedDates] is the set of epoch-ms values where food was logged.
      */
     private fun computeStreak(loggedDates: Set<Long>): Int {
         val today = LocalDate.now()
+        val todayMs = today.toEpochMs()
+        // Start from today if the user has already logged something today; otherwise
+        // start from yesterday so the streak doesn't reset to 0 mid-morning.
+        var i = if (todayMs in loggedDates) 0 else 1
         var streak = 0
-        var i = 0
         while (true) {
             val dateMs = today.minusDays(i.toLong()).toEpochMs()
             if (dateMs in loggedDates) { streak++; i++ } else break
@@ -473,7 +488,30 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Registers a BroadcastReceiver for ACTION_DATE_CHANGED (fired at local midnight by the OS,
+     * even in Doze mode) and ACTION_TIME_CHANGED (user manually changes clock/timezone).
+     * Falls back to a coroutine delay as a belt-and-suspenders backup.
+     */
+    private val dateChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: Intent) {
+            loadTodayData()
+            loadTodayPlanSlots()
+            loadStreakData()
+            loadGlucoseHistory()
+        }
+    }
+
     private fun observeDateChange() {
+        // Primary: OS broadcast — fires reliably at midnight even in Doze
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }
+        ContextCompat.registerReceiver(context, dateChangeReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+
+        // Secondary: coroutine-delay fallback for when the app is actively foregrounded
         viewModelScope.launch {
             while (true) {
                 val now = LocalDateTime.now()
@@ -488,6 +526,11 @@ class HomeViewModel @Inject constructor(
                 loadGlucoseHistory()
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try { context.unregisterReceiver(dateChangeReceiver) } catch (_: Exception) {}
     }
 
     private fun loadLastSyncedAt() {

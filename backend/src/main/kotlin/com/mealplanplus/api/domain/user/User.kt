@@ -17,7 +17,16 @@ class User(
     val firebaseUid: String = "",
 
     val email: String? = null,
-    val displayName: String? = null,
+    var displayName: String? = null,
+
+    // Profile fields (Phase 3a #103)
+    var age: Int? = null,
+    var weightKg: Double? = null,
+    var heightCm: Double? = null,
+    var gender: String? = null,
+    var activityLevel: String? = null,
+    var targetCalories: Int? = null,
+    var goalType: String? = null,
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

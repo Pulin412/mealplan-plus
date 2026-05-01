@@ -14,6 +14,11 @@ class DietController(private val service: DietService) {
     @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id)
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     fun create(@RequestBody dto: DietDto, auth: Authentication) = service.create(dto, auth.name)
+    @PutMapping("/{id}")
+    fun update(@PathVariable id: Long, @RequestBody dto: DietDto, auth: Authentication) = service.update(id, dto, auth.name)
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+
+    @PostMapping("/{id}/duplicate") @ResponseStatus(HttpStatus.CREATED)
+    fun duplicate(@PathVariable id: Long, auth: Authentication) = service.duplicate(id, auth.name)
 }

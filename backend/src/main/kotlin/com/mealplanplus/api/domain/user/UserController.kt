@@ -3,9 +3,7 @@ package com.mealplanplus.api.domain.user
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -13,12 +11,12 @@ import org.springframework.web.bind.annotation.RestController
 class UserController(private val userService: UserService) {
 
     @GetMapping("/me")
-    @Operation(
-        summary = "Get current user",
-        description = "Returns the authenticated user, auto-creating on first call"
-    )
-    fun getMe(auth: Authentication): UserResponse {
-        val firebaseUid = auth.principal as String
-        return userService.getOrCreate(firebaseUid)
-    }
+    @Operation(summary = "Get current user", description = "Returns the authenticated user, auto-creating on first call")
+    fun getMe(auth: Authentication): UserResponse =
+        userService.getOrCreate(auth.name)
+
+    @PutMapping("/me")
+    @Operation(summary = "Update profile", description = "Update editable profile fields for the current user")
+    fun updateMe(@RequestBody req: UpdateUserRequest, auth: Authentication): UserResponse =
+        userService.update(auth.name, req)
 }

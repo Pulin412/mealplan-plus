@@ -224,6 +224,19 @@ class WorkoutViewModel @Inject constructor(
 
     // ── Session logging ───────────────────────────────────────────────────────
 
+    /** Re-opens an already-finished session for editing in WorkoutLogScreen.
+     *  Returns the loaded data directly so callers don't need to read stale StateFlow snapshots. */
+    suspend fun reopenSession(sessionId: Long): WorkoutSessionWithSets? {
+        val sessionWithSets = workoutRepository.getSessionWithSets(sessionId) ?: return null
+        _uiState.update {
+            it.copy(
+                activeSession = sessionWithSets.session,
+                activeSets = sessionWithSets.sets.map { sws -> sws.workoutSet }
+            )
+        }
+        return sessionWithSets
+    }
+
     fun startSession(name: String, date: LocalDate, templateId: Long? = null) {
         viewModelScope.launch {
             val session = WorkoutSession(
@@ -255,12 +268,10 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun finishSession() {
+    suspend fun finishSession() {
         val session = _uiState.value.activeSession ?: return
-        viewModelScope.launch {
-            workoutRepository.updateSession(session.copy(isCompleted = true, updatedAt = System.currentTimeMillis()))
-            _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
-        }
+        workoutRepository.updateSession(session.copy(isCompleted = true, updatedAt = System.currentTimeMillis()))
+        _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
     }
 
     fun deleteSession(session: WorkoutSession) {

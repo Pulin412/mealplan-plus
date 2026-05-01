@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: April 15, 2026  
+> Last updated: May 1, 2026 (evening)  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -105,15 +105,15 @@ mealplan-plus/
 
 | GH Issue | Task | Status |
 |---|---|---|
-| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v33 migration) | ⬜ Open |
-| [#90](https://github.com/Pulin412/mealplan-plus/issues/90) | Android — Workout screens (Log, History, Exercise catalogue) | ⬜ Open |
+| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v33 migration) | ✅ Done |
+| [#90](https://github.com/Pulin412/mealplan-plus/issues/90) | Android — Workout screens (Log, History, Exercise catalogue, edit mode) | ✅ Done |
 | [#91](https://github.com/Pulin412/mealplan-plus/issues/91) | Backend — Workout JPA entities + sync extension | ⬜ Open |
 
 ### Phase 2 Checklist
 
 **Android**
-- [ ] #89 — `Exercise`, `WorkoutSession`, `WorkoutSet` entities; DAOs; Room migration v32; `WorkoutRepository`; `exercises.json` asset + `ExerciseSeeder` with version guard
-- [ ] #90 — `WorkoutLogScreen`, `WorkoutHistoryScreen`, `ExerciseCatalogueScreen`; add "Log Workout" to Quick Add FAB; register routes in NavHost; ViewModel unit tests
+- [x] #89 — `Exercise`, `WorkoutSession`, `WorkoutSet` entities; DAOs; Room migration; `WorkoutRepository`; `exercises.json` asset + `ExerciseSeeder` with version guard
+- [x] #90 — `WorkoutLogScreen`, `WorkoutHistoryScreen`, `ExerciseCatalogueScreen`; workout templates; edit mode for past sessions; plan screen workout names; add "Log Workout" to Quick Add FAB; register routes in NavHost
 
 **Backend**
 - [ ] #91 — `Exercise`, `WorkoutSession`, `WorkoutSet` JPA entities; Flyway migration; CRUD endpoints; include in `/sync/pull` + `/sync/push`; OpenAPI docs
@@ -133,9 +133,9 @@ mealplan-plus/
 
 | GH Issue | Task | Status |
 |---|---|---|
-| [#92](https://github.com/Pulin412/mealplan-plus/issues/92) | Web App — Project scaffold (Next.js + TypeScript + PWA + Firebase Auth) | ⬜ Open |
-| [#93](https://github.com/Pulin412/mealplan-plus/issues/93) | Web App — Core screens (Dashboard, Diets, Meals, Daily Log, Calendar) | ⬜ Open |
-| [#94](https://github.com/Pulin412/mealplan-plus/issues/94) | Web App — Health Metrics, Grocery, Settings + data export | ⬜ Open |
+| [#92](https://github.com/Pulin412/mealplan-plus/issues/92) | Web App — Project scaffold (Next.js + TypeScript + PWA + Firebase Auth) | ✅ Done |
+| [#93](https://github.com/Pulin412/mealplan-plus/issues/93) | Web App — Core screens (Dashboard, Diets, Meals, Daily Log, Calendar, Foods, Exercises, Workouts) | ✅ Done |
+| [#94](https://github.com/Pulin412/mealplan-plus/issues/94) | Web App — Health Metrics, Grocery, Settings + data export | ✅ Done |
 
 ### Phase 3 Checklist
 
@@ -153,6 +153,107 @@ mealplan-plus/
 - Same Firebase project as Android — tokens work immediately, no backend auth changes
 - PWA on iOS: requires `display: standalone` in manifest + HTTPS; push notifications limited to iOS 16.4+
 - Offline: service worker caches last API responses; show "You are offline" banner; no stale writes
+
+---
+
+## Phase 3a — Web App Parity with Android
+> **Goal:** Close all feature gaps between the webapp and Android identified by the android-app-spec.yaml parity matrix.  
+> **Depends on:** Phase 3 scaffold + Phase 1 backend (both ✅ done)  
+> **Reference:** `docs/android-app-spec.yaml` → `parity` section is the source of truth for this phase.
+
+| GH Issue | Task | Backend change? | Status |
+|---|---|---|---|
+| [#99](https://github.com/Pulin412/mealplan-plus/issues/99) | Day Planning — server-backed plan screen + apply diet to log | ✅ needs `/plans` endpoints | ✅ Done |
+| [#100](https://github.com/Pulin412/mealplan-plus/issues/100) | Health Charts + Streak counter | ❌ frontend only | ✅ Done |
+| [#101](https://github.com/Pulin412/mealplan-plus/issues/101) | Workout Templates — full CRUD + pyramid set display + log from template | ✅ needs `/workout-templates` endpoints | ✅ Done |
+| [#102](https://github.com/Pulin412/mealplan-plus/issues/102) | Diet enhancements — tags display, duplicate, generate grocery list | ✅ needs duplicate + grocery-from-diet endpoints | ✅ Done |
+| [#103](https://github.com/Pulin412/mealplan-plus/issues/103) | Profile & Settings — edit profile, TDEE calc, dark mode toggle, font scale, data export | ✅ needs `PUT /users/me` | ✅ Done |
+| [#104](https://github.com/Pulin412/mealplan-plus/issues/104) | Sync push + food favorites | ❌ frontend only (sync client already partially done) | ✅ Done |
+
+### Phase 3a — Full Pending Feature List
+
+**#99 — Day Planning (server-backed)**
+- [x] Backend: `GET/PUT/DELETE /api/v1/plans/{date}` — store `(firebaseUid, date, dietId)` per day; V4 Flyway migration
+- [x] Plan screen: replaced localStorage with real API; diet picker; assign/remove per day
+- [x] Apply diet to day: on Log screen, "Apply diet" button → load diet meals → pre-fill all 3 slots
+
+**#100 — Health Charts + Streak**
+- [x] Weight trend chart on Health screen (recharts LineChart, last 30 entries)
+- [x] Calorie trend chart (recharts BarChart from daily_logs, last 30 days)
+- [x] Streak counter: calculate client-side from `GET /api/v1/daily-logs` (consecutive days with ≥1 logged food)
+- [x] Stats cards: latest weight, 30-day avg weight, streak, total logged days
+
+**#101 — Workout Templates**
+- [x] Backend: V6 migration; `WorkoutTemplate` + `TemplateExercise` entities; full CRUD endpoints; `POST /{id}/start` creates pre-filled session
+- [x] Workouts page restructured: Log | Templates | History tab switcher
+- [x] Create/edit template: name, category, add exercises with targetSets/reps/weightKg
+- [x] Template card: expand to see exercise breakdown (N × reps @ kg); edit + delete inline
+- [x] "Start session from template" → server creates full session → prepended to History tab
+
+**#102 — Diet Enhancements**
+- [x] Backend: `POST /api/v1/diets/{id}/duplicate` — create copy with "(copy)" suffix
+- [x] Backend: `POST /api/v1/grocery-lists/from-diet/{dietId}` — aggregate grams per food across all diet meals
+- [x] Diets page: duplicate button per diet card
+- [x] Grocery page: "From diet" panel → diet picker → Generate button
+
+**#103 — Profile & Settings**
+- [x] Backend: `PUT /api/v1/users/me`; V5 migration (age, weightKg, heightCm, gender, activityLevel, targetCalories, goalType)
+- [x] Settings screen: editable profile form with save; stats preview strip when not editing
+- [x] TDEE calculator: live preview (Mifflin-St Jeor formula, all activity multipliers)
+- [x] Dark mode toggle (CSS `dark` class on `<html>`)
+- [x] Data export: `GET /api/v1/sync/pull?since=epoch` → JSON blob → browser download
+
+**#104 — Sync Push + Food Favorites**
+- [x] Food favorites: star toggle on Foods page; `PATCH /api/v1/foods/{id}/favorite` backend endpoint; V5 migration
+- [x] SecurityConfig: added `PATCH` to CORS allowed methods
+
+### Out of scope for Phase 3a (N/A on web or deferred)
+- Barcode scanner (camera API too complex for PWA, deprioritised)
+- Health Connect steps/calories (Android-only hardware integration)
+- Push notifications (iOS PWA limitations until 16.4+; deferred to Phase 4)
+- Home-screen widget (Android-only)
+- Font scale + on-device AI (Phase 5)
+
+---
+
+## Phase 3b — On-Demand Backup & Restore
+> **Goal:** Users can back up all their data to Google Drive (if they have a Google account) or export/import a local JSON file (universal fallback). Completely free — backup files live in the user's own storage.  
+> **Depends on:** Phase 1 sync pull response (already the backup format), Phase 3 webapp  
+> **Design principle:** Two paths — Drive is the premium seamless path; local file works for everyone regardless of Google account.
+
+| GH Issue | Task | Platform | Status |
+|---|---|---|---|
+| [#105](https://github.com/Pulin412/mealplan-plus/issues/105) | Google Drive backup — lazy OAuth (on first use), upload JSON to appDataFolder, list + restore | Android + Webapp | ⬜ Open |
+| [#106](https://github.com/Pulin412/mealplan-plus/issues/106) | Local file backup — Android share sheet export + file picker import; Webapp file upload + parse + sync push | Android + Webapp | ⬜ Open |
+| [#107](https://github.com/Pulin412/mealplan-plus/issues/107) | Backup & Restore UI — unified screen showing both paths; Drive backup list with date; graceful fallback when no Google account | Android + Webapp | ⬜ Open |
+
+### Phase 3b Checklist
+
+**#105 — Google Drive backup**
+- [ ] Android: `GoogleSignIn` with `DRIVE_APPDATA` scope (lazy — requested only when user taps "Backup to Drive")
+- [ ] Android: Upload `mealplan_backup_<date>.json` to `appDataFolder`; download + parse on restore → Room upsert
+- [ ] Webapp: Google Identity Services OAuth for `drive.appdata` scope (separate from Firebase Auth)
+- [ ] Webapp: Upload same JSON to `appDataFolder`; download on restore → `POST /api/v1/sync/push`
+- [ ] Both: cache Drive token; show "Connect Google account" prompt for email/password users with no Google account
+
+**#106 — Local file backup (universal fallback)**
+- [ ] Android: "Export" → serialize all Room data to JSON → Android share sheet (Files, email, Dropbox, iCloud, etc.)
+- [ ] Android: "Import" → file picker → parse JSON → upsert into Room
+- [ ] Webapp: "Export" already done (#103) — wire up to the new Backup screen
+- [ ] Webapp: "Import" → file upload input → parse JSON → `POST /api/v1/sync/push` → reload
+
+**#107 — Backup & Restore UI**
+- [ ] Android: New "Backup & Restore" screen under Settings with two sections: Drive + Local file
+- [ ] Webapp: Same screen under Settings replacing the standalone export button
+- [ ] Both: Drive section hidden / replaced with "Requires a Google account" message for non-Google users
+- [ ] Both: Drive backup list shows filename + date + size; tap to restore; swipe/button to delete
+
+### Key Design Notes
+- Backup file format = same JSON shape as `GET /api/v1/sync/pull?since=epoch` — no new backend endpoints needed
+- `appDataFolder` scope: file is hidden from the user's Drive UI but counts against their 15 GB free quota
+- Restore strategy: upsert with `serverId` as the key — same last-write-wins logic as sync; safe to run multiple times
+- Email/password users: Drive tab shows "Connect Google account to enable Drive backup" with an OAuth button; local file tab always works
+- Users with no Google account at all: local file is their only path — make it prominent, not a footnote
 
 ---
 
@@ -205,26 +306,30 @@ mealplan-plus/
 ```
 Foundation (#81, #82, #98 UI redesign)
     └── Phase 1 (Sync API)
-            ├── Phase 2 (Workout)        ← parallel with Phase 3 · screens spec'd in design-future.html
-            ├── Phase 3 (Web App)        ← same design language as Android (#98) · spec in design-future.html
-            │       └── Phase 4 (AI Web) ← needs web UI + pgvector data
-            │               └── Phase 5 (AI Android) ← same backend endpoint · AI overlay already designed
+            ├── Phase 2 (Workout)          ← parallel with Phase 3 · done ✅
+            ├── Phase 3 (Web App scaffold) ← done ✅ · screens, auth, design system
+            │       └── Phase 3a (Web App parity) ← done ✅ · #99–#104
+            │               └── Phase 3b (Backup & Restore) ← on-demand Drive + local file · #105–#107
+            │                       └── Phase 4 (AI Web) ← needs web UI + pgvector data
+            │                               └── Phase 5 (AI Android) ← same backend endpoint
             └── (pgvector enabled here)
 ```
 
-**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 4 → Phase 5  
-Phase 2 (Workout) can run in parallel with Phase 3 once Phase 1 is done.
+**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → Phase 4 → Phase 5
 
-### Phase order summary (with redesign)
+### Phase order summary (current state)
 
-| Order | Phase | Key dependency | Design work |
+| Order | Phase | Status | Notes |
 |---|---|---|---|
-| 0 | **Foundation** | — | #98: implement `design-future.html` on Android |
-| 1 | **Phase 1** · Backend Sync | Foundation stable | Backup/Sync/Restore screens (already designed) |
-| 2a | **Phase 2** · Workouts | Phase 1 API live | 3 workout screens already spec'd |
-| 2b | **Phase 3** · Web App | Phase 1 API live | Re-use same design tokens from #98 |
-| 3 | **Phase 4** · AI Web | Phase 1 + Phase 3 | AI overlay already designed |
-| 4 | **Phase 5** · AI Android | Phase 4 backend live | AI overlay already in Android design |
+| 0 | **Foundation** | ✅ Done | Android redesign, DB v35, all 19 screens |
+| 1 | **Phase 1** · Backend Sync | ✅ Done | Spring Boot API, delta sync, Cloud Run |
+| 2a | **Phase 2** · Workouts Android | ✅ Done | All workout screens, templates, logging, edit mode (#89, #90) |
+| 2b | **Phase 2** · Workout Backend sync | ⬜ Open | #91: extend sync push/pull for workouts |
+| 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
+| 2d | **Phase 3a** · Web Parity | ✅ Done | #99–#104: all 6 issues complete |
+| 2e | **Phase 3b** · Backup & Restore | 🔄 Next | #105–#107: Drive + local file, both platforms |
+| 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3b done + pgvector data accumulating |
+| 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
 ---
 

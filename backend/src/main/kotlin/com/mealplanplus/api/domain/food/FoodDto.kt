@@ -19,9 +19,10 @@ data class FoodDto(
     val gramsPerTsp: Double? = null,
     val glycemicIndex: Int? = null,
     val isSystemFood: Boolean = false,
+    val isFavorite: Boolean = false,
     val updatedAt: Instant? = null
 )
 
 fun Food.toDto() = FoodDto(id, serverId, name, brand, barcode, caloriesPer100,
     proteinPer100, carbsPer100, fatPer100, gramsPerPiece, gramsPerCup,
-    gramsPerTbsp, gramsPerTsp, glycemicIndex, isSystemFood, updatedAt)
+    gramsPerTbsp, gramsPerTsp, glycemicIndex, isSystemFood, isFavorite, updatedAt)

@@ -14,3 +14,12 @@ interface WorkoutSetRepository : JpaRepository<WorkoutSet, Long> {
     fun findBySessionId(sessionId: Long): List<WorkoutSet>
     fun deleteBySessionId(sessionId: Long)
 }
+
+interface WorkoutTemplateRepository : JpaRepository<WorkoutTemplate, Long> {
+    fun findByFirebaseUid(firebaseUid: String): List<WorkoutTemplate>
+}
+
+interface TemplateExerciseRepository : JpaRepository<TemplateExercise, Long> {
+    fun findByTemplateIdOrderByOrderIndex(templateId: Long): List<TemplateExercise>
+    fun deleteByTemplateId(templateId: Long)
+}

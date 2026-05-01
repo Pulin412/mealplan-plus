@@ -11,6 +11,8 @@ class WorkoutService(
     private val exerciseRepo: ExerciseRepository,
     private val sessionRepo: WorkoutSessionRepository,
     private val setRepo: WorkoutSetRepository,
+    private val templateRepo: WorkoutTemplateRepository,
+    private val templateExerciseRepo: TemplateExerciseRepository,
     private val tombstones: TombstoneService
 ) {
 
@@ -35,6 +37,83 @@ class WorkoutService(
         require(exercise.firebaseUid == firebaseUid) { "Forbidden" }
         exerciseRepo.delete(exercise)
         tombstones.record(firebaseUid, "exercise", exercise.serverId)
+    }
+
+    // ── Templates ─────────────────────────────────────────────────────────────
+
+    private fun WorkoutTemplate.toFullDto(): WorkoutTemplateDto {
+        val texs = templateExerciseRepo.findByTemplateIdOrderByOrderIndex(id)
+        return toDto(texs.map { te ->
+            val ex = exerciseRepo.findById(te.exerciseId).orElse(null)
+            te.toDto(ex)
+        })
+    }
+
+    fun listTemplates(firebaseUid: String): List<WorkoutTemplateDto> =
+        templateRepo.findByFirebaseUid(firebaseUid).map { it.toFullDto() }
+
+    fun getTemplate(id: Long): WorkoutTemplateDto =
+        templateRepo.findById(id).orElseThrow().toFullDto()
+
+    @Transactional
+    fun createTemplate(dto: WorkoutTemplateDto, firebaseUid: String): WorkoutTemplateDto {
+        val template = WorkoutTemplate(firebaseUid = firebaseUid, name = dto.name,
+            category = dto.category, notes = dto.notes)
+        val saved = templateRepo.save(template)
+        dto.exercises.forEachIndexed { idx, te ->
+            templateExerciseRepo.save(TemplateExercise(templateId = saved.id,
+                exerciseId = te.exerciseId, orderIndex = idx,
+                targetSets = te.targetSets, targetReps = te.targetReps,
+                targetWeightKg = te.targetWeightKg, notes = te.notes))
+        }
+        return saved.toFullDto()
+    }
+
+    @Transactional
+    fun updateTemplate(id: Long, dto: WorkoutTemplateDto, firebaseUid: String): WorkoutTemplateDto {
+        val existing = templateRepo.findById(id).orElseThrow()
+        require(existing.firebaseUid == firebaseUid) { "Forbidden" }
+        val updated = WorkoutTemplate(id = existing.id, firebaseUid = firebaseUid,
+            name = dto.name, category = dto.category, notes = dto.notes)
+            .also { it.serverId = existing.serverId }
+        val saved = templateRepo.save(updated)
+        templateExerciseRepo.deleteByTemplateId(id)
+        dto.exercises.forEachIndexed { idx, te ->
+            templateExerciseRepo.save(TemplateExercise(templateId = saved.id,
+                exerciseId = te.exerciseId, orderIndex = idx,
+                targetSets = te.targetSets, targetReps = te.targetReps,
+                targetWeightKg = te.targetWeightKg, notes = te.notes))
+        }
+        return saved.toFullDto()
+    }
+
+    @Transactional
+    fun deleteTemplate(id: Long, firebaseUid: String) {
+        val template = templateRepo.findById(id).orElseThrow()
+        require(template.firebaseUid == firebaseUid) { "Forbidden" }
+        templateExerciseRepo.deleteByTemplateId(id)
+        templateRepo.delete(template)
+    }
+
+    /**
+     * Create a new WorkoutSession pre-populated from a template.
+     * Each template exercise gets [targetSets] WorkoutSets with the target weight/reps.
+     */
+    @Transactional
+    fun startFromTemplate(templateId: Long, firebaseUid: String): WorkoutSessionDto {
+        val template = templateRepo.findById(templateId).orElseThrow()
+        val session = WorkoutSession(firebaseUid = firebaseUid, name = template.name,
+            date = LocalDate.now(), isCompleted = false)
+        val saved = sessionRepo.save(session)
+        val texs = templateExerciseRepo.findByTemplateIdOrderByOrderIndex(templateId)
+        val sets = mutableListOf<WorkoutSet>()
+        texs.forEach { te ->
+            repeat(te.targetSets) { setIdx ->
+                sets.add(setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = te.exerciseId,
+                    setNumber = setIdx, reps = te.targetReps, weightKg = te.targetWeightKg)))
+            }
+        }
+        return saved.toDto(sets)
     }
 
     fun exercisesSince(firebaseUid: String, since: Instant): List<ExerciseDto> =

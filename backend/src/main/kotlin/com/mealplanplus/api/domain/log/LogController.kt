@@ -14,6 +14,8 @@ class LogController(private val service: DailyLogService) {
     @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id)
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     fun create(@RequestBody dto: DailyLogDto, auth: Authentication) = service.create(dto, auth.name)
+    @PutMapping("/{id}")
+    fun update(@PathVariable id: Long, @RequestBody dto: DailyLogDto, auth: Authentication) = service.update(id, dto, auth.name)
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
 }
