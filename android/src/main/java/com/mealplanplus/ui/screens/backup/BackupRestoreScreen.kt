@@ -130,7 +130,7 @@ fun BackupRestoreScreen(
                         enabled = !uiState.isExporting && !uiState.isImporting,
                         loading = uiState.isImporting,
                         secondary = true,
-                        onClick = { filePicker.launch("application/json") }
+                        onClick = { filePicker.launch("*/*") }
                     )
                 }
             }

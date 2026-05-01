@@ -56,35 +56,39 @@ object DriveHelper {
 
     /**
      * Multipart upload to appDataFolder.
-     * Uses raw multipart/related body — the safest format for Drive API v3.
+     * Accepts raw [data] bytes so callers can pass GZIP-compressed content.
+     * Content-Type for the file part is set to [contentType] (default: application/gzip).
      */
-    suspend fun uploadFile(token: String, name: String, json: String): String = withContext(Dispatchers.IO) {
+    suspend fun uploadFile(
+        token: String,
+        name: String,
+        data: ByteArray,
+        contentType: String = "application/gzip"
+    ): String = withContext(Dispatchers.IO) {
         val metadata = """{"name":"$name","parents":["appDataFolder"]}"""
-        val rawBody = "--$BOUNDARY\r\n" +
-                "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
-                "$metadata\r\n" +
-                "--$BOUNDARY\r\n" +
-                "Content-Type: application/json\r\n\r\n" +
-                "$json\r\n" +
-                "--$BOUNDARY--"
+        val metaPart = "--$BOUNDARY\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$metadata\r\n".toByteArray()
+        val filePart = "--$BOUNDARY\r\nContent-Type: $contentType\r\n\r\n".toByteArray()
+        val closing  = "\r\n--$BOUNDARY--".toByteArray()
+        val body = metaPart + filePart + data + closing
         val req = Request.Builder()
             .url("$UPLOAD_BASE/files?uploadType=multipart&fields=id")
             .header("Authorization", "Bearer $token")
             .header("Content-Type", "multipart/related; boundary=$BOUNDARY")
-            .post(rawBody.toRequestBody())
+            .post(body.toRequestBody())
             .build()
         val (code, response) = client.newCall(req).execute().use { Pair(it.code, it.body?.string() ?: "{}") }
         if (code !in 200..299) throw Exception(driveError("upload", code, response))
         JSONObject(response).optString("id", "")
     }
 
-    suspend fun downloadFile(token: String, fileId: String): String = withContext(Dispatchers.IO) {
+    /** Downloads the raw bytes of a Drive file (caller handles decompression). */
+    suspend fun downloadFile(token: String, fileId: String): ByteArray = withContext(Dispatchers.IO) {
         val req = Request.Builder()
             .url("$BASE/files/$fileId?alt=media")
             .header("Authorization", "Bearer $token")
             .get()
             .build()
-        client.newCall(req).execute().use { it.body?.string() ?: "" }
+        client.newCall(req).execute().use { it.body?.bytes() ?: ByteArray(0) }
     }
 
     suspend fun deleteFile(token: String, fileId: String) = withContext(Dispatchers.IO) {

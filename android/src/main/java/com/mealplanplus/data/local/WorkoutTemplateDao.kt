@@ -57,4 +57,17 @@ interface WorkoutTemplateDao {
         )
     """)
     suspend fun clearSetsForTemplate(templateId: Long)
+
+    // ── Backup ────────────────────────────────────────────────────────────────
+    @Query("SELECT * FROM workout_templates WHERE userId = :userId ORDER BY name")
+    suspend fun getAllTemplatesOnce(userId: String): List<WorkoutTemplate>
+
+    @Query("SELECT * FROM workout_template_exercises ORDER BY templateId, orderIndex")
+    suspend fun getAllTemplateExercisesOnce(): List<WorkoutTemplateExercise>
+
+    @Query("SELECT * FROM workout_template_sets ORDER BY templateExerciseId, setIndex")
+    suspend fun getAllTemplateSetsOnce(): List<WorkoutTemplateSet>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTemplate(template: WorkoutTemplate): Long
 }

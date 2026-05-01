@@ -10,13 +10,10 @@ import com.google.android.gms.auth.GoogleAuthUtil
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
+import com.google.firebase.auth.FirebaseAuth
 import com.google.gson.Gson
-import com.mealplanplus.data.local.DietDao
-import com.mealplanplus.data.local.GroceryDao
-import com.mealplanplus.data.local.HealthMetricDao
-import com.mealplanplus.data.local.MealDao
-import com.mealplanplus.data.model.*
-import com.mealplanplus.data.remote.*
+import com.mealplanplus.data.model.LocalBackupSnapshot
+import com.mealplanplus.data.repository.BackupRepository
 import com.mealplanplus.util.AuthPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,22 +25,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 import javax.inject.Inject
 
 data class BackupRestoreUiState(
-    // Local file
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
-    // Drive
     val isDriveConnected: Boolean = false,
     val isDriveUploading: Boolean = false,
     val isDriveDownloading: Boolean = false,
     val isDriveLoading: Boolean = false,
     val driveBackups: List<DriveBackupEntry> = emptyList(),
-    // Feedback
     val successMessage: String? = null,
     val error: String? = null
 )
@@ -51,10 +48,7 @@ data class BackupRestoreUiState(
 @HiltViewModel
 class BackupRestoreViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val mealDao: MealDao,
-    private val dietDao: DietDao,
-    private val healthMetricDao: HealthMetricDao,
-    private val groceryDao: GroceryDao
+    private val backupRepository: BackupRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BackupRestoreUiState())
@@ -63,7 +57,6 @@ class BackupRestoreViewModel @Inject constructor(
     private val gson = Gson()
     private val driveScope = Scope("https://www.googleapis.com/auth/drive.appdata")
 
-    /** Options for requesting Drive scope. Call this to build the sign-in intent. */
     fun buildDriveSignInOptions(): GoogleSignInOptions =
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
@@ -93,16 +86,13 @@ class BackupRestoreViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isExporting = true, error = null) }
             try {
-                val userId = AuthPreferences.getUserId(context).first()
-                    ?: throw Exception("Not logged in")
-                val snapshot = buildSnapshot(userId)
-                val json = gson.toJson(snapshot)
-                val file = writeBackupFile(json)
-                val uri = FileProvider.getUriForFile(
-                    context, "${context.packageName}.provider", file
-                )
+                val (userId, firebaseUid) = resolveUserIds()
+                val snapshot = backupRepository.buildSnapshot(userId, firebaseUid)
+                val compressed = compress(gson.toJson(snapshot))
+                val file = writeBackupFile(compressed)
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
                 val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
+                    type = "application/gzip"
                     putExtra(Intent.EXTRA_STREAM, uri)
                     putExtra(Intent.EXTRA_SUBJECT, "MealPlan+ Backup")
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -110,9 +100,9 @@ class BackupRestoreViewModel @Inject constructor(
                 context.startActivity(
                     Intent.createChooser(intent, "Save backup").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
-                val summary = snapshotSummary(snapshot)
                 _uiState.update {
-                    it.copy(isExporting = false, successMessage = "Backup ready ($summary) — choose where to save it")
+                    it.copy(isExporting = false,
+                        successMessage = "Backup ready (${snapshot.summary()}) — choose where to save it")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isExporting = false, error = "Export failed: ${e.message}") }
@@ -124,18 +114,16 @@ class BackupRestoreViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isImporting = true, error = null) }
             try {
-                val userId = AuthPreferences.getUserId(context).first()
-                    ?: throw Exception("Not logged in")
-                val json = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)
-                        ?.bufferedReader()?.readText()
+                val (userId, firebaseUid) = resolveUserIds()
+                val bytes = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.readBytes()
                         ?: throw Exception("Could not read file")
                 }
-                val data = gson.fromJson(json, SyncPullResponse::class.java)
-                restoreSnapshot(userId, data)
-                val summary = snapshotSummary(data)
+                val snapshot = parseSnapshot(bytes)
+                backupRepository.restoreSnapshot(userId, firebaseUid, snapshot)
                 _uiState.update {
-                    it.copy(isImporting = false, successMessage = "Restored from file — $summary")
+                    it.copy(isImporting = false,
+                        successMessage = "Restored from file — ${snapshot.summary()}")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isImporting = false, error = "Import failed: ${e.message}") }
@@ -150,14 +138,15 @@ class BackupRestoreViewModel @Inject constructor(
             _uiState.update { it.copy(isDriveUploading = true, error = null) }
             try {
                 val token = getDriveToken() ?: throw Exception("Not connected to Google Drive")
-                val userId = AuthPreferences.getUserId(context).first()
-                    ?: throw Exception("Not logged in")
-                val snapshot = buildSnapshot(userId)
-                val json = gson.toJson(snapshot)
-                DriveHelper.uploadFile(token, backupFileName(), json)
+                val (userId, firebaseUid) = resolveUserIds()
+                val snapshot = backupRepository.buildSnapshot(userId, firebaseUid)
+                val compressed = compress(gson.toJson(snapshot))
+                DriveHelper.uploadFile(token, backupFileName(), compressed)
                 refreshDriveList()
-                val summary = snapshotSummary(snapshot)
-                _uiState.update { it.copy(isDriveUploading = false, successMessage = "Backed up to Google Drive — $summary") }
+                _uiState.update {
+                    it.copy(isDriveUploading = false,
+                        successMessage = "Backed up to Google Drive — ${snapshot.summary()}")
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isDriveUploading = false, error = "Drive upload failed: ${e.message}") }
             }
@@ -169,14 +158,13 @@ class BackupRestoreViewModel @Inject constructor(
             _uiState.update { it.copy(isDriveDownloading = true, error = null) }
             try {
                 val token = getDriveToken() ?: throw Exception("Not connected to Google Drive")
-                val userId = AuthPreferences.getUserId(context).first()
-                    ?: throw Exception("Not logged in")
-                val json = DriveHelper.downloadFile(token, fileId)
-                val data = gson.fromJson(json, SyncPullResponse::class.java)
-                restoreSnapshot(userId, data)
-                val summary = snapshotSummary(data)
+                val (userId, firebaseUid) = resolveUserIds()
+                val bytes = DriveHelper.downloadFile(token, fileId)
+                val snapshot = parseSnapshot(bytes)
+                backupRepository.restoreSnapshot(userId, firebaseUid, snapshot)
                 _uiState.update {
-                    it.copy(isDriveDownloading = false, successMessage = "Restored from Drive — $summary")
+                    it.copy(isDriveDownloading = false,
+                        successMessage = "Restored from Drive — ${snapshot.summary()}")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isDriveDownloading = false, error = "Restore failed: ${e.message}") }
@@ -196,186 +184,25 @@ class BackupRestoreViewModel @Inject constructor(
         }
     }
 
-    // ── Room snapshot helpers ──────────────────────────────────────────────────
+    // ── GZIP helpers ───────────────────────────────────────────────────────────
 
-    /**
-     * Read ALL user data from Room and package it as a [SyncPullResponse] JSON-compatible
-     * structure. This runs entirely offline — no network required.
-     */
-    private suspend fun buildSnapshot(userId: Long): SyncPullResponse = withContext(Dispatchers.IO) {
-        val meals = mealDao.getAllMeals().first().map { meal ->
-            val items = mealDao.getMealFoodItems(meal.id)
-            MealDto(
-                id = meal.id,
-                serverId = meal.serverId,
-                name = meal.name,
-                items = items.map { item ->
-                    MealFoodItemDto(
-                        mealId = item.mealId,
-                        foodId = item.foodId,
-                        quantity = item.quantity,
-                        unit = item.unit.name,
-                        notes = item.notes
-                    )
-                },
-                updatedAt = meal.updatedAt
-            )
-        }
-
-        val diets = dietDao.getAllDietsOnce().map { diet ->
-            val dietMeals = dietDao.getDietMeals(diet.id)
-            DietDto(
-                id = diet.id,
-                serverId = diet.serverId,
-                name = diet.name,
-                description = diet.description,
-                meals = dietMeals.map { dm ->
-                    DietMealDto(
-                        dietId = dm.dietId,
-                        mealId = dm.mealId ?: 0L,
-                        slot = dm.slotType,
-                        instructions = dm.instructions
-                    )
-                },
-                updatedAt = diet.updatedAt
-            )
-        }
-
-        val metrics = healthMetricDao.getAllMetrics(userId).map { m ->
-            HealthMetricDto(
-                id = m.id,
-                serverId = m.serverId,
-                type = m.metricType ?: "",
-                subType = m.subType,
-                value = m.value,
-                secondaryValue = m.secondaryValue,
-                recordedAt = m.date,
-                updatedAt = m.updatedAt
-            )
-        }
-
-        val groceries = groceryDao.getListsByUser(userId).first().map { list ->
-            val items = groceryDao.getItemsByList(list.id).first()
-            GroceryListDto(
-                id = list.id,
-                serverId = list.serverId,
-                name = list.name,
-                items = items.map { gi ->
-                    GroceryItemDto(
-                        id = gi.id,
-                        groceryListId = gi.listId,
-                        foodId = gi.foodId,
-                        name = gi.customName ?: "",
-                        quantity = gi.quantity,
-                        unit = gi.unit.name,
-                        done = gi.isChecked
-                    )
-                },
-                updatedAt = list.updatedAt
-            )
-        }
-
-        SyncPullResponse(meals = meals, diets = diets, healthMetrics = metrics, groceryLists = groceries)
+    private fun compress(json: String): ByteArray {
+        val bos = ByteArrayOutputStream()
+        GZIPOutputStream(bos).use { it.write(json.toByteArray(Charsets.UTF_8)) }
+        return bos.toByteArray()
     }
 
     /**
-     * Write a parsed backup snapshot directly into Room. Uses REPLACE strategy so
-     * existing records are overwritten by the backup. Runs entirely offline.
+     * Decompress GZIP bytes → JSON string → [LocalBackupSnapshot].
+     * Falls back to treating the bytes as plain JSON for old uncompressed backups.
      */
-    private suspend fun restoreSnapshot(userId: Long, data: SyncPullResponse) = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-
-        // Restore meals
-        data.meals.forEach { dto ->
-            val mealId = mealDao.insertMeal(
-                Meal(
-                    id = dto.id,
-                    name = dto.name,
-                    serverId = dto.serverId,
-                    updatedAt = dto.updatedAt ?: now
-                )
-            )
-            val insertedMealId = if (dto.id != 0L) dto.id else mealId
-            dto.items.forEach { item ->
-                mealDao.insertMealFoodItem(
-                    MealFoodItem(
-                        mealId = insertedMealId,
-                        foodId = item.foodId,
-                        quantity = item.quantity,
-                        unit = runCatching { FoodUnit.valueOf(item.unit) }.getOrDefault(FoodUnit.GRAM),
-                        notes = item.notes
-                    )
-                )
-            }
+    private fun parseSnapshot(bytes: ByteArray): LocalBackupSnapshot {
+        val json = try {
+            GZIPInputStream(bytes.inputStream()).bufferedReader(Charsets.UTF_8).readText()
+        } catch (_: Exception) {
+            bytes.toString(Charsets.UTF_8)  // plain-JSON fallback (pre-compression backups)
         }
-
-        // Restore diets
-        data.diets.forEach { dto ->
-            val dietId = dietDao.insertDiet(
-                Diet(
-                    id = dto.id,
-                    name = dto.name,
-                    description = dto.description,
-                    serverId = dto.serverId,
-                    updatedAt = dto.updatedAt ?: now
-                )
-            )
-            val insertedDietId = if (dto.id != 0L) dto.id else dietId
-            dto.meals.forEach { dm ->
-                dietDao.insertDietMeal(
-                    DietMeal(
-                        dietId = insertedDietId,
-                        slotType = dm.slot,
-                        mealId = dm.mealId.takeIf { it != 0L },
-                        instructions = dm.instructions
-                    )
-                )
-            }
-        }
-
-        // Restore health metrics
-        data.healthMetrics.forEach { dto ->
-            healthMetricDao.insertHealthMetric(
-                HealthMetric(
-                    id = dto.id,
-                    userId = userId,
-                    date = dto.recordedAt ?: now,
-                    metricType = dto.type.takeIf { it.isNotEmpty() },
-                    subType = dto.subType,
-                    value = dto.value,
-                    secondaryValue = dto.secondaryValue,
-                    serverId = dto.serverId,
-                    updatedAt = dto.updatedAt ?: now
-                )
-            )
-        }
-
-        // Restore grocery lists and items
-        data.groceryLists.forEach { dto ->
-            val listId = groceryDao.insertGroceryList(
-                GroceryList(
-                    id = dto.id,
-                    userId = userId,
-                    name = dto.name,
-                    serverId = dto.serverId,
-                    updatedAt = dto.updatedAt ?: now
-                )
-            )
-            val insertedListId = if (dto.id != 0L) dto.id else listId
-            dto.items.forEach { gi ->
-                groceryDao.upsertItem(
-                    GroceryItem(
-                        id = gi.id,
-                        listId = insertedListId,
-                        foodId = gi.foodId,
-                        customName = gi.name.takeIf { it.isNotEmpty() },
-                        quantity = gi.quantity,
-                        unit = runCatching { FoodUnit.valueOf(gi.unit) }.getOrDefault(FoodUnit.GRAM),
-                        isChecked = gi.done
-                    )
-                )
-            }
-        }
+        return gson.fromJson(json, LocalBackupSnapshot::class.java)
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
@@ -387,10 +214,18 @@ class BackupRestoreViewModel @Inject constructor(
                 val token = getDriveToken() ?: return@launch
                 val backups = DriveHelper.listBackups(token)
                 _uiState.update { it.copy(driveBackups = backups, isDriveLoading = false) }
-            } catch (_: Exception) {
-                _uiState.update { it.copy(isDriveLoading = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isDriveLoading = false, error = e.message) }
             }
         }
+    }
+
+    private suspend fun resolveUserIds(): Pair<Long, String> {
+        val userId = AuthPreferences.getUserId(context).first()
+            ?: throw Exception("Not logged in")
+        val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid
+            ?: throw Exception("Firebase user not found")
+        return Pair(userId, firebaseUid)
     }
 
     private suspend fun getDriveToken(): String? = withContext(Dispatchers.IO) {
@@ -398,28 +233,20 @@ class BackupRestoreViewModel @Inject constructor(
         val googleAccount = signedIn.account ?: return@withContext null
         try {
             GoogleAuthUtil.getToken(
-                context,
-                googleAccount,
+                context, googleAccount,
                 "oauth2:https://www.googleapis.com/auth/drive.appdata"
             )
         } catch (_: Exception) { null }
     }
 
-    private fun snapshotSummary(data: SyncPullResponse): String = buildString {
-        append("${data.meals.size} meal${if (data.meals.size != 1) "s" else ""}")
-        append(", ${data.diets.size} diet${if (data.diets.size != 1) "s" else ""}")
-        append(", ${data.healthMetrics.size} metric${if (data.healthMetrics.size != 1) "s" else ""}")
-        append(", ${data.groceryLists.size} list${if (data.groceryLists.size != 1) "s" else ""}")
-    }
-
-    private fun writeBackupFile(json: String): File {
+    private fun writeBackupFile(data: ByteArray): File {
         val dir = File(context.cacheDir, "backups").also { it.mkdirs() }
-        return File(dir, backupFileName()).also { it.writeText(json) }
+        return File(dir, backupFileName()).also { it.writeBytes(data) }
     }
 
     private fun backupFileName(): String {
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        return "mealplan_backup_$date.json"
+        return "mealplan_backup_$date.json.gz"
     }
 
     fun clearMessage() { _uiState.update { it.copy(successMessage = null, error = null) } }

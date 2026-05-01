@@ -50,4 +50,15 @@ interface PlannedSlotDao {
 
     @Query("DELETE FROM planned_slot_foods WHERE plannedSlotId = :slotId")
     suspend fun clearSlotFoods(slotId: Long)
+
+    // ── Backup ────────────────────────────────────────────────────────────────
+    @Query("SELECT * FROM planned_slots WHERE userId = :userId ORDER BY date, slotType")
+    suspend fun getAllSlotsOnce(userId: Long): List<PlannedSlot>
+
+    @Query("""
+        SELECT psf.* FROM planned_slot_foods psf
+        JOIN planned_slots ps ON ps.id = psf.plannedSlotId
+        WHERE ps.userId = :userId
+    """)
+    suspend fun getAllSlotFoodsForUser(userId: Long): List<PlannedSlotFood>
 }
