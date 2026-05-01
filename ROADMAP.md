@@ -216,6 +216,47 @@ mealplan-plus/
 
 ---
 
+## Phase 3b — On-Demand Backup & Restore
+> **Goal:** Users can back up all their data to Google Drive (if they have a Google account) or export/import a local JSON file (universal fallback). Completely free — backup files live in the user's own storage.  
+> **Depends on:** Phase 1 sync pull response (already the backup format), Phase 3 webapp  
+> **Design principle:** Two paths — Drive is the premium seamless path; local file works for everyone regardless of Google account.
+
+| GH Issue | Task | Platform | Status |
+|---|---|---|---|
+| [#105](https://github.com/Pulin412/mealplan-plus/issues/105) | Google Drive backup — lazy OAuth (on first use), upload JSON to appDataFolder, list + restore | Android + Webapp | ⬜ Open |
+| [#106](https://github.com/Pulin412/mealplan-plus/issues/106) | Local file backup — Android share sheet export + file picker import; Webapp file upload + parse + sync push | Android + Webapp | ⬜ Open |
+| [#107](https://github.com/Pulin412/mealplan-plus/issues/107) | Backup & Restore UI — unified screen showing both paths; Drive backup list with date; graceful fallback when no Google account | Android + Webapp | ⬜ Open |
+
+### Phase 3b Checklist
+
+**#105 — Google Drive backup**
+- [ ] Android: `GoogleSignIn` with `DRIVE_APPDATA` scope (lazy — requested only when user taps "Backup to Drive")
+- [ ] Android: Upload `mealplan_backup_<date>.json` to `appDataFolder`; download + parse on restore → Room upsert
+- [ ] Webapp: Google Identity Services OAuth for `drive.appdata` scope (separate from Firebase Auth)
+- [ ] Webapp: Upload same JSON to `appDataFolder`; download on restore → `POST /api/v1/sync/push`
+- [ ] Both: cache Drive token; show "Connect Google account" prompt for email/password users with no Google account
+
+**#106 — Local file backup (universal fallback)**
+- [ ] Android: "Export" → serialize all Room data to JSON → Android share sheet (Files, email, Dropbox, iCloud, etc.)
+- [ ] Android: "Import" → file picker → parse JSON → upsert into Room
+- [ ] Webapp: "Export" already done (#103) — wire up to the new Backup screen
+- [ ] Webapp: "Import" → file upload input → parse JSON → `POST /api/v1/sync/push` → reload
+
+**#107 — Backup & Restore UI**
+- [ ] Android: New "Backup & Restore" screen under Settings with two sections: Drive + Local file
+- [ ] Webapp: Same screen under Settings replacing the standalone export button
+- [ ] Both: Drive section hidden / replaced with "Requires a Google account" message for non-Google users
+- [ ] Both: Drive backup list shows filename + date + size; tap to restore; swipe/button to delete
+
+### Key Design Notes
+- Backup file format = same JSON shape as `GET /api/v1/sync/pull?since=epoch` — no new backend endpoints needed
+- `appDataFolder` scope: file is hidden from the user's Drive UI but counts against their 15 GB free quota
+- Restore strategy: upsert with `serverId` as the key — same last-write-wins logic as sync; safe to run multiple times
+- Email/password users: Drive tab shows "Connect Google account to enable Drive backup" with an OAuth button; local file tab always works
+- Users with no Google account at all: local file is their only path — make it prominent, not a footnote
+
+---
+
 ## Phase 4 — AI on Web (Spring AI + RAG)
 > **Goal:** Dietary chatbot on the web app, powered by user's actual data via RAG.  
 > **Depends on:** Phase 1 (data in Postgres + pgvector enabled), Phase 3 (web app exists)
@@ -267,13 +308,14 @@ Foundation (#81, #82, #98 UI redesign)
     └── Phase 1 (Sync API)
             ├── Phase 2 (Workout)          ← parallel with Phase 3 · done ✅
             ├── Phase 3 (Web App scaffold) ← done ✅ · screens, auth, design system
-            │       └── Phase 3a (Web App parity) ← close Android feature gaps · #99–#104
-            │               └── Phase 4 (AI Web) ← needs web UI + pgvector data
-            │                       └── Phase 5 (AI Android) ← same backend endpoint
+            │       └── Phase 3a (Web App parity) ← done ✅ · #99–#104
+            │               └── Phase 3b (Backup & Restore) ← on-demand Drive + local file · #105–#107
+            │                       └── Phase 4 (AI Web) ← needs web UI + pgvector data
+            │                               └── Phase 5 (AI Android) ← same backend endpoint
             └── (pgvector enabled here)
 ```
 
-**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 4 → Phase 5
+**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → Phase 4 → Phase 5
 
 ### Phase order summary (current state)
 
@@ -285,7 +327,8 @@ Foundation (#81, #82, #98 UI redesign)
 | 2b | **Phase 2** · Workout Backend sync | ⬜ Open | #91: extend sync push/pull for workouts |
 | 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
 | 2d | **Phase 3a** · Web Parity | ✅ Done | #99–#104: all 6 issues complete |
-| 3 | **Phase 4** · AI Web | 🔄 Next | Needs Phase 3a + pgvector data |
+| 2e | **Phase 3b** · Backup & Restore | 🔄 Next | #105–#107: Drive + local file, both platforms |
+| 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3b done + pgvector data accumulating |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
 ---
