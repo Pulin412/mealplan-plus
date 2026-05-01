@@ -110,8 +110,9 @@ class BackupRestoreViewModel @Inject constructor(
                 context.startActivity(
                     Intent.createChooser(intent, "Save backup").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
+                val summary = snapshotSummary(snapshot)
                 _uiState.update {
-                    it.copy(isExporting = false, successMessage = "Backup ready — choose where to save it")
+                    it.copy(isExporting = false, successMessage = "Backup ready ($summary) — choose where to save it")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isExporting = false, error = "Export failed: ${e.message}") }
@@ -132,8 +133,9 @@ class BackupRestoreViewModel @Inject constructor(
                 }
                 val data = gson.fromJson(json, SyncPullResponse::class.java)
                 restoreSnapshot(userId, data)
+                val summary = snapshotSummary(data)
                 _uiState.update {
-                    it.copy(isImporting = false, successMessage = "Restore complete — data imported from file")
+                    it.copy(isImporting = false, successMessage = "Restored from file — $summary")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isImporting = false, error = "Import failed: ${e.message}") }
@@ -154,7 +156,8 @@ class BackupRestoreViewModel @Inject constructor(
                 val json = gson.toJson(snapshot)
                 DriveHelper.uploadFile(token, backupFileName(), json)
                 refreshDriveList()
-                _uiState.update { it.copy(isDriveUploading = false, successMessage = "Backed up to Google Drive") }
+                val summary = snapshotSummary(snapshot)
+                _uiState.update { it.copy(isDriveUploading = false, successMessage = "Backed up to Google Drive — $summary") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isDriveUploading = false, error = "Drive upload failed: ${e.message}") }
             }
@@ -171,8 +174,9 @@ class BackupRestoreViewModel @Inject constructor(
                 val json = DriveHelper.downloadFile(token, fileId)
                 val data = gson.fromJson(json, SyncPullResponse::class.java)
                 restoreSnapshot(userId, data)
+                val summary = snapshotSummary(data)
                 _uiState.update {
-                    it.copy(isDriveDownloading = false, successMessage = "Restore complete — data synced from Drive")
+                    it.copy(isDriveDownloading = false, successMessage = "Restored from Drive — $summary")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isDriveDownloading = false, error = "Restore failed: ${e.message}") }
@@ -399,6 +403,13 @@ class BackupRestoreViewModel @Inject constructor(
                 "oauth2:https://www.googleapis.com/auth/drive.appdata"
             )
         } catch (_: Exception) { null }
+    }
+
+    private fun snapshotSummary(data: SyncPullResponse): String = buildString {
+        append("${data.meals.size} meal${if (data.meals.size != 1) "s" else ""}")
+        append(", ${data.diets.size} diet${if (data.diets.size != 1) "s" else ""}")
+        append(", ${data.healthMetrics.size} metric${if (data.healthMetrics.size != 1) "s" else ""}")
+        append(", ${data.groceryLists.size} list${if (data.groceryLists.size != 1) "s" else ""}")
     }
 
     private fun writeBackupFile(json: String): File {
