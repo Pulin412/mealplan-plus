@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: April 15, 2026  
+> Last updated: May 1, 2026  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -105,15 +105,15 @@ mealplan-plus/
 
 | GH Issue | Task | Status |
 |---|---|---|
-| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v33 migration) | ⬜ Open |
-| [#90](https://github.com/Pulin412/mealplan-plus/issues/90) | Android — Workout screens (Log, History, Exercise catalogue) | ⬜ Open |
+| [#89](https://github.com/Pulin412/mealplan-plus/issues/89) | Android — Workout domain model and Room entities (v33 migration) | ✅ Done |
+| [#90](https://github.com/Pulin412/mealplan-plus/issues/90) | Android — Workout screens (Log, History, Exercise catalogue, edit mode) | ✅ Done |
 | [#91](https://github.com/Pulin412/mealplan-plus/issues/91) | Backend — Workout JPA entities + sync extension | ⬜ Open |
 
 ### Phase 2 Checklist
 
 **Android**
-- [ ] #89 — `Exercise`, `WorkoutSession`, `WorkoutSet` entities; DAOs; Room migration v32; `WorkoutRepository`; `exercises.json` asset + `ExerciseSeeder` with version guard
-- [ ] #90 — `WorkoutLogScreen`, `WorkoutHistoryScreen`, `ExerciseCatalogueScreen`; add "Log Workout" to Quick Add FAB; register routes in NavHost; ViewModel unit tests
+- [x] #89 — `Exercise`, `WorkoutSession`, `WorkoutSet` entities; DAOs; Room migration; `WorkoutRepository`; `exercises.json` asset + `ExerciseSeeder` with version guard
+- [x] #90 — `WorkoutLogScreen`, `WorkoutHistoryScreen`, `ExerciseCatalogueScreen`; workout templates; edit mode for past sessions; plan screen workout names; add "Log Workout" to Quick Add FAB; register routes in NavHost
 
 **Backend**
 - [ ] #91 — `Exercise`, `WorkoutSession`, `WorkoutSet` JPA entities; Flyway migration; CRUD endpoints; include in `/sync/pull` + `/sync/push`; OpenAPI docs
@@ -283,9 +283,10 @@ Foundation (#81, #82, #98 UI redesign)
 |---|---|---|---|
 | 0 | **Foundation** | ✅ Done | Android redesign, DB v35, all 19 screens |
 | 1 | **Phase 1** · Backend Sync | ✅ Done | Spring Boot API, delta sync, Cloud Run |
-| 2a | **Phase 2** · Workouts Android | ✅ Done | All workout screens, templates, logging |
-| 2b | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 8+ screens |
-| 2c | **Phase 3a** · Web Parity | ⬜ Next | #99–#104: close Android feature gaps |
+| 2a | **Phase 2** · Workouts Android | ✅ Done | All workout screens, templates, logging, edit mode (#89, #90) |
+| 2b | **Phase 2** · Workout Backend sync | ⬜ Open | #91: extend sync push/pull for workouts |
+| 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
+| 2d | **Phase 3a** · Web Parity | 🔄 Next | #99–#104: close Android feature gaps |
 | 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3a + pgvector data |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
