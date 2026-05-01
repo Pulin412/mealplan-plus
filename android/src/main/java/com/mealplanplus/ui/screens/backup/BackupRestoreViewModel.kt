@@ -202,11 +202,12 @@ class BackupRestoreViewModel @Inject constructor(
     }
 
     private suspend fun getDriveToken(): String? = withContext(Dispatchers.IO) {
-        val account = GoogleSignIn.getLastSignedInAccount(context) ?: return@withContext null
+        val signedIn = GoogleSignIn.getLastSignedInAccount(context) ?: return@withContext null
+        val googleAccount = signedIn.account ?: return@withContext null
         try {
             GoogleAuthUtil.getToken(
                 context,
-                account.account,
+                googleAccount,
                 "oauth2:https://www.googleapis.com/auth/drive.appdata"
             )
         } catch (_: Exception) { null }
