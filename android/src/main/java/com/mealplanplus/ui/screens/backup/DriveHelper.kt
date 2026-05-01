@@ -90,12 +90,14 @@ object DriveHelper {
         client.newCall(req).execute().close()
     }
 
-    private fun formatDriveDate(isoStr: String): String = try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-            .also { it.timeZone = TimeZone.getTimeZone("UTC") }
-        val date = sdf.parse(isoStr) ?: return isoStr
-        SimpleDateFormat("d MMM yyyy, HH:mm", Locale.US).format(date)
-    } catch (_: Exception) { isoStr }
+    private fun formatDriveDate(isoStr: String): String {
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+                .also { it.timeZone = TimeZone.getTimeZone("UTC") }
+            val date = sdf.parse(isoStr) ?: return isoStr
+            SimpleDateFormat("d MMM yyyy, HH:mm", Locale.US).format(date)
+        } catch (_: Exception) { isoStr }
+    }
 
     private fun formatSize(bytes: Long): String = when {
         bytes < 1024L -> "${bytes}B"
