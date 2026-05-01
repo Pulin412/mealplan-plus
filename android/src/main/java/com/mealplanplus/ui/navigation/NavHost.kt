@@ -113,6 +113,7 @@ import com.mealplanplus.ui.screens.workout.AddEditWorkoutTemplateScreen
 import com.mealplanplus.ui.screens.workout.AddEditExerciseScreen
 import com.mealplanplus.ui.screens.workout.ExerciseCatalogueScreen
 import com.mealplanplus.ui.screens.workout.ExercisePickerScreen
+import com.mealplanplus.ui.screens.backup.BackupRestoreScreen
 import android.app.Activity
 import android.content.Intent
 import com.mealplanplus.util.AuthPreferences
@@ -201,6 +202,7 @@ sealed class Screen(val route: String) {
     }
     object FoodPickerForCustomSlot : Screen("food_picker_custom_slot")
     object WidgetSettings : Screen("widget_settings")
+    object BackupRestore : Screen("backup_restore")
     object WorkoutHistory : Screen("workout_history")
     object WorkoutSessionDetail : Screen("workout_session/{sessionId}") {
         fun create(sessionId: Long) = "workout_session/$sessionId"
@@ -835,7 +837,13 @@ fun MealPlanNavHost(
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToWidgetSettings = { navController.navigate(Screen.WidgetSettings.route) },
-                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                    onNavigateToBackup = { navController.navigate(Screen.BackupRestore.route) }
+                )
+            }
+            composable(Screen.BackupRestore.route) {
+                BackupRestoreScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.WidgetSettings.route) {
