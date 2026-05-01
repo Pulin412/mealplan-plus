@@ -438,7 +438,7 @@ export default function FoodsPage() {
         <div className="bg-bg-card rounded-xl border border-divider flex flex-col items-center py-12 gap-3">
           <span className="text-4xl">🥗</span>
           <p className="text-sm text-text-muted">{query ? "No foods match your filter" : "No foods yet"}</p>
-          {!query && <p className="text-xs text-text-placeholder">Tap "Add food" to search or create one</p>}
+          {!query && <p className="text-xs text-text-placeholder">Tap &quot;Add food&quot; to search or create one</p>}
         </div>
       ) : (
         <div className="space-y-2">
@@ -469,7 +469,7 @@ export default function FoodsPage() {
                     {!food.isSystemFood && (
                       <button
                         disabled={deletingId === food.id}
-                        onClick={(e) => { e.stopPropagation(); food.id && deleteFood(food.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (food.id) deleteFood(food.id); }}
                         className="text-text-muted hover:text-red-500 transition-colors p-1 -mr-1"
                       >
                         <Trash2 size={14} />

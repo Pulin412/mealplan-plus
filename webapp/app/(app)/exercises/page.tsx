@@ -243,7 +243,7 @@ export default function ExercisesPage() {
         <div className="bg-bg-card rounded-xl border border-divider flex flex-col items-center py-12 gap-3">
           <span className="text-4xl">🏋️</span>
           <p className="text-sm text-text-muted">{query ? "No exercises match" : "No exercises yet"}</p>
-          {!query && <p className="text-xs text-text-placeholder">Import from Profile or tap "Add exercise"</p>}
+          {!query && <p className="text-xs text-text-placeholder">Import from Profile or tap &quot;Add exercise&quot;</p>}
         </div>
       ) : (
         <div className="space-y-2">
@@ -275,7 +275,7 @@ export default function ExercisesPage() {
                     {!ex.isSystem && (
                       <button
                         disabled={deletingId === ex.id}
-                        onClick={(e) => { e.stopPropagation(); ex.id && deleteExercise(ex.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (ex.id) deleteExercise(ex.id); }}
                         className="text-text-muted hover:text-red-500 transition-colors p-1 -mr-1"
                       >
                         <Trash2 size={14} />

@@ -345,7 +345,7 @@ export default function WorkoutsPage() {
               </button>
             </div>
             {sets.length === 0 && (
-              <p className="text-[12px] text-text-muted py-2 text-center">No sets yet. Tap "Add set" to start.</p>
+              <p className="text-[12px] text-text-muted py-2 text-center">No sets yet. Tap &quot;Add set&quot; to start.</p>
             )}
             {sets.map((s, i) => (
               <SetRow key={i} idx={i} set={s} exercises={exercises}
@@ -368,7 +368,7 @@ export default function WorkoutsPage() {
         <div className="bg-bg-card rounded-xl border border-divider flex flex-col items-center py-16 gap-3">
           <span className="text-4xl">💪</span>
           <p className="text-sm text-text-muted">No workouts logged yet</p>
-          <p className="text-xs text-text-placeholder">Tap "Log workout" to record your first session</p>
+          <p className="text-xs text-text-placeholder">Tap &quot;Log workout&quot; to record your first session</p>
         </div>
       ) : (
         <div className="space-y-5">

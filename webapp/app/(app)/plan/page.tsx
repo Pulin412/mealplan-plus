@@ -9,8 +9,15 @@ import type { components } from "@/lib/api/types.generated";
 
 type DietDto = components["schemas"]["DietDto"];
 
+// Inline type — will be added to generated types after OpenAPI spec update
+interface DayPlanDto {
+  id?: number;
+  serverId?: string;
+  date: string;   // yyyy-MM-dd
+  dietId: number;
+}
+
 const DAYS_HEADER = ["M", "T", "W", "T", "F", "S", "S"]; // Mon-first
-const PLAN_KEY = "mealplan_plan_assignments";
 
 function todayStr() { return new Date().toISOString().split("T")[0]; }
 
@@ -24,49 +31,55 @@ function addDaysToStr(dateStr: string, n: number) {
   return d.toISOString().split("T")[0];
 }
 
-
-function loadPlan(): Map<string, number> {
-  try {
-    const raw = localStorage.getItem(PLAN_KEY);
-    if (!raw) return new Map();
-    return new Map(Object.entries(JSON.parse(raw) as Record<string, number>));
-  } catch { return new Map(); }
-}
-
-function savePlan(map: Map<string, number>) {
-  const obj: Record<string, number> = {};
-  map.forEach((v, k) => { obj[k] = v; });
-  localStorage.setItem(PLAN_KEY, JSON.stringify(obj));
-}
-
 export default function PlanPage() {
   const { user } = useAuth();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [diets, setDiets] = useState<DietDto[]>([]);
+  // Map of date string → dietId, derived from server plans
   const [plan, setPlan] = useState<Map<string, number>>(new Map());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { setPlan(loadPlan()); }, []);
-
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!user) return;
-    api.get<DietDto[]>("/api/v1/diets")
-      .then(setDiets)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load diets"))
-      .finally(() => setLoading(false));
+    setLoading(true);
+    try {
+      const [fetchedDiets, plans] = await Promise.all([
+        api.get<DietDto[]>("/api/v1/diets"),
+        api.get<DayPlanDto[]>("/api/v1/plans"),
+      ]);
+      setDiets(fetchedDiets);
+      const map = new Map<string, number>();
+      plans.forEach((p) => map.set(p.date, p.dietId));
+      setPlan(map);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
-  const assignDiet = useCallback((date: string, dietId: number | null) => {
-    setPlan((prev) => {
-      const next = new Map(prev);
-      if (dietId === null) next.delete(date); else next.set(date, dietId);
-      savePlan(next);
-      return next;
-    });
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const assignDiet = useCallback(async (date: string, dietId: number | null) => {
+    setSaving(true);
+    try {
+      if (dietId === null) {
+        await api.delete(`/api/v1/plans/${date}`);
+        setPlan((prev) => { const next = new Map(prev); next.delete(date); return next; });
+      } else {
+        const saved = await api.put<DayPlanDto>(`/api/v1/plans/${date}`, { date, dietId });
+        setPlan((prev) => new Map(prev).set(saved.date, saved.dietId));
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
   }, []);
 
   const today = todayStr();
@@ -194,9 +207,10 @@ export default function PlanPage() {
                 return (
                   <button
                     key={diet.id}
+                    disabled={saving}
                     onClick={() => assignDiet(selectedDate, assigned ? null : diet.id!)}
                     className={[
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors disabled:opacity-50",
                       assigned
                         ? "bg-text-primary text-bg-card border-text-primary"
                         : "border-divider text-text-secondary hover:bg-bg-page",
@@ -209,13 +223,15 @@ export default function PlanPage() {
               })}
               {plan.has(selectedDate) && (
                 <button
+                  disabled={saving}
                   onClick={() => assignDiet(selectedDate, null)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                  className="px-3 py-1.5 rounded-full text-sm font-medium border border-red-200 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
                 >
                   Remove
                 </button>
               )}
             </div>
+            {saving && <p className="text-[11px] text-text-muted mt-2">Saving…</p>}
           </div>
         </div>
       )}
