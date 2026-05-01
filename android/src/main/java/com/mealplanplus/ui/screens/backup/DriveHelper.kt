@@ -26,27 +26,32 @@ object DriveHelper {
     private const val BOUNDARY = "mealplan_backup_boundary"
 
     suspend fun listBackups(token: String): List<DriveBackupEntry> = withContext(Dispatchers.IO) {
+        // No q-filter and no orderBy — both can cause 400 on appDataFolder.
+        // We own all files in appDataFolder so no filter needed; sort client-side.
         val url = "$BASE/files" +
                 "?spaces=appDataFolder" +
-                "&fields=files(id,name,createdTime,size)" +
-                "&orderBy=createdTime+desc" +
-                "&q=name+contains+'mealplan_backup'"
+                "&fields=files(id,name,createdTime,size)"
         val req = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $token")
             .get()
             .build()
-        val body = client.newCall(req).execute().use { it.body?.string() ?: "{}" }
+        val (code, body) = client.newCall(req).execute().use { Pair(it.code, it.body?.string() ?: "{}") }
+        if (code !in 200..299) throw Exception("Drive list failed ($code): $body")
         val files = JSONObject(body).optJSONArray("files") ?: JSONArray()
-        (0 until files.length()).map { i ->
-            val f = files.getJSONObject(i)
-            DriveBackupEntry(
-                fileId = f.getString("id"),
-                name = f.getString("name"),
-                createdTime = formatDriveDate(f.optString("createdTime")),
-                size = formatSize(f.optLong("size", 0L))
-            )
-        }
+        (0 until files.length())
+            .map { i ->
+                val f = files.getJSONObject(i)
+                val rawCreatedTime = f.optString("createdTime")
+                DriveBackupEntry(
+                    fileId = f.getString("id"),
+                    name = f.optString("name", "backup"),
+                    createdTime = formatDriveDate(rawCreatedTime),
+                    // Drive returns size as a JSON string for large files
+                    size = formatSize(f.optString("size", "0").toLongOrNull() ?: 0L)
+                )
+            }
+            .sortedByDescending { it.name }  // filename contains date: mealplan_backup_YYYY-MM-DD.json
     }
 
     /**
@@ -68,7 +73,8 @@ object DriveHelper {
             .header("Content-Type", "multipart/related; boundary=$BOUNDARY")
             .post(rawBody.toRequestBody())
             .build()
-        val response = client.newCall(req).execute().use { it.body?.string() ?: "{}" }
+        val (code, response) = client.newCall(req).execute().use { Pair(it.code, it.body?.string() ?: "{}") }
+        if (code !in 200..299) throw Exception("Drive upload failed ($code): $response")
         JSONObject(response).optString("id", "")
     }
 
