@@ -37,7 +37,7 @@ object DriveHelper {
             .get()
             .build()
         val (code, body) = client.newCall(req).execute().use { Pair(it.code, it.body?.string() ?: "{}") }
-        if (code !in 200..299) throw Exception("Drive list failed ($code): $body")
+        if (code !in 200..299) throw Exception(driveError("list", code, body))
         val files = JSONObject(body).optJSONArray("files") ?: JSONArray()
         (0 until files.length())
             .map { i ->
@@ -74,7 +74,7 @@ object DriveHelper {
             .post(rawBody.toRequestBody())
             .build()
         val (code, response) = client.newCall(req).execute().use { Pair(it.code, it.body?.string() ?: "{}") }
-        if (code !in 200..299) throw Exception("Drive upload failed ($code): $response")
+        if (code !in 200..299) throw Exception(driveError("upload", code, response))
         JSONObject(response).optString("id", "")
     }
 
@@ -94,6 +94,20 @@ object DriveHelper {
             .delete()
             .build()
         client.newCall(req).execute().close()
+    }
+
+    /** Extracts a short human-readable message from a Drive API error response body. */
+    private fun driveError(op: String, code: Int, body: String): String {
+        val hint = when (code) {
+            401 -> "token expired — try disconnecting and reconnecting Google"
+            403 -> "Drive API not enabled or permission denied — enable Google Drive API in Cloud Console"
+            404 -> "file not found"
+            else -> null
+        }
+        val apiMessage = runCatching {
+            JSONObject(body).getJSONObject("error").optString("message")
+        }.getOrNull()?.takeIf { it.isNotEmpty() }
+        return "Drive $op failed ($code): ${hint ?: apiMessage ?: "unknown error"}"
     }
 
     private fun formatDriveDate(isoStr: String): String {

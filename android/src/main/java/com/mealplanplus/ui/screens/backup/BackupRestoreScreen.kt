@@ -54,7 +54,7 @@ fun BackupRestoreScreen(
     }
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it, duration = SnackbarDuration.Long)
             viewModel.clearMessage()
         }
     }
