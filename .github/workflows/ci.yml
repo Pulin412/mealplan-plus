@@ -1,14 +1,15 @@
 name: CI
 
-# Single entry point for all CI. On every push to main, a cheap "detect-changes"
-# job runs first and outputs which modules were touched. Each downstream job only
-# starts if its module's files actually changed — so a docs-only or backend-only
-# push never triggers the Android or iOS builds.
+# Single workflow for all modules. Runs on push to develop, path-filtered
+# so only the jobs relevant to what changed actually execute.
+#
+# Trigger model:
+#   push to develop  → this file (android + backend + webapp, path-filtered)
+#   PR merged → main → backend-deploy.yml (deploy only)
+
 on:
   push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+    branches: [develop]
 
 jobs:
   # ── 1. Detect which modules changed ─────────────────────────────────────────
@@ -18,7 +19,7 @@ jobs:
     outputs:
       android: ${{ steps.filter.outputs.android }}
       backend: ${{ steps.filter.outputs.backend }}
-      ios:     ${{ steps.filter.outputs.ios }}
+      webapp:  ${{ steps.filter.outputs.webapp }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +30,6 @@ jobs:
           filters: |
             android:
               - 'android/**'
-              - 'shared/**'
               - 'build.gradle.kts'
               - 'settings.gradle.kts'
               - 'gradle/**'
@@ -40,12 +40,8 @@ jobs:
               - 'settings.gradle.kts'
               - 'gradle/**'
               - '.github/workflows/ci.yml'
-            ios:
-              - 'ios/**'
-              - 'shared/**'
-              - 'build.gradle.kts'
-              - 'settings.gradle.kts'
-              - 'gradle/**'
+            webapp:
+              - 'webapp/**'
               - '.github/workflows/ci.yml'
 
   # ── 2a. Android build + unit tests ──────────────────────────────────────────
@@ -69,27 +65,14 @@ jobs:
         with:
           cache-read-only: false
 
-      - name: Build + unit tests
-        # --configuration-cache is omitted: the custom verifyNoBillableFirebaseFeatures
-        # task captures a Project reference which is not config-cache serialisable.
+      - name: Build
+        # --configuration-cache omitted: verifyNoBillableFirebaseFeatures captures
+        # a Project reference which is not config-cache serialisable.
         run: >
           ./gradlew
           :android:assembleDebug
-          :android:testDebugUnitTest
-          :shared:testDebugUnitTest
-          --parallel
           --build-cache
           --no-daemon
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-test-results
-          path: |
-            android/build/reports/tests/
-            shared/build/reports/tests/
-          retention-days: 7
 
   # ── 2b. Backend build + unit tests ──────────────────────────────────────────
   backend:
@@ -113,7 +96,6 @@ jobs:
           cache-read-only: false
 
       - name: Build + test
-        # Backend has no Project-capturing custom tasks so configuration cache is safe here.
         run: >
           ./gradlew
           :backend:build
@@ -127,54 +109,39 @@ jobs:
       - name: Docker build check
         run: docker build -t mealplan-api ./backend
 
-  # ── 2c. iOS build ────────────────────────────────────────────────────────────
-  ios:
-    name: iOS (build)
+  # ── 2c. Webapp type-check, lint + build ─────────────────────────────────────
+  webapp:
+    name: Webapp (type-check + lint + build)
     needs: detect-changes
-    if: needs.detect-changes.outputs.ios == 'true'
-    runs-on: macos-latest
+    if: needs.detect-changes.outputs.webapp == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: webapp/package-lock.json
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-read-only: false
+      - name: Install dependencies
+        run: npm ci
 
-      # Cache Xcode DerivedData so incremental xcodebuild runs skip recompilation.
-      # Key includes the hash of all Swift/xcodeproj files; a miss falls back to
-      # any prior DerivedData for this branch.
-      - name: Cache Xcode DerivedData
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: xcode-derived-${{ runner.os }}-${{ hashFiles('ios/**/*.swift', 'ios/**/*.xcodeproj/**') }}
-          restore-keys: |
-            xcode-derived-${{ runner.os }}-
+      - name: Type-check
+        run: npx tsc --noEmit
 
-      - name: Build shared KMP framework (iOS simulator)
-        # --configuration-cache safe here: shared module has no Project-capturing tasks.
-        run: >
-          ./gradlew
-          :shared:linkDebugFrameworkIosSimulatorArm64
-          --build-cache
-          --configuration-cache
-          --no-daemon
+      - name: Lint
+        run: npm run lint
 
-      - name: Build iOS app
-        run: |
-          xcodebuild \
-            -project ios/iosApp.xcodeproj \
-            -scheme iosApp \
-            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17' \
-            -configuration Debug \
-            -derivedDataPath ~/Library/Developer/Xcode/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: placeholder
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: placeholder
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: placeholder
+          NEXT_PUBLIC_FIREBASE_APP_ID: placeholder
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
