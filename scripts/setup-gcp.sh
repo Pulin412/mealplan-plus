@@ -16,7 +16,7 @@ set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
 PROJECT_ID="${GCP_PROJECT_ID:?Set GCP_PROJECT_ID env var}"
-REGION="europe-west1"
+REGION="europe-west4"
 SA_NAME="mealplan-deployer"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 REPO_NAME="mealplan"

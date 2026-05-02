@@ -23,7 +23,7 @@ on:
       - '.github/workflows/backend-deploy.yml'
 
 env:
-  GCP_REGION: europe-west1
+  GCP_REGION: europe-west4
   SERVICE_NAME: mealplan-api
 
 jobs:
