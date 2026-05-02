@@ -104,8 +104,9 @@ jobs:
             | grep -q '"status":"UP"' && echo "Health check passed" || exit 1
 
       - name: Prune old images (keep latest 3)
-        # Deletes all but the 3 most recent digests to stay within the 0.5 GB
-        # Artifact Registry free tier. Failures are non-fatal (--async + || true).
+        # Deletes all but the 3 most recent image digests after each deploy.
+        # Keeps storage within the 0.5 GB Artifact Registry free tier (~200 MB
+        # per Spring Boot image). Failures are non-fatal (--async + || true).
         run: |
           IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mealplan/mealplan-api"
           gcloud artifacts docker images list "$IMAGE" \
