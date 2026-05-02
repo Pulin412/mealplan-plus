@@ -1,12 +1,16 @@
 name: CI
 
-# Single entry point for all CI. On every push to main, a cheap "detect-changes"
-# job runs first and outputs which modules were touched. Each downstream job only
-# starts if its module's files actually changed — so a docs-only or backend-only
-# push never triggers the Android or iOS builds.
+# Runs on every push to develop, path-filtered per module.
+# iOS is dropped (replaced by Next.js PWA). Webapp has its own workflow (webapp.yml).
+#
+# Trigger model:
+#   push to develop  → this workflow (android + backend, path-filtered)
+#   push to develop  → webapp.yml (webapp, path-filtered)
+#   PR merged → main → backend-deploy.yml (deploy only)
+
 on:
   push:
-    branches: [develop] # CI runs only on push to develop
+    branches: [develop]
 
 jobs:
   # ── 1. Detect which modules changed ─────────────────────────────────────────
@@ -16,7 +20,6 @@ jobs:
     outputs:
       android: ${{ steps.filter.outputs.android }}
       backend: ${{ steps.filter.outputs.backend }}
-      ios:     ${{ steps.filter.outputs.ios }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,20 +30,12 @@ jobs:
           filters: |
             android:
               - 'android/**'
-              - 'shared/**'
               - 'build.gradle.kts'
               - 'settings.gradle.kts'
               - 'gradle/**'
               - '.github/workflows/ci.yml'
             backend:
               - 'backend/**'
-              - 'build.gradle.kts'
-              - 'settings.gradle.kts'
-              - 'gradle/**'
-              - '.github/workflows/ci.yml'
-            ios:
-              - 'ios/**'
-              - 'shared/**'
               - 'build.gradle.kts'
               - 'settings.gradle.kts'
               - 'gradle/**'
@@ -68,13 +63,12 @@ jobs:
           cache-read-only: false
 
       - name: Build + unit tests
-        # --configuration-cache is omitted: the custom verifyNoBillableFirebaseFeatures
-        # task captures a Project reference which is not config-cache serialisable.
+        # --configuration-cache omitted: verifyNoBillableFirebaseFeatures captures
+        # a Project reference which is not config-cache serialisable.
         run: >
           ./gradlew
           :android:assembleDebug
           :android:testDebugUnitTest
-          :shared:testDebugUnitTest
           --parallel
           --build-cache
           --no-daemon
@@ -84,9 +78,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-test-results
-          path: |
-            android/build/reports/tests/
-            shared/build/reports/tests/
+          path: android/build/reports/tests/
           retention-days: 7
 
   # ── 2b. Backend build + unit tests ──────────────────────────────────────────
@@ -111,7 +103,6 @@ jobs:
           cache-read-only: false
 
       - name: Build + test
-        # Backend has no Project-capturing custom tasks so configuration cache is safe here.
         run: >
           ./gradlew
           :backend:build
@@ -124,55 +115,3 @@ jobs:
 
       - name: Docker build check
         run: docker build -t mealplan-api ./backend
-
-  # ── 2c. iOS build ────────────────────────────────────────────────────────────
-  ios:
-    name: iOS (build)
-    needs: detect-changes
-    if: needs.detect-changes.outputs.ios == 'true'
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-read-only: false
-
-      # Cache Xcode DerivedData so incremental xcodebuild runs skip recompilation.
-      # Key includes the hash of all Swift/xcodeproj files; a miss falls back to
-      # any prior DerivedData for this branch.
-      - name: Cache Xcode DerivedData
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: xcode-derived-${{ runner.os }}-${{ hashFiles('ios/**/*.swift', 'ios/**/*.xcodeproj/**') }}
-          restore-keys: |
-            xcode-derived-${{ runner.os }}-
-
-      - name: Build shared KMP framework (iOS simulator)
-        # --configuration-cache safe here: shared module has no Project-capturing tasks.
-        run: >
-          ./gradlew
-          :shared:linkDebugFrameworkIosSimulatorArm64
-          --build-cache
-          --configuration-cache
-          --no-daemon
-
-      - name: Build iOS app
-        run: |
-          xcodebuild \
-            -project ios/iosApp.xcodeproj \
-            -scheme iosApp \
-            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17' \
-            -configuration Debug \
-            -derivedDataPath ~/Library/Developer/Xcode/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            build

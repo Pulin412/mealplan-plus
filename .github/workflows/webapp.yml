@@ -1,17 +1,21 @@
-name: Webapp
+name: Webapp CI
+
+# Runs on push to develop when webapp files change.
+# Mirrors the same trigger model as ci.yml (android + backend).
+#
+# Deploy is handled separately by Vercel's GitHub integration
+# which auto-deploys on push to main.
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths:
-      - "webapp/**"
-  pull_request:
-    paths:
-      - "webapp/**"
+      - 'webapp/**'
+      - '.github/workflows/webapp.yml'
 
 jobs:
   build:
-    name: Lint & Build
+    name: Type-check, Lint & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,8 +26,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '20'
+          cache: 'npm'
           cache-dependency-path: webapp/package-lock.json
 
       - name: Install dependencies
