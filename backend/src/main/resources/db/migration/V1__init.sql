@@ -110,7 +110,7 @@ CREATE TABLE health_metrics (
     firebase_uid    VARCHAR(255)     NOT NULL,
     type            VARCHAR(100)     NOT NULL,
     sub_type        VARCHAR(100),
-    value           DOUBLE PRECISION NOT NULL DEFAULT 0,
+    metric_value    DOUBLE PRECISION NOT NULL DEFAULT 0,
     secondary_value DOUBLE PRECISION,
     unit            VARCHAR(50)      NOT NULL,
     recorded_at     TIMESTAMPTZ      NOT NULL,
