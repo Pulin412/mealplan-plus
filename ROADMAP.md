@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: May 2, 2026 (Phase 3c added — Deploy + iOS PWA)  
+> Last updated: May 2, 2026 (Phase 3d added — Repo Cleanup + CI/CD Overhaul)  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -326,6 +326,132 @@ mealplan-plus/
 
 ---
 
+## Phase 3d — Repo Cleanup + CI/CD Overhaul
+> **Goal:** Clean, professional repository with no dead code (iOS, shared KMP), and three fully independent pipelines that know when to cross-fire. A backend API change rebuilds and redeploys everything that consumes it; an Android-only change never touches the webapp.  
+> **Depends on:** Phase 3c deployed and stable (Cloud Run + Vercel live)  
+> **Why now:** The current `ci.yml` is a monolith. It has iOS job remnants, no Vercel deploy step, and doesn't cross-fire Android/Webapp when the backend API changes. This phase makes the repo match what we actually build.
+
+| GH Issue | Task | Status |
+|---|---|---|
+| [#112](https://github.com/Pulin412/mealplan-plus/issues/112) | Repo cleanup — delete `ios/` directory and all iOS references across codebase | ⬜ Open |
+| [#113](https://github.com/Pulin812/mealplan-plus/issues/113) | Repo cleanup — delete `shared/` KMP module directory (already disconnected, dead code) | ⬜ Open |
+| [#114](https://github.com/Pulin812/mealplan-plus/issues/114) | CI overhaul — split monolith `ci.yml` into three independent pipeline files | ⬜ Open |
+| [#115](https://github.com/Pulin812/mealplan-plus/issues/115) | Deploy overhaul — backend changes trigger Webapp redeploy; Android + Webapp rebuild on any API change | ⬜ Open |
+
+---
+
+### Phase 3d Checklist
+
+#### #112 — Remove iOS directory
+- [ ] Delete `ios/` directory entirely (SwiftUI app — superseded by PWA)
+- [ ] Search repo for any remaining iOS references: `grep -r "ios/" .github/ docs/ CLAUDE.md ROADMAP.md` — remove or update each one
+- [ ] Update `CLAUDE.md` module layout table (remove `ios/` row)
+- [ ] Update `ROADMAP.md` repo layout diagram (remove `ios/` line)
+
+#### #113 — Remove shared/ directory
+- [ ] Confirm `settings.gradle.kts` does NOT include `:shared` (already removed in Foundation #81)
+- [ ] Delete `shared/` directory entirely
+- [ ] Update `CLAUDE.md` module layout table (remove `shared/` row or mark as deleted)
+- [ ] Update `ROADMAP.md` repo layout diagram (remove `shared/` line)
+- [ ] Update `ROADMAP.md` Architecture Decisions table (remove the KMP/shared row)
+
+#### Target repo layout after cleanup
+```
+mealplan-plus/
+├── android/     ← Kotlin, Compose, Room, Hilt — self-contained
+├── backend/     ← Spring Boot 3 + Kotlin — source of truth, Cloud Run
+├── webapp/      ← Next.js 14 + TypeScript — PWA, Vercel
+├── docs/        ← BRANCHING.md, openapi.yaml, DATABASE_SCHEMA.md, etc.
+├── scripts/     ← setup-gcp.sh and other one-off scripts
+├── CLAUDE.md
+├── ROADMAP.md
+└── README.md
+```
+No `ios/`, no `shared/`, no `backup/` (delete after confirming data is fully imported).
+
+---
+
+#### #114 — Split CI into three independent pipelines
+
+Delete `ci.yml`. Replace with three files:
+
+**`.github/workflows/android.yml`** — triggers: push to `develop` when `android/**` OR `backend/**` changed
+```
+detect-changes (dorny/paths-filter)
+  → android job  (if android/** OR backend/** changed)
+      JDK 17, ./gradlew :android:assembleDebug --build-cache --no-daemon
+```
+
+**`.github/workflows/backend.yml`** — triggers: push to `develop` when `backend/**` changed
+```
+detect-changes (dorny/paths-filter)
+  → backend job  (if backend/** changed)
+      JDK 21, ./gradlew :backend:build --parallel --build-cache --configuration-cache --no-daemon
+      docker build check (validates Dockerfile still works)
+```
+
+**`.github/workflows/webapp.yml`** — triggers: push to `develop` when `webapp/**` OR `backend/**` changed
+```
+detect-changes (dorny/paths-filter)
+  → webapp job  (if webapp/** OR backend/** changed)
+      Node 20, npm ci, npx tsc --noEmit, npm run lint, npm run build
+```
+
+**Cross-fire rule (the key insight):**
+`backend/**` is listed in the path filter of ALL THREE workflows. A backend API change fires android + backend + webapp jobs in parallel — because all three consumers need to prove they still compile against the new API.
+
+---
+
+#### #115 — Deploy overhaul
+
+**Keep** `backend-deploy.yml` as-is (PR merge to `main`, `backend/**` path filter → Cloud Run).
+
+**Add** `.github/workflows/webapp-deploy.yml` — triggers: PR merge to `main` when `webapp/**` OR `backend/**` changed:
+```
+if: github.event.pull_request.merged == true
+
+steps:
+  1. npm ci
+  2. npx tsc --noEmit          ← final type-check gate before deploy
+  3. npm run build
+  4. vercel --prod              ← Vercel CLI deploy (VERCEL_TOKEN secret)
+```
+
+**Why Vercel CLI instead of Vercel's native GitHub integration:**
+Vercel's auto-deploy fires on every push to main regardless of what changed. Using the CLI in a path-filtered workflow means: webapp only redeploys when `webapp/**` or `backend/**` changed — not when someone fixes an Android typo.
+
+**New GitHub secret needed:** `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (from `vercel link`).
+
+**Deploy trigger matrix (final state):**
+
+| What merged to main | `backend-deploy.yml` | `webapp-deploy.yml` | Manual APK / Play Store |
+|---|---|---|---|
+| `android/**` change | ❌ skip | ❌ skip | ✅ (manual or future) |
+| `backend/**` change | ✅ Cloud Run | ✅ Vercel | — |
+| `webapp/**` change | ❌ skip | ✅ Vercel | — |
+| `backend/**` + `webapp/**` | ✅ Cloud Run | ✅ Vercel | — |
+
+**CI trigger matrix (final state — on push to `develop`):**
+
+| What changed | `android.yml` | `backend.yml` | `webapp.yml` |
+|---|---|---|---|
+| `android/**` only | ✅ build | ❌ | ❌ |
+| `backend/**` only | ✅ build | ✅ build+test | ✅ build |
+| `webapp/**` only | ❌ | ❌ | ✅ build |
+| `android/**` + `backend/**` | ✅ | ✅ | ✅ |
+
+---
+
+### Key Design Notes
+- **Three files, one responsibility each** — `android.yml` knows nothing about webapp; `webapp.yml` knows nothing about android. They only share the backend trigger.
+- **`backend/**` as universal trigger** — any backend API change (new endpoint, renamed field, new DTO) causes all consumers to rebuild immediately. You catch breakage on `develop`, not in production.
+- **Vercel CLI over native integration** — native Vercel deploys on every push regardless of path; CLI gives you path filtering so Android-only merges don't waste a Vercel deploy slot.
+- **No shared job, no monolith** — `detect-changes` lives inside each workflow file independently. Each workflow is self-contained and can be read, debugged, and modified without touching the others.
+- **Android deploy is manual for now** — APK is not auto-published to Play Store in this phase. That's a future phase (Play Store internal track upload via `fastlane` or `gradle-play-publisher`). The CI job just proves the APK builds clean.
+- **Disable Vercel's GitHub integration** after `webapp-deploy.yml` is wired up — otherwise both fire on main merges and you get double deploys.
+
+---
+
 ## Phase 4 — AI on Web (Spring AI + RAG)
 > **Goal:** Dietary chatbot on the web app, powered by user's actual data via RAG.  
 > **Depends on:** Phase 3c (backend deployed, pgvector accumulating data), Phase 3 (web app exists)
@@ -379,13 +505,14 @@ Foundation (#81, #82, #98 UI redesign)
             ├── Phase 3 (Web App scaffold) ← done ✅ · screens, auth, design system
             │       └── Phase 3a (Web App parity) ← done ✅ · #99–#104
             │               └── Phase 3b (Backup & Restore) ← done ✅ · Drive + local file · #105–#107
-            │                       └── Phase 3c (Deploy + iOS PWA) ← #108–#111 ← YOU ARE HERE
-            │                               └── Phase 4 (AI Web) ← needs backend live + pgvector data
-            │                                       └── Phase 5 (AI Android) ← same backend endpoint
+            │                       └── Phase 3c (Deploy + iOS PWA) ← #108–#111 ← IN PROGRESS
+            │                               └── Phase 3d (Repo + CI/CD Overhaul) ← #112–#115 ← NEXT
+            │                                       └── Phase 4 (AI Web) ← needs backend live + pgvector data
+            │                                               └── Phase 5 (AI Android) ← same backend endpoint
             └── (pgvector enabled here)
 ```
 
-**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → **Phase 3c** → Phase 4 → Phase 5
+**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → Phase 3c → **Phase 3d** → Phase 4 → Phase 5
 
 ### Phase order summary (current state)
 
@@ -398,7 +525,8 @@ Foundation (#81, #82, #98 UI redesign)
 | 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
 | 2d | **Phase 3a** · Web Parity | ✅ Done | #99–#104: all 6 issues complete |
 | 2e | **Phase 3b** · Backup & Restore | ✅ Done | #105–#107: Drive + local file, Android + Webapp; GZIP; all 20 tables |
-| 2f | **Phase 3c** · Deploy + iOS PWA | ⬜ Open | **← next** · #108–#111: Cloud Run + Vercel + iOS checklist + Android URL |
+| 2f | **Phase 3c** · Deploy + iOS PWA | 🔄 In Progress | #108–#111: Cloud Run deploying, Vercel + Android URL pending |
+| 2g | **Phase 3d** · Repo + CI/CD Overhaul | ⬜ Open | **← next** · #112–#115: remove iOS/shared, independent pipelines, cross-fire on API change |
 | 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3c (backend live) + pgvector data accumulating |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
