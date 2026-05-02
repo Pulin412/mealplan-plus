@@ -5,6 +5,7 @@ import { Home, FileText, CalendarDays, Settings, Plus, Activity, Salad, Shopping
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/firebase/auth";
+import { IosInstallBanner } from "@/components/IosInstallBanner";
 
 
 // More sheet items (Android MiscSheet)
@@ -212,6 +213,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onNavigate={(href) => router.push(href)}
         />
       )}
+
+      {/* iOS Safari install nudge — shown once, dismissed to localStorage */}
+      <IosInstallBanner />
     </div>
   );
 }

@@ -20,6 +20,11 @@ object NetworkModule {
 
     private const val OPEN_FOOD_FACTS_URL = "https://world.openfoodfacts.org/"
     private const val USDA_API_URL = "https://api.nal.usda.gov/"
+
+    // TODO #111 — replace with Cloud Run URL once backend-deploy.yml has run.
+    // Get the URL from: https://console.cloud.google.com/run?project=mealplan-plus
+    // Format: "https://mealplan-api-XXXX-ew.a.run.app/"  (trailing slash required)
+    // Emulator-only fallback kept here until real URL is available.
     private const val MEAL_PLAN_API_URL = "http://10.0.2.2:8080/"
 
     @Provides
