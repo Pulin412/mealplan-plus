@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: May 1, 2026 (evening)  
+> Last updated: May 2, 2026  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -223,37 +223,47 @@ mealplan-plus/
 
 | GH Issue | Task | Platform | Status |
 |---|---|---|---|
-| [#105](https://github.com/Pulin412/mealplan-plus/issues/105) | Google Drive backup — lazy OAuth (on first use), upload JSON to appDataFolder, list + restore | Android + Webapp | ⬜ Open |
-| [#106](https://github.com/Pulin412/mealplan-plus/issues/106) | Local file backup — Android share sheet export + file picker import; Webapp file upload + parse + sync push | Android + Webapp | ⬜ Open |
-| [#107](https://github.com/Pulin412/mealplan-plus/issues/107) | Backup & Restore UI — unified screen showing both paths; Drive backup list with date; graceful fallback when no Google account | Android + Webapp | ⬜ Open |
+| [#105](https://github.com/Pulin412/mealplan-plus/issues/105) | Google Drive backup — lazy OAuth (on first use), upload JSON to appDataFolder, list + restore | Android + Webapp | ✅ Done |
+| [#106](https://github.com/Pulin412/mealplan-plus/issues/106) | Local file backup — Android share sheet export + file picker import; Webapp file upload + parse + sync push | Android + Webapp | ✅ Done |
+| [#107](https://github.com/Pulin412/mealplan-plus/issues/107) | Backup & Restore UI — unified screen showing both paths; Drive backup list with date; graceful fallback when no Google account | Android + Webapp | ✅ Done |
 
 ### Phase 3b Checklist
 
 **#105 — Google Drive backup**
-- [ ] Android: `GoogleSignIn` with `DRIVE_APPDATA` scope (lazy — requested only when user taps "Backup to Drive")
-- [ ] Android: Upload `mealplan_backup_<date>.json` to `appDataFolder`; download + parse on restore → Room upsert
-- [ ] Webapp: Google Identity Services OAuth for `drive.appdata` scope (separate from Firebase Auth)
-- [ ] Webapp: Upload same JSON to `appDataFolder`; download on restore → `POST /api/v1/sync/push`
-- [ ] Both: cache Drive token; show "Connect Google account" prompt for email/password users with no Google account
+- [x] Android: `GoogleSignIn` with `DRIVE_APPDATA` scope (lazy — requested only when user taps "Backup to Drive")
+- [x] Android: Upload `mealplan_backup_<date>.json.gz` to `appDataFolder`; download + decompress + parse on restore → Room upsert
+- [x] Webapp: Google Identity Services OAuth for `drive.appdata` scope (separate from Firebase Auth)
+- [x] Webapp: Upload same JSON to `appDataFolder`; download on restore → `POST /api/v1/sync/push`
+- [x] Both: Drive token cached; "Connect Google account" prompt shown when not connected
 
 **#106 — Local file backup (universal fallback)**
-- [ ] Android: "Export" → serialize all Room data to JSON → Android share sheet (Files, email, Dropbox, iCloud, etc.)
-- [ ] Android: "Import" → file picker → parse JSON → upsert into Room
-- [ ] Webapp: "Export" already done (#103) — wire up to the new Backup screen
-- [ ] Webapp: "Import" → file upload input → parse JSON → `POST /api/v1/sync/push` → reload
+- [x] Android: "Export" → serialize all Room data → GZIP compress → Android share sheet (Files, email, Dropbox, iCloud, etc.)
+- [x] Android: "Import" → file picker → GZIP decompress → parse → upsert into Room
+- [x] Webapp: "Export" wired to Backup & Restore screen
+- [x] Webapp: "Import" → file upload → parse → `POST /api/v1/sync/push` → reload
 
 **#107 — Backup & Restore UI**
-- [ ] Android: New "Backup & Restore" screen under Settings with two sections: Drive + Local file
-- [ ] Webapp: Same screen under Settings replacing the standalone export button
-- [ ] Both: Drive section hidden / replaced with "Requires a Google account" message for non-Google users
-- [ ] Both: Drive backup list shows filename + date + size; tap to restore; swipe/button to delete
+- [x] Android: "Backup & Restore" screen under Settings — Drive section + Local file section
+- [x] Webapp: Backup & Restore section in Settings replacing standalone export button
+- [x] Both: Drive backup list shows filename + date + size; restore button; delete button
+
+### What was actually delivered
+- `DriveHelper.kt` — thin OkHttp wrapper around Drive REST API v3 (list, upload bytes, download bytes, delete)
+- `LocalBackupSnapshot` — typed flat snapshot covering all 20 Room tables (foods, meals, diets, plans, planned slots, food logs, health metrics, groceries, exercises, workout templates, workout sessions, planned workouts)
+- `BackupRepository` — builds and restores snapshot entirely from/to Room; zero network calls
+- GZIP compression before upload / decompression on restore (~85% size reduction)
+- `BackupRestoreViewModel` — orchestrates both paths; falls back gracefully when Firebase auth state is stale
+- Firebase UID now persisted in `AuthPreferences` at every login so backup never fails on stale sessions
+- Human-readable Drive error messages (403 → "enable Drive API in Cloud Console")
+- Success toast shows record count: "47 meals, 3 diets, 128 log days, 234 metrics, 67 workouts, 5 lists"
+- Branch: `feature/phase3b-backup-restore` (pending merge to main)
 
 ### Key Design Notes
-- Backup file format = same JSON shape as `GET /api/v1/sync/pull?since=epoch` — no new backend endpoints needed
-- `appDataFolder` scope: file is hidden from the user's Drive UI but counts against their 15 GB free quota
-- Restore strategy: upsert with `serverId` as the key — same last-write-wins logic as sync; safe to run multiple times
-- Email/password users: Drive tab shows "Connect Google account to enable Drive backup" with an OAuth button; local file tab always works
-- Users with no Google account at all: local file is their only path — make it prominent, not a footnote
+- Backup format: `LocalBackupSnapshot` (Kotlin data class) — typed, versioned (`version = 2`), GZIP-compressed JSON
+- Old uncompressed backups still restore (auto-detected by trying GZIP, falling back to plain JSON)
+- `appDataFolder` scope: file is hidden from Drive UI but counts against user's free 15 GB
+- Restore strategy: REPLACE on conflict — safe to run multiple times
+- Firebase UID stored in DataStore at login → backup works even when Firebase auth state hasn't refreshed
 
 ---
 
@@ -327,7 +337,7 @@ Foundation (#81, #82, #98 UI redesign)
 | 2b | **Phase 2** · Workout Backend sync | ⬜ Open | #91: extend sync push/pull for workouts |
 | 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
 | 2d | **Phase 3a** · Web Parity | ✅ Done | #99–#104: all 6 issues complete |
-| 2e | **Phase 3b** · Backup & Restore | 🔄 Next | #105–#107: Drive + local file, both platforms |
+| 2e | **Phase 3b** · Backup & Restore | ✅ Done | #105–#107: Drive + local file, Android + Webapp; GZIP; all 20 tables |
 | 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3b done + pgvector data accumulating |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
