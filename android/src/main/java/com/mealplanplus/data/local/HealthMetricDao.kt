@@ -21,6 +21,9 @@ interface HealthMetricDao {
     @Query("SELECT * FROM health_metrics WHERE id = :id")
     suspend fun getMetricById(id: Long): HealthMetric?
 
+    @Query("SELECT * FROM health_metrics WHERE userId = :userId ORDER BY date DESC, timestamp DESC")
+    suspend fun getAllMetrics(userId: Long): List<HealthMetric>
+
     @Query("SELECT * FROM health_metrics WHERE userId = :userId AND date = :date ORDER BY timestamp DESC")
     fun getMetricsForDate(userId: Long, date: Long): Flow<List<HealthMetric>>
 

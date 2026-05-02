@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -12,6 +13,7 @@ import java.security.MessageDigest
 object AuthPreferences {
     private val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
     private val USER_ID = longPreferencesKey("user_id")
+    private val FIREBASE_UID = stringPreferencesKey("firebase_uid")
 
     fun isLoggedIn(context: Context): Flow<Boolean> {
         return context.dataStore.data.map { preferences ->
@@ -32,10 +34,18 @@ object AuthPreferences {
         }
     }
 
+    fun getFirebaseUid(context: Context): Flow<String?> =
+        context.dataStore.data.map { it[FIREBASE_UID] }
+
+    suspend fun setFirebaseUid(context: Context, uid: String) {
+        context.dataStore.edit { it[FIREBASE_UID] = uid }
+    }
+
     suspend fun clearAuth(context: Context) {
         context.dataStore.edit { preferences ->
             preferences[IS_LOGGED_IN] = false
             preferences.remove(USER_ID)
+            preferences.remove(FIREBASE_UID)
         }
     }
 

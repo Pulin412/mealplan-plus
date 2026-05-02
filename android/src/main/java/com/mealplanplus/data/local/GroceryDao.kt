@@ -45,6 +45,9 @@ interface GroceryDao {
     @Insert
     suspend fun insertItem(item: GroceryItem): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertItem(item: GroceryItem): Long
+
     @Insert
     suspend fun insertItems(items: List<GroceryItem>)
 

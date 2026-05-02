@@ -47,4 +47,11 @@ interface WorkoutSessionDao {
 
     @Query("SELECT * FROM workout_sessions WHERE userId = :userId AND (syncedAt IS NULL OR syncedAt < updatedAt)")
     suspend fun getUnsyncedSessions(userId: String): List<WorkoutSession>
+
+    // ── Backup ────────────────────────────────────────────────────────────────
+    @Query("SELECT * FROM workout_sessions WHERE userId = :userId ORDER BY date DESC")
+    suspend fun getAllSessionsOnce(userId: String): List<WorkoutSession>
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun upsert(session: WorkoutSession): Long
 }

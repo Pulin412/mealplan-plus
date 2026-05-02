@@ -152,6 +152,9 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
+    // Google Sign-In (for Drive OAuth scope)
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.10")

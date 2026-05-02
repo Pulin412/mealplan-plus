@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: May 1, 2026 (evening)  
+> Last updated: May 2, 2026 (Phase 3c added — Deploy + iOS PWA)  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -223,43 +223,112 @@ mealplan-plus/
 
 | GH Issue | Task | Platform | Status |
 |---|---|---|---|
-| [#105](https://github.com/Pulin412/mealplan-plus/issues/105) | Google Drive backup — lazy OAuth (on first use), upload JSON to appDataFolder, list + restore | Android + Webapp | ⬜ Open |
-| [#106](https://github.com/Pulin412/mealplan-plus/issues/106) | Local file backup — Android share sheet export + file picker import; Webapp file upload + parse + sync push | Android + Webapp | ⬜ Open |
-| [#107](https://github.com/Pulin412/mealplan-plus/issues/107) | Backup & Restore UI — unified screen showing both paths; Drive backup list with date; graceful fallback when no Google account | Android + Webapp | ⬜ Open |
+| [#105](https://github.com/Pulin412/mealplan-plus/issues/105) | Google Drive backup — lazy OAuth (on first use), upload JSON to appDataFolder, list + restore | Android + Webapp | ✅ Done |
+| [#106](https://github.com/Pulin412/mealplan-plus/issues/106) | Local file backup — Android share sheet export + file picker import; Webapp file upload + parse + sync push | Android + Webapp | ✅ Done |
+| [#107](https://github.com/Pulin412/mealplan-plus/issues/107) | Backup & Restore UI — unified screen showing both paths; Drive backup list with date; graceful fallback when no Google account | Android + Webapp | ✅ Done |
 
 ### Phase 3b Checklist
 
 **#105 — Google Drive backup**
-- [ ] Android: `GoogleSignIn` with `DRIVE_APPDATA` scope (lazy — requested only when user taps "Backup to Drive")
-- [ ] Android: Upload `mealplan_backup_<date>.json` to `appDataFolder`; download + parse on restore → Room upsert
-- [ ] Webapp: Google Identity Services OAuth for `drive.appdata` scope (separate from Firebase Auth)
-- [ ] Webapp: Upload same JSON to `appDataFolder`; download on restore → `POST /api/v1/sync/push`
-- [ ] Both: cache Drive token; show "Connect Google account" prompt for email/password users with no Google account
+- [x] Android: `GoogleSignIn` with `DRIVE_APPDATA` scope (lazy — requested only when user taps "Backup to Drive")
+- [x] Android: Upload `mealplan_backup_<date>.json.gz` to `appDataFolder`; download + decompress + parse on restore → Room upsert
+- [x] Webapp: Google Identity Services OAuth for `drive.appdata` scope (separate from Firebase Auth)
+- [x] Webapp: Upload same JSON to `appDataFolder`; download on restore → `POST /api/v1/sync/push`
+- [x] Both: Drive token cached; "Connect Google account" prompt shown when not connected
 
 **#106 — Local file backup (universal fallback)**
-- [ ] Android: "Export" → serialize all Room data to JSON → Android share sheet (Files, email, Dropbox, iCloud, etc.)
-- [ ] Android: "Import" → file picker → parse JSON → upsert into Room
-- [ ] Webapp: "Export" already done (#103) — wire up to the new Backup screen
-- [ ] Webapp: "Import" → file upload input → parse JSON → `POST /api/v1/sync/push` → reload
+- [x] Android: "Export" → serialize all Room data → GZIP compress → Android share sheet (Files, email, Dropbox, iCloud, etc.)
+- [x] Android: "Import" → file picker → GZIP decompress → parse → upsert into Room
+- [x] Webapp: "Export" wired to Backup & Restore screen
+- [x] Webapp: "Import" → file upload → parse → `POST /api/v1/sync/push` → reload
 
 **#107 — Backup & Restore UI**
-- [ ] Android: New "Backup & Restore" screen under Settings with two sections: Drive + Local file
-- [ ] Webapp: Same screen under Settings replacing the standalone export button
-- [ ] Both: Drive section hidden / replaced with "Requires a Google account" message for non-Google users
-- [ ] Both: Drive backup list shows filename + date + size; tap to restore; swipe/button to delete
+- [x] Android: "Backup & Restore" screen under Settings — Drive section + Local file section
+- [x] Webapp: Backup & Restore section in Settings replacing standalone export button
+- [x] Both: Drive backup list shows filename + date + size; restore button; delete button
+
+### What was actually delivered
+- `DriveHelper.kt` — thin OkHttp wrapper around Drive REST API v3 (list, upload bytes, download bytes, delete)
+- `LocalBackupSnapshot` — typed flat snapshot covering all 20 Room tables (foods, meals, diets, plans, planned slots, food logs, health metrics, groceries, exercises, workout templates, workout sessions, planned workouts)
+- `BackupRepository` — builds and restores snapshot entirely from/to Room; zero network calls
+- GZIP compression before upload / decompression on restore (~85% size reduction)
+- `BackupRestoreViewModel` — orchestrates both paths; falls back gracefully when Firebase auth state is stale
+- Firebase UID now persisted in `AuthPreferences` at every login so backup never fails on stale sessions
+- Human-readable Drive error messages (403 → "enable Drive API in Cloud Console")
+- Success toast shows record count: "47 meals, 3 diets, 128 log days, 234 metrics, 67 workouts, 5 lists"
+- Branch: `feature/phase3b-backup-restore` (pending merge to main)
 
 ### Key Design Notes
-- Backup file format = same JSON shape as `GET /api/v1/sync/pull?since=epoch` — no new backend endpoints needed
-- `appDataFolder` scope: file is hidden from the user's Drive UI but counts against their 15 GB free quota
-- Restore strategy: upsert with `serverId` as the key — same last-write-wins logic as sync; safe to run multiple times
-- Email/password users: Drive tab shows "Connect Google account to enable Drive backup" with an OAuth button; local file tab always works
-- Users with no Google account at all: local file is their only path — make it prominent, not a footnote
+- Backup format: `LocalBackupSnapshot` (Kotlin data class) — typed, versioned (`version = 2`), GZIP-compressed JSON
+- Old uncompressed backups still restore (auto-detected by trying GZIP, falling back to plain JSON)
+- `appDataFolder` scope: file is hidden from Drive UI but counts against user's free 15 GB
+- Restore strategy: REPLACE on conflict — safe to run multiple times
+- Firebase UID stored in DataStore at login → backup works even when Firebase auth state hasn't refreshed
+
+---
+
+## Phase 3c — Backend Deployment + iOS PWA Distribution
+> **Goal:** Make the app real for iOS users. Deploy the backend to Cloud Run, deploy the webapp to Vercel (HTTPS required for PWA), and pass the iOS PWA checklist so users can add MealPlan+ to their iPhone Home Screen — no App Store, no Apple Developer account.  
+> **Depends on:** Phase 3b (webapp fully built), GitHub secrets configured  
+> **Why now:** The webapp currently points at `localhost:9090`. No iOS user can reach it. This phase closes that gap.
+
+| GH Issue | Task | Status |
+|---|---|---|
+| [#108](https://github.com/Pulin412/mealplan-plus/issues/108) | Backend — configure Cloud Run deployment (GitHub secrets + Secret Manager + Neon.tech connection) | ⬜ Open |
+| [#109](https://github.com/Pulin412/mealplan-plus/issues/109) | Webapp — deploy to Vercel, wire `NEXT_PUBLIC_API_BASE_URL` to Cloud Run URL | ⬜ Open |
+| [#110](https://github.com/Pulin412/mealplan-plus/issues/110) | iOS PWA polish — `apple-touch-icon`, `apple-mobile-web-app-capable`, viewport-fit, splash screen, manifest validation | ⬜ Open |
+| [#111](https://github.com/Pulin412/mealplan-plus/issues/111) | Android — update `MEAL_PLAN_API_URL` in `NetworkModule.kt` from emulator URL to Cloud Run URL | ⬜ Open |
+
+### Phase 3c Checklist
+
+**#108 — Backend Cloud Run deployment**
+- [ ] Create GCP Service Account with roles: Cloud Run Admin, Secret Manager Secret Accessor
+- [ ] Add GitHub secrets: `GCP_PROJECT_ID`, `GCP_SA_KEY`, `FIREBASE_PROJECT_ID`
+- [ ] Create Secret Manager secrets: `mealplan-db-url`, `mealplan-db-user`, `mealplan-db-password` (Neon.tech connection string)
+- [ ] Push any change to `backend/` on `main` → `backend-deploy.yml` triggers → Cloud Run service `mealplan-api` created in `europe-west1`
+- [ ] Verify `/actuator/health` returns 200 on deployed URL
+- [ ] Note Cloud Run URL (e.g. `https://mealplan-api-xxxx-ew.a.run.app`)
+
+**#109 — Webapp Vercel deployment**
+- [ ] Connect GitHub repo to [vercel.com](https://vercel.com) (auto-detects Next.js, free Hobby tier)
+- [ ] Set `NEXT_PUBLIC_API_BASE_URL=https://mealplan-api-xxxx-ew.a.run.app` in Vercel dashboard
+- [ ] Verify app loads at `yourdomain.vercel.app` over HTTPS
+- [ ] Confirm Firebase Auth redirect URLs include the Vercel domain (Firebase Console → Authentication → Authorized domains)
+- [ ] Share Vercel URL with iOS testers — no App Store, no TestFlight needed
+
+**#110 — iOS PWA polish**
+- [ ] Add to `<head>` in `_document.tsx` (or `layout.tsx`):
+  ```html
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  ```
+- [ ] Verify `public/manifest.json` has `"display": "standalone"` and `"start_url": "/"`
+- [ ] Add 192×192 and 512×512 icons to `public/icons/`
+- [ ] Test "Add to Home Screen" flow on iPhone Safari — confirm: no browser chrome, correct icon, splash screen
+- [ ] Verify push notifications work on iOS 16.4+ (if implemented)
+
+**#111 — Android API URL update**
+- [ ] Update `android/src/main/java/com/mealplanplus/di/NetworkModule.kt`:
+  ```kotlin
+  const val MEAL_PLAN_API_URL = "https://mealplan-api-xxxx-ew.a.run.app/"
+  ```
+- [ ] Test sync on a real Android device (not emulator) — confirm `SyncWorker` reaches backend
+
+### Key Design Notes
+- **HTTPS is mandatory for PWA** — Vercel provides it automatically, no config needed
+- **Same Firebase project** — Android and webapp already share the same Firebase Auth; no changes to token logic
+- **Cloud Run cold starts** — Spring Boot takes 5–10s cold start with `min-instances=0` (free). Set `min-instances=1` ($5–7/month) if cold starts are noticeable for testers
+- **iOS "Add to Home Screen" instructions** — worth adding a banner in the webapp prompting iOS Safari users to install
+- **Vercel Hobby tier** — free, no credit card required, ~100 GB bandwidth/month, enough for personal + small rollout
+- **Data sync gap** — until #111 is done, Android users and webapp users see different data. After both point at Cloud Run, same Firebase account = same data everywhere
 
 ---
 
 ## Phase 4 — AI on Web (Spring AI + RAG)
 > **Goal:** Dietary chatbot on the web app, powered by user's actual data via RAG.  
-> **Depends on:** Phase 1 (data in Postgres + pgvector enabled), Phase 3 (web app exists)
+> **Depends on:** Phase 3c (backend deployed, pgvector accumulating data), Phase 3 (web app exists)
 
 | GH Issue | Task | Status |
 |---|---|---|
@@ -309,26 +378,28 @@ Foundation (#81, #82, #98 UI redesign)
             ├── Phase 2 (Workout)          ← parallel with Phase 3 · done ✅
             ├── Phase 3 (Web App scaffold) ← done ✅ · screens, auth, design system
             │       └── Phase 3a (Web App parity) ← done ✅ · #99–#104
-            │               └── Phase 3b (Backup & Restore) ← on-demand Drive + local file · #105–#107
-            │                       └── Phase 4 (AI Web) ← needs web UI + pgvector data
-            │                               └── Phase 5 (AI Android) ← same backend endpoint
+            │               └── Phase 3b (Backup & Restore) ← done ✅ · Drive + local file · #105–#107
+            │                       └── Phase 3c (Deploy + iOS PWA) ← #108–#111 ← YOU ARE HERE
+            │                               └── Phase 4 (AI Web) ← needs backend live + pgvector data
+            │                                       └── Phase 5 (AI Android) ← same backend endpoint
             └── (pgvector enabled here)
 ```
 
-**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → Phase 4 → Phase 5
+**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → **Phase 3c** → Phase 4 → Phase 5
 
 ### Phase order summary (current state)
 
 | Order | Phase | Status | Notes |
 |---|---|---|---|
 | 0 | **Foundation** | ✅ Done | Android redesign, DB v35, all 19 screens |
-| 1 | **Phase 1** · Backend Sync | ✅ Done | Spring Boot API, delta sync, Cloud Run |
+| 1 | **Phase 1** · Backend Sync | ✅ Done | Spring Boot API, delta sync, CI/CD written |
 | 2a | **Phase 2** · Workouts Android | ✅ Done | All workout screens, templates, logging, edit mode (#89, #90) |
 | 2b | **Phase 2** · Workout Backend sync | ⬜ Open | #91: extend sync push/pull for workouts |
 | 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
 | 2d | **Phase 3a** · Web Parity | ✅ Done | #99–#104: all 6 issues complete |
-| 2e | **Phase 3b** · Backup & Restore | 🔄 Next | #105–#107: Drive + local file, both platforms |
-| 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3b done + pgvector data accumulating |
+| 2e | **Phase 3b** · Backup & Restore | ✅ Done | #105–#107: Drive + local file, Android + Webapp; GZIP; all 20 tables |
+| 2f | **Phase 3c** · Deploy + iOS PWA | ⬜ Open | **← next** · #108–#111: Cloud Run + Vercel + iOS checklist + Android URL |
+| 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3c (backend live) + pgvector data accumulating |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 
 ---

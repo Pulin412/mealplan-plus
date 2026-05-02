@@ -162,4 +162,11 @@ interface DailyLogDao {
 
     @Query("DELETE FROM daily_logs")
     suspend fun deleteAllDailyLogs()
+
+    // ── Backup ────────────────────────────────────────────────────────────────
+    @Query("SELECT * FROM daily_logs WHERE userId = :userId ORDER BY date DESC")
+    suspend fun getAllLogsOnce(userId: Long): List<DailyLog>
+
+    @Query("SELECT * FROM logged_foods WHERE userId = :userId ORDER BY logDate DESC")
+    suspend fun getAllLoggedFoodsOnce(userId: Long): List<LoggedFood>
 }

@@ -32,4 +32,8 @@ interface PlannedWorkoutDao {
 
     @Query("DELETE FROM planned_workouts WHERE userId = :userId AND date = :date")
     suspend fun clearDay(userId: String, date: Long)
+
+    // ── Backup ────────────────────────────────────────────────────────────────
+    @Query("SELECT * FROM planned_workouts WHERE userId = :userId ORDER BY date")
+    suspend fun getAllPlannedOnce(userId: String): List<PlannedWorkout>
 }

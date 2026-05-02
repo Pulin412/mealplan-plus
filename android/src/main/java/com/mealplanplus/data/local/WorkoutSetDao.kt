@@ -27,4 +27,11 @@ interface WorkoutSetDao {
 
     @Query("DELETE FROM workout_sets WHERE sessionId = :sessionId")
     suspend fun deleteAllForSession(sessionId: Long)
+
+    // ── Backup ────────────────────────────────────────────────────────────────
+    @Query("SELECT * FROM workout_sets ORDER BY sessionId, setNumber")
+    suspend fun getAllSetsOnce(): List<WorkoutSet>
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun upsert(set: WorkoutSet): Long
 }

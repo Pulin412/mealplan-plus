@@ -55,6 +55,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToWidgetSettings: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToBackup: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -397,6 +398,17 @@ fun SettingsScreen(
                         onOpenHealthConnect = { viewModel.openHealthConnectApp(context) }
                     )
                 }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // Backup & Restore
+            SettingsSection(title = "Backup & Restore") {
+                SettingsButtonItem(
+                    title = "Backup & Restore",
+                    icon = Icons.Default.Backup,
+                    onClick = onNavigateToBackup
+                )
             }
 
             Spacer(Modifier.height(4.dp))
