@@ -6,9 +6,9 @@ name: CI
 # push never triggers the Android or iOS builds.
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]       # CI on develop pushes only — main is covered by PR gate
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop] # CI runs as gate on every PR to main or develop
 
 jobs:
   # ── 1. Detect which modules changed ─────────────────────────────────────────
