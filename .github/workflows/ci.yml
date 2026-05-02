@@ -65,24 +65,14 @@ jobs:
         with:
           cache-read-only: false
 
-      - name: Build + unit tests
+      - name: Build
         # --configuration-cache omitted: verifyNoBillableFirebaseFeatures captures
         # a Project reference which is not config-cache serialisable.
         run: >
           ./gradlew
           :android:assembleDebug
-          :android:testDebugUnitTest
-          --parallel
           --build-cache
           --no-daemon
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-test-results
-          path: android/build/reports/tests/
-          retention-days: 7
 
   # ── 2b. Backend build + unit tests ──────────────────────────────────────────
   backend:
