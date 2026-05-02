@@ -1,11 +1,10 @@
 name: CI
 
-# Runs on every push to develop, path-filtered per module.
-# iOS is dropped (replaced by Next.js PWA). Webapp has its own workflow (webapp.yml).
+# Single workflow for all modules. Runs on push to develop, path-filtered
+# so only the jobs relevant to what changed actually execute.
 #
 # Trigger model:
-#   push to develop  → this workflow (android + backend, path-filtered)
-#   push to develop  → webapp.yml (webapp, path-filtered)
+#   push to develop  → this file (android + backend + webapp, path-filtered)
 #   PR merged → main → backend-deploy.yml (deploy only)
 
 on:
@@ -20,6 +19,7 @@ jobs:
     outputs:
       android: ${{ steps.filter.outputs.android }}
       backend: ${{ steps.filter.outputs.backend }}
+      webapp:  ${{ steps.filter.outputs.webapp }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +39,9 @@ jobs:
               - 'build.gradle.kts'
               - 'settings.gradle.kts'
               - 'gradle/**'
+              - '.github/workflows/ci.yml'
+            webapp:
+              - 'webapp/**'
               - '.github/workflows/ci.yml'
 
   # ── 2a. Android build + unit tests ──────────────────────────────────────────
@@ -115,3 +118,40 @@ jobs:
 
       - name: Docker build check
         run: docker build -t mealplan-api ./backend
+
+  # ── 2c. Webapp type-check, lint + build ─────────────────────────────────────
+  webapp:
+    name: Webapp (type-check + lint + build)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.webapp == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: placeholder
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: placeholder
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: placeholder
+          NEXT_PUBLIC_FIREBASE_APP_ID: placeholder
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
