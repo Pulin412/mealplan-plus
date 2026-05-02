@@ -90,6 +90,7 @@ jobs:
             --cpu=1 \
             --min-instances=0 \
             --max-instances=3 \
+            --service-account=mealplan-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars="SPRING_PROFILES_ACTIVE=docker,FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},DB_DRIVER=org.postgresql.Driver,DDL_AUTO=validate,DB_DIALECT=org.hibernate.dialect.PostgreSQLDialect" \
             --set-secrets="DB_URL=mealplan-db-url:latest,DB_USER=mealplan-db-user:latest,DB_PASSWORD=mealplan-db-password:latest"
 
