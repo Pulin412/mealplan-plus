@@ -6,7 +6,9 @@ name: CI
 # push never triggers the Android or iOS builds.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
 
 jobs:
   # ── 1. Detect which modules changed ─────────────────────────────────────────

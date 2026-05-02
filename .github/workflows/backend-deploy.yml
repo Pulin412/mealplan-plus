@@ -1,8 +1,11 @@
 name: Backend — Deploy to Cloud Run
 
-# Deploys the backend to Google Cloud Run on every push to main that touches
-# backend files. The Gradle build + Docker build run here; the lightweight
-# docker-build-check in ci.yml only validates the image builds cleanly.
+# Deploys the backend to Cloud Run ONLY when a PR from develop is merged
+# into main. Direct pushes to main do NOT trigger a deploy.
+#
+# Branching strategy:
+#   feature/* → PR → develop   (CI: build + test)
+#   develop   → PR → main      (CI: build + test as gate, then deploy on merge)
 #
 # Required GitHub secrets:
 #   GCP_PROJECT_ID       — GCP project ID
@@ -10,13 +13,14 @@ name: Backend — Deploy to Cloud Run
 #                          Roles: Cloud Run Admin, Artifact Registry Writer, Service Account User
 #   FIREBASE_PROJECT_ID  — Firebase project ID
 #
-# Required Cloud Run / Secret Manager secrets (referenced by --set-secrets):
-#   mealplan-db-url      — jdbc:postgresql://<host>/<db> (Neon.tech)
+# Required Secret Manager secrets (referenced by --set-secrets):
+#   mealplan-db-url      — jdbc:postgresql://<host>/<db>?sslmode=require (Neon.tech)
 #   mealplan-db-user     — DB username
 #   mealplan-db-password — DB password
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches: [main]
     paths:
       - 'backend/**'
@@ -30,6 +34,8 @@ jobs:
   deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
+    # Only run when the PR was actually merged (not just closed/abandoned)
+    if: github.event.pull_request.merged == true
 
     steps:
       - uses: actions/checkout@v4
