@@ -1,6 +1,6 @@
 # MealPlan+ — Product Roadmap
 
-> Last updated: May 2, 2026 (Phase 3d added — Repo Cleanup + CI/CD Overhaul)  
+> Last updated: May 3, 2026 (Phase 3c + 3d complete — fully deployed)  
 > Track progress via [GitHub Issues](https://github.com/Pulin412/mealplan-plus/issues)
 >
 > **Design spec:** `design-future.html` (committed to `main`) — interactive mockups for all 19 screens across every phase. Open in a browser and use the group tabs to navigate. This file is the single source of visual truth for Android (Compose) and Web (Next.js/Tailwind).
@@ -21,15 +21,15 @@
 
 ---
 
-## Repository Layout (target state)
+## Repository Layout
 
 ```
 mealplan-plus/
 ├── android/          ← Kotlin, Compose, Room, Hilt — fully self-contained
-├── backend/          ← Spring Boot 3 + Kotlin — source of truth
-├── webapp/           ← Next.js 14 + TypeScript — PWA (also serves as Apple PWA)
-├── shared/           ← DISCONNECTED — to be archived after Foundation phase
-├── backup/           ← seed data + DB backup files (temporary)
+├── backend/          ← Spring Boot 3 + Kotlin — source of truth, Cloud Run
+├── webapp/           ← Next.js 14 + TypeScript — PWA, Vercel
+├── docs/             ← DEPLOYMENT.md, BRANCHING.md, DATABASE_SCHEMA.md, openapi.yaml
+├── scripts/          ← setup-gcp.sh and other one-off scripts
 ├── CLAUDE.md         ← AI assistant context (always keep up to date)
 └── ROADMAP.md        ← this file
 ```
@@ -505,14 +505,14 @@ Foundation (#81, #82, #98 UI redesign)
             ├── Phase 3 (Web App scaffold) ← done ✅ · screens, auth, design system
             │       └── Phase 3a (Web App parity) ← done ✅ · #99–#104
             │               └── Phase 3b (Backup & Restore) ← done ✅ · Drive + local file · #105–#107
-            │                       └── Phase 3c (Deploy + iOS PWA) ← #108–#111 ← IN PROGRESS
-            │                               └── Phase 3d (Repo + CI/CD Overhaul) ← #112–#115 ← NEXT
+            │                       └── Phase 3c (Deploy + iOS PWA) ← done ✅ · Cloud Run + Vercel live
+            │                               └── Phase 3d (Repo + CI/CD Overhaul) ← done ✅ · clean repo + independent pipelines
             │                                       └── Phase 4 (AI Web) ← needs backend live + pgvector data
             │                                               └── Phase 5 (AI Android) ← same backend endpoint
             └── (pgvector enabled here)
 ```
 
-**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → Phase 3c → **Phase 3d** → Phase 4 → Phase 5
+**Critical path:** Foundation → Phase 1 → Phase 3 → Phase 3a → Phase 3b → Phase 3c → Phase 3d → **Phase 4** → Phase 5
 
 ### Phase order summary (current state)
 
@@ -525,8 +525,8 @@ Foundation (#81, #82, #98 UI redesign)
 | 2c | **Phase 3** · Web App scaffold | ✅ Done | Next.js, Firebase Auth, all 10 screens |
 | 2d | **Phase 3a** · Web Parity | ✅ Done | #99–#104: all 6 issues complete |
 | 2e | **Phase 3b** · Backup & Restore | ✅ Done | #105–#107: Drive + local file, Android + Webapp; GZIP; all 20 tables |
-| 2f | **Phase 3c** · Deploy + iOS PWA | 🔄 In Progress | #108–#111: Cloud Run deploying, Vercel + Android URL pending |
-| 2g | **Phase 3d** · Repo + CI/CD Overhaul | ⬜ Open | **← next** · #112–#115: remove iOS/shared, independent pipelines, cross-fire on API change |
+| 2f | **Phase 3c** · Deploy + iOS PWA | ✅ Done | Cloud Run ✅ · Vercel ✅ · CORS ✅ · Android URL ✅ |
+| 2g | **Phase 3d** · Repo + CI/CD Overhaul | ✅ Done | `ios/` + `shared/` deleted · `android.yml` + `backend.yml` + `webapp.yml` · cross-fire on backend changes |
 | 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3c (backend live) + pgvector data accumulating |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 

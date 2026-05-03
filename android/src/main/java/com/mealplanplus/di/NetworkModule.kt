@@ -20,7 +20,7 @@ object NetworkModule {
 
     private const val OPEN_FOOD_FACTS_URL = "https://world.openfoodfacts.org/"
     private const val USDA_API_URL = "https://api.nal.usda.gov/"
-    private const val MEAL_PLAN_API_URL = "http://10.0.2.2:8080/"
+    private const val MEAL_PLAN_API_URL = "https://mealplan-api-rfo22lhanq-ez.a.run.app/"
 
     @Provides
     @Singleton
