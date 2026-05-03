@@ -8,12 +8,20 @@ const withSW = withSerwist({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config, { nextRuntime }) => {
+  webpack: (config, { nextRuntime, webpack }) => {
     if (nextRuntime === "edge") {
-      // @serwist/next pulls in Node.js path utilities that reference __dirname,
-      // which does not exist in Vercel's Edge Runtime. Mock it so the middleware
-      // bundle doesn't throw ReferenceError: __dirname is not defined.
-      config.node = { ...config.node, __dirname: "mock", __filename: "mock" };
+      // config.node doesn't apply to the Edge (webworker) target in webpack 5.
+      // DefinePlugin does a compile-time text substitution that works on all
+      // targets — it replaces every __dirname/__filename reference in the
+      // middleware bundle (including those from @serwist/next internals) with
+      // a safe string before the bundle is sealed, preventing the ReferenceError
+      // at Vercel Edge Runtime.
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          __dirname: JSON.stringify("/"),
+          __filename: JSON.stringify("/"),
+        })
+      );
     }
     return config;
   },
