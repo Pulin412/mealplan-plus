@@ -1,5 +1,6 @@
 package com.mealplanplus.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.local.GroceryDao
@@ -8,16 +9,23 @@ import com.mealplanplus.data.local.MealDao
 import com.mealplanplus.data.local.DietDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.remote.*
+import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CrashlyticsReporter
 import com.mealplanplus.util.toEpochMs
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 @Singleton
 class SyncRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val api: MealPlanApi,
     private val mealDao: MealDao,
     private val dietDao: DietDao,
@@ -28,9 +36,35 @@ class SyncRepository @Inject constructor(
     private val TAG = "SyncRepository"
     private val isoFormatter = DateTimeFormatter.ISO_INSTANT
 
+    /**
+     * Resolves the Firebase UID.
+     *
+     * Firebase Auth initialises asynchronously — currentUser can be null briefly
+     * after process start even when the user is signed in. Strategy:
+     *  1. currentUser if already available (fast path)
+     *  2. Stored UID in AuthPreferences (set on every login, survives restarts)
+     *  3. Wait up to 3s for Firebase Auth state listener to fire (async init)
+     */
+    private suspend fun resolveFirebaseUid(): String? {
+        FirebaseAuth.getInstance().currentUser?.uid?.let { return it }
+        AuthPreferences.getFirebaseUid(context).firstOrNull()?.let { return it }
+        Log.d(TAG, "Firebase Auth not ready yet — waiting up to 3s for auth state")
+        return withTimeoutOrNull(3_000) {
+            suspendCancellableCoroutine { cont ->
+                val listener = FirebaseAuth.AuthStateListener { auth ->
+                    if (cont.isActive) cont.resume(auth.currentUser?.uid)
+                }
+                FirebaseAuth.getInstance().addAuthStateListener(listener)
+                cont.invokeOnCancellation {
+                    FirebaseAuth.getInstance().removeAuthStateListener(listener)
+                }
+            }
+        }
+    }
+
     /** Push local changes (updatedAt > syncedAt OR syncedAt == null) to backend */
     suspend fun push(userId: Long): Result<Int> = runCatching {
-        val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid
+        val firebaseUid = resolveFirebaseUid()
             ?: return Result.failure(Exception("Not signed in with Firebase"))
 
         val now = System.currentTimeMillis()
