@@ -20,9 +20,12 @@ import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CsvExporter
 import com.mealplanplus.util.NotificationAlarmType
 import com.mealplanplus.util.NotificationPreferences
+import com.mealplanplus.util.SyncPreferences
 import com.mealplanplus.util.ThemePreferences
 import com.mealplanplus.util.toEpochMs
 import com.mealplanplus.util.toLocalDate
+import com.mealplanplus.work.SyncWorker
+import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -40,7 +43,10 @@ data class SettingsUiState(
     // Health Connect state
     val isHealthConnectAvailable: Boolean = false,
     val isHealthConnectConnected: Boolean = false,
-    val healthConnectLastSyncWeight: Double? = null
+    val healthConnectLastSyncWeight: Double? = null,
+    // Cloud sync state
+    val isSyncing: Boolean = false,
+    val lastSyncTimestamp: Long = 0L,
 )
 
 data class ThemeState(
@@ -94,6 +100,7 @@ class SettingsViewModel @Inject constructor(
         loadNotificationPreferences()
         loadDataForExport()
         checkHealthConnectStatus()
+        observeLastSyncTimestamp()
     }
 
     private fun loadThemePreferences() {
@@ -498,6 +505,33 @@ class SettingsViewModel @Inject constructor(
             } catch (_: Exception) {
                 ctx.startActivity(appInfoIntent)
             }
+        }
+    }
+
+    // ── Cloud sync ────────────────────────────────────────────────────────────
+
+    private fun observeLastSyncTimestamp() {
+        viewModelScope.launch {
+            SyncPreferences.getLastSyncTimestamp(context).collect { ts ->
+                _uiState.update { it.copy(lastSyncTimestamp = ts) }
+            }
+        }
+    }
+
+    fun triggerSync() {
+        if (_uiState.value.isSyncing) return
+        _uiState.update { it.copy(isSyncing = true) }
+        val request = SyncWorker.oneTimeRequest()
+        WorkManager.getInstance(context).enqueue(request)
+        // Observe the work until it finishes to flip isSyncing back
+        viewModelScope.launch {
+            WorkManager.getInstance(context)
+                .getWorkInfoByIdFlow(request.id)
+                .collect { info ->
+                    if (info != null && info.state.isFinished) {
+                        _uiState.update { it.copy(isSyncing = false) }
+                    }
+                }
         }
     }
 
