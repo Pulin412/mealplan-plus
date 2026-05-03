@@ -16,13 +16,24 @@ Offline-first meal planning and food logging app. Users log meals by slot (BREAK
 
 ---
 
+## Live Services
+| Service | URL |
+|---------|-----|
+| **Backend API** | `https://mealplan-api-rfo22lhanq-ez.a.run.app` |
+| **Web App** | `https://mealplan-plus.vercel.app` |
+| **Health check** | `https://mealplan-api-rfo22lhanq-ez.a.run.app/actuator/health` |
+
+See `docs/DEPLOYMENT.md` for full service details, credentials locations, rollback procedures and cost breakdown.
+
+---
+
 ## Module layout
 | Module | Role |
 |--------|------|
 | `android/` | Android app (Kotlin, Compose, Room, Hilt) — **fully self-contained, single production app** |
-| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector — **Phase 1 complete** |
-| `webapp/` | Next.js 14 + TypeScript PWA — **not yet created, Phase 3** |
-| `shared/` | KMP module — **disconnected, no code here** |
+| `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector — **deployed on Cloud Run** |
+| `webapp/` | Next.js 14 + TypeScript PWA — **deployed on Vercel, live at mealplan-plus.vercel.app** |
+| `shared/` | KMP module — **disconnected, do not add code here** |
 | `ios/` | SwiftUI app — **superseded by PWA, no new work** |
 | `backup/` | `mealplan_data_export.json` + DB snapshot — temporary, used for one-time data import |
 
@@ -188,33 +199,37 @@ Permission is requested via `PermissionController.createRequestPermissionResultC
 
 ---
 
-## Current Status (as of April 18, 2026)
+## Current Status (as of May 3, 2026)
 
-**Phase 1 (Backend Sync API) is COMPLETE on `feature/phase1-backend-sync`.** Foundation is merged to `main`.
+**Phases 1 → 3c are COMPLETE. Backend is live on Cloud Run, webapp is live on Vercel, Android syncs to production.**
 
 ### Backend (Spring Boot — `backend/`)
 - All 7 domain CRUD endpoints (User, Food, Meal, Diet, Grocery, HealthMetric, DailyLog)
 - `POST /api/v1/sync/push` + `GET /api/v1/sync/pull?since=<ISO>` — delta sync with last-write-wins
-- **Tombstones** — `Tombstone` entity + `TombstoneService`; all `delete()` methods write a tombstone; pull response includes `tombstones[]`
-- **Flyway** — `V1__init.sql` (full schema) + `V2__pgvector.sql` (pgvector extension + `entity_embeddings` table with HNSW index). Flyway disabled for H2 dev, enabled for docker/prod profile.
-- Firebase JWT auth via JWKS; `SecurityConfig` secures all endpoints
-- `docs/openapi.yaml` — hand-crafted OpenAPI 3.0 spec (source of truth for TypeScript codegen in Phase 3)
-- Jackson configured to serialize `Instant` as epoch milliseconds for Android compatibility
+- **Tombstones** — soft deletes; pull response includes `tombstones[]`
+- **Flyway** — V1–V6 migrations; runs on docker/prod profile against Neon.tech Postgres
+- Firebase JWT auth via JWKS; `SecurityConfig` secures all endpoints; CORS allows localhost + `*.vercel.app`
+- Deployed to Cloud Run (`europe-west4`): `https://mealplan-api-rfo22lhanq-ez.a.run.app`
 
 ### Android (`android/`)
-- `SyncWorker` — 15-min periodic WorkManager job; reads `lastSyncTimestamp` from DataStore, saves `serverTime` after pull
-- `SyncRepository` — push unsynced records, pull delta, apply tombstones (delete local records by `serverId`), conflict resolution: remote wins only when `remoteUpdatedAt > localUpdatedAt` (server wins on tie)
-- `SyncPreferences` — `last_sync_timestamp` DataStore key
-- `HomeUiState.lastSyncedAt` — exposed to UI for sync status display
-- `MealPlanApi` — Firebase token injected via OkHttp interceptor (`Tasks.await` on background thread)
+- `SyncWorker` — 15-min periodic WorkManager job pointing at Cloud Run
+- `NetworkModule.MEAL_PLAN_API_URL` = `https://mealplan-api-rfo22lhanq-ez.a.run.app/`
+- Conflict resolution: remote wins only when `remoteUpdatedAt > localUpdatedAt`
+
+### Web App (`webapp/`)
+- Deployed to Vercel: `https://mealplan-plus.vercel.app`
+- Auth guard in `(app)/layout.tsx` (client-side via Firebase, no edge middleware)
+- All 18 screens live; service worker (serwist) for PWA/offline
 
 ### CI/CD
-- `ci.yml` — build + test on push to `main` (Android, Backend, iOS path-filtered)
-- `backend-deploy.yml` — Cloud Run deploy; triggered on `backend/**` changes to `main`; uses Cloud Run secrets for DB credentials; verifies `/actuator/health` after deploy
-- **Cloud Run service:** `mealplan-api` in `europe-west1` (deploy URL available after first run — update `MEAL_PLAN_API_URL` in `NetworkModule.kt`)
+- `ci.yml` — build + test on push to `develop` (Android + Backend + Webapp, path-filtered)
+- `backend-deploy.yml` — Cloud Run deploy on PR merge to `main` when `backend/**` changes
+- Vercel auto-deploys webapp on push to `main` (native GitHub integration)
 
-### What is next — Phase 2 (Workout Logging)
-See `ROADMAP.md`. After merging `feature/phase1-backend-sync` → `main`: #89 (Android workout entities) → #90 (workout screens) → #91 (backend workout sync)
+### What is next
+- **#91** — Backend workout sync (extends push/pull for workout sessions)
+- **Phase 3d** — Repo cleanup (remove `ios/`, `shared/`) + independent CI pipelines
+- **Phase 4** — Spring AI + RAG chatbot on webapp
 
 ---
 
