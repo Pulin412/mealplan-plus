@@ -403,6 +403,68 @@ fun SettingsScreen(
             Spacer(Modifier.height(4.dp))
 
             // Backup & Restore
+            // Cloud Sync Section
+            SettingsSection(title = "Cloud Sync") {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Sync with server",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Medium
+                            )
+                            val lastSyncLabel = remember(uiState.lastSyncTimestamp) {
+                                if (uiState.lastSyncTimestamp == 0L) "Never synced"
+                                else {
+                                    val diffMs = System.currentTimeMillis() - uiState.lastSyncTimestamp
+                                    val minutes = diffMs / 60_000
+                                    when {
+                                        minutes < 1 -> "Just now"
+                                        minutes < 60 -> "$minutes min ago"
+                                        else -> "${minutes / 60}h ago"
+                                    }
+                                }
+                            }
+                            Text(
+                                text = lastSyncLabel,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextMuted
+                            )
+                        }
+                        Button(
+                            onClick = { viewModel.triggerSync() },
+                            enabled = !uiState.isSyncing,
+                            colors = ButtonDefaults.buttonColors(containerColor = DesignGreen),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            if (uiState.isSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Sync,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text("Sync now", color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
             SettingsSection(title = "Backup & Restore") {
                 SettingsButtonItem(
                     title = "Backup & Restore",
