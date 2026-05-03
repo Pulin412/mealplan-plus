@@ -33,9 +33,8 @@ See `docs/DEPLOYMENT.md` for full service details, credentials locations, rollba
 | `android/` | Android app (Kotlin, Compose, Room, Hilt) — **fully self-contained, single production app** |
 | `backend/` | Spring Boot 3.2.5 REST API; Firebase JWKS auth, Neon.tech Postgres + pgvector — **deployed on Cloud Run** |
 | `webapp/` | Next.js 14 + TypeScript PWA — **deployed on Vercel, live at mealplan-plus.vercel.app** |
-| `shared/` | KMP module — **disconnected, do not add code here** |
-| `ios/` | SwiftUI app — **superseded by PWA, no new work** |
-| `backup/` | `mealplan_data_export.json` + DB snapshot — temporary, used for one-time data import |
+| `docs/` | DEPLOYMENT.md, BRANCHING.md, DATABASE_SCHEMA.md, openapi.yaml |
+| `scripts/` | setup-gcp.sh and other one-off setup scripts |
 
 ---
 
@@ -144,13 +143,14 @@ viewModel.uiState.test {
 ---
 
 ## CI pipeline
-Single `ci.yml` orchestrator. Runs **only on push to main**.
+Three independent workflows, each path-filtered. All run **on push to `develop`** only.
 
-1. `detect-changes` (5 s) — dorny/paths-filter decides which modules changed
-2. `android` job — only if `android/**` or `shared/**` changed. Uses `--build-cache --parallel`. **No `--configuration-cache`** — blocked by `verifyNoBillableFirebaseFeatures` task capturing a `Project` reference.
-3. `backend` job — only if `backend/**` changed. `--configuration-cache` is safe here.
-4. `ios` job — only if `ios/**` or `shared/**` changed. Caches Xcode DerivedData to cut warm builds from ~11 min to ~3-4 min.
-5. `backend-deploy.yml` — separate file, deploys to Cloud Run on backend changes to main.
+- `android.yml` — triggers on `android/**` OR `backend/**` (API consumer, must stay in sync)
+- `backend.yml` — triggers on `backend/**` — build + test + Docker build check
+- `webapp.yml` — triggers on `webapp/**` OR `backend/**` (API consumer, must stay in sync)
+- `backend-deploy.yml` — separate file, deploys to Cloud Run on PR merge to `main` when `backend/**` changes
+
+**Key rule:** `backend/**` is in the path filter of ALL three CI workflows. Any API change rebuilds every consumer in parallel — you catch breakage on `develop`, not in production.
 
 ---
 
@@ -228,7 +228,7 @@ Permission is requested via `PermissionController.createRequestPermissionResultC
 
 ### What is next
 - **#91** — Backend workout sync (extends push/pull for workout sessions)
-- **Phase 3d** — Repo cleanup (remove `ios/`, `shared/`) + independent CI pipelines
+- **Phase 3d** — ✅ Done — `ios/` and `shared/` deleted; CI split into `android.yml`, `backend.yml`, `webapp.yml`
 - **Phase 4** — Spring AI + RAG chatbot on webapp
 
 ---
