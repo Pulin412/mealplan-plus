@@ -1,8 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmail, signInWithGoogle } from "@/lib/firebase/auth";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +11,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Redirect already-authenticated users away from login
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, loading, router]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
