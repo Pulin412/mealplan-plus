@@ -53,13 +53,13 @@ class SyncWorker(
         const val TAG = "SyncWorker"
 
         fun periodicRequest(): PeriodicWorkRequest =
-            PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
+            PeriodicWorkRequestBuilder<SyncWorker>(24, TimeUnit.HOURS)
                 .setConstraints(
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build()
                 )
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
                 .addTag(TAG)
                 .build()
 

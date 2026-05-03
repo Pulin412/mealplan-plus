@@ -76,16 +76,12 @@ class MealPlanApp : Application() {
     }
 
     private fun scheduleSyncWork() {
-        val wm = WorkManager.getInstance(this)
-        // Periodic background sync every 15 minutes
-        wm.enqueueUniquePeriodicWork(
+        // Daily background sync. Manual sync available via Settings → Cloud Sync.
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SyncWorker.TAG,
             ExistingPeriodicWorkPolicy.KEEP,
             SyncWorker.periodicRequest()
         )
-        // Also fire a one-time sync immediately on every app start so data
-        // is fresh as soon as the user opens the app (not up to 15 min stale).
-        wm.enqueue(SyncWorker.oneTimeRequest())
     }
 
     /** Cancel legacy WorkManager notification workers (replaced by AlarmManager). */
