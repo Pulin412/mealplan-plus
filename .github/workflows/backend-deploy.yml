@@ -115,9 +115,16 @@ jobs:
             --format="value(version)" \
             | tail -n +4)
           if [ -n "$TO_DELETE" ]; then
-            echo "$TO_DELETE" | xargs -I{} gcloud artifacts docker images delete \
-              "$IMAGE@{}" --quiet --delete-tags 2>/dev/null || true
-            echo "Pruned $(echo "$TO_DELETE" | wc -l) old image(s)"
+            FAILED=0
+            while IFS= read -r digest; do
+              echo "Deleting $digest..."
+              gcloud artifacts docker images delete "$IMAGE@$digest" \
+                --quiet --delete-tags \
+                && echo "  ✓ deleted" \
+                || { echo "  ✗ failed (check SA has roles/artifactregistry.repoAdmin)"; FAILED=$((FAILED+1)); }
+            done <<< "$TO_DELETE"
+            COUNT=$(echo "$TO_DELETE" | wc -l)
+            echo "Pruned $((COUNT - FAILED))/$COUNT image(s)"
           else
             echo "Nothing to prune"
           fi
