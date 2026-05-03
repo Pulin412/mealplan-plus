@@ -112,7 +112,7 @@ jobs:
           IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mealplan/mealplan-api"
           TO_DELETE=$(gcloud artifacts docker images list "$IMAGE" \
             --sort-by="~CREATE_TIME" \
-            --format="value(digest)" \
+            --format="value(version)" \
             | tail -n +4)
           if [ -n "$TO_DELETE" ]; then
             echo "$TO_DELETE" | xargs -I{} gcloud artifacts docker images delete \
