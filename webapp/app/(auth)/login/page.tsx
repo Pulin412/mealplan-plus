@@ -11,16 +11,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   // Redirect already-authenticated users away from login
   useEffect(() => {
-    if (!loading && user) {
+    if (!authLoading && user) {
       router.replace("/dashboard");
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
