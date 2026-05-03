@@ -6,11 +6,19 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
+// DashboardDto is defined inline below — not in generated types (backend-specific endpoint)
 
 type DailyLogDto = components["schemas"]["DailyLogDto"];
 type FoodDto = components["schemas"]["FoodDto"];
-type DietDto = components["schemas"]["DietDto"];
 type HealthMetricDto = components["schemas"]["HealthMetricDto"];
+
+interface DashboardDto {
+  todayLog: DailyLogDto | null;
+  recentLogs: DailyLogDto[];
+  foods: FoodDto[];
+  dietCount: number;
+  latestWeight: HealthMetricDto | null;
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -161,28 +169,21 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    Promise.all([
-      api.get<DailyLogDto[]>("/api/v1/daily-logs"),
-      api.get<FoodDto[]>("/api/v1/foods"),
-      api.get<DietDto[]>("/api/v1/diets"),
-      api.get<HealthMetricDto[]>("/api/v1/health-metrics"),
-    ])
-      .then(([logs, foods, diets, metrics]) => {
-        const today = todayStr();
-        const todayLog = logs.find((l) => l.date === today) ?? null;
-        const slotsLogged = new Set((todayLog?.loggedFoods ?? []).map((lf) => lf.mealSlot));
-        const totalCal = todayLog ? calcCalories(todayLog, foods) : 0;
-        const protein = todayLog ? calcMacro(todayLog, foods, "proteinPer100") : 0;
-        const carbs = todayLog ? calcMacro(todayLog, foods, "carbsPer100") : 0;
-        const fat = todayLog ? calcMacro(todayLog, foods, "fatPer100") : 0;
-
-        const latestWeight = metrics
-          .filter((m) => m.type === "WEIGHT")
-          .sort((a, b) => new Date(b.recordedAt ?? b.updatedAt ?? 0).getTime() - new Date(a.recordedAt ?? a.updatedAt ?? 0).getTime())[0] ?? null;
-
-        const recentLogs = [...logs].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
-
-        setData({ todayLog, totalCal, protein, carbs, fat, slotsLogged, dietCount: diets.length, latestWeight, recentLogs, foods });
+    api.get<DashboardDto>("/api/v1/dashboard")
+      .then((d) => {
+        const slotsLogged = new Set((d.todayLog?.loggedFoods ?? []).map((lf) => lf.mealSlot));
+        const totalCal = d.todayLog ? calcCalories(d.todayLog, d.foods) : 0;
+        const protein = d.todayLog ? calcMacro(d.todayLog, d.foods, "proteinPer100") : 0;
+        const carbs = d.todayLog ? calcMacro(d.todayLog, d.foods, "carbsPer100") : 0;
+        const fat = d.todayLog ? calcMacro(d.todayLog, d.foods, "fatPer100") : 0;
+        setData({
+          todayLog: d.todayLog,
+          totalCal, protein, carbs, fat, slotsLogged,
+          dietCount: d.dietCount,
+          latestWeight: d.latestWeight,
+          recentLogs: d.recentLogs,
+          foods: d.foods,
+        });
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
