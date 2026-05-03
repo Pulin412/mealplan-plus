@@ -21,7 +21,7 @@ class DashboardService(
 ) {
     fun get(firebaseUid: String): DashboardDto {
         // Today's log
-        val todayEntity = logRepo.findByFirebaseUidAndDate(firebaseUid, LocalDate.now())
+        val todayEntity = logRepo.findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid, LocalDate.now())
         val todayLog = todayEntity?.let { it.toDto(loggedFoodRepo.findByDailyLogId(it.id)) }
 
         // Last 5 logs (Spring Data returns them sorted newest-first already)

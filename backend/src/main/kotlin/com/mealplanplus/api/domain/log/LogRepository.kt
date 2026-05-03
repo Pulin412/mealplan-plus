@@ -8,7 +8,7 @@ interface DailyLogRepository : JpaRepository<DailyLog, Long> {
     fun findByFirebaseUid(firebaseUid: String): List<DailyLog>
     fun findByServerId(serverId: UUID): DailyLog?
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<DailyLog>
-    fun findByFirebaseUidAndDate(firebaseUid: String, date: java.time.LocalDate): DailyLog?
+    fun findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid: String, date: java.time.LocalDate): DailyLog?
     fun findTop5ByFirebaseUidOrderByDateDesc(firebaseUid: String): List<DailyLog>
 }
 
