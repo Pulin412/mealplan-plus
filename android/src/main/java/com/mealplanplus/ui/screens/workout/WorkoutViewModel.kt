@@ -298,6 +298,17 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch { workoutRepository.deleteSet(set) }
     }
 
+    fun updateSet(setId: Long, exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?, notes: String?) {
+        viewModelScope.launch {
+            val existing = _uiState.value.activeSets.firstOrNull { it.id == setId } ?: return@launch
+            val updated = existing.copy(reps = reps, weightKg = weightKg, durationSeconds = durationSec, notes = notes)
+            workoutRepository.updateSet(updated)
+            _uiState.update { s ->
+                s.copy(activeSets = s.activeSets.map { if (it.id == setId) updated else it })
+            }
+        }
+    }
+
     fun updateSessionDate(sessionId: Long, newDate: LocalDate) {
         val session = _detailSession.value?.session ?: return
         viewModelScope.launch {

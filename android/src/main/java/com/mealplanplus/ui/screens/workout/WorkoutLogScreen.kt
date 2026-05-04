@@ -58,7 +58,8 @@ private data class DraftSet(
     val weightKg: String = "",
     val durationSec: String = "",
     val notes: String = "",
-    val isDone: Boolean = false
+    val isDone: Boolean = false,
+    val dbSetId: Long? = null  // non-null for sets loaded from DB; null for new sets
 )
 
 private enum class Step { PICK_TEMPLATE, ACTIVE_SESSION, SUMMARY }
@@ -138,7 +139,8 @@ fun WorkoutLogScreen(
                             } ?: "",
                             durationSec = set.durationSeconds?.toString() ?: "",
                             notes       = set.notes ?: "",
-                            isDone      = true
+                            isDone      = true,
+                            dbSetId     = set.id
                         )
                     )
                 }
@@ -188,6 +190,7 @@ fun WorkoutLogScreen(
             sessionSlots = sessionSlots,
             initialDraftSets = if (isReopenMode) initialDraftSets.toList() else emptyList(),
             onAddSet = viewModel::addSet,
+            onUpdateSet = viewModel::updateSet,
             onFinish = { step = Step.SUMMARY },
             onBack = {
                 if (isReopenMode) onFinished()   // in edit mode, "back" just closes
@@ -299,6 +302,7 @@ private fun ActiveSessionStep(
     allExercises: List<Exercise>,
     initialDraftSets: List<DraftSet> = emptyList(),
     onAddSet: (Long, Int?, Double?, Int?, String?) -> Unit,
+    onUpdateSet: (Long, Long, Int?, Double?, Int?, String?) -> Unit,
     onFinish: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -578,9 +582,18 @@ private fun ActiveSessionStep(
                                         val reps = pendingDraft.reps.toIntOrNull()
                                         val weight = pendingDraft.weightKg.toDoubleOrNull()
                                         val dur = pendingDraft.durationSec.replace(":", "").toIntOrNull()
-                                        onAddSet(slot.exercise.id, reps, weight, dur, pendingDraft.notes.ifBlank { null })
-                                        if (pendingIdx >= 0) draftSets[pendingIdx] = draftSets[pendingIdx].copy(isDone = true)
-                                        draftSets.add(DraftSet(slotKey = slot.slotKey))
+                                        val notes = pendingDraft.notes.ifBlank { null }
+                                        if (pendingDraft.dbSetId != null) {
+                                            // editing an existing DB set — update in place, no new row
+                                            onUpdateSet(pendingDraft.dbSetId, slot.exercise.id, reps, weight, dur, notes)
+                                            if (pendingIdx >= 0) draftSets[pendingIdx] = draftSets[pendingIdx].copy(isDone = true)
+                                            // do NOT add a new blank — set count unchanged
+                                        } else {
+                                            // new set — insert
+                                            onAddSet(slot.exercise.id, reps, weight, dur, notes)
+                                            if (pendingIdx >= 0) draftSets[pendingIdx] = draftSets[pendingIdx].copy(isDone = true)
+                                            draftSets.add(DraftSet(slotKey = slot.slotKey))
+                                        }
                                     },
                                     modifier = Modifier.fillMaxWidth().height(44.dp),
                                     shape = RoundedCornerShape(10.dp),
