@@ -454,6 +454,9 @@ fun MealPlanNavHost(
                     onNavigateToMeals = { navController.navigate(Screen.Meals.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToDiets = { navController.navigate(Screen.Diets.route) },
+                    onNavigateToWorkoutLog = { templateId ->
+                        navController.navigate(Screen.WorkoutLog.create(templateId)) { launchSingleTop = true }
+                    },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }

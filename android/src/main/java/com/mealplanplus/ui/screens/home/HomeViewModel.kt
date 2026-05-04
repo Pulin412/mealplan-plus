@@ -20,6 +20,8 @@ import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.HealthConnectRepository
 import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
+import com.mealplanplus.data.repository.WorkoutRepository
+import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.SyncPreferences
 import com.mealplanplus.util.extractShortDietName
@@ -107,7 +109,8 @@ data class HomeUiState(
     val finishCompleted: Boolean = false,
     val todayDietName: String? = null,
     /** Epoch ms of the last successful sync, or null if never synced. */
-    val lastSyncedAt: Long? = null
+    val lastSyncedAt: Long? = null,
+    val plannedWorkoutToday: PlannedWorkoutWithTemplate? = null
 )
 
 @HiltViewModel
@@ -118,6 +121,7 @@ class HomeViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val authRepository: AuthRepository,
     private val healthConnectRepository: HealthConnectRepository,
+    private val workoutRepository: WorkoutRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -134,6 +138,7 @@ class HomeViewModel @Inject constructor(
         loadUserName()
         loadTodayData()
         loadTodayPlanSlots()
+        loadTodayPlannedWorkout()
         loadGlucoseHistory()
         loadStreakData()
         loadLastSyncedAt()
@@ -303,6 +308,16 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun loadTodayPlannedWorkout() {
+        viewModelScope.launch {
+            val userId = AuthPreferences.getFirebaseUid(context).first() ?: return@launch
+            workoutRepository.getPlannedForDate(userId, LocalDate.now().toEpochMs())
+                .collect { planned ->
+                    _uiState.update { it.copy(plannedWorkoutToday = planned.firstOrNull()) }
+                }
+        }
+    }
+
     fun planDietForToday(dietId: Long) {
         viewModelScope.launch {
             planRepository.setPlanForDate(LocalDate.now(), dietId)
@@ -461,6 +476,7 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true) }
         loadTodayData()
         loadTodayPlanSlots()
+        loadTodayPlannedWorkout()
         loadWeekData()
         loadGlucoseHistory()
         loadStreakData()
@@ -497,6 +513,7 @@ class HomeViewModel @Inject constructor(
         override fun onReceive(ctx: Context, intent: Intent) {
             loadTodayData()
             loadTodayPlanSlots()
+            loadTodayPlannedWorkout()
             loadStreakData()
             loadGlucoseHistory()
         }

@@ -54,6 +54,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
 import com.mealplanplus.ui.theme.AiPurple
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
@@ -85,6 +86,7 @@ fun HomeScreen(
     onNavigateToMeals: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToDiets: () -> Unit = {},
+    onNavigateToWorkoutLog: (Long) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -179,6 +181,8 @@ fun HomeScreen(
                 },
                 onFinishDay        = { viewModel.finishTodayPlan() },
                 onReopenDay        = { viewModel.reopenTodayPlan() },
+                plannedWorkout     = uiState.plannedWorkoutToday,
+                onStartWorkout     = { templateId -> onNavigateToWorkoutLog(templateId) },
                 modifier           = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -461,7 +465,9 @@ fun TodayMealsSection(
     onFinishDay: () -> Unit,
     onReopenDay: () -> Unit,
     modifier: Modifier = Modifier,
-    todayDietName: String? = null
+    todayDietName: String? = null,
+    plannedWorkout: PlannedWorkoutWithTemplate? = null,
+    onStartWorkout: (Long) -> Unit = {}
 ) {
     val loggedCount = slots.count { it.isLogged }
     val totalCount  = slots.size
@@ -589,6 +595,13 @@ fun TodayMealsSection(
                     if (index < slots.lastIndex) {
                         HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
                     }
+                }
+                if (plannedWorkout != null) {
+                    HorizontalDivider(color = Color(0xFFEAEAEA), thickness = 2.dp)
+                    PlannedWorkoutRow(
+                        workout   = plannedWorkout,
+                        onStart   = { onStartWorkout(plannedWorkout.plannedWorkout.templateId) }
+                    )
                 }
             }
         }
@@ -754,6 +767,43 @@ fun NewTodaySlotRow(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlannedWorkoutRow(
+    workout: PlannedWorkoutWithTemplate,
+    onStart: () -> Unit
+) {
+    val name = workout.template.template.name
+    val exerciseCount = workout.template.exercises.size
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onStart)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            Text(
+                text = "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · Planned workout",
+                fontSize = 11.sp,
+                color = TextSecondary
+            )
+        }
+        Text(
+            text = "Start ›",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = PrimaryGreen
+        )
     }
 }
 
