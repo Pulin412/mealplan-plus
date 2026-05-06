@@ -8,6 +8,7 @@ interface DietRepository : JpaRepository<Diet, Long> {
     fun findByFirebaseUid(firebaseUid: String): List<Diet>
     fun findByServerId(serverId: UUID): Diet?
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<Diet>
+    fun countByFirebaseUid(firebaseUid: String): Long
 }
 
 interface DietMealRepository : JpaRepository<DietMeal, Long> {

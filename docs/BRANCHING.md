@@ -75,10 +75,10 @@ When `develop` has a set of features ready to ship:
 |---|---|---|
 | Push to `feature/*` | ❌ | ❌ |
 | Push to `develop` | ✅ build + test | ❌ |
-| Push to `main` | ✅ build + test | ❌ |
-| PR opened/updated → `develop` | ✅ build + test | ❌ |
-| PR opened/updated → `main` | ✅ build + test | ❌ |
-| PR **merged** → `main` | ✅ | ✅ **deploy** |
+| Push to `main` | ❌ | ❌ |
+| PR opened/updated → `develop` | ❌ | ❌ |
+| PR opened/updated → `main` | ❌ | ❌ |
+| PR **merged** → `main` | ❌ | ✅ **deploy** |
 | PR closed (not merged) → `main` | ❌ | ❌ |
 
 The deploy guard in `backend-deploy.yml`:

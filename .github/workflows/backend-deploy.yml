@@ -104,13 +104,27 @@ jobs:
             | grep -q '"status":"UP"' && echo "Health check passed" || exit 1
 
       - name: Prune old images (keep latest 3)
-        # Deletes all but the 3 most recent digests to stay within the 0.5 GB
-        # Artifact Registry free tier. Failures are non-fatal (--async + || true).
+        # Deletes all but the 3 most recent image digests after each deploy.
+        # Keeps storage within the 0.5 GB Artifact Registry free tier (~200 MB
+        # per Spring Boot image). --delete-tags is required to remove digests
+        # that still have tags (e.g. :latest) pointing at them.
         run: |
           IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mealplan/mealplan-api"
-          gcloud artifacts docker images list "$IMAGE" \
+          TO_DELETE=$(gcloud artifacts docker images list "$IMAGE" \
             --sort-by="~CREATE_TIME" \
-            --format="get(version)" \
-            | tail -n +4 \
-            | xargs -I{} gcloud artifacts docker images delete "$IMAGE@{}" \
-              --quiet --async 2>/dev/null || true
+            --format="value(version)" \
+            | tail -n +4)
+          if [ -n "$TO_DELETE" ]; then
+            FAILED=0
+            while IFS= read -r digest; do
+              echo "Deleting $digest..."
+              gcloud artifacts docker images delete "$IMAGE@$digest" \
+                --quiet --delete-tags \
+                && echo "  ✓ deleted" \
+                || { echo "  ✗ failed (check SA has roles/artifactregistry.repoAdmin)"; FAILED=$((FAILED+1)); }
+            done <<< "$TO_DELETE"
+            COUNT=$(echo "$TO_DELETE" | wc -l)
+            echo "Pruned $((COUNT - FAILED))/$COUNT image(s)"
+          else
+            echo "Nothing to prune"
+          fi

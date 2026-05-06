@@ -4,10 +4,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mealplanplus.data.local.CsvDataImporter
-import com.mealplanplus.data.local.ImportResult
-import com.mealplanplus.data.local.ImportStrategy
-import com.mealplanplus.data.local.JsonDataImporter
 import com.mealplanplus.data.model.DailyLogWithFoods
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
@@ -20,9 +16,12 @@ import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CsvExporter
 import com.mealplanplus.util.NotificationAlarmType
 import com.mealplanplus.util.NotificationPreferences
+import com.mealplanplus.util.SyncPreferences
 import com.mealplanplus.util.ThemePreferences
 import com.mealplanplus.util.toEpochMs
 import com.mealplanplus.util.toLocalDate
+import com.mealplanplus.work.SyncWorker
+import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -34,13 +33,13 @@ data class SettingsUiState(
     val exportSuccess: Boolean = false,
     val exportUri: Uri? = null,
     val error: String? = null,
-    // Import state
-    val isImporting: Boolean = false,
-    val importResult: ImportResult? = null,
     // Health Connect state
     val isHealthConnectAvailable: Boolean = false,
     val isHealthConnectConnected: Boolean = false,
-    val healthConnectLastSyncWeight: Double? = null
+    val healthConnectLastSyncWeight: Double? = null,
+    // Cloud sync state
+    val isSyncing: Boolean = false,
+    val lastSyncTimestamp: Long = 0L,
 )
 
 data class ThemeState(
@@ -69,9 +68,7 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dailyLogRepository: DailyLogRepository,
     private val healthRepository: HealthRepository,
-    private val healthConnectRepository: HealthConnectRepository,
-    private val jsonDataImporter: JsonDataImporter,
-    private val csvDataImporter: CsvDataImporter
+    private val healthConnectRepository: HealthConnectRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -94,6 +91,7 @@ class SettingsViewModel @Inject constructor(
         loadNotificationPreferences()
         loadDataForExport()
         checkHealthConnectStatus()
+        observeLastSyncTimestamp()
     }
 
     private fun loadThemePreferences() {
@@ -248,76 +246,6 @@ class SettingsViewModel @Inject constructor(
 
     fun clearExportState() {
         _uiState.update { it.copy(exportSuccess = false, exportUri = null, error = null) }
-    }
-
-    // Import functions
-    fun importDietsFromJson(uri: Uri, strategy: ImportStrategy = ImportStrategy.SKIP_DUPLICATES) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isImporting = true, error = null, importResult = null) }
-            try {
-                val userId = AuthPreferences.getUserId(context).first()
-                    ?: throw IllegalStateException("Not logged in")
-
-                val result = jsonDataImporter.importFromUri(context, uri, userId, strategy)
-                _uiState.update { it.copy(isImporting = false, importResult = result) }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isImporting = false,
-                        importResult = ImportResult(false, errorMessage = e.message ?: "Import failed")
-                    )
-                }
-            }
-        }
-    }
-
-    fun importDietsFromCsv(uri: Uri, strategy: ImportStrategy = ImportStrategy.SKIP_DUPLICATES) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isImporting = true, error = null, importResult = null) }
-            try {
-                val userId = AuthPreferences.getUserId(context).first()
-                    ?: throw IllegalStateException("Not logged in")
-
-                val result = csvDataImporter.importFromUri(context, uri, userId, strategy)
-                _uiState.update { it.copy(isImporting = false, importResult = result) }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isImporting = false,
-                        importResult = ImportResult(false, errorMessage = e.message ?: "Import failed")
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Auto-detect file type and import accordingly
-     */
-    fun importDietsFromUri(uri: Uri, strategy: ImportStrategy = ImportStrategy.SKIP_DUPLICATES) {
-        val fileName = uri.lastPathSegment?.lowercase() ?: ""
-        when {
-            fileName.endsWith(".csv") -> importDietsFromCsv(uri, strategy)
-            fileName.endsWith(".json") -> importDietsFromJson(uri, strategy)
-            else -> {
-                // Try to detect from content type or default to CSV
-                viewModelScope.launch {
-                    val mimeType = context.contentResolver.getType(uri)
-                    when {
-                        mimeType?.contains("json") == true -> importDietsFromJson(uri, strategy)
-                        mimeType?.contains("csv") == true -> importDietsFromCsv(uri, strategy)
-                        else -> {
-                            // Default: try JSON first, fallback to CSV
-                            importDietsFromJson(uri, strategy)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fun clearImportState() {
-        _uiState.update { it.copy(importResult = null, error = null) }
     }
 
     /**
@@ -498,6 +426,33 @@ class SettingsViewModel @Inject constructor(
             } catch (_: Exception) {
                 ctx.startActivity(appInfoIntent)
             }
+        }
+    }
+
+    // ── Cloud sync ────────────────────────────────────────────────────────────
+
+    private fun observeLastSyncTimestamp() {
+        viewModelScope.launch {
+            SyncPreferences.getLastSyncTimestamp(context).collect { ts ->
+                _uiState.update { it.copy(lastSyncTimestamp = ts) }
+            }
+        }
+    }
+
+    fun triggerSync() {
+        if (_uiState.value.isSyncing) return
+        _uiState.update { it.copy(isSyncing = true) }
+        val request = SyncWorker.oneTimeRequest()
+        WorkManager.getInstance(context).enqueue(request)
+        // Observe the work until it finishes to flip isSyncing back
+        viewModelScope.launch {
+            WorkManager.getInstance(context)
+                .getWorkInfoByIdFlow(request.id)
+                .collect { info ->
+                    if (info != null && info.state.isFinished) {
+                        _uiState.update { it.copy(isSyncing = false) }
+                    }
+                }
         }
     }
 

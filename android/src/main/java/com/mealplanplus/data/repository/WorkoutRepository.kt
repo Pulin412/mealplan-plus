@@ -37,11 +37,18 @@ class WorkoutRepository @Inject constructor(
     suspend fun updateSession(session: WorkoutSession) = sessionDao.update(session)
     suspend fun deleteSession(session: WorkoutSession) = sessionDao.delete(session)
     suspend fun getUnsyncedSessions(userId: String) = sessionDao.getUnsyncedSessions(userId)
+    suspend fun deleteSessionsInRange(userId: String, from: Long, to: Long) {
+        val ids = sessionDao.getSessionsInRangeOnce(userId, from, to).map { it.id }
+        if (ids.isNotEmpty()) setDao.deleteAllForSessions(ids)
+        sessionDao.deleteSessionsInRange(userId, from, to)
+    }
 
     // ── Sets ─────────────────────────────────────────────────────────────────
     suspend fun addSet(set: WorkoutSet): Long = setDao.insert(set)
     suspend fun updateSet(set: WorkoutSet) = setDao.update(set)
     suspend fun deleteSet(set: WorkoutSet) = setDao.delete(set)
+    suspend fun getLastSetsForExercise(userId: String, exerciseId: Long, excludeSessionId: Long): List<WorkoutSet> =
+        setDao.getLastSetsForExercise(userId, exerciseId, excludeSessionId)
 
     // ── Exercises ─────────────────────────────────────────────────────────────
     fun getAllExercisesForUser(userId: String) = exerciseDao.getAllForUser(userId)

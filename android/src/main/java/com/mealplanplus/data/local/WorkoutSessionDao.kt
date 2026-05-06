@@ -48,6 +48,12 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions WHERE userId = :userId AND (syncedAt IS NULL OR syncedAt < updatedAt)")
     suspend fun getUnsyncedSessions(userId: String): List<WorkoutSession>
 
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND date BETWEEN :from AND :to ORDER BY date DESC")
+    suspend fun getSessionsInRangeOnce(userId: String, from: Long, to: Long): List<WorkoutSession>
+
+    @Query("DELETE FROM workout_sessions WHERE (userId = :userId OR userId = '') AND date BETWEEN :from AND :to")
+    suspend fun deleteSessionsInRange(userId: String, from: Long, to: Long)
+
     // ── Backup ────────────────────────────────────────────────────────────────
     @Query("SELECT * FROM workout_sessions WHERE userId = :userId ORDER BY date DESC")
     suspend fun getAllSessionsOnce(userId: String): List<WorkoutSession>

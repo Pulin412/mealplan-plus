@@ -76,6 +76,7 @@ class MealPlanApp : Application() {
     }
 
     private fun scheduleSyncWork() {
+        // Daily background sync. Manual sync available via Settings → Cloud Sync.
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SyncWorker.TAG,
             ExistingPeriodicWorkPolicy.KEEP,

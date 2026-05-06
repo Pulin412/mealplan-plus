@@ -1,0 +1,63 @@
+name: Webapp — Prune old Vercel deployments
+
+# Runs after every push to main that touches webapp files.
+# Keeps the 5 most recent READY deployments and deletes the rest.
+#
+# Required GitHub secrets:
+#   VERCEL_TOKEN      — create at vercel.com → Account Settings → Tokens
+#   VERCEL_PROJECT_ID — find at vercel.com → Project → Settings → General (the "Project ID" field)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webapp/**'
+      - '.github/workflows/webapp-prune.yml'
+
+jobs:
+  prune:
+    name: Prune old deployments (keep latest 5)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prune old Vercel deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          echo "Fetching deployments for project $VERCEL_PROJECT_ID..."
+
+          # Fetch up to 50 READY deployments, newest first
+          DEPLOYMENTS=$(curl -sf \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&state=READY&limit=50" \
+            | jq -r '.deployments[].uid')
+
+          TOTAL=$(echo "$DEPLOYMENTS" | grep -c . || true)
+          echo "Found $TOTAL READY deployment(s)"
+
+          if [ "$TOTAL" -le 5 ]; then
+            echo "Nothing to prune (≤5 deployments)"
+            exit 0
+          fi
+
+          # Skip the 5 most recent, delete the rest
+          TO_DELETE=$(echo "$DEPLOYMENTS" | tail -n +6)
+          COUNT=$(echo "$TO_DELETE" | grep -c . || true)
+          echo "Pruning $COUNT old deployment(s)..."
+
+          FAILED=0
+          while IFS= read -r uid; do
+            echo "Deleting $uid..."
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v13/deployments/$uid")
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+              echo "  ✓ deleted ($STATUS)"
+            else
+              echo "  ✗ failed (HTTP $STATUS)"
+              FAILED=$((FAILED + 1))
+            fi
+          done <<< "$TO_DELETE"
+
+          echo "Pruned $((COUNT - FAILED))/$COUNT deployment(s)"

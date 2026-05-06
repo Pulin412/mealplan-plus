@@ -19,7 +19,11 @@ class SecurityConfig(private val firebaseTokenFilter: FirebaseTokenFilter) {
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration().apply {
-            allowedOriginPatterns = listOf("http://localhost:*")
+            allowedOriginPatterns = listOf(
+                "http://localhost:*",
+                "https://*.vercel.app",
+                "https://mealplan-plus.vercel.app"
+            )
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true

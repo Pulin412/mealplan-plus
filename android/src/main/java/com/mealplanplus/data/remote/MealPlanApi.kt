@@ -59,7 +59,13 @@ data class SyncPushRequest(
     val groceryLists: List<GroceryListDto> = emptyList()
 )
 
-data class SyncPushResponse(val accepted: Int)
+data class SyncPushResponse(
+    val accepted: Int,
+    val meals: List<MealDto> = emptyList(),
+    val diets: List<DietDto> = emptyList(),
+    val healthMetrics: List<HealthMetricDto> = emptyList(),
+    val groceryLists: List<GroceryListDto> = emptyList()
+)
 
 data class SyncPullResponse(
     val meals: List<MealDto> = emptyList(),

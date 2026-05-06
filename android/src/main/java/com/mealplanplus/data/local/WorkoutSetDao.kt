@@ -28,6 +28,21 @@ interface WorkoutSetDao {
     @Query("DELETE FROM workout_sets WHERE sessionId = :sessionId")
     suspend fun deleteAllForSession(sessionId: Long)
 
+    @Query("DELETE FROM workout_sets WHERE sessionId IN (:sessionIds)")
+    suspend fun deleteAllForSessions(sessionIds: List<Long>)
+
+    @Query("""
+        SELECT ws.* FROM workout_sets ws
+        INNER JOIN workout_sessions sess ON sess.id = ws.sessionId
+        WHERE ws.exerciseId = :exerciseId
+          AND (sess.userId = :userId OR sess.userId = '')
+          AND sess.isCompleted = 1
+          AND sess.id != :excludeSessionId
+        ORDER BY sess.date DESC, ws.setNumber ASC
+        LIMIT 50
+    """)
+    suspend fun getLastSetsForExercise(userId: String, exerciseId: Long, excludeSessionId: Long): List<WorkoutSet>
+
     // ── Backup ────────────────────────────────────────────────────────────────
     @Query("SELECT * FROM workout_sets ORDER BY sessionId, setNumber")
     suspend fun getAllSetsOnce(): List<WorkoutSet>

@@ -8,6 +8,7 @@ interface HealthMetricRepository : JpaRepository<HealthMetric, Long> {
     fun findByFirebaseUid(firebaseUid: String): List<HealthMetric>
     fun findByServerId(serverId: UUID): HealthMetric?
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<HealthMetric>
+    fun findTop1ByFirebaseUidAndTypeOrderByRecordedAtDesc(firebaseUid: String, type: String): HealthMetric?
 }
 
 interface CustomMetricTypeRepository : JpaRepository<CustomMetricType, Long> {

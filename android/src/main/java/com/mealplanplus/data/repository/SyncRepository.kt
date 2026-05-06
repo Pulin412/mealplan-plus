@@ -1,5 +1,6 @@
 package com.mealplanplus.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.data.local.GroceryDao
@@ -8,16 +9,23 @@ import com.mealplanplus.data.local.MealDao
 import com.mealplanplus.data.local.DietDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.remote.*
+import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.CrashlyticsReporter
 import com.mealplanplus.util.toEpochMs
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 @Singleton
 class SyncRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val api: MealPlanApi,
     private val mealDao: MealDao,
     private val dietDao: DietDao,
@@ -28,50 +36,84 @@ class SyncRepository @Inject constructor(
     private val TAG = "SyncRepository"
     private val isoFormatter = DateTimeFormatter.ISO_INSTANT
 
+    /**
+     * Resolves the Firebase UID.
+     *
+     * Firebase Auth initialises asynchronously — currentUser can be null briefly
+     * after process start even when the user is signed in. Strategy:
+     *  1. currentUser if already available (fast path)
+     *  2. Stored UID in AuthPreferences (set on every login, survives restarts)
+     *  3. Wait up to 3s for Firebase Auth state listener to fire (async init)
+     */
+    private suspend fun resolveFirebaseUid(): String? {
+        FirebaseAuth.getInstance().currentUser?.uid?.let { return it }
+        AuthPreferences.getFirebaseUid(context).firstOrNull()?.let { return it }
+        Log.d(TAG, "Firebase Auth not ready yet — waiting up to 3s for auth state")
+        return withTimeoutOrNull(3_000) {
+            suspendCancellableCoroutine { cont ->
+                val listener = FirebaseAuth.AuthStateListener { auth ->
+                    if (cont.isActive) cont.resume(auth.currentUser?.uid)
+                }
+                FirebaseAuth.getInstance().addAuthStateListener(listener)
+                cont.invokeOnCancellation {
+                    FirebaseAuth.getInstance().removeAuthStateListener(listener)
+                }
+            }
+        }
+    }
+
     /** Push local changes (updatedAt > syncedAt OR syncedAt == null) to backend */
     suspend fun push(userId: Long): Result<Int> = runCatching {
-        val firebaseUid = FirebaseAuth.getInstance().currentUser?.uid
+        val firebaseUid = resolveFirebaseUid()
             ?: return Result.failure(Exception("Not signed in with Firebase"))
 
         val now = System.currentTimeMillis()
 
-        val meals = mealDao.getUnsyncedMeals().map { m ->
+        // Capture raw entities BEFORE mapping so we can write serverIds back by position
+        val rawMeals = mealDao.getUnsyncedMeals()
+        val rawDiets = dietDao.getUnsyncedDiets()
+        val rawMetrics = healthMetricDao.getUnsyncedMetrics(userId)
+        val rawGroceries = groceryDao.getUnsyncedGroceryLists(userId)
+
+        val totalItems = rawMeals.size + rawDiets.size + rawMetrics.size + rawGroceries.size
+        if (totalItems == 0) return Result.success(0)
+
+        val meals = rawMeals.map { m ->
             MealDto(serverId = m.serverId, firebaseUid = firebaseUid, name = m.name,
                 slot = "", updatedAt = m.updatedAt)
         }
-
-        val diets = dietDao.getUnsyncedDiets().map { d ->
+        val diets = rawDiets.map { d ->
             DietDto(serverId = d.serverId, firebaseUid = firebaseUid, name = d.name,
                 description = d.description, updatedAt = d.updatedAt)
         }
-
-        val metrics = healthMetricDao.getUnsyncedMetrics(userId).map { h ->
+        val metrics = rawMetrics.map { h ->
             HealthMetricDto(serverId = h.serverId, firebaseUid = firebaseUid,
                 type = h.metricType ?: "CUSTOM", subType = h.subType, value = h.value,
                 secondaryValue = h.secondaryValue, unit = h.metricType ?: "",
                 recordedAt = h.timestamp, updatedAt = h.updatedAt)
         }
-
-        val groceryLists = groceryDao.getUnsyncedGroceryLists(userId).map { g ->
+        val groceryLists = rawGroceries.map { g ->
             GroceryListDto(serverId = g.serverId, firebaseUid = firebaseUid,
                 name = g.name, updatedAt = g.updatedAt)
         }
-
-        val totalItems = meals.size + diets.size + metrics.size + groceryLists.size
-        if (totalItems == 0) return Result.success(0)
 
         val req = SyncPushRequest(meals = meals, diets = diets,
             healthMetrics = metrics, groceryLists = groceryLists)
         val resp = api.push(req)
         Log.d(TAG, "Push accepted=${resp.accepted}")
 
-        mealDao.getUnsyncedMeals().forEach { m -> mealDao.updateMeal(m.copy(syncedAt = now)) }
-        dietDao.getUnsyncedDiets().forEach { d -> dietDao.updateDiet(d.copy(syncedAt = now)) }
-        healthMetricDao.getUnsyncedMetrics(userId).forEach { h ->
-            healthMetricDao.updateHealthMetric(h.copy(syncedAt = now))
+        // Write backend-assigned serverIds back to local rows (positional match)
+        resp.meals.forEachIndexed { i, dto ->
+            rawMeals.getOrNull(i)?.let { mealDao.updateMeal(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
         }
-        groceryDao.getUnsyncedGroceryLists(userId).forEach { g ->
-            groceryDao.updateGroceryList(g.copy(syncedAt = now))
+        resp.diets.forEachIndexed { i, dto ->
+            rawDiets.getOrNull(i)?.let { dietDao.updateDiet(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        }
+        resp.healthMetrics.forEachIndexed { i, dto ->
+            rawMetrics.getOrNull(i)?.let { healthMetricDao.updateHealthMetric(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        }
+        resp.groceryLists.forEachIndexed { i, dto ->
+            rawGroceries.getOrNull(i)?.let { groceryDao.updateGroceryList(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
         }
 
         crashlytics.log("sync_push", "accepted=${resp.accepted}")

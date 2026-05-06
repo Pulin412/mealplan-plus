@@ -2,9 +2,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, FileText, CalendarDays, Settings, Plus, Activity, Salad, ShoppingCart, Dumbbell, Apple, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/firebase/auth";
+import { useAuth } from "@/context/AuthContext";
 
 
 // More sheet items (Android MiscSheet)
@@ -136,6 +137,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sheet, setSheet] = useState<"more" | "quick" | null>(null);
+  const { user, loading } = useAuth();
+
+  // Auth guard — replaces edge middleware (which broke on Vercel Edge Runtime)
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-page">
+        <div className="w-8 h-8 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+  if (!user) return null; // redirecting, prevent flash
 
   const handleSignOut = async () => {
     await logout();
