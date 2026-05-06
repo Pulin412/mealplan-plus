@@ -18,6 +18,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -184,22 +186,31 @@ fun WorkoutLogScreen(
             },
             onBack = onBack
         )
-        Step.ACTIVE_SESSION -> ActiveSessionStep(
-            state = state,
-            sessionSlots = sessionSlots,
-            initialDraftSets = if (isReopenMode) initialDraftSets.toList() else emptyList(),
-            onAddSet = viewModel::addSet,
-            onUpdateSet = viewModel::updateSet,
-            onFinish = {
-                if (isReopenMode) onFinished()
-                else scope.launch { viewModel.finishSession(); onFinished() }
-            },
-            onBack = {
-                if (isReopenMode) onFinished()
-                else { viewModel.cancelSession(); onBack() }
-            },
-            allExercises = state.exercises
-        )
+        Step.ACTIVE_SESSION -> {
+            val lastSetsByExercise by viewModel.lastSetsByExercise.collectAsState()
+            LaunchedEffect(sessionSlots.size, state.activeSession?.id) {
+                if (sessionSlots.isNotEmpty() && state.activeSession != null) {
+                    viewModel.loadLastSetsForExercises(sessionSlots.map { it.exercise.id }.distinct())
+                }
+            }
+            ActiveSessionStep(
+                state = state,
+                sessionSlots = sessionSlots,
+                initialDraftSets = if (isReopenMode) initialDraftSets.toList() else emptyList(),
+                lastSetsByExercise = lastSetsByExercise,
+                onAddSet = viewModel::addSet,
+                onUpdateSet = viewModel::updateSet,
+                onFinish = {
+                    if (isReopenMode) onFinished()
+                    else scope.launch { viewModel.finishSession(); onFinished() }
+                },
+                onBack = {
+                    if (isReopenMode) onFinished()
+                    else { viewModel.cancelSession(); onBack() }
+                },
+                allExercises = state.exercises
+            )
+        }
     }
 }
 
@@ -291,6 +302,7 @@ private fun ActiveSessionStep(
     sessionSlots: androidx.compose.runtime.snapshots.SnapshotStateList<ExerciseSlot>,
     allExercises: List<Exercise>,
     initialDraftSets: List<DraftSet> = emptyList(),
+    lastSetsByExercise: Map<Long, List<WorkoutSet>> = emptyMap(),
     onAddSet: (Long, Int?, Double?, Int?, String?, (Long) -> Unit) -> Unit,
     onUpdateSet: (Long, Long, Int?, Double?, Int?, String?) -> Unit,
     onFinish: () -> Unit,
@@ -448,6 +460,13 @@ private fun ActiveSessionStep(
                             Column(modifier = Modifier.padding(horizontal = 14.dp).padding(bottom = 12.dp)) {
                                 HorizontalDivider(color = DividerColor)
                                 Spacer(Modifier.height(10.dp))
+
+                                // ── Last session history ───────────────────────
+                                val lastSets = lastSetsByExercise[slot.exercise.id] ?: emptyList()
+                                if (lastSets.isNotEmpty()) {
+                                    LastTimeSection(lastSets)
+                                    Spacer(Modifier.height(10.dp))
+                                }
 
                                 // ── Pyramid reference (from template) ─────────
                                 val plannedSets = slot.templateEntry?.plannedSets ?: emptyList()
@@ -666,6 +685,85 @@ private fun ActiveSessionStep(
             },
             onDismiss = { showExercisePicker = false }
         )
+    }
+}
+
+// ── Last session history ──────────────────────────────────────────────────────
+
+@Composable
+private fun LastTimeSection(lastSets: List<WorkoutSet>) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val summary = buildString {
+        val maxWeight = lastSets.mapNotNull { it.weightKg }.maxOrNull()
+        append("${lastSets.size} set${if (lastSets.size != 1) "s" else ""}")
+        if (maxWeight != null) {
+            append(" · ")
+            append(if (maxWeight % 1 == 0.0) "${maxWeight.toInt()} kg" else "${"%.1f".format(maxWeight)} kg")
+        }
+        val totalReps = lastSets.sumOf { it.reps ?: 0 }
+        if (totalReps > 0) append(" · $totalReps reps total")
+    }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFFF5F0FF))
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                "LAST TIME",
+                fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                color = Color(0xFF7B5EA7), letterSpacing = 0.6.sp
+            )
+            Text(
+                summary,
+                fontSize = 11.sp, color = Color(0xFF555555),
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = Color(0xFF7B5EA7),
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
+            Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                lastSets.forEachIndexed { idx, set ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Set ${idx + 1}",
+                            fontSize = 11.sp, color = Color(0xFF888888),
+                            modifier = Modifier.width(38.dp)
+                        )
+                        Text(
+                            buildString {
+                                if (set.reps != null) append("${set.reps} reps")
+                                if (set.weightKg != null) {
+                                    if (isNotEmpty()) append("  ·  ")
+                                    append(if (set.weightKg % 1 == 0.0) "${set.weightKg.toInt()} kg" else "${"%.1f".format(set.weightKg)} kg")
+                                }
+                                if (set.durationSeconds != null) {
+                                    if (isNotEmpty()) append("  ·  ")
+                                    append("${set.durationSeconds / 60}:%02d".format(set.durationSeconds % 60))
+                                }
+                            },
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

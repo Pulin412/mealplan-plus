@@ -533,12 +533,16 @@ fun DietCard(
                     }
                 }
 
-                // Inline macros: P / C / F
+                // Inline macros: P / C / F + GL
                 Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     DietMacroInline(label = "P", value = "${item.totalProtein}g", color = ChartProtein)
                     DietMacroInline(label = "C", value = "${item.totalCarbs}g", color = ChartCarbs)
                     DietMacroInline(label = "F", value = "${item.totalFat}g", color = ChartFat)
+                    item.totalGlycemicLoad?.let { gl -> GlycemicLoadPill(gl) }
                 }
             }
 
@@ -773,14 +777,14 @@ fun ColorPicker(selectedColor: String, onColorSelected: (String) -> Unit) {
 private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue
 
 private fun glColor(gl: Double): Color = when {
-    gl <= 10.0 -> Color(0xFF2E7D32)
-    gl <= 19.0 -> Color(0xFFF57F17)
+    gl < 80.0  -> Color(0xFF2E7D32)
+    gl < 120.0 -> Color(0xFFF57F17)
     else       -> Color(0xFFB71C1C)
 }
 
 private fun glLabel(gl: Double): String = when {
-    gl <= 10.0 -> "Low GL"
-    gl <= 19.0 -> "Med GL"
+    gl < 80.0  -> "Low GL"
+    gl < 120.0 -> "Med GL"
     else       -> "High GL"
 }
 

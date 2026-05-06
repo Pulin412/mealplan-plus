@@ -57,6 +57,9 @@ class WorkoutViewModel @Inject constructor(
 
     private val _detailSession = MutableStateFlow<WorkoutSessionWithSets?>(null)
     val detailSession: StateFlow<WorkoutSessionWithSets?> = _detailSession.asStateFlow()
+
+    private val _lastSetsByExercise = MutableStateFlow<Map<Long, List<WorkoutSet>>>(emptyMap())
+    val lastSetsByExercise: StateFlow<Map<Long, List<WorkoutSet>>> = _lastSetsByExercise.asStateFlow()
     private var detailSessionJob: Job? = null
 
     private val firebaseUidFlow: StateFlow<String> = callbackFlow {
@@ -339,6 +342,22 @@ class WorkoutViewModel @Inject constructor(
                 )
             )
         }
+    }
+
+    fun loadLastSetsForExercises(exerciseIds: List<Long>) {
+        val session = _uiState.value.activeSession ?: return
+        viewModelScope.launch {
+            val result = exerciseIds.associateWith { exerciseId ->
+                val all = workoutRepository.getLastSetsForExercise(userId, exerciseId, session.id)
+                val lastSessionId = all.firstOrNull()?.sessionId ?: return@associateWith emptyList()
+                all.filter { it.sessionId == lastSessionId }
+            }
+            _lastSetsByExercise.value = result
+        }
+    }
+
+    fun deleteSessionsInRange(from: Long, to: Long) {
+        viewModelScope.launch { workoutRepository.deleteSessionsInRange(userId, from, to) }
     }
 
     fun cancelSession() {

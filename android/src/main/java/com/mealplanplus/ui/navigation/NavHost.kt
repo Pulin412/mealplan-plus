@@ -915,6 +915,7 @@ fun MealPlanNavHost(
                     onNavigateToLog = { navController.navigate(Screen.WorkoutLog.create()) },
                     onNavigateToExercises = { navController.navigate(Screen.ExerciseCatalogue.route) },
                     onNavigateToTemplates = { navController.navigate(Screen.WorkoutTemplates.route) },
+                    onCreateTemplate = { navController.navigate(Screen.AddWorkoutTemplate.create()) },
                     onNavigateToSession = { sessionId ->
                         navController.navigate(Screen.WorkoutSessionDetail.create(sessionId))
                     }
@@ -1223,10 +1224,11 @@ private fun QuickAddSheet(
     var revealed by remember { mutableStateOf(false) }
 
     val actions = listOf(
-        QuickAction(Icons.Default.Edit,      Color(0xFF2E7D52), "Log Today's Meals", "Open today's food diary",           Screen.DailyLog.route),
-        QuickAction(Icons.Default.Add,        Color(0xFFF59E0B), "Add a Food",         "Search or scan a food item",        Screen.AddFood.route),
-        QuickAction(Icons.Default.Restaurant, Color(0xFFC05200), "Create a Meal",      "Bundle foods into a reusable meal", Screen.AddMeal.route),
-        QuickAction(Icons.Default.List,       Color(0xFF1E4FBF), "Build a Diet",       "Create a structured diet plan",     Screen.AddDiet.route),
+        QuickAction(Icons.Default.Edit,         Color(0xFF2E7D52), "Log Today's Meals", "Open today's food diary",           Screen.DailyLog.route),
+        QuickAction(Icons.Default.Add,          Color(0xFFF59E0B), "Add a Food",         "Search or scan a food item",        Screen.AddFood.route),
+        QuickAction(Icons.Default.Restaurant,   Color(0xFFC05200), "Create a Meal",      "Bundle foods into a reusable meal", Screen.AddMeal.route),
+        QuickAction(Icons.Default.List,         Color(0xFF1E4FBF), "Build a Diet",       "Create a structured diet plan",     Screen.AddDiet.route),
+        QuickAction(Icons.Default.FitnessCenter,Color(0xFF00796B), "Start a Workout",    "Log a new training session",        Screen.WorkoutLog.create()),
     )
 
     // Alpha for each row — staggered fade-in via animateFloatAsState + tween delayMillis
@@ -1377,7 +1379,7 @@ private fun MiscSheet(
         QuickAction(Icons.Default.Restaurant,     Color(0xFF2E7D52), "Diets",    "Browse & manage diet plans",    Screen.Diets.route),
         QuickAction(Icons.Default.List,           Color(0xFFC05200), "Meals",    "Your meal library",             Screen.Meals.route),
         QuickAction(Icons.Default.Star,           Color(0xFF1E4FBF), "Foods",    "Food catalogue & nutrition",    Screen.Foods.route),
-        QuickAction(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health",   "Metrics, weight & activity",    Screen.Health.route),
+        QuickAction(Icons.Default.FavoriteBorder, Color(0xFFD32F2F), "Health",   "Metrics, weight & activity",    Screen.Charts.route),
         QuickAction(Icons.Default.FitnessCenter,  Color(0xFF00796B), "Workouts", "Log & track gym sessions",      Screen.WorkoutHistory.route),
         QuickAction(Icons.Default.ShoppingCart,   Color(0xFF6A1B9A), "Grocery",  "Your shopping lists",           Screen.GroceryLists.route),
         QuickAction(Icons.Default.Settings,       Color(0xFF555555), "Settings", "Preferences & notifications",   Screen.Settings.route),

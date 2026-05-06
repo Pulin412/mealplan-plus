@@ -172,6 +172,7 @@ fun HomeScreen(
                 hasDietToday       = uiState.hasDietToday,
                 isTodayCompleted   = uiState.isTodayCompleted,
                 todayDietName      = uiState.todayDietName,
+                todayDietGl        = uiState.todayDietGl,
                 onPlanOrChangeDiet = onNavigateToDietPickerForToday,
                 onSlotToggle       = { slot -> viewModel.toggleSlotLogged(slot) },
                 onSlotTap          = { slot ->
@@ -466,6 +467,7 @@ fun TodayMealsSection(
     onReopenDay: () -> Unit,
     modifier: Modifier = Modifier,
     todayDietName: String? = null,
+    todayDietGl: Double? = null,
     plannedWorkout: PlannedWorkoutWithTemplate? = null,
     onStartWorkout: (Long) -> Unit = {}
 ) {
@@ -482,13 +484,33 @@ fun TodayMealsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (!todayDietName.isNullOrBlank()) "TODAY · $todayDietName" else "TODAY",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.8.sp,
-                color = TextSecondary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = if (!todayDietName.isNullOrBlank()) "TODAY · $todayDietName" else "TODAY",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.8.sp,
+                    color = TextSecondary
+                )
+                if (todayDietGl != null) {
+                    val glColor = dietGlColor(todayDietGl)
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = glColor.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = "GL ${String.format("%.0f", todayDietGl)}",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = glColor,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (!isTodayCompleted && totalCount > 0) {
                     Surface(
@@ -1050,3 +1072,12 @@ fun StatCard(emoji: String, value: String, label: String, iconBg: Color, modifie
 fun MacroRingsCard(calories: Int, calorieGoal: Int, protein: Int, carbs: Int, fat: Int) {
     MacroProgressCard(calories = calories, calorieGoal = calorieGoal, protein = protein, carbs = carbs, fat = fat)
 }
+
+// Diet-level GL thresholds: low <80, medium 80-120, high >120 per day
+fun dietGlColor(gl: Double): Color = when {
+    gl < 80.0  -> Color(0xFF2E7D32)
+    gl < 120.0 -> Color(0xFFF57F17)
+    else       -> Color(0xFFB71C1C)
+}
+
+

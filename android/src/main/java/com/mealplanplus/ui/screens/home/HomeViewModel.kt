@@ -108,6 +108,7 @@ data class HomeUiState(
     val isTodayCompleted: Boolean = false,
     val finishCompleted: Boolean = false,
     val todayDietName: String? = null,
+    val todayDietGl: Double? = null,
     /** Epoch ms of the last successful sync, or null if never synced. */
     val lastSyncedAt: Long? = null,
     val plannedWorkoutToday: PlannedWorkoutWithTemplate? = null
@@ -247,8 +248,9 @@ class HomeViewModel @Inject constructor(
                 .onEach { (logWithFoods, plans) ->
                     val dietId = plans.firstOrNull { it.dietId != null }?.dietId
 
+                    val dietWithMeals = if (dietId != null) dietRepository.getDietWithMeals(dietId) else null
+
                     val dietSlots: List<TodayPlanSlot> = if (dietId != null) {
-                        val dietWithMeals = dietRepository.getDietWithMeals(dietId)
                         dietWithMeals?.meals
                             ?.entries
                             ?.sortedBy { (slotType, _) ->
@@ -266,7 +268,8 @@ class HomeViewModel @Inject constructor(
                                     plannedMealId = mealWithFoods?.meal?.id,
                                     plannedFoods = mealWithFoods?.items ?: emptyList(),
                                     isLogged = slotFoods.isNotEmpty(),
-                                    dietId = dietId
+                                    dietId = dietId,
+                                    loggedFoods = slotFoods
                                 )
                             } ?: emptyList()
                     } else {
@@ -277,7 +280,7 @@ class HomeViewModel @Inject constructor(
                             .sortedBy { (slotType, _) ->
                                 DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
                             }
-                            .map { (slotType, _) ->
+                            .map { (slotType, foods) ->
                                 TodayPlanSlot(
                                     slotType = slotType,
                                     slotDisplayName = DefaultMealSlot.fromString(slotType)?.displayName
@@ -287,20 +290,23 @@ class HomeViewModel @Inject constructor(
                                     plannedMealName = null,
                                     plannedMealId = null,
                                     plannedFoods = emptyList(),
-                                    isLogged = true
+                                    isLogged = true,
+                                    loggedFoods = foods
                                 )
                             }
                     }
 
                     val isTodayCompleted = plans.firstOrNull()?.isCompleted == true
                     val todayDietName = plans.firstOrNull { it.dietId != null }?.dietName
+                    val todayDietGl = dietWithMeals?.totalGlycemicLoad
 
                     _uiState.update {
                         it.copy(
                             todayPlanSlots = dietSlots,
                             hasDietToday = dietId != null,
                             isTodayCompleted = isTodayCompleted,
-                            todayDietName = todayDietName
+                            todayDietName = todayDietName,
+                            todayDietGl = todayDietGl
                         )
                     }
                 }
@@ -338,6 +344,7 @@ class HomeViewModel @Inject constructor(
                         date = today,
                         foodId = foodItem.mealFoodItem.foodId,
                         quantity = foodItem.mealFoodItem.quantity,
+                        unit = foodItem.mealFoodItem.unit,
                         slotType = slot.slotType,
                         timestamp = timestamp
                     )
