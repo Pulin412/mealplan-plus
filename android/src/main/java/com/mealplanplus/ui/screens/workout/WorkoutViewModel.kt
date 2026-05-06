@@ -250,7 +250,14 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun addSet(exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?, notes: String? = null) {
+    fun addSet(
+        exerciseId: Long,
+        reps: Int?,
+        weightKg: Double?,
+        durationSec: Int?,
+        notes: String? = null,
+        onInserted: (Long) -> Unit = {}
+    ) {
         val session = _uiState.value.activeSession ?: return
         viewModelScope.launch {
             val setNumber = _uiState.value.activeSets.count { it.exerciseId == exerciseId } + 1
@@ -263,8 +270,9 @@ class WorkoutViewModel @Inject constructor(
                 durationSeconds = durationSec,
                 notes = notes
             )
-            workoutRepository.addSet(set)
-            _uiState.update { it.copy(activeSets = it.activeSets + set) }
+            val insertedId = workoutRepository.addSet(set)
+            _uiState.update { it.copy(activeSets = it.activeSets + set.copy(id = insertedId)) }
+            onInserted(insertedId)
         }
     }
 
