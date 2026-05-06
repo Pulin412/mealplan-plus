@@ -4,6 +4,46 @@ import retrofit2.http.*
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 
+data class FoodDto(
+    val id: Long = 0,
+    val serverId: String? = null,
+    val firebaseUid: String = "",
+    val name: String = "",
+    val brand: String? = null,
+    val barcode: String? = null,
+    val caloriesPer100: Double = 0.0,
+    val proteinPer100: Double = 0.0,
+    val carbsPer100: Double = 0.0,
+    val fatPer100: Double = 0.0,
+    val gramsPerPiece: Double? = null,
+    val gramsPerCup: Double? = null,
+    val gramsPerTbsp: Double? = null,
+    val gramsPerTsp: Double? = null,
+    val glycemicIndex: Int? = null,
+    val isSystemFood: Boolean = false,
+    val isFavorite: Boolean = false,
+    val updatedAt: Long? = null
+)
+
+data class LoggedFoodDto(
+    val id: Long = 0,
+    val dailyLogId: Long = 0,
+    val foodId: Long = 0,
+    val mealSlot: String = "Lunch",
+    val quantity: Double = 0.0,
+    val unit: String = "GRAM"
+)
+
+data class DailyLogDto(
+    val id: Long = 0,
+    val serverId: String? = null,
+    val firebaseUid: String = "",
+    val date: String = "",   // ISO date "yyyy-MM-dd" — backend deserialises to LocalDate
+    val notes: String? = null,
+    val loggedFoods: List<LoggedFoodDto> = emptyList(),
+    val updatedAt: Long? = null
+)
+
 data class MealFoodItemDto(
     val id: Long = 0, val mealId: Long = 0, val foodId: Long = 0,
     val quantity: Double = 0.0, val unit: String = "GRAM", val notes: String? = null
@@ -53,14 +93,17 @@ data class TombstoneDto(
 // ── Sync request / response ───────────────────────────────────────────────────
 
 data class SyncPushRequest(
+    val foods: List<FoodDto> = emptyList(),
     val meals: List<MealDto> = emptyList(),
     val diets: List<DietDto> = emptyList(),
     val healthMetrics: List<HealthMetricDto> = emptyList(),
-    val groceryLists: List<GroceryListDto> = emptyList()
+    val groceryLists: List<GroceryListDto> = emptyList(),
+    val dailyLogs: List<DailyLogDto> = emptyList()
 )
 
 data class SyncPushResponse(
     val accepted: Int,
+    val foods: List<FoodDto> = emptyList(),
     val meals: List<MealDto> = emptyList(),
     val diets: List<DietDto> = emptyList(),
     val healthMetrics: List<HealthMetricDto> = emptyList(),
@@ -68,10 +111,12 @@ data class SyncPushResponse(
 )
 
 data class SyncPullResponse(
+    val foods: List<FoodDto> = emptyList(),
     val meals: List<MealDto> = emptyList(),
     val diets: List<DietDto> = emptyList(),
     val healthMetrics: List<HealthMetricDto> = emptyList(),
     val groceryLists: List<GroceryListDto> = emptyList(),
+    val dailyLogs: List<DailyLogDto> = emptyList(),
     val tombstones: List<TombstoneDto> = emptyList(),
     /** Server clock at response time — store as lastSyncTimestamp for next pull's `since`. */
     val serverTime: Long? = null
