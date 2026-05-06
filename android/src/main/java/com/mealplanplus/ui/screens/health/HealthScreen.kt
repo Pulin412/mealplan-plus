@@ -32,12 +32,17 @@ import com.mealplanplus.data.model.CustomMetricType
 import com.mealplanplus.data.model.GlucoseSubType
 import com.mealplanplus.data.model.HealthMetric
 import com.mealplanplus.data.model.MetricType
+import com.patrykandpatrick.vico.compose.axis.axisGuidelineComponent
+import com.patrykandpatrick.vico.compose.axis.axisLabelComponent
+import com.patrykandpatrick.vico.compose.axis.axisLineComponent
+import com.patrykandpatrick.vico.compose.axis.axisTickComponent
+import com.patrykandpatrick.vico.compose.component.shape.shader.toDynamicShader
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
+import com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
-import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
-import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
+import com.patrykandpatrick.vico.compose.chart.line.lineSpec
 import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
 import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
@@ -46,10 +51,12 @@ import com.patrykandpatrick.vico.core.entry.entryOf
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import com.mealplanplus.util.toChartLabel
+import com.mealplanplus.util.toEpochMs
 import com.mealplanplus.ui.theme.DesignGreen
 import com.mealplanplus.ui.theme.DesignGreenLight
 import com.mealplanplus.ui.theme.TextDestructive
 import com.mealplanplus.ui.theme.TextPrimary
+import com.mealplanplus.ui.theme.DividerColor
 import com.mealplanplus.ui.theme.TextSecondary
 import com.mealplanplus.util.toLocalDate
 import java.time.LocalDate
@@ -481,28 +488,47 @@ fun HealthTrendChart(metrics: List<HealthMetric>, modifier: Modifier = Modifier)
         chartMetrics.mapIndexed { i, m -> entryOf(i.toFloat(), m.value.toFloat()) }
     }
     val modelProducer = remember(entries) { ChartEntryModelProducer(entries) }
-    val dateLabels = remember(chartMetrics) {
-        val fmt = DateTimeFormatter.ofPattern("dd/MM")
-        chartMetrics.map { m -> m.date.toChartLabel("dd/MM") }
-    }
+    val dateLabels = remember(chartMetrics) { chartMetrics.map { m -> m.date.toChartLabel("d MMM") } }
     val xSpacing = remember(chartMetrics.size) { maxOf(1, chartMetrics.size / 5) }
-    val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ ->
-        dateLabels.getOrElse(v.toInt()) { "" }
-    }
-    ProvideChartStyle(m3ChartStyle()) {
-        Chart(
-            chart = lineChart(),
-            chartModelProducer = modelProducer,
-            startAxis = rememberStartAxis(
-                itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 4)
-            ),
-            bottomAxis = rememberBottomAxis(
-                valueFormatter = formatter,
-                itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
-            ),
-            modifier = modifier.height(180.dp)
-        )
-    }
+    val xFmt = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ -> dateLabels.getOrElse(v.toInt()) { "" } }
+
+    val labelComp = axisLabelComponent(color = TextSecondary, textSize = 10.sp)
+    val lineComp  = axisLineComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
+    val tickComp  = axisTickComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
+    val gridComp  = axisGuidelineComponent(color = DividerColor.copy(alpha = 0.35f))
+
+    Chart(
+        chart = lineChart(
+            lines = listOf(
+                lineSpec(
+                    lineColor = DesignGreen,
+                    lineThickness = 2.dp,
+                    lineBackgroundShader = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(DesignGreen.copy(alpha = 0.25f), DesignGreen.copy(alpha = 0f))
+                    ).toDynamicShader()
+                )
+            )
+        ),
+        chartModelProducer = modelProducer,
+        isZoomEnabled = false,
+        chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
+        startAxis = rememberStartAxis(
+            label = labelComp,
+            axis = lineComp,
+            tick = tickComp,
+            guideline = gridComp,
+            itemPlacer = remember { AxisItemPlacer.Vertical.default(maxItemCount = 4) }
+        ),
+        bottomAxis = rememberBottomAxis(
+            label = labelComp,
+            axis = lineComp,
+            tick = tickComp,
+            guideline = null,
+            valueFormatter = xFmt,
+            itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
+        ),
+        modifier = modifier.height(180.dp)
+    )
 }
 
 @Composable
@@ -1027,28 +1053,39 @@ private fun ActivityChartCard(
                     chronological.mapIndexed { i, d -> entryOf(i.toFloat(), valueSelector(d)) }
                 }
                 val modelProducer = remember(entries) { ChartEntryModelProducer(entries) }
-                val dateLabels = remember(chronological) {
-                    val fmt = DateTimeFormatter.ofPattern("dd/MM")
-                    chronological.map { d -> d.date.format(fmt) }
-                }
+                val dateLabels = remember(chronological) { chronological.map { d -> d.date.toEpochMs().toChartLabel("d MMM") } }
                 val xSpacing = remember(chronological.size) { maxOf(1, chronological.size / 5) }
-                val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ ->
-                    dateLabels.getOrElse(v.toInt()) { "" }
-                }
-                ProvideChartStyle(m3ChartStyle(entityColors = listOf(color))) {
-                    Chart(
-                        chart = lineChart(),
-                        chartModelProducer = modelProducer,
-                        startAxis = rememberStartAxis(
-                            itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 4)
-                        ),
-                        bottomAxis = rememberBottomAxis(
-                            valueFormatter = formatter,
-                            itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(180.dp)
-                    )
-                }
+                val xFmt = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ -> dateLabels.getOrElse(v.toInt()) { "" } }
+                val labelComp = axisLabelComponent(color = TextSecondary, textSize = 10.sp)
+                val lineComp  = axisLineComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
+                val tickComp  = axisTickComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
+                val gridComp  = axisGuidelineComponent(color = DividerColor.copy(alpha = 0.35f))
+                Chart(
+                    chart = lineChart(
+                        lines = listOf(
+                            lineSpec(
+                                lineColor = color,
+                                lineThickness = 2.dp,
+                                lineBackgroundShader = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(color.copy(alpha = 0.22f), color.copy(alpha = 0f))
+                                ).toDynamicShader()
+                            )
+                        )
+                    ),
+                    chartModelProducer = modelProducer,
+                    isZoomEnabled = false,
+                    chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
+                    startAxis = rememberStartAxis(
+                        label = labelComp, axis = lineComp, tick = tickComp, guideline = gridComp,
+                        itemPlacer = remember { AxisItemPlacer.Vertical.default(maxItemCount = 4) }
+                    ),
+                    bottomAxis = rememberBottomAxis(
+                        label = labelComp, axis = lineComp, tick = tickComp, guideline = null,
+                        valueFormatter = xFmt,
+                        itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
+                    ),
+                    modifier = Modifier.fillMaxWidth().height(180.dp)
+                )
             } else {
                 Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
                     Text("Need at least 2 days of data to show trend",

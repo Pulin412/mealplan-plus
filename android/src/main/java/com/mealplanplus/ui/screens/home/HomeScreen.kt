@@ -54,6 +54,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
 import com.mealplanplus.ui.theme.AiPurple
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
@@ -85,6 +86,7 @@ fun HomeScreen(
     onNavigateToMeals: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToDiets: () -> Unit = {},
+    onNavigateToWorkoutLog: (Long) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -170,6 +172,7 @@ fun HomeScreen(
                 hasDietToday       = uiState.hasDietToday,
                 isTodayCompleted   = uiState.isTodayCompleted,
                 todayDietName      = uiState.todayDietName,
+                todayDietGl        = uiState.todayDietGl,
                 onPlanOrChangeDiet = onNavigateToDietPickerForToday,
                 onSlotToggle       = { slot -> viewModel.toggleSlotLogged(slot) },
                 onSlotTap          = { slot ->
@@ -179,6 +182,8 @@ fun HomeScreen(
                 },
                 onFinishDay        = { viewModel.finishTodayPlan() },
                 onReopenDay        = { viewModel.reopenTodayPlan() },
+                plannedWorkout     = uiState.plannedWorkoutToday,
+                onStartWorkout     = { templateId -> onNavigateToWorkoutLog(templateId) },
                 modifier           = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -461,7 +466,10 @@ fun TodayMealsSection(
     onFinishDay: () -> Unit,
     onReopenDay: () -> Unit,
     modifier: Modifier = Modifier,
-    todayDietName: String? = null
+    todayDietName: String? = null,
+    todayDietGl: Double? = null,
+    plannedWorkout: PlannedWorkoutWithTemplate? = null,
+    onStartWorkout: (Long) -> Unit = {}
 ) {
     val loggedCount = slots.count { it.isLogged }
     val totalCount  = slots.size
@@ -476,13 +484,33 @@ fun TodayMealsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (!todayDietName.isNullOrBlank()) "TODAY · $todayDietName" else "TODAY",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.8.sp,
-                color = TextSecondary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = if (!todayDietName.isNullOrBlank()) "TODAY · $todayDietName" else "TODAY",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.8.sp,
+                    color = TextSecondary
+                )
+                if (todayDietGl != null) {
+                    val glColor = dietGlColor(todayDietGl)
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = glColor.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = "GL ${String.format("%.0f", todayDietGl)}",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = glColor,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (!isTodayCompleted && totalCount > 0) {
                     Surface(
@@ -589,6 +617,13 @@ fun TodayMealsSection(
                     if (index < slots.lastIndex) {
                         HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
                     }
+                }
+                if (plannedWorkout != null) {
+                    HorizontalDivider(color = Color(0xFFEAEAEA), thickness = 2.dp)
+                    PlannedWorkoutRow(
+                        workout   = plannedWorkout,
+                        onStart   = { onStartWorkout(plannedWorkout.plannedWorkout.templateId) }
+                    )
                 }
             }
         }
@@ -754,6 +789,43 @@ fun NewTodaySlotRow(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlannedWorkoutRow(
+    workout: PlannedWorkoutWithTemplate,
+    onStart: () -> Unit
+) {
+    val name = workout.template.template.name
+    val exerciseCount = workout.template.exercises.size
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onStart)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            Text(
+                text = "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · Planned workout",
+                fontSize = 11.sp,
+                color = TextSecondary
+            )
+        }
+        Text(
+            text = "Start ›",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = PrimaryGreen
+        )
     }
 }
 
@@ -1000,3 +1072,12 @@ fun StatCard(emoji: String, value: String, label: String, iconBg: Color, modifie
 fun MacroRingsCard(calories: Int, calorieGoal: Int, protein: Int, carbs: Int, fat: Int) {
     MacroProgressCard(calories = calories, calorieGoal = calorieGoal, protein = protein, carbs = carbs, fat = fat)
 }
+
+// Diet-level GL thresholds: low <80, medium 80-120, high >120 per day
+fun dietGlColor(gl: Double): Color = when {
+    gl < 80.0  -> Color(0xFF2E7D32)
+    gl < 120.0 -> Color(0xFFF57F17)
+    else       -> Color(0xFFB71C1C)
+}
+
+

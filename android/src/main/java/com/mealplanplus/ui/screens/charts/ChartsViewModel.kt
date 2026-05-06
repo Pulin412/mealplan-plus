@@ -29,15 +29,22 @@ data class ChartsUiState(
     // ── Streak tab ────────────────────────────────────────────────────────────
     val currentStreak: Int = 0,
     val bestStreak: Int = 0,
-    val loggedDatesThisMonth: Set<Long> = emptySet(),   // epoch-ms dates logged in current month
+    val loggedDatesThisMonth: Set<Long> = emptySet(),
     val totalDaysLogged: Int = 0,
     val avgCaloriesPerDay: Int = 0,
     val avgProteinPerDay: Int = 0,
 
     // ── Health tab ────────────────────────────────────────────────────────────
-    val selectedMetricType: MetricType = MetricType.WEIGHT,
+    val selectedMetricType: MetricType = MetricType.BLOOD_GLUCOSE,
     val healthRange: DateRange = DateRange.MONTH,
     val healthMetrics: List<HealthMetric> = emptyList(),
+
+    // Normal ranges (user-configurable, used for threshold lines)
+    val glucoseNormalMin: Float = 70f,
+    val glucoseNormalMax: Float = 100f,
+    val glucoseHighThreshold: Float = 180f,
+    val bpSystolicNormal: Float = 120f,
+    val bpDiastolicNormal: Float = 80f,
 
     // ── Nutrition tab ─────────────────────────────────────────────────────────
     val nutritionRange: DateRange = DateRange.WEEK,
@@ -117,11 +124,13 @@ class ChartsViewModel @Inject constructor(
     }
 
     private fun computeCurrentStreak(loggedMs: Set<Long>, today: LocalDate): Int {
+        // If today has nothing logged yet, start from yesterday so the streak
+        // doesn't drop to 0 every morning before the user's first meal.
+        var i = if (today.toEpochMs() in loggedMs) 0L else 1L
         var streak = 0
-        var day = today
         while (true) {
-            val ms = day.toEpochMs()
-            if (ms in loggedMs) { streak++; day = day.minusDays(1) } else break
+            val ms = today.minusDays(i).toEpochMs()
+            if (ms in loggedMs) { streak++; i++ } else break
         }
         return streak
     }
@@ -200,6 +209,14 @@ class ChartsViewModel @Inject constructor(
                 _uiState.update { it.copy(macroTotals = emptyList()) }
             }
         }
+    }
+
+    fun updateGlucoseRange(min: Float, max: Float, high: Float) {
+        _uiState.update { it.copy(glucoseNormalMin = min, glucoseNormalMax = max, glucoseHighThreshold = high) }
+    }
+
+    fun updateBpRange(systolic: Float, diastolic: Float) {
+        _uiState.update { it.copy(bpSystolicNormal = systolic, bpDiastolicNormal = diastolic) }
     }
 
     fun selectNutritionRange(range: DateRange) {

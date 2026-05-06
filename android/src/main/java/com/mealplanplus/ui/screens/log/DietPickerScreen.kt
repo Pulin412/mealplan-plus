@@ -311,6 +311,21 @@ private fun DietPickerRow(
                         fontWeight = FontWeight.Medium
                     )
                 }
+                item.totalGlycemicLoad?.let { gl ->
+                    val glColor = pickerGlColor(gl)
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = glColor.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = "GL ${String.format("%.0f", gl)}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = glColor,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(4.dp))
@@ -620,4 +635,10 @@ private fun ConfirmMacroCell(value: String, label: String, color: Color) {
             color = TextMuted
         )
     }
+}
+
+private fun pickerGlColor(gl: Double): Color = when {
+    gl < 80.0  -> Color(0xFF2E7D32)
+    gl < 120.0 -> Color(0xFFF57F17)
+    else       -> Color(0xFFB71C1C)
 }

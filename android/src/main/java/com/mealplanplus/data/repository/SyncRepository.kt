@@ -69,43 +69,51 @@ class SyncRepository @Inject constructor(
 
         val now = System.currentTimeMillis()
 
-        val meals = mealDao.getUnsyncedMeals().map { m ->
+        // Capture raw entities BEFORE mapping so we can write serverIds back by position
+        val rawMeals = mealDao.getUnsyncedMeals()
+        val rawDiets = dietDao.getUnsyncedDiets()
+        val rawMetrics = healthMetricDao.getUnsyncedMetrics(userId)
+        val rawGroceries = groceryDao.getUnsyncedGroceryLists(userId)
+
+        val totalItems = rawMeals.size + rawDiets.size + rawMetrics.size + rawGroceries.size
+        if (totalItems == 0) return Result.success(0)
+
+        val meals = rawMeals.map { m ->
             MealDto(serverId = m.serverId, firebaseUid = firebaseUid, name = m.name,
                 slot = "", updatedAt = m.updatedAt)
         }
-
-        val diets = dietDao.getUnsyncedDiets().map { d ->
+        val diets = rawDiets.map { d ->
             DietDto(serverId = d.serverId, firebaseUid = firebaseUid, name = d.name,
                 description = d.description, updatedAt = d.updatedAt)
         }
-
-        val metrics = healthMetricDao.getUnsyncedMetrics(userId).map { h ->
+        val metrics = rawMetrics.map { h ->
             HealthMetricDto(serverId = h.serverId, firebaseUid = firebaseUid,
                 type = h.metricType ?: "CUSTOM", subType = h.subType, value = h.value,
                 secondaryValue = h.secondaryValue, unit = h.metricType ?: "",
                 recordedAt = h.timestamp, updatedAt = h.updatedAt)
         }
-
-        val groceryLists = groceryDao.getUnsyncedGroceryLists(userId).map { g ->
+        val groceryLists = rawGroceries.map { g ->
             GroceryListDto(serverId = g.serverId, firebaseUid = firebaseUid,
                 name = g.name, updatedAt = g.updatedAt)
         }
-
-        val totalItems = meals.size + diets.size + metrics.size + groceryLists.size
-        if (totalItems == 0) return Result.success(0)
 
         val req = SyncPushRequest(meals = meals, diets = diets,
             healthMetrics = metrics, groceryLists = groceryLists)
         val resp = api.push(req)
         Log.d(TAG, "Push accepted=${resp.accepted}")
 
-        mealDao.getUnsyncedMeals().forEach { m -> mealDao.updateMeal(m.copy(syncedAt = now)) }
-        dietDao.getUnsyncedDiets().forEach { d -> dietDao.updateDiet(d.copy(syncedAt = now)) }
-        healthMetricDao.getUnsyncedMetrics(userId).forEach { h ->
-            healthMetricDao.updateHealthMetric(h.copy(syncedAt = now))
+        // Write backend-assigned serverIds back to local rows (positional match)
+        resp.meals.forEachIndexed { i, dto ->
+            rawMeals.getOrNull(i)?.let { mealDao.updateMeal(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
         }
-        groceryDao.getUnsyncedGroceryLists(userId).forEach { g ->
-            groceryDao.updateGroceryList(g.copy(syncedAt = now))
+        resp.diets.forEachIndexed { i, dto ->
+            rawDiets.getOrNull(i)?.let { dietDao.updateDiet(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        }
+        resp.healthMetrics.forEachIndexed { i, dto ->
+            rawMetrics.getOrNull(i)?.let { healthMetricDao.updateHealthMetric(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        }
+        resp.groceryLists.forEachIndexed { i, dto ->
+            rawGroceries.getOrNull(i)?.let { groceryDao.updateGroceryList(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
         }
 
         crashlytics.log("sync_push", "accepted=${resp.accepted}")

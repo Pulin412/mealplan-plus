@@ -57,6 +57,9 @@ class WorkoutViewModel @Inject constructor(
 
     private val _detailSession = MutableStateFlow<WorkoutSessionWithSets?>(null)
     val detailSession: StateFlow<WorkoutSessionWithSets?> = _detailSession.asStateFlow()
+
+    private val _lastSetsByExercise = MutableStateFlow<Map<Long, List<WorkoutSet>>>(emptyMap())
+    val lastSetsByExercise: StateFlow<Map<Long, List<WorkoutSet>>> = _lastSetsByExercise.asStateFlow()
     private var detailSessionJob: Job? = null
 
     private val firebaseUidFlow: StateFlow<String> = callbackFlow {
@@ -250,7 +253,14 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    fun addSet(exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?, notes: String? = null) {
+    fun addSet(
+        exerciseId: Long,
+        reps: Int?,
+        weightKg: Double?,
+        durationSec: Int?,
+        notes: String? = null,
+        onInserted: (Long) -> Unit = {}
+    ) {
         val session = _uiState.value.activeSession ?: return
         viewModelScope.launch {
             val setNumber = _uiState.value.activeSets.count { it.exerciseId == exerciseId } + 1
@@ -263,8 +273,9 @@ class WorkoutViewModel @Inject constructor(
                 durationSeconds = durationSec,
                 notes = notes
             )
-            workoutRepository.addSet(set)
-            _uiState.update { it.copy(activeSets = it.activeSets + set) }
+            val insertedId = workoutRepository.addSet(set)
+            _uiState.update { it.copy(activeSets = it.activeSets + set.copy(id = insertedId)) }
+            onInserted(insertedId)
         }
     }
 
@@ -298,6 +309,17 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch { workoutRepository.deleteSet(set) }
     }
 
+    fun updateSet(setId: Long, exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?, notes: String?) {
+        viewModelScope.launch {
+            val existing = _uiState.value.activeSets.firstOrNull { it.id == setId } ?: return@launch
+            val updated = existing.copy(reps = reps, weightKg = weightKg, durationSeconds = durationSec, notes = notes)
+            workoutRepository.updateSet(updated)
+            _uiState.update { s ->
+                s.copy(activeSets = s.activeSets.map { if (it.id == setId) updated else it })
+            }
+        }
+    }
+
     fun updateSessionDate(sessionId: Long, newDate: LocalDate) {
         val session = _detailSession.value?.session ?: return
         viewModelScope.launch {
@@ -320,6 +342,22 @@ class WorkoutViewModel @Inject constructor(
                 )
             )
         }
+    }
+
+    fun loadLastSetsForExercises(exerciseIds: List<Long>) {
+        val session = _uiState.value.activeSession ?: return
+        viewModelScope.launch {
+            val result = exerciseIds.associateWith { exerciseId ->
+                val all = workoutRepository.getLastSetsForExercise(userId, exerciseId, session.id)
+                val lastSessionId = all.firstOrNull()?.sessionId ?: return@associateWith emptyList()
+                all.filter { it.sessionId == lastSessionId }
+            }
+            _lastSetsByExercise.value = result
+        }
+    }
+
+    fun deleteSessionsInRange(from: Long, to: Long) {
+        viewModelScope.launch { workoutRepository.deleteSessionsInRange(userId, from, to) }
     }
 
     fun cancelSession() {

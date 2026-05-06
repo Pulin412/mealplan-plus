@@ -45,7 +45,13 @@ class SyncController(
         val workoutSessions: List<WorkoutSessionDto> = emptyList()
     )
 
-    data class PushResponse(val accepted: Int)
+    data class PushResponse(
+        val accepted: Int,
+        val meals: List<MealDto> = emptyList(),
+        val diets: List<DietDto> = emptyList(),
+        val healthMetrics: List<HealthMetricDto> = emptyList(),
+        val groceryLists: List<GroceryListDto> = emptyList()
+    )
 
     data class PullResponse(
         val foods: List<FoodDto>,
@@ -62,16 +68,24 @@ class SyncController(
 
     @PostMapping("/push")
     fun push(@RequestBody req: PushRequest, auth: Authentication): PushResponse {
-        var count = 0
-        req.foods.forEach { foodService.upsert(it, auth.name); count++ }
-        req.meals.forEach { mealService.upsert(it, auth.name); count++ }
-        req.diets.forEach { dietService.upsert(it, auth.name); count++ }
-        req.healthMetrics.forEach { healthService.upsert(it, auth.name); count++ }
-        req.groceryLists.forEach { groceryService.upsert(it, auth.name); count++ }
-        req.dailyLogs.forEach { logService.upsert(it, auth.name); count++ }
-        req.exercises.forEach { workoutService.upsertExercise(it, auth.name); count++ }
-        req.workoutSessions.forEach { workoutService.upsertSession(it, auth.name); count++ }
-        return PushResponse(count)
+        req.foods.forEach { foodService.upsert(it, auth.name) }
+        req.dailyLogs.forEach { logService.upsert(it, auth.name) }
+        req.exercises.forEach { workoutService.upsertExercise(it, auth.name) }
+        req.workoutSessions.forEach { workoutService.upsertSession(it, auth.name) }
+        val savedMeals = req.meals.map { mealService.upsert(it, auth.name) }
+        val savedDiets = req.diets.map { dietService.upsert(it, auth.name) }
+        val savedMetrics = req.healthMetrics.map { healthService.upsert(it, auth.name) }
+        val savedGroceries = req.groceryLists.map { groceryService.upsert(it, auth.name) }
+        val accepted = req.foods.size + req.dailyLogs.size + req.exercises.size +
+            req.workoutSessions.size + savedMeals.size + savedDiets.size +
+            savedMetrics.size + savedGroceries.size
+        return PushResponse(
+            accepted = accepted,
+            meals = savedMeals,
+            diets = savedDiets,
+            healthMetrics = savedMetrics,
+            groceryLists = savedGroceries
+        )
     }
 
     @GetMapping("/pull")
