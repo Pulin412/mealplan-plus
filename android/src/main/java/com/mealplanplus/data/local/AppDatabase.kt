@@ -34,7 +34,7 @@ import com.mealplanplus.data.model.*
         PlannedWorkout::class,
         ExerciseCategoryEntity::class
     ],
-    version = 37,
+    version = 38,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

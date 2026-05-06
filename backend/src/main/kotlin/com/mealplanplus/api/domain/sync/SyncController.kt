@@ -47,6 +47,7 @@ class SyncController(
 
     data class PushResponse(
         val accepted: Int,
+        val foods: List<FoodDto> = emptyList(),
         val meals: List<MealDto> = emptyList(),
         val diets: List<DietDto> = emptyList(),
         val healthMetrics: List<HealthMetricDto> = emptyList(),
@@ -68,7 +69,7 @@ class SyncController(
 
     @PostMapping("/push")
     fun push(@RequestBody req: PushRequest, auth: Authentication): PushResponse {
-        req.foods.forEach { foodService.upsert(it, auth.name) }
+        val savedFoods = req.foods.map { foodService.upsert(it, auth.name) }
         req.dailyLogs.forEach { logService.upsert(it, auth.name) }
         req.exercises.forEach { workoutService.upsertExercise(it, auth.name) }
         req.workoutSessions.forEach { workoutService.upsertSession(it, auth.name) }
@@ -81,6 +82,7 @@ class SyncController(
             savedMetrics.size + savedGroceries.size
         return PushResponse(
             accepted = accepted,
+            foods = savedFoods,
             meals = savedMeals,
             diets = savedDiets,
             healthMetrics = savedMetrics,
