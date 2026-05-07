@@ -83,6 +83,29 @@ data class GroceryListDto(
     val items: List<GroceryItemDto> = emptyList(), val updatedAt: Long? = null
 )
 
+data class WorkoutSetSyncDto(
+    val exerciseId: Long = 0,
+    val setNumber: Int = 0,
+    val reps: Int? = null,
+    val weightKg: Double? = null,
+    val durationSeconds: Int? = null,
+    val distanceMeters: Double? = null,
+    val notes: String? = null
+)
+
+data class WorkoutSessionSyncDto(
+    val id: Long = 0,
+    val serverId: String? = null,
+    val firebaseUid: String = "",
+    val name: String = "",
+    val date: String = "",          // ISO date "yyyy-MM-dd"
+    val durationMinutes: Int? = null,
+    val notes: String? = null,
+    val isCompleted: Boolean = false,
+    val sets: List<WorkoutSetSyncDto> = emptyList(),
+    val updatedAt: Long? = null
+)
+
 /** Signals a server-side delete. Android should purge the matching local record. */
 data class TombstoneDto(
     val entityType: String = "",
@@ -98,7 +121,8 @@ data class SyncPushRequest(
     val diets: List<DietDto> = emptyList(),
     val healthMetrics: List<HealthMetricDto> = emptyList(),
     val groceryLists: List<GroceryListDto> = emptyList(),
-    val dailyLogs: List<DailyLogDto> = emptyList()
+    val dailyLogs: List<DailyLogDto> = emptyList(),
+    val workoutSessions: List<WorkoutSessionSyncDto> = emptyList()
 )
 
 data class SyncPushResponse(
@@ -107,7 +131,9 @@ data class SyncPushResponse(
     val meals: List<MealDto> = emptyList(),
     val diets: List<DietDto> = emptyList(),
     val healthMetrics: List<HealthMetricDto> = emptyList(),
-    val groceryLists: List<GroceryListDto> = emptyList()
+    val groceryLists: List<GroceryListDto> = emptyList(),
+    val dailyLogs: List<DailyLogDto> = emptyList(),
+    val workoutSessions: List<WorkoutSessionSyncDto> = emptyList()
 )
 
 data class SyncPullResponse(
@@ -117,6 +143,7 @@ data class SyncPullResponse(
     val healthMetrics: List<HealthMetricDto> = emptyList(),
     val groceryLists: List<GroceryListDto> = emptyList(),
     val dailyLogs: List<DailyLogDto> = emptyList(),
+    val workoutSessions: List<WorkoutSessionSyncDto> = emptyList(),
     val tombstones: List<TombstoneDto> = emptyList(),
     /** Server clock at response time — store as lastSyncTimestamp for next pull's `since`. */
     val serverTime: Long? = null

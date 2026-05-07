@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.diet
 
+import jakarta.validation.constraints.NotBlank
 import java.time.Instant
 import java.util.UUID
 
@@ -24,6 +25,7 @@ data class DietDto(
     val id: Long = 0,
     val serverId: UUID? = null,
     val firebaseUid: String = "",
+    @field:NotBlank(message = "Diet name must not be blank")
     val name: String = "",
     val description: String? = null,
     val targetCalories: Double? = null,

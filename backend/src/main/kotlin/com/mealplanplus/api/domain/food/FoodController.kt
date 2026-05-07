@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.food
 
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
@@ -13,7 +14,7 @@ class FoodController(private val service: FoodService) {
     @GetMapping fun list(auth: Authentication) = service.list(auth.name)
     @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id, auth.name)
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    fun create(@RequestBody dto: FoodDto, auth: Authentication) = service.create(dto, auth.name)
+    fun create(@Valid @RequestBody dto: FoodDto, auth: Authentication) = service.create(dto, auth.name)
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
 

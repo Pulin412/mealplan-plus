@@ -1,8 +1,10 @@
 package com.mealplanplus.api.domain.health
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 
 @Service
@@ -37,7 +39,7 @@ class HealthMetricService(
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val metric = metricRepo.findById(id).orElseThrow()
-        require(metric.firebaseUid == firebaseUid) { "Forbidden" }
+        if (metric.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         metricRepo.delete(metric)
         tombstones.record(firebaseUid, "health_metric", metric.serverId)
     }

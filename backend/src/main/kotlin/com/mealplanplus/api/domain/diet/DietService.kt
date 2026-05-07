@@ -1,8 +1,10 @@
 package com.mealplanplus.api.domain.diet
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 
 @Service
@@ -43,7 +45,7 @@ class DietService(
     @Transactional
     fun update(id: Long, dto: DietDto, firebaseUid: String): DietDto {
         val diet = dietRepo.findById(id).orElseThrow()
-        require(diet.firebaseUid == firebaseUid) { "Forbidden" }
+        if (diet.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         dietMealRepo.deleteByDietId(id)
         crossRefRepo.deleteByDietId(id)
         val updated = Diet(
@@ -63,7 +65,7 @@ class DietService(
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val diet = dietRepo.findById(id).orElseThrow()
-        require(diet.firebaseUid == firebaseUid) { "Forbidden" }
+        if (diet.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         dietMealRepo.deleteByDietId(id)
         crossRefRepo.deleteByDietId(id)
         dietRepo.delete(diet)
@@ -106,7 +108,7 @@ class DietService(
     @Transactional
     fun deleteTag(id: Long, firebaseUid: String) {
         val tag = tagRepo.findById(id).orElseThrow()
-        require(tag.firebaseUid == firebaseUid) { "Forbidden" }
+        if (tag.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         crossRefRepo.deleteByTagId(id)
         tagRepo.delete(tag)
     }

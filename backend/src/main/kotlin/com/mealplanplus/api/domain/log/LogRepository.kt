@@ -14,5 +14,6 @@ interface DailyLogRepository : JpaRepository<DailyLog, Long> {
 
 interface LoggedFoodRepository : JpaRepository<LoggedFood, Long> {
     fun findByDailyLogId(dailyLogId: Long): List<LoggedFood>
+    fun findByDailyLogIdIn(dailyLogIds: Collection<Long>): List<LoggedFood>
     fun deleteByDailyLogId(dailyLogId: Long)
 }

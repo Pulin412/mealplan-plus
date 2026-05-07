@@ -20,31 +20,31 @@ class DashboardService(
     private val healthRepo: HealthMetricRepository,
 ) {
     fun get(firebaseUid: String): DashboardDto {
-        // Today's log
         val todayEntity = logRepo.findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid, LocalDate.now())
-        val todayLog = todayEntity?.let { it.toDto(loggedFoodRepo.findByDailyLogId(it.id)) }
+        val recentLogs  = logRepo.findTop5ByFirebaseUidOrderByDateDesc(firebaseUid)
 
-        // Last 5 logs (Spring Data returns them sorted newest-first already)
-        val recentLogs = logRepo.findTop5ByFirebaseUidOrderByDateDesc(firebaseUid)
-            .map { it.toDto(loggedFoodRepo.findByDailyLogId(it.id)) }
+        // Batch-fetch all logged foods for today + recent logs in one query
+        val allLogIds = (listOfNotNull(todayEntity) + recentLogs).map { it.id }.distinct()
+        val allLoggedFoods = if (allLogIds.isEmpty()) emptyList()
+                             else loggedFoodRepo.findByDailyLogIdIn(allLogIds)
+        val foodsByLogId = allLoggedFoods.groupBy { it.dailyLogId }
 
-        // Only fetch the food IDs actually referenced by these logs
-        val foodIds = (listOfNotNull(todayLog) + recentLogs)
-            .flatMap { it.loggedFoods }
-            .map { it.foodId }
-            .toSet()
+        val todayLog = todayEntity?.toDto(foodsByLogId[todayEntity.id] ?: emptyList())
+        val recentLogDtos = recentLogs.map { it.toDto(foodsByLogId[it.id] ?: emptyList()) }
+
+        // Batch-fetch only the food rows actually referenced by these logs
+        val foodIds = allLoggedFoods.map { it.foodId }.toSet()
         val foods = if (foodIds.isEmpty()) emptyList()
                     else foodRepo.findAllById(foodIds).map { it.toDto() }
 
-        val dietCount = dietRepo.countByFirebaseUid(firebaseUid)
-
+        val dietCount   = dietRepo.countByFirebaseUid(firebaseUid)
         val latestWeight = healthRepo
             .findTop1ByFirebaseUidAndTypeOrderByRecordedAtDesc(firebaseUid, "WEIGHT")
             ?.toDto()
 
         return DashboardDto(
             todayLog = todayLog,
-            recentLogs = recentLogs,
+            recentLogs = recentLogDtos,
             foods = foods,
             dietCount = dietCount,
             latestWeight = latestWeight,

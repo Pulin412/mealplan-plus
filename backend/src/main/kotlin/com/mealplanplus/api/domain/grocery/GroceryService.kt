@@ -22,8 +22,12 @@ class GroceryService(
     private val mealFoodRepo: MealFoodItemRepository,
     private val foodRepo: FoodRepository
 ) {
-    fun list(firebaseUid: String): List<GroceryListDto> =
-        listRepo.findByFirebaseUid(firebaseUid).map { it.toDto(itemRepo.findByGroceryListId(it.id)) }
+    fun list(firebaseUid: String): List<GroceryListDto> {
+        val lists = listRepo.findByFirebaseUid(firebaseUid)
+        if (lists.isEmpty()) return emptyList()
+        val itemsByListId = itemRepo.findByGroceryListIdIn(lists.map { it.id }).groupBy { it.groceryListId }
+        return lists.map { it.toDto(itemsByListId[it.id] ?: emptyList()) }
+    }
 
     fun get(id: Long): GroceryListDto {
         val gl = listRepo.findById(id).orElseThrow()
@@ -45,7 +49,7 @@ class GroceryService(
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val gl = listRepo.findById(id).orElseThrow()
-        require(gl.firebaseUid == firebaseUid) { "Forbidden" }
+        if (gl.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         itemRepo.deleteByGroceryListId(id)
         listRepo.delete(gl)
         tombstones.record(firebaseUid, "grocery_list", gl.serverId)
@@ -58,7 +62,7 @@ class GroceryService(
     @Transactional
     fun update(id: Long, dto: GroceryListDto, firebaseUid: String): GroceryListDto {
         val existing = listRepo.findById(id).orElseThrow()
-        require(existing.firebaseUid == firebaseUid) { "Forbidden" }
+        if (existing.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByGroceryListId(existing.id)
         val updated = GroceryList(id = existing.id, firebaseUid = existing.firebaseUid,
             name = dto.name, dietId = dto.dietId)

@@ -9,6 +9,8 @@ import com.mealplanplus.data.local.GroceryDao
 import com.mealplanplus.data.local.HealthMetricDao
 import com.mealplanplus.data.local.MealDao
 import com.mealplanplus.data.local.DietDao
+import com.mealplanplus.data.local.WorkoutSessionDao
+import com.mealplanplus.data.local.WorkoutSetDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.remote.*
 import com.mealplanplus.util.AuthPreferences
@@ -16,6 +18,7 @@ import com.mealplanplus.util.CrashlyticsReporter
 import com.mealplanplus.util.toEpochMs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -35,6 +38,8 @@ class SyncRepository @Inject constructor(
     private val groceryDao: GroceryDao,
     private val foodDao: FoodDao,
     private val dailyLogDao: DailyLogDao,
+    private val sessionDao: WorkoutSessionDao,
+    private val setDao: WorkoutSetDao,
     private val crashlytics: CrashlyticsReporter
 ) {
     private val TAG = "SyncRepository"
@@ -108,8 +113,29 @@ class SyncRepository @Inject constructor(
                 name = g.name, updatedAt = g.updatedAt)
         }
 
+        // ── Workout sessions ──────────────────────────────────────────────────
+        val rawSessions = sessionDao.getUnsyncedSessions(firebaseUid)
+        val allSets = setDao.getAllSetsOnce()
+        val setsBySessionId = allSets.groupBy { it.sessionId }
+        val sessions = rawSessions.map { s ->
+            val dateStr = java.time.Instant.ofEpochMilli(s.date)
+                .atOffset(ZoneOffset.UTC).toLocalDate().toString()
+            WorkoutSessionSyncDto(
+                serverId = s.serverId, firebaseUid = firebaseUid,
+                name = s.name, date = dateStr, durationMinutes = s.durationMinutes,
+                notes = s.notes, isCompleted = s.isCompleted,
+                sets = (setsBySessionId[s.id] ?: emptyList()).map { ws ->
+                    WorkoutSetSyncDto(exerciseId = ws.exerciseId, setNumber = ws.setNumber,
+                        reps = ws.reps, weightKg = ws.weightKg,
+                        durationSeconds = ws.durationSeconds, distanceMeters = ws.distanceMeters,
+                        notes = ws.notes)
+                },
+                updatedAt = s.updatedAt
+            )
+        }
+
         val resp = api.push(SyncPushRequest(foods = foods, meals = meals, diets = diets,
-            healthMetrics = metrics, groceryLists = groceryLists))
+            healthMetrics = metrics, groceryLists = groceryLists, workoutSessions = sessions))
         Log.d(TAG, "Push step1 accepted=${resp.accepted}")
 
         // Write backend-assigned serverIds back to local rows.
@@ -120,6 +146,7 @@ class SyncRepository @Inject constructor(
         val respDietsBySid    = resp.diets.associateBy { it.serverId }
         val respMetricsBySid  = resp.healthMetrics.associateBy { it.serverId }
         val respGrocBySid     = resp.groceryLists.associateBy { it.serverId }
+        val respSessionsBySid = resp.workoutSessions.associateBy { it.serverId }
 
         rawFoods.forEach { food ->
             val dto = respFoodsBySid[food.serverId] ?: return@forEach
@@ -140,6 +167,10 @@ class SyncRepository @Inject constructor(
         rawGroceries.forEach { grocery ->
             val dto = respGrocBySid[grocery.serverId] ?: return@forEach
             groceryDao.updateGroceryList(grocery.copy(serverId = dto.serverId ?: grocery.serverId, syncedAt = now))
+        }
+        rawSessions.forEach { session ->
+            val dto = respSessionsBySid[session.serverId] ?: return@forEach
+            sessionDao.update(session.copy(serverId = dto.serverId ?: session.serverId, syncedAt = now))
         }
 
         // ── Step 2: daily logs (needs backend food IDs from step 1) ──────────
@@ -272,6 +303,28 @@ class SyncRepository @Inject constructor(
         }
 
         // ── Apply tombstones (server-side deletes) ───────────────────────────
+        // ── Workout sessions ──────────────────────────────────────────────────
+        resp.workoutSessions.forEach { dto ->
+            val dateEpoch = try {
+                LocalDate.parse(dto.date).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            } catch (_: Exception) { 0L }
+            val existing = dto.serverId?.let { sessionDao.getByServerId(it) }
+            if (existing == null) {
+                sessionDao.upsert(WorkoutSession(
+                    userId = firebaseUid, name = dto.name, date = dateEpoch,
+                    durationMinutes = dto.durationMinutes, notes = dto.notes,
+                    isCompleted = dto.isCompleted, serverId = dto.serverId,
+                    syncedAt = now, updatedAt = dto.updatedAt ?: now
+                ))
+            } else if ((dto.updatedAt ?: 0L) > existing.updatedAt) {
+                sessionDao.update(existing.copy(
+                    name = dto.name, date = dateEpoch, durationMinutes = dto.durationMinutes,
+                    notes = dto.notes, isCompleted = dto.isCompleted,
+                    syncedAt = now, updatedAt = dto.updatedAt ?: now
+                ))
+            }
+        }
+
         resp.tombstones.forEach { t ->
             when (t.entityType) {
                 "food" -> foodDao.getFoodByServerId(t.serverId)
@@ -284,6 +337,8 @@ class SyncRepository @Inject constructor(
                     ?.let { healthMetricDao.deleteMetric(it) }
                 "grocery_list" -> groceryDao.getGroceryListByServerId(t.serverId)
                     ?.let { groceryDao.deleteList(it) }
+                "workout_session" -> sessionDao.getByServerId(t.serverId)
+                    ?.let { sessionDao.delete(it) }
                 // TODO(CR-02): "daily_log" tombstone requires adding a serverId column to
                 //  the DailyLog Room entity (currently uses composite PK userId+date).
                 //  Track under a Room schema migration before implementing.

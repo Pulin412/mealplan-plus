@@ -1,5 +1,7 @@
 package com.mealplanplus.api.domain.meal
 
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.PositiveOrZero
 import java.time.Instant
 import java.util.UUID
 
@@ -7,7 +9,7 @@ data class MealFoodItemDto(
     val id: Long = 0,
     val mealId: Long = 0,
     val foodId: Long = 0,
-    val quantity: Double = 0.0,
+    @field:PositiveOrZero val quantity: Double = 0.0,
     val unit: String = "GRAM",
     val notes: String? = null
 )
@@ -16,6 +18,7 @@ data class MealDto(
     val id: Long = 0,
     val serverId: UUID? = null,
     val firebaseUid: String = "",
+    @field:NotBlank(message = "Meal name must not be blank")
     val name: String = "",
     val slot: String = "Lunch",
     val items: List<MealFoodItemDto> = emptyList(),

@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.health
 
+import jakarta.validation.constraints.NotBlank
 import java.time.Instant
 import java.util.UUID
 
@@ -7,6 +8,7 @@ data class HealthMetricDto(
     val id: Long = 0,
     val serverId: UUID? = null,
     val firebaseUid: String = "",
+    @field:NotBlank(message = "Metric type must not be blank")
     val type: String = "",
     val subType: String? = null,
     val value: Double = 0.0,

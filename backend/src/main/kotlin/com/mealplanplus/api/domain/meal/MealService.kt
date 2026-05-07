@@ -1,8 +1,10 @@
 package com.mealplanplus.api.domain.meal
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 
 @Service
@@ -11,8 +13,12 @@ class MealService(
     private val itemRepo: MealFoodItemRepository,
     private val tombstones: TombstoneService
 ) {
-    fun list(firebaseUid: String): List<MealDto> =
-        mealRepo.findByFirebaseUid(firebaseUid).map { it.toDto(itemRepo.findByMealId(it.id)) }
+    fun list(firebaseUid: String): List<MealDto> {
+        val meals = mealRepo.findByFirebaseUid(firebaseUid)
+        if (meals.isEmpty()) return emptyList()
+        val itemsByMealId = itemRepo.findByMealIdIn(meals.map { it.id }).groupBy { it.mealId }
+        return meals.map { it.toDto(itemsByMealId[it.id] ?: emptyList()) }
+    }
 
     fun get(id: Long): MealDto {
         val meal = mealRepo.findById(id).orElseThrow()
@@ -34,7 +40,7 @@ class MealService(
     @Transactional
     fun update(id: Long, dto: MealDto, firebaseUid: String): MealDto {
         val meal = mealRepo.findById(id).orElseThrow()
-        require(meal.firebaseUid == firebaseUid) { "Forbidden" }
+        if (meal.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByMealId(id)
         val updated = Meal(id = meal.id, firebaseUid = meal.firebaseUid, name = dto.name, slot = dto.slot)
             .also { it.serverId = meal.serverId }
@@ -49,7 +55,7 @@ class MealService(
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val meal = mealRepo.findById(id).orElseThrow()
-        require(meal.firebaseUid == firebaseUid) { "Forbidden" }
+        if (meal.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByMealId(id)
         mealRepo.delete(meal)
         tombstones.record(firebaseUid, "meal", meal.serverId)

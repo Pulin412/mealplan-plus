@@ -12,5 +12,6 @@ interface GroceryListRepository : JpaRepository<GroceryList, Long> {
 
 interface GroceryItemRepository : JpaRepository<GroceryItem, Long> {
     fun findByGroceryListId(groceryListId: Long): List<GroceryItem>
+    fun findByGroceryListIdIn(groceryListIds: Collection<Long>): List<GroceryItem>
     fun deleteByGroceryListId(groceryListId: Long)
 }

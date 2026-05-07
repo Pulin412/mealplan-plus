@@ -1,8 +1,10 @@
 package com.mealplanplus.api.domain.log
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 import java.time.LocalDate
 
@@ -12,8 +14,12 @@ class DailyLogService(
     private val foodRepo: LoggedFoodRepository,
     private val tombstones: TombstoneService
 ) {
-    fun list(firebaseUid: String): List<DailyLogDto> =
-        logRepo.findByFirebaseUid(firebaseUid).map { it.toDto(foodRepo.findByDailyLogId(it.id)) }
+    fun list(firebaseUid: String): List<DailyLogDto> {
+        val logs = logRepo.findByFirebaseUid(firebaseUid)
+        if (logs.isEmpty()) return emptyList()
+        val foodsByLogId = foodRepo.findByDailyLogIdIn(logs.map { it.id }).groupBy { it.dailyLogId }
+        return logs.map { it.toDto(foodsByLogId[it.id] ?: emptyList()) }
+    }
 
     fun get(id: Long): DailyLogDto {
         val log = logRepo.findById(id).orElseThrow()
@@ -38,7 +44,7 @@ class DailyLogService(
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val log = logRepo.findById(id).orElseThrow()
-        require(log.firebaseUid == firebaseUid) { "Forbidden" }
+        if (log.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         foodRepo.deleteByDailyLogId(id)
         logRepo.delete(log)
         tombstones.record(firebaseUid, "daily_log", log.serverId)
@@ -51,7 +57,7 @@ class DailyLogService(
     @Transactional
     fun update(id: Long, dto: DailyLogDto, firebaseUid: String): DailyLogDto {
         val existing = logRepo.findById(id).orElseThrow()
-        require(existing.firebaseUid == firebaseUid) { "Forbidden" }
+        if (existing.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         foodRepo.deleteByDailyLogId(existing.id)
         val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
             date = dto.date ?: existing.date, notes = dto.notes)
