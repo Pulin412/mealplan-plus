@@ -236,6 +236,7 @@ class SyncRepository @Inject constructor(
      * the next pull's `since` value.
      */
     suspend fun pull(userId: Long, since: Long): Result<Long> = runCatching {
+        val firebaseUid = resolveFirebaseUid() ?: error("Not authenticated")
         val sinceIso = isoFormatter.format(Instant.ofEpochMilli(since))
         val resp = api.pull(sinceIso)
         val now = System.currentTimeMillis()
