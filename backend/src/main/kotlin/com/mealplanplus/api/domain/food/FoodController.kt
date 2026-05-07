@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*
 class FoodController(private val service: FoodService) {
 
     @GetMapping fun list(auth: Authentication) = service.list(auth.name)
-    @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id)
+    @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id, auth.name)
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     fun create(@RequestBody dto: FoodDto, auth: Authentication) = service.create(dto, auth.name)
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)

@@ -112,21 +112,34 @@ class SyncRepository @Inject constructor(
             healthMetrics = metrics, groceryLists = groceryLists))
         Log.d(TAG, "Push step1 accepted=${resp.accepted}")
 
-        // Write backend-assigned serverIds back to local rows (positional match)
-        resp.foods.forEachIndexed { i, dto ->
-            rawFoods.getOrNull(i)?.let { foodDao.updateFood(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        // Write backend-assigned serverIds back to local rows.
+        // Match by serverId (stable cross-device identity) rather than array index,
+        // so reordering or deduplication on the server side never writes the wrong serverId.
+        val respFoodsBySid    = resp.foods.associateBy { it.serverId }
+        val respMealsBySid    = resp.meals.associateBy { it.serverId }
+        val respDietsBySid    = resp.diets.associateBy { it.serverId }
+        val respMetricsBySid  = resp.healthMetrics.associateBy { it.serverId }
+        val respGrocBySid     = resp.groceryLists.associateBy { it.serverId }
+
+        rawFoods.forEach { food ->
+            val dto = respFoodsBySid[food.serverId] ?: return@forEach
+            foodDao.updateFood(food.copy(serverId = dto.serverId ?: food.serverId, syncedAt = now))
         }
-        resp.meals.forEachIndexed { i, dto ->
-            rawMeals.getOrNull(i)?.let { mealDao.updateMeal(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        rawMeals.forEach { meal ->
+            val dto = respMealsBySid[meal.serverId] ?: return@forEach
+            mealDao.updateMeal(meal.copy(serverId = dto.serverId ?: meal.serverId, syncedAt = now))
         }
-        resp.diets.forEachIndexed { i, dto ->
-            rawDiets.getOrNull(i)?.let { dietDao.updateDiet(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        rawDiets.forEach { diet ->
+            val dto = respDietsBySid[diet.serverId] ?: return@forEach
+            dietDao.updateDiet(diet.copy(serverId = dto.serverId ?: diet.serverId, syncedAt = now))
         }
-        resp.healthMetrics.forEachIndexed { i, dto ->
-            rawMetrics.getOrNull(i)?.let { healthMetricDao.updateHealthMetric(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        rawMetrics.forEach { metric ->
+            val dto = respMetricsBySid[metric.serverId] ?: return@forEach
+            healthMetricDao.updateHealthMetric(metric.copy(serverId = dto.serverId ?: metric.serverId, syncedAt = now))
         }
-        resp.groceryLists.forEachIndexed { i, dto ->
-            rawGroceries.getOrNull(i)?.let { groceryDao.updateGroceryList(it.copy(serverId = dto.serverId ?: it.serverId, syncedAt = now)) }
+        rawGroceries.forEach { grocery ->
+            val dto = respGrocBySid[grocery.serverId] ?: return@forEach
+            groceryDao.updateGroceryList(grocery.copy(serverId = dto.serverId ?: grocery.serverId, syncedAt = now))
         }
 
         // ── Step 2: daily logs (needs backend food IDs from step 1) ──────────
@@ -186,7 +199,7 @@ class SyncRepository @Inject constructor(
 
         // ── Upsert changed foods ──────────────────────────────────────────────
         resp.foods.forEach { dto ->
-            val existing = dto.serverId?.let { foodDao.getAllFoodsOnce().find { f -> f.serverId == it } }
+            val existing = dto.serverId?.let { foodDao.getFoodByServerId(it) }
             if (existing == null) {
                 foodDao.insertFood(FoodItem(name = dto.name, brand = dto.brand, barcode = dto.barcode,
                     caloriesPer100 = dto.caloriesPer100, proteinPer100 = dto.proteinPer100,
@@ -261,6 +274,8 @@ class SyncRepository @Inject constructor(
         // ── Apply tombstones (server-side deletes) ───────────────────────────
         resp.tombstones.forEach { t ->
             when (t.entityType) {
+                "food" -> foodDao.getFoodByServerId(t.serverId)
+                    ?.let { foodDao.deleteFood(it) }
                 "meal" -> mealDao.getMealByServerId(t.serverId)
                     ?.let { mealDao.deleteMeal(it) }
                 "diet" -> dietDao.getDietByServerId(t.serverId)
@@ -269,6 +284,9 @@ class SyncRepository @Inject constructor(
                     ?.let { healthMetricDao.deleteMetric(it) }
                 "grocery_list" -> groceryDao.getGroceryListByServerId(t.serverId)
                     ?.let { groceryDao.deleteList(it) }
+                // TODO(CR-02): "daily_log" tombstone requires adding a serverId column to
+                //  the DailyLog Room entity (currently uses composite PK userId+date).
+                //  Track under a Room schema migration before implementing.
             }
         }
 
