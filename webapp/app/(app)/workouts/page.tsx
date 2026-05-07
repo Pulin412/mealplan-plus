@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
 import {
   Plus, Trash2, X, ChevronDown, ChevronUp, Dumbbell, Clock, CalendarDays,

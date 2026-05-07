@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, LogOut, ChevronRight, Save, Download, Upload, CloudUpload, Trash2, RotateCcw, FolderOpen } from "lucide-react";
@@ -9,7 +8,7 @@ import { logout } from "@/lib/firebase/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
 
-type SyncPullResponse = components["schemas"]["SyncPullResponse"];
+type SyncPullResponse = components["schemas"]["PullResponse"];
 
 // Inline until types.generated updates
 interface UserResponse {

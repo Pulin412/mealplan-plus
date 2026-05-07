@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.grocery
 
+import jakarta.validation.constraints.NotBlank
 import java.time.Instant
 import java.util.UUID
 
@@ -18,6 +19,7 @@ data class GroceryListDto(
     val id: Long = 0,
     val serverId: UUID? = null,
     val firebaseUid: String = "",
+    @field:NotBlank(message = "Grocery list name must not be blank")
     val name: String = "",
     val dietId: Long? = null,
     val items: List<GroceryItemDto> = emptyList(),

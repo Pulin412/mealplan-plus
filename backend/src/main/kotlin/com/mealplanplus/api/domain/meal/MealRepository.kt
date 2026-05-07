@@ -12,5 +12,6 @@ interface MealRepository : JpaRepository<Meal, Long> {
 
 interface MealFoodItemRepository : JpaRepository<MealFoodItem, Long> {
     fun findByMealId(mealId: Long): List<MealFoodItem>
+    fun findByMealIdIn(mealIds: Collection<Long>): List<MealFoodItem>
     fun deleteByMealId(mealId: Long)
 }

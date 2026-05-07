@@ -1,7 +1,10 @@
 package com.mealplanplus.api.domain.workout
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.web.server.ResponseStatusException
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDate
@@ -34,7 +37,7 @@ class WorkoutService(
     @Transactional
     fun deleteExercise(id: Long, firebaseUid: String) {
         val exercise = exerciseRepo.findById(id).orElseThrow()
-        require(exercise.firebaseUid == firebaseUid) { "Forbidden" }
+        if (exercise.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         exerciseRepo.delete(exercise)
         tombstones.record(firebaseUid, "exercise", exercise.serverId)
     }
@@ -72,7 +75,7 @@ class WorkoutService(
     @Transactional
     fun updateTemplate(id: Long, dto: WorkoutTemplateDto, firebaseUid: String): WorkoutTemplateDto {
         val existing = templateRepo.findById(id).orElseThrow()
-        require(existing.firebaseUid == firebaseUid) { "Forbidden" }
+        if (existing.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         val updated = WorkoutTemplate(id = existing.id, firebaseUid = firebaseUid,
             name = dto.name, category = dto.category, notes = dto.notes)
             .also { it.serverId = existing.serverId }
@@ -90,7 +93,7 @@ class WorkoutService(
     @Transactional
     fun deleteTemplate(id: Long, firebaseUid: String) {
         val template = templateRepo.findById(id).orElseThrow()
-        require(template.firebaseUid == firebaseUid) { "Forbidden" }
+        if (template.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         templateExerciseRepo.deleteByTemplateId(id)
         templateRepo.delete(template)
     }
@@ -124,7 +127,7 @@ class WorkoutService(
     fun upsertExercise(dto: ExerciseDto, firebaseUid: String): ExerciseDto {
         val existing = dto.serverId?.let { exerciseRepo.findByServerId(it) }
         if (existing == null) return createExercise(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto()
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto()
         val updated = Exercise(
             id = existing.id, firebaseUid = existing.firebaseUid,
             name = dto.name, category = dto.category, muscleGroup = dto.muscleGroup,
@@ -165,7 +168,7 @@ class WorkoutService(
     @Transactional
     fun deleteSession(id: Long, firebaseUid: String) {
         val session = sessionRepo.findById(id).orElseThrow()
-        require(session.firebaseUid == firebaseUid) { "Forbidden" }
+        if (session.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         setRepo.deleteBySessionId(id)
         sessionRepo.delete(session)
         tombstones.record(firebaseUid, "workout_session", session.serverId)
@@ -179,7 +182,7 @@ class WorkoutService(
     fun upsertSession(dto: WorkoutSessionDto, firebaseUid: String): WorkoutSessionDto {
         val existing = dto.serverId?.let { sessionRepo.findByServerId(it) }
         if (existing == null) return createSession(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(setRepo.findBySessionId(existing.id))
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(setRepo.findBySessionId(existing.id))
         setRepo.deleteBySessionId(existing.id)
         val updated = WorkoutSession(
             id = existing.id, firebaseUid = existing.firebaseUid,

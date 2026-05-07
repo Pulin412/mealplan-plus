@@ -183,7 +183,7 @@ function SlotPicker({ meals, foods, onAdd, onCancel }: {
               <UtensilsCrossed className="h-4 w-4 text-green shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text-primary truncate">{selMeal.name}</p>
-                <p className="text-xs text-text-muted">{selMeal.items?.length ?? 0} foods · {selMeal.slot}</p>
+                <p className="text-xs text-text-muted">{selMeal.items?.length ?? 0} foods</p>
               </div>
               <button onClick={() => setSelMeal(null)}><X className="h-4 w-4 text-text-muted" /></button>
             </div>
@@ -204,7 +204,7 @@ function SlotPicker({ meals, foods, onAdd, onCancel }: {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-text-primary truncate">{m.name}</p>
-                      <p className="text-xs text-text-muted">{m.items?.length ?? 0} foods · {m.slot}</p>
+                      <p className="text-xs text-text-muted">{m.items?.length ?? 0} foods</p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-text-muted/40 shrink-0" />
                   </button>
