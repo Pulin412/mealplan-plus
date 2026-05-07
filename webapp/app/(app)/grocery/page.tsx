@@ -99,13 +99,13 @@ export default function GroceryPage() {
 
   const addItem = async (list: GroceryListDto) => {
     if (!itemName.trim()) return;
-    const newItem: GroceryItemDto = {
+    const newItem = {
       name: itemName.trim(),
       quantity: parseFloat(itemQty) || 1,
       unit: itemUnit,
       category: itemCategory.trim() || undefined,
       done: false,
-    };
+    } as GroceryItemDto;
     await saveList({ ...list, items: [...(list.items ?? []), newItem] });
     setItemName(""); setItemQty("1"); setItemCategory(""); setAddingToList(null);
   };

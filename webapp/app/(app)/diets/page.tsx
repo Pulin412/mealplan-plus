@@ -263,9 +263,9 @@ function AssignMealPanel({ diet, meals, onAssigned, onClose }: {
     if (!mealId) return;
     setBusy(true);
     try {
-      const assignment: DietMealDto = {
+      const assignment = {
         mealId: parseInt(mealId), slot, dayOfWeek: parseInt(day),
-      };
+      } as DietMealDto;
       const updated = await api.put<DietDto>(`/api/v1/diets/${diet.id}`, {
         ...diet,
         meals: [...(diet.meals ?? []), assignment],

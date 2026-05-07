@@ -103,10 +103,10 @@ export default function HealthPage() {
     if (isNaN(v)) { setFormError("Enter a valid number"); return; }
     setSubmitting(true); setFormError(null);
     try {
-      const payload: HealthMetricDto = {
+      const payload = {
         type: formType, value: v, unit: formUnit,
         recordedAt: new Date(formDate + "T12:00:00Z").toISOString(),
-      };
+      } as HealthMetricDto;
       const created = await api.post<HealthMetricDto>("/api/v1/health-metrics", payload);
       setMetrics((prev) => [created, ...prev]);
       setFormValue(""); setShowForm(false);
@@ -143,7 +143,7 @@ export default function HealthPage() {
   }));
 
   const calChartData = [...logs]
-    .sort((a, b) => a.date < b.date ? -1 : 1)
+    .sort((a, b) => (a.date ?? "") < (b.date ?? "") ? -1 : 1)
     .slice(-30)
     .map((log) => ({
       date: new Date(log.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }),

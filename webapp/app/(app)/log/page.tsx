@@ -163,10 +163,10 @@ export default function LogPage() {
   };
 
   const addFood = async (food: FoodDto, quantity: number, slot: Slot) => {
-    const current = log ?? { date, loggedFoods: [] };
+    const current = log ?? ({ date, loggedFoods: [] } as unknown as DailyLogDto);
     await saveLog({
       ...current,
-      loggedFoods: [...(current.loggedFoods ?? []), { foodId: food.id!, mealSlot: slot, quantity, unit: "GRAM" }],
+      loggedFoods: [...(current.loggedFoods ?? []), { foodId: food.id!, mealSlot: slot, quantity, unit: "GRAM" } as LoggedFoodDto],
     });
   };
 

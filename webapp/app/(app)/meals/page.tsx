@@ -69,7 +69,7 @@ function FoodPicker({ foods, onAdd, onClose }: {
             onClick={() => {
               const q = parseFloat(qty);
               if (!isNaN(q) && q > 0 && selected.id != null) {
-                onAdd({ foodId: selected.id, quantity: q, unit: "GRAM" });
+                onAdd({ foodId: selected.id, quantity: q, unit: "GRAM" } as MealFoodItemDto);
                 onClose();
               }
             }}
