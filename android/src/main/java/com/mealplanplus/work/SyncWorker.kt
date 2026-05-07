@@ -35,8 +35,8 @@ class SyncWorker(
         val since = SyncPreferences.getLastSyncTimestamp(applicationContext).firstOrNull() ?: 0L
 
         syncRepo.push(userId).onFailure { e ->
-            Log.w(TAG, "Push failed: ${e.message}")
-            return Result.retry()
+            Log.w(TAG, "Push failed (non-fatal): ${e.message}")
+            // Don't retry — pull still runs; unsynced items picked up next cycle
         }
 
         val serverTime = syncRepo.pull(userId, since).getOrElse { e ->
