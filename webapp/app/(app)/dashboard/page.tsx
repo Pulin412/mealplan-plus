@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
-import { todayStr, calcCalories, calcNutrient, formatDateShort, MEAL_SLOTS } from "@/lib/utils";
+import { todayStr, calcCalories, formatDateShort, MEAL_SLOTS } from "@/lib/utils";
 
 type DailyLogDto     = components["schemas"]["DailyLogDto"];
 type FoodDto         = components["schemas"]["FoodDto"];

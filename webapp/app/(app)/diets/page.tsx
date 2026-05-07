@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  ChevronDown, ChevronUp, Trash2, Plus, Copy, Star, Salad, X, Tag as TagIcon,
+  ChevronDown, ChevronUp, Trash2, Plus, Copy, Star, Salad, X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
@@ -55,7 +55,7 @@ function useFavorites(key: string) {
   const toggle = useCallback((id: number) => {
     setFavs((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
       try { localStorage.setItem(key, JSON.stringify(Array.from(next))); } catch {}
       return next;
     });
