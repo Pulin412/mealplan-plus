@@ -21,22 +21,9 @@ export const signUpWithEmail = (email: string, password: string) =>
 export const logout = () => signOut(a());
 export const onAuthChange = (cb: (user: User | null) => void) =>
   onAuthStateChanged(a(), cb);
-/**
- * Returns the current user's ID token.
- * Waits for Firebase Auth to restore session state (async on page load)
- * before giving up — prevents spurious 403s on hard refresh.
- */
-export const getIdToken = (): Promise<string | null> =>
-  new Promise((resolve) => {
-    const auth = a();
-    // If already initialized, return immediately
-    if (auth.currentUser) {
-      resolve(auth.currentUser.getIdToken());
-      return;
-    }
-    // Otherwise wait for the first auth state event (fires within ~1s on reload)
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe();
-      resolve(user ? user.getIdToken() : null);
-    });
-  });
+/** Returns the current user's ID token, waiting for auth persistence to restore first. */
+export const getIdToken = async (): Promise<string | null> => {
+  const auth = a();
+  await auth.authStateReady();
+  return auth.currentUser ? auth.currentUser.getIdToken() : null;
+};

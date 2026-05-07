@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/v1/workout-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put: operations["update"];
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -13,10 +29,14 @@ export interface paths {
         };
         /**
          * Get current user
-         * @description Returns the authenticated user profile. Auto-creates the user on first call.
+         * @description Returns the authenticated user, auto-creating on first call
          */
         get: operations["getMe"];
-        put?: never;
+        /**
+         * Update profile
+         * @description Update editable profile fields for the current user
+         */
+        put: operations["updateMe"];
         post?: never;
         delete?: never;
         options?: never;
@@ -24,61 +44,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/foods": {
+    "/api/v1/plans/{date}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * List foods
-         * @description Returns all system foods plus foods created by the authenticated user.
-         */
-        get: operations["listFoods"];
-        put?: never;
-        /** Create food */
-        post: operations["createFood"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/foods/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get food by ID */
-        get: operations["getFood"];
-        put?: never;
+        get: operations["get_2"];
+        put: operations["upsert"];
         post?: never;
-        /** Delete food */
-        delete: operations["deleteFood"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/meals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List meals
-         * @description Returns all meals owned by the authenticated user.
-         */
-        get: operations["listMeals"];
-        put?: never;
-        /** Create meal */
-        post: operations["createMeal"];
-        delete?: never;
+        delete: operations["delete_3"];
         options?: never;
         head?: never;
         patch?: never;
@@ -91,66 +67,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get meal by ID */
-        get: operations["getMeal"];
-        put?: never;
+        get: operations["get_3"];
+        put: operations["update_1"];
         post?: never;
-        /** Delete meal */
-        delete: operations["deleteMeal"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/diets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List diets */
-        get: operations["listDiets"];
-        put?: never;
-        /** Create diet */
-        post: operations["createDiet"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/diets/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get diet by ID */
-        get: operations["getDiet"];
-        put?: never;
-        post?: never;
-        /** Delete diet */
-        delete: operations["deleteDiet"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/grocery-lists": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List grocery lists */
-        get: operations["listGroceryLists"];
-        put?: never;
-        /** Create grocery list */
-        post: operations["createGroceryList"];
-        delete?: never;
+        delete: operations["delete_4"];
         options?: never;
         head?: never;
         patch?: never;
@@ -163,83 +83,26 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get grocery list by ID */
-        get: operations["getGroceryList"];
-        put?: never;
+        get: operations["get_4"];
+        put: operations["update_2"];
         post?: never;
-        /** Delete grocery list */
-        delete: operations["deleteGroceryList"];
+        delete: operations["delete_6"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/health-metrics": {
+    "/api/v1/diets/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List health metrics */
-        get: operations["listHealthMetrics"];
-        put?: never;
-        /** Create health metric */
-        post: operations["createHealthMetric"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/health-metrics/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
+        get: operations["get_6"];
+        put: operations["update_3"];
         post?: never;
-        /** Delete health metric */
-        delete: operations["deleteHealthMetric"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/health-metrics/custom-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List custom metric types */
-        get: operations["listCustomMetricTypes"];
-        put?: never;
-        /** Create custom metric type */
-        post: operations["createCustomMetricType"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/daily-logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List daily logs */
-        get: operations["listDailyLogs"];
-        put?: never;
-        /** Create or update daily log */
-        post: operations["createDailyLog"];
-        delete?: never;
+        delete: operations["delete_9"];
         options?: never;
         head?: never;
         patch?: never;
@@ -252,33 +115,73 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get daily log by ID */
-        get: operations["getDailyLog"];
-        put?: never;
+        get: operations["get_8"];
+        put: operations["update_4"];
         post?: never;
-        /** Delete daily log */
-        delete: operations["deleteDailyLog"];
+        delete: operations["delete_10"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sync/pull": {
+    "/api/v1/workout-templates": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Pull changes since timestamp
-         * @description Returns all user-owned records with `updatedAt > since` across every domain.
-         *     Android `SyncWorker` stores the `serverTime` from the previous response and passes it
-         *     as `since` on the next call. On first sync, pass `since=1970-01-01T00:00:00Z`.
-         */
-        get: operations["syncPull"];
+        get: operations["list"];
         put?: never;
-        post?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-templates/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
+        put?: never;
+        post: operations["create_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -294,13 +197,328 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Push local changes to server
-         * @description Upserts records by `serverId` using last-write-wins on `updatedAt`.
-         *     Any domain list may be empty — send only what has changed locally.
-         */
-        post: operations["syncPush"];
+        post: operations["push"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_4"];
+        put?: never;
+        post: operations["create_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_5"];
+        put?: never;
+        post: operations["create_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health-metrics/custom-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCustomTypes"];
+        put?: never;
+        post: operations["createCustomType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/grocery-lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_6"];
+        put?: never;
+        post: operations["create_5"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/grocery-lists/from-diet/{dietId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createFromDiet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/foods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_7"];
+        put?: never;
+        post: operations["create_6"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exercises": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_8"];
+        put?: never;
+        post: operations["create_7"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_9"];
+        put?: never;
+        post: operations["create_8"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diets/{id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["duplicate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daily-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_10"];
+        put?: never;
+        post: operations["create_9"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/foods/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["toggleFavorite"];
+        trace?: never;
+    };
+    "/api/v1/workout-sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_1"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/pull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pull"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/foods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_5"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_7"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/foods/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_7"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tags/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_2"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health-metrics/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_5"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exercises/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_8"];
         options?: never;
         head?: never;
         patch?: never;
@@ -310,33 +528,258 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        TemplateExerciseDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            templateId: number;
+            /** Format: int64 */
+            exerciseId: number;
+            /** Format: int32 */
+            orderIndex: number;
+            /** Format: int32 */
+            targetSets: number;
+            /** Format: int32 */
+            targetReps?: number;
+            /** Format: double */
+            targetWeightKg?: number;
+            notes?: string;
+            exerciseName: string;
+            exerciseCategory: string;
+        };
+        WorkoutTemplateDto: {
+            /** Format: int64 */
+            id: number;
+            firebaseUid: string;
+            name: string;
+            category: string;
+            notes?: string;
+            exercises: components["schemas"]["TemplateExerciseDto"][];
+        };
+        UpdateUserRequest: {
+            displayName?: string;
+            /** Format: int32 */
+            age?: number;
+            /** Format: double */
+            weightKg?: number;
+            /** Format: double */
+            heightCm?: number;
+            gender?: string;
+            activityLevel?: string;
+            /** Format: int32 */
+            targetCalories?: number;
+            goalType?: string;
+        };
         UserResponse: {
             /** Format: int64 */
             id: number;
             firebaseUid: string;
-            email?: string | null;
-            displayName?: string | null;
+            email?: string;
+            displayName?: string;
+            /** Format: int32 */
+            age?: number;
+            /** Format: double */
+            weightKg?: number;
+            /** Format: double */
+            heightCm?: number;
+            gender?: string;
+            activityLevel?: string;
+            /** Format: int32 */
+            targetCalories?: number;
+            goalType?: string;
             /** Format: date-time */
             createdAt: string;
         };
-        /**
-         * @description A food item with per-100g macros. `isSystemFood=true` items are shared across all users
-         *     and are never deleted during re-seed. `serverId` is the cross-device identity.
-         */
-        FoodDto: {
-            /**
-             * Format: int64
-             * @description Server-assigned DB ID (omit on create)
-             */
-            id?: number;
-            /**
-             * Format: uuid
-             * @description Stable client-generated UUID — sync identity
-             */
+        DayPlanDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            serverId?: string;
+            firebaseUid: string;
+            date: string;
+            /** Format: int64 */
+            dietId: number;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        MealDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            serverId?: string;
+            firebaseUid: string;
+            name: string;
+            items: components["schemas"]["MealFoodItemDto"][];
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        MealFoodItemDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            mealId: number;
+            /** Format: int64 */
+            foodId: number;
+            /** Format: double */
+            quantity: number;
+            unit: string;
+            notes?: string;
+        };
+        GroceryItemDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            groceryListId: number;
+            /** Format: int64 */
+            foodId?: number;
+            name: string;
+            /** Format: double */
+            quantity: number;
+            unit: string;
+            category?: string;
+            done: boolean;
+        };
+        GroceryListDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            serverId?: string;
+            firebaseUid: string;
+            name: string;
+            /** Format: int64 */
+            dietId?: number;
+            items: components["schemas"]["GroceryItemDto"][];
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        DietDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            serverId?: string;
+            firebaseUid: string;
+            name: string;
+            description?: string;
+            /** Format: double */
+            targetCalories?: number;
+            /** Format: double */
+            targetProtein?: number;
+            /** Format: double */
+            targetCarbs?: number;
+            /** Format: double */
+            targetFat?: number;
+            meals: components["schemas"]["DietMealDto"][];
+            tagIds: number[];
+            tags: components["schemas"]["TagDto"][];
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        DietMealDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            dietId: number;
+            /** Format: int64 */
+            mealId: number;
+            /** Format: int32 */
+            dayOfWeek: number;
+            slot: string;
+            instructions?: string;
+        };
+        TagDto: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            color?: string;
+        };
+        DailyLogDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            serverId?: string;
+            firebaseUid: string;
+            /** Format: date */
+            date?: string;
+            notes?: string;
+            loggedFoods: components["schemas"]["LoggedFoodDto"][];
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        LoggedFoodDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            dailyLogId: number;
+            /** Format: int64 */
+            foodId: number;
+            mealSlot: string;
+            /** Format: double */
+            quantity: number;
+            unit: string;
+        };
+        WorkoutSessionDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            serverId?: string;
+            firebaseUid: string;
+            name: string;
+            /** Format: date */
+            date?: string;
+            /** Format: int32 */
+            durationMinutes?: number;
+            notes?: string;
+            isCompleted: boolean;
+            sets: components["schemas"]["WorkoutSetDto"][];
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        WorkoutSetDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            sessionId: number;
+            /** Format: int64 */
+            exerciseId: number;
+            /** Format: int32 */
+            setNumber: number;
+            /** Format: int32 */
+            reps?: number;
+            /** Format: double */
+            weightKg?: number;
+            /** Format: int32 */
+            durationSeconds?: number;
+            /** Format: double */
+            distanceMeters?: number;
+            notes?: string;
+        };
+        CreateTagRequest: {
+            name: string;
+            color?: string;
+        };
+        ExerciseDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
             serverId?: string;
             name: string;
-            brand?: string | null;
-            barcode?: string | null;
+            category: string;
+            muscleGroup?: string;
+            equipment?: string;
+            description?: string;
+            videoLink?: string;
+            isSystem: boolean;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        FoodDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            serverId?: string;
+            name: string;
+            brand?: string;
+            barcode?: string;
             /** Format: double */
             caloriesPer100: number;
             /** Format: double */
@@ -346,298 +789,233 @@ export interface components {
             /** Format: double */
             fatPer100: number;
             /** Format: double */
-            gramsPerPiece?: number | null;
+            gramsPerPiece?: number;
             /** Format: double */
-            gramsPerCup?: number | null;
+            gramsPerCup?: number;
             /** Format: double */
-            gramsPerTbsp?: number | null;
+            gramsPerTbsp?: number;
             /** Format: double */
-            gramsPerTsp?: number | null;
-            glycemicIndex?: number | null;
-            /** @default false */
+            gramsPerTsp?: number;
+            /** Format: int32 */
+            glycemicIndex?: number;
             isSystemFood: boolean;
-            /** @default false */
             isFavorite: boolean;
-            /**
-             * Format: date-time
-             * @description Last-modified instant (server-set; used for sync conflict resolution)
-             */
-            readonly updatedAt?: string;
-        };
-        MealFoodItemDto: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            mealId?: number;
-            /** Format: int64 */
-            foodId: number;
-            /** Format: double */
-            quantity: number;
-            /**
-             * @default GRAM
-             * @enum {string}
-             */
-            unit: "GRAM" | "ML" | "PIECE" | "CUP" | "TBSP" | "TSP";
-            notes?: string | null;
-        };
-        /** @description A named collection of foods assigned to a meal slot. */
-        MealDto: {
-            /** Format: int64 */
-            id?: number;
-            /**
-             * Format: uuid
-             * @description Stable client-generated UUID — sync identity
-             */
-            serverId?: string;
-            /** @description Owner — set by server from JWT; ignored on inbound requests */
-            readonly firebaseUid?: string;
-            name: string;
-            /**
-             * @default Lunch
-             * @enum {string}
-             */
-            slot: "Breakfast" | "Lunch" | "Dinner" | "Snack";
-            items?: components["schemas"]["MealFoodItemDto"][];
             /** Format: date-time */
-            readonly updatedAt?: string;
+            updatedAt?: string;
         };
-        DietMealDto: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            dietId?: number;
-            /** Format: int64 */
-            mealId: number;
-            /** @description 1=Mon…7=Sun; 0=any day */
-            dayOfWeek: number;
-            /**
-             * @default Lunch
-             * @enum {string}
-             */
-            slot: "Breakfast" | "Lunch" | "Dinner" | "Snack";
-            instructions?: string | null;
-        };
-        /** @description A weekly diet template composed of meals, with optional macro targets. */
-        DietDto: {
-            /** Format: int64 */
-            id?: number;
-            /**
-             * Format: uuid
-             * @description Stable client-generated UUID — sync identity
-             */
-            serverId?: string;
-            readonly firebaseUid?: string;
-            name: string;
-            description?: string | null;
-            /** Format: double */
-            targetCalories?: number | null;
-            /** Format: double */
-            targetProtein?: number | null;
-            /** Format: double */
-            targetCarbs?: number | null;
-            /** Format: double */
-            targetFat?: number | null;
-            meals?: components["schemas"]["DietMealDto"][];
-            tagIds?: number[];
-            /** Format: date-time */
-            readonly updatedAt?: string;
-        };
-        GroceryItemDto: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            groceryListId?: number;
-            /**
-             * Format: int64
-             * @description Optional link to a Food record
-             */
-            foodId?: number | null;
-            name: string;
-            /**
-             * Format: double
-             * @default 1
-             */
-            quantity: number;
-            /**
-             * @default GRAM
-             * @enum {string}
-             */
-            unit: "GRAM" | "ML" | "PIECE" | "CUP" | "TBSP" | "TSP";
-            category?: string | null;
-            /** @default false */
-            done: boolean;
-        };
-        GroceryListDto: {
-            /** Format: int64 */
-            id?: number;
-            /**
-             * Format: uuid
-             * @description Stable client-generated UUID — sync identity
-             */
-            serverId?: string;
-            readonly firebaseUid?: string;
-            name: string;
-            /**
-             * Format: int64
-             * @description Optional diet this list was generated from
-             */
-            dietId?: number | null;
-            items?: components["schemas"]["GroceryItemDto"][];
-            /** Format: date-time */
-            readonly updatedAt?: string;
-        };
-        /**
-         * @description A single health measurement. Common `type` values: WEIGHT, STEPS, BLOOD_PRESSURE,
-         *     HEART_RATE, SLEEP_HOURS, WATER_ML, BODY_FAT_PCT.
-         *     For BLOOD_PRESSURE, use `subType=SYSTOLIC` / `DIASTOLIC` with `secondaryValue`.
-         */
         HealthMetricDto: {
             /** Format: int64 */
-            id?: number;
+            id: number;
             /** Format: uuid */
             serverId?: string;
-            readonly firebaseUid?: string;
-            /** @example WEIGHT */
+            firebaseUid: string;
             type: string;
-            /** @example SYSTOLIC */
-            subType?: string | null;
+            subType?: string;
             /** Format: double */
             value: number;
-            /**
-             * Format: double
-             * @description Second reading (e.g. diastolic BP)
-             */
-            secondaryValue?: number | null;
-            /** @example kg */
+            /** Format: double */
+            secondaryValue?: number;
             unit: string;
-            /**
-             * Format: date-time
-             * @description When the measurement was taken (client-provided)
-             */
+            /** Format: date-time */
             recordedAt?: string;
             /** Format: date-time */
-            readonly updatedAt?: string;
+            updatedAt?: string;
         };
-        /** @description User-defined metric type (e.g. "Waist circumference"). */
+        PushRequest: {
+            foods: components["schemas"]["FoodDto"][];
+            meals: components["schemas"]["MealDto"][];
+            diets: components["schemas"]["DietDto"][];
+            healthMetrics: components["schemas"]["HealthMetricDto"][];
+            groceryLists: components["schemas"]["GroceryListDto"][];
+            dailyLogs: components["schemas"]["DailyLogDto"][];
+            exercises: components["schemas"]["ExerciseDto"][];
+            workoutSessions: components["schemas"]["WorkoutSessionDto"][];
+        };
+        PushResponse: {
+            /** Format: int32 */
+            accepted: number;
+            foods: components["schemas"]["FoodDto"][];
+            meals: components["schemas"]["MealDto"][];
+            diets: components["schemas"]["DietDto"][];
+            healthMetrics: components["schemas"]["HealthMetricDto"][];
+            groceryLists: components["schemas"]["GroceryListDto"][];
+            dailyLogs: components["schemas"]["DailyLogDto"][];
+            exercises: components["schemas"]["ExerciseDto"][];
+            workoutSessions: components["schemas"]["WorkoutSessionDto"][];
+        };
         CustomMetricTypeDto: {
             /** Format: int64 */
-            id?: number;
+            id: number;
             /** Format: uuid */
             serverId?: string;
-            readonly firebaseUid?: string;
+            firebaseUid: string;
             name: string;
             unit: string;
-            icon?: string | null;
+            icon?: string;
             /** Format: date-time */
-            readonly updatedAt?: string;
+            updatedAt?: string;
         };
-        LoggedFoodDto: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            dailyLogId?: number;
-            /** Format: int64 */
-            foodId: number;
-            /**
-             * @default Lunch
-             * @enum {string}
-             */
-            mealSlot: "Breakfast" | "Lunch" | "Dinner" | "Snack";
-            /** Format: double */
-            quantity: number;
-            /**
-             * @default GRAM
-             * @enum {string}
-             */
-            unit: "GRAM" | "ML" | "PIECE" | "CUP" | "TBSP" | "TSP";
-        };
-        /** @description One day's food consumption log. One record per user per date. */
-        DailyLogDto: {
-            /** Format: int64 */
-            id?: number;
-            /**
-             * Format: uuid
-             * @description Stable client-generated UUID — sync identity
-             */
-            serverId?: string;
-            readonly firebaseUid?: string;
-            /**
-             * Format: date
-             * @description ISO-8601 date (YYYY-MM-DD)
-             * @example 2026-04-17
-             */
-            date: string;
-            notes?: string | null;
-            loggedFoods?: components["schemas"]["LoggedFoodDto"][];
-            /** Format: date-time */
-            readonly updatedAt?: string;
-        };
-        /**
-         * @description All locally-changed records since the last successful push.
-         *     Any domain list may be omitted or empty — only changed records need to be sent.
-         *     The server upserts by `serverId` using last-write-wins on `updatedAt`.
-         */
-        SyncPushRequest: {
-            /** @default [] */
-            foods: components["schemas"]["FoodDto"][];
-            /** @default [] */
-            meals: components["schemas"]["MealDto"][];
-            /** @default [] */
-            diets: components["schemas"]["DietDto"][];
-            /** @default [] */
-            healthMetrics: components["schemas"]["HealthMetricDto"][];
-            /** @default [] */
-            groceryLists: components["schemas"]["GroceryListDto"][];
-            /** @default [] */
-            dailyLogs: components["schemas"]["DailyLogDto"][];
-        };
-        SyncPushResponse: {
-            /** @description Total number of records upserted across all domains */
-            accepted: number;
-        };
-        /**
-         * @description Delta payload — only records with `updatedAt > since` are included.
-         *     Store `serverTime` locally and use it as `since` on the next pull to avoid gaps.
-         */
-        SyncPullResponse: {
+        PullResponse: {
             foods: components["schemas"]["FoodDto"][];
             meals: components["schemas"]["MealDto"][];
             diets: components["schemas"]["DietDto"][];
             healthMetrics: components["schemas"]["HealthMetricDto"][];
             groceryLists: components["schemas"]["GroceryListDto"][];
             dailyLogs: components["schemas"]["DailyLogDto"][];
-            /**
-             * Format: date-time
-             * @description Server clock at the moment of this response — use as `since` on next pull
-             */
+            exercises: components["schemas"]["ExerciseDto"][];
+            workoutSessions: components["schemas"]["WorkoutSessionDto"][];
+            tombstones: components["schemas"]["TombstoneDto"][];
+            /** Format: date-time */
             serverTime: string;
         };
-    };
-    responses: {
-        /** @description Missing or invalid Firebase JWT */
-        Unauthorized: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content?: never;
+        TombstoneDto: {
+            entityType: string;
+            /** Format: uuid */
+            serverId: string;
+            /** Format: date-time */
+            deletedAt: string;
         };
-        /** @description Resource not found */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content?: never;
+        PageFoodDto: {
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            first?: boolean;
+            last?: boolean;
+            pageable?: components["schemas"]["PageableObject"];
+            /** Format: int32 */
+            numberOfElements?: number;
+            /** Format: int32 */
+            size?: number;
+            content?: components["schemas"]["FoodDto"][];
+            /** Format: int32 */
+            number?: number;
+            sort?: components["schemas"]["SortObject"];
+            empty?: boolean;
+        };
+        PageableObject: {
+            paged?: boolean;
+            unpaged?: boolean;
+            /** Format: int32 */
+            pageNumber?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int64 */
+            offset?: number;
+            sort?: components["schemas"]["SortObject"];
+        };
+        SortObject: {
+            unsorted?: boolean;
+            sorted?: boolean;
+            empty?: boolean;
+        };
+        /** @description Dashboard aggregate — all data needed for the home screen in one request */
+        DashboardDto: {
+            todayLog?: components["schemas"]["DailyLogDto"];
+            recentLogs: components["schemas"]["DailyLogDto"][];
+            foods: components["schemas"]["FoodDto"][];
+            /** Format: int64 */
+            dietCount: number;
+            latestWeight?: components["schemas"]["HealthMetricDto"];
+            /** Format: int32 */
+            currentStreak: number;
+            weeklyCalories: components["schemas"]["DayCalories"][];
+            todayMacros: components["schemas"]["MacroTotals"];
+        };
+        /** @description Calories logged on a specific date */
+        DayCalories: {
+            date: string;
+            /** Format: double */
+            calories: number;
+        };
+        /** @description Macro totals (protein / carbs / fat) in grams */
+        MacroTotals: {
+            /** Format: double */
+            protein: number;
+            /** Format: double */
+            carbs: number;
+            /** Format: double */
+            fat: number;
+            /** Format: double */
+            calories: number;
         };
     };
-    parameters: {
-        IdPath: number;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkoutTemplateDto"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkoutTemplateDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkoutTemplateDto"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getMe: {
         parameters: {
             query?: never;
@@ -647,40 +1025,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Authenticated user */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResponse"];
+                    "*/*": components["schemas"]["UserResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    listFoods: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of foods */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodDto"][];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createFood: {
+    updateMe: {
         parameters: {
             query?: never;
             header?: never;
@@ -689,69 +1045,362 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FoodDto"];
+                "application/json": components["schemas"]["UpdateUserRequest"];
             };
         };
         responses: {
-            /** @description Created food */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FoodDto"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    getFood: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Food */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FoodDto"];
+                    "*/*": components["schemas"]["UserResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
         };
     };
-    deleteFood: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["IdPath"];
+                date: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Deleted */
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DayPlanDto"];
+                };
+            };
+        };
+    };
+    upsert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayPlanDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DayPlanDto"];
+                };
+            };
+        };
+    };
+    delete_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
         };
     };
-    listMeals: {
+    get_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MealDto"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MealDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MealDto"];
+                };
+            };
+        };
+    };
+    delete_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GroceryListDto"];
+                };
+            };
+        };
+    };
+    update_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroceryListDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GroceryListDto"];
+                };
+            };
+        };
+    };
+    delete_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DietDto"];
+                };
+            };
+        };
+    };
+    update_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DietDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DietDto"];
+                };
+            };
+        };
+    };
+    delete_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DailyLogDto"];
+                };
+            };
+        };
+    };
+    update_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DailyLogDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DailyLogDto"];
+                };
+            };
+        };
+    };
+    delete_10: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list: {
         parameters: {
             query?: never;
             header?: never;
@@ -760,19 +1409,196 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of meals */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MealDto"][];
+                    "*/*": components["schemas"]["WorkoutTemplateDto"][];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    createMeal: {
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkoutTemplateDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkoutTemplateDto"];
+                };
+            };
+        };
+    };
+    start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkoutSessionDto"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkoutSessionDto"][];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkoutSessionDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkoutSessionDto"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TagDto"][];
+                };
+            };
+        };
+    };
+    create_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTagRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TagDto"];
+                };
+            };
+        };
+    };
+    push: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PushResponse"];
+                };
+            };
+        };
+    };
+    list_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MealDto"][];
+                };
+            };
+        };
+    };
+    create_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -785,65 +1611,18 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created meal */
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MealDto"];
+                    "*/*": components["schemas"]["MealDto"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    getMeal: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Meal */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MealDto"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    deleteMeal: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listDiets: {
+    list_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -852,203 +1631,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of diets */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DietDto"][];
+                    "*/*": components["schemas"]["HealthMetricDto"][];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    createDiet: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DietDto"];
-            };
-        };
-        responses: {
-            /** @description Created diet */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DietDto"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    getDiet: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Diet */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DietDto"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    deleteDiet: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listGroceryLists: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of grocery lists */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroceryListDto"][];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createGroceryList: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GroceryListDto"];
-            };
-        };
-        responses: {
-            /** @description Created grocery list */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroceryListDto"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    getGroceryList: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Grocery list */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroceryListDto"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    deleteGroceryList: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listHealthMetrics: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of health metrics */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthMetricDto"][];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createHealthMetric: {
+    create_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -1061,41 +1655,18 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created health metric */
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthMetricDto"];
+                    "*/*": components["schemas"]["HealthMetricDto"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    deleteHealthMetric: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["IdPath"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listCustomMetricTypes: {
+    listCustomTypes: {
         parameters: {
             query?: never;
             header?: never;
@@ -1104,19 +1675,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of custom types */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomMetricTypeDto"][];
+                    "*/*": components["schemas"]["CustomMetricTypeDto"][];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    createCustomMetricType: {
+    createCustomType: {
         parameters: {
             query?: never;
             header?: never;
@@ -1129,19 +1699,18 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created custom type */
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomMetricTypeDto"];
+                    "*/*": components["schemas"]["CustomMetricTypeDto"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    listDailyLogs: {
+    list_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -1150,19 +1719,238 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of daily logs */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DailyLogDto"][];
+                    "*/*": components["schemas"]["GroceryListDto"][];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    createDailyLog: {
+    create_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroceryListDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GroceryListDto"];
+                };
+            };
+        };
+    };
+    createFromDiet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dietId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GroceryListDto"];
+                };
+            };
+        };
+    };
+    list_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FoodDto"][];
+                };
+            };
+        };
+    };
+    create_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FoodDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FoodDto"];
+                };
+            };
+        };
+    };
+    list_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExerciseDto"][];
+                };
+            };
+        };
+    };
+    create_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExerciseDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExerciseDto"];
+                };
+            };
+        };
+    };
+    list_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DietDto"][];
+                };
+            };
+        };
+    };
+    create_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DietDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DietDto"];
+                };
+            };
+        };
+    };
+    duplicate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DietDto"];
+                };
+            };
+        };
+    };
+    list_10: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DailyLogDto"][];
+                };
+            };
+        };
+    };
+    create_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -1175,68 +1963,84 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created daily log */
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DailyLogDto"];
+                    "*/*": components["schemas"]["DailyLogDto"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    getDailyLog: {
+    toggleFavorite: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["IdPath"];
+                id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Daily log */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DailyLogDto"];
+                    "*/*": components["schemas"]["FoodDto"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
         };
     };
-    deleteDailyLog: {
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["IdPath"];
+                id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Deleted */
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WorkoutSessionDto"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
         };
     };
-    syncPull: {
+    pull: {
         parameters: {
             query: {
-                /** @description ISO-8601 instant — only records updated after this time are returned */
                 since: string;
             };
             header?: never;
@@ -1245,48 +2049,181 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Delta payload */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SyncPullResponse"];
+                    "*/*": components["schemas"]["PullResponse"];
                 };
             };
-            /** @description Missing or malformed `since` parameter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
         };
     };
-    syncPush: {
+    list_3: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SyncPushRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Number of records accepted */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SyncPushResponse"];
+                    "*/*": components["schemas"]["DayPlanDto"][];
                 };
             };
-            401: components["responses"]["Unauthorized"];
+        };
+    };
+    get_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FoodDto"];
+                };
+            };
+        };
+    };
+    delete_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: {
+                q?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageFoodDto"];
+                };
+            };
+        };
+    };
+    get_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DashboardDto"];
+                };
+            };
+        };
+    };
+    delete_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

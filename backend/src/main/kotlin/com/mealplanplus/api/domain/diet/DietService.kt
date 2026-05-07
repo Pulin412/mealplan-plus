@@ -1,8 +1,11 @@
 package com.mealplanplus.api.domain.diet
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 
 @Service
@@ -13,10 +16,11 @@ class DietService(
     private val crossRefRepo: DietTagCrossRefRepository,
     private val tombstones: TombstoneService
 ) {
-    private fun Diet.toFullDto() = toDto(
-        dietMealRepo.findByDietId(id),
-        crossRefRepo.findByDietId(id).map { it.tagId }
-    )
+    private fun Diet.toFullDto(): DietDto {
+        val tagIds = crossRefRepo.findByDietId(id).map { it.tagId }
+        val tags = if (tagIds.isEmpty()) emptyList() else tagRepo.findAllById(tagIds).toList()
+        return toDto(dietMealRepo.findByDietId(id), tags)
+    }
 
     fun list(firebaseUid: String): List<DietDto> =
         dietRepo.findByFirebaseUid(firebaseUid).map { it.toFullDto() }
@@ -42,7 +46,7 @@ class DietService(
     @Transactional
     fun update(id: Long, dto: DietDto, firebaseUid: String): DietDto {
         val diet = dietRepo.findById(id).orElseThrow()
-        require(diet.firebaseUid == firebaseUid) { "Forbidden" }
+        if (diet.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         dietMealRepo.deleteByDietId(id)
         crossRefRepo.deleteByDietId(id)
         val updated = Diet(
@@ -62,7 +66,7 @@ class DietService(
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val diet = dietRepo.findById(id).orElseThrow()
-        require(diet.firebaseUid == firebaseUid) { "Forbidden" }
+        if (diet.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         dietMealRepo.deleteByDietId(id)
         crossRefRepo.deleteByDietId(id)
         dietRepo.delete(diet)
@@ -92,6 +96,24 @@ class DietService(
         return saved.toFullDto()
     }
 
+    fun listTags(firebaseUid: String): List<TagDto> =
+        tagRepo.findByFirebaseUid(firebaseUid).map { it.toDto() }
+
+    @Transactional
+    fun createTag(name: String, color: String?, firebaseUid: String): TagDto {
+        val existing = tagRepo.findByFirebaseUidAndName(firebaseUid, name)
+        if (existing != null) return existing.toDto()
+        return tagRepo.save(Tag(firebaseUid = firebaseUid, name = name, color = color)).toDto()
+    }
+
+    @Transactional
+    fun deleteTag(id: Long, firebaseUid: String) {
+        val tag = tagRepo.findById(id).orElseThrow()
+        if (tag.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        crossRefRepo.deleteByTagId(id)
+        tagRepo.delete(tag)
+    }
+
     fun since(firebaseUid: String, since: Instant): List<DietDto> =
         dietRepo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since).map { it.toFullDto() }
 
@@ -99,7 +121,7 @@ class DietService(
     fun upsert(dto: DietDto, firebaseUid: String): DietDto {
         val existing = dto.serverId?.let { dietRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toFullDto()
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toFullDto()
         dietMealRepo.deleteByDietId(existing.id)
         crossRefRepo.deleteByDietId(existing.id)
         val updated = Diet(

@@ -70,6 +70,9 @@ interface FoodDao {
     @Query("SELECT * FROM food_items WHERE name = :name LIMIT 1")
     suspend fun getFoodByExactName(name: String): FoodItem?
 
+    @Query("SELECT * FROM food_items WHERE serverId = :serverId LIMIT 1")
+    suspend fun getFoodByServerId(serverId: String): FoodItem?
+
     @Query("DELETE FROM food_items")
     suspend fun deleteAllFoods()
 }

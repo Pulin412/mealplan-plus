@@ -248,7 +248,7 @@ interface DietDao {
     suspend fun getAllDietsOnce(): List<Diet>
 
     // Sync helpers
-    @Query("SELECT * FROM diets WHERE syncedAt IS NULL OR updatedAt > syncedAt")
+    @Query("SELECT * FROM diets WHERE isSystem = 0 AND (syncedAt IS NULL OR updatedAt > syncedAt)")
     suspend fun getUnsyncedDiets(): List<Diet>
 
     @Query("SELECT * FROM diets WHERE serverId = :serverId LIMIT 1")

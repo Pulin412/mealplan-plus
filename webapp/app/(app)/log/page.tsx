@@ -1,46 +1,29 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, X, Plus, Search, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
+import { todayStr, formatDateLabel, calcCalories, calcNutrient, MEAL_SLOTS, addDays } from "@/lib/utils";
+import { useFoods } from "@/lib/hooks/useFoods";
 
-type DailyLogDto = components["schemas"]["DailyLogDto"];
+type DailyLogDto   = components["schemas"]["DailyLogDto"];
 type LoggedFoodDto = components["schemas"]["LoggedFoodDto"];
-type FoodDto = components["schemas"]["FoodDto"];
+type FoodDto       = components["schemas"]["FoodDto"];
 
 type Slot = "Breakfast" | "Lunch" | "Dinner";
-const SLOTS: { key: Slot; emoji: string; color: string; bg: string }[] = [
-  { key: "Breakfast", emoji: "🌅", color: "#F59E0B", bg: "#FFF8E6" },
-  { key: "Lunch",     emoji: "☀️",  color: "#2E7D52", bg: "#E8F5EE" },
-  { key: "Dinner",   emoji: "🌙", color: "#7C3AED", bg: "#F3EEFF" },
-];
+const SLOTS = MEAL_SLOTS.filter((s): s is typeof MEAL_SLOTS[number] & { key: Slot } =>
+  s.key === "Breakfast" || s.key === "Lunch" || s.key === "Dinner");
 
-function todayStr() { return new Date().toISOString().split("T")[0]; }
-function addDays(dateStr: string, days: number) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
-}
-function formatDateLabel(dateStr: string) {
-  const today = todayStr();
-  if (dateStr === today) return "Today";
-  if (dateStr === addDays(today, -1)) return "Yesterday";
-  if (dateStr === addDays(today, 1)) return "Tomorrow";
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
-}
 function calcFoodCals(food: FoodDto, lf: LoggedFoodDto) {
-  const grams = lf.unit === "GRAM" ? lf.quantity : lf.quantity * 100;
-  return (food.caloriesPer100 * grams) / 100;
+  return calcCalories(food, lf);
 }
 function calcMacro(foods: FoodDto[], loggedFoods: LoggedFoodDto[], per: keyof Pick<FoodDto, "proteinPer100" | "carbsPer100" | "fatPer100">) {
   return loggedFoods.reduce((sum, lf) => {
     const food = foods.find((f) => f.id === lf.foodId);
     if (!food) return sum;
-    const grams = lf.unit === "GRAM" ? lf.quantity : lf.quantity * 100;
-    return sum + (food[per] * grams) / 100;
+    return sum + calcNutrient(food, lf, per);
   }, 0);
 }
 
@@ -139,29 +122,30 @@ function FoodSearch({ foods, slot, onAdd, onClose }: {
 export default function LogPage() {
   const { user } = useAuth();
   const [date, setDate] = useState(todayStr());
-  const [log, setLog] = useState<DailyLogDto | null>(null);
-  const [foods, setFoods] = useState<FoodDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [log,  setLog]  = useState<DailyLogDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeSearch, setActiveSearch] = useState<Slot | null>(null);
 
+  const { foods, loading: foodsLoading, error: foodsError } = useFoods();
+
+  const [logsLoading, setLogsLoading] = useState(true);
   const loadData = useCallback(async () => {
     if (!user) return;
-    setLoading(true); setError(null);
+    setLogsLoading(true); setError(null);
     try {
-      const [logs, allFoods] = await Promise.all([
-        api.get<DailyLogDto[]>("/api/v1/daily-logs"),
-        api.get<FoodDto[]>("/api/v1/foods"),
-      ]);
-      setFoods(allFoods);
+      const logs = await api.get<DailyLogDto[]>("/api/v1/daily-logs");
       setLog(logs.find((l) => l.date === date) ?? null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load");
-    } finally { setLoading(false); }
+    } finally { setLogsLoading(false); }
   }, [user, date]);
 
+  const loading = foodsLoading || logsLoading;
+
   useEffect(() => { loadData(); }, [loadData]);
+
+  const displayError = error ?? foodsError;
 
   const saveLog = async (updatedLog: DailyLogDto) => {
     setSaving(true); setError(null);
@@ -179,10 +163,10 @@ export default function LogPage() {
   };
 
   const addFood = async (food: FoodDto, quantity: number, slot: Slot) => {
-    const current = log ?? { date, loggedFoods: [] };
+    const current = log ?? ({ date, loggedFoods: [] } as unknown as DailyLogDto);
     await saveLog({
       ...current,
-      loggedFoods: [...(current.loggedFoods ?? []), { foodId: food.id!, mealSlot: slot, quantity, unit: "GRAM" }],
+      loggedFoods: [...(current.loggedFoods ?? []), { foodId: food.id!, mealSlot: slot, quantity, unit: "GRAM" } as LoggedFoodDto],
     });
   };
 
@@ -224,8 +208,8 @@ export default function LogPage() {
         </button>
       </div>
 
-      {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>
+      {displayError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{displayError}</div>
       )}
 
       {/* Macro summary strip */}

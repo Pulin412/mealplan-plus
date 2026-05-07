@@ -51,7 +51,10 @@ class SyncController(
         val meals: List<MealDto> = emptyList(),
         val diets: List<DietDto> = emptyList(),
         val healthMetrics: List<HealthMetricDto> = emptyList(),
-        val groceryLists: List<GroceryListDto> = emptyList()
+        val groceryLists: List<GroceryListDto> = emptyList(),
+        val dailyLogs: List<DailyLogDto> = emptyList(),
+        val exercises: List<ExerciseDto> = emptyList(),
+        val workoutSessions: List<WorkoutSessionDto> = emptyList()
     )
 
     data class PullResponse(
@@ -69,24 +72,27 @@ class SyncController(
 
     @PostMapping("/push")
     fun push(@RequestBody req: PushRequest, auth: Authentication): PushResponse {
-        val savedFoods = req.foods.map { foodService.upsert(it, auth.name) }
-        req.dailyLogs.forEach { logService.upsert(it, auth.name) }
-        req.exercises.forEach { workoutService.upsertExercise(it, auth.name) }
-        req.workoutSessions.forEach { workoutService.upsertSession(it, auth.name) }
-        val savedMeals = req.meals.map { mealService.upsert(it, auth.name) }
-        val savedDiets = req.diets.map { dietService.upsert(it, auth.name) }
-        val savedMetrics = req.healthMetrics.map { healthService.upsert(it, auth.name) }
+        val savedFoods    = req.foods.map { foodService.upsert(it, auth.name) }
+        val savedLogs     = req.dailyLogs.map { logService.upsert(it, auth.name) }
+        val savedExercises = req.exercises.map { workoutService.upsertExercise(it, auth.name) }
+        val savedSessions = req.workoutSessions.map { workoutService.upsertSession(it, auth.name) }
+        val savedMeals    = req.meals.map { mealService.upsert(it, auth.name) }
+        val savedDiets    = req.diets.map { dietService.upsert(it, auth.name) }
+        val savedMetrics  = req.healthMetrics.map { healthService.upsert(it, auth.name) }
         val savedGroceries = req.groceryLists.map { groceryService.upsert(it, auth.name) }
-        val accepted = req.foods.size + req.dailyLogs.size + req.exercises.size +
-            req.workoutSessions.size + savedMeals.size + savedDiets.size +
+        val accepted = savedFoods.size + savedLogs.size + savedExercises.size +
+            savedSessions.size + savedMeals.size + savedDiets.size +
             savedMetrics.size + savedGroceries.size
         return PushResponse(
-            accepted = accepted,
-            foods = savedFoods,
-            meals = savedMeals,
-            diets = savedDiets,
+            accepted      = accepted,
+            foods         = savedFoods,
+            meals         = savedMeals,
+            diets         = savedDiets,
             healthMetrics = savedMetrics,
-            groceryLists = savedGroceries
+            groceryLists  = savedGroceries,
+            dailyLogs     = savedLogs,
+            exercises     = savedExercises,
+            workoutSessions = savedSessions
         )
     }
 

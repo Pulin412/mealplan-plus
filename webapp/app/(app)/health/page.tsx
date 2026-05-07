@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -10,6 +9,7 @@ import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
+import { todayStr, calcCalories } from "@/lib/utils";
 
 type HealthMetricDto = components["schemas"]["HealthMetricDto"];
 type DailyLogDto    = components["schemas"]["DailyLogDto"];
@@ -40,8 +40,6 @@ function formatShort(iso: string | undefined) {
 
 function avg(vals: number[]) { return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0; }
 
-function todayStr() { return new Date().toISOString().split("T")[0]; }
-
 function computeStreak(logs: DailyLogDto[]): number {
   const loggedDates = new Set(logs.filter((l) => (l.loggedFoods ?? []).length > 0).map((l) => l.date));
   const today = todayStr();
@@ -57,11 +55,10 @@ function computeStreak(logs: DailyLogDto[]): number {
 }
 
 function calcDayCals(log: DailyLogDto, foods: FoodDto[]): number {
-  return (log.loggedFoods ?? []).reduce((sum, lf) => {
+  return (log.loggedFoods ?? []).reduce<number>((sum, lf) => {
     const food = foods.find((f) => f.id === lf.foodId);
     if (!food) return sum;
-    const g = lf.unit === "GRAM" ? lf.quantity : lf.quantity * 100;
-    return sum + (food.caloriesPer100 * g) / 100;
+    return sum + calcCalories(food, lf);
   }, 0);
 }
 
@@ -106,10 +103,10 @@ export default function HealthPage() {
     if (isNaN(v)) { setFormError("Enter a valid number"); return; }
     setSubmitting(true); setFormError(null);
     try {
-      const payload: HealthMetricDto = {
+      const payload = {
         type: formType, value: v, unit: formUnit,
         recordedAt: new Date(formDate + "T12:00:00Z").toISOString(),
-      };
+      } as HealthMetricDto;
       const created = await api.post<HealthMetricDto>("/api/v1/health-metrics", payload);
       setMetrics((prev) => [created, ...prev]);
       setFormValue(""); setShowForm(false);
@@ -146,7 +143,7 @@ export default function HealthPage() {
   }));
 
   const calChartData = [...logs]
-    .sort((a, b) => a.date < b.date ? -1 : 1)
+    .sort((a, b) => (a.date ?? "") < (b.date ?? "") ? -1 : 1)
     .slice(-30)
     .map((log) => ({
       date: new Date(log.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
