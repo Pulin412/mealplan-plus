@@ -61,6 +61,7 @@ class FirebaseTokenFilter(
                 )
             }
             val claims = processor.process(token, null)
+            log.info("Authenticated Firebase UID: ${claims.subject}")
             val auth = UsernamePasswordAuthenticationToken(
                 claims.subject, null, emptyList()
             )

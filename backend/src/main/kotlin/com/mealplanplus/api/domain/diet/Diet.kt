@@ -34,7 +34,9 @@ class DietMeal(
 class Tag(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
-    val name: String = ""
+    val firebaseUid: String = "",
+    val name: String = "",
+    val color: String? = null
 )
 
 @Entity

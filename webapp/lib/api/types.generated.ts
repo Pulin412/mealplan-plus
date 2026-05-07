@@ -417,6 +417,12 @@ export interface components {
             slot: "Breakfast" | "Lunch" | "Dinner" | "Snack";
             instructions?: string | null;
         };
+        TagDto: {
+            /** Format: int64 */
+            id?: number;
+            name: string;
+            color?: string | null;
+        };
         /** @description A weekly diet template composed of meals, with optional macro targets. */
         DietDto: {
             /** Format: int64 */
@@ -439,6 +445,7 @@ export interface components {
             targetFat?: number | null;
             meals?: components["schemas"]["DietMealDto"][];
             tagIds?: number[];
+            tags?: components["schemas"]["TagDto"][];
             /** Format: date-time */
             readonly updatedAt?: string;
         };

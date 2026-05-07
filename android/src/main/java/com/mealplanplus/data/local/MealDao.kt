@@ -61,7 +61,7 @@ interface MealDao {
     suspend fun deleteOrphanUserMeals()
 
     // Sync helpers (v19)
-    @Query("SELECT * FROM meals WHERE syncedAt IS NULL OR updatedAt > syncedAt")
+    @Query("SELECT * FROM meals WHERE isSystem = 0 AND (syncedAt IS NULL OR updatedAt > syncedAt)")
     suspend fun getUnsyncedMeals(): List<Meal>
 
     @Query("SELECT * FROM meals WHERE serverId = :serverId LIMIT 1")

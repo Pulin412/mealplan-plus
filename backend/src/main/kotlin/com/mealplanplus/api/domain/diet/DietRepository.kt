@@ -18,9 +18,12 @@ interface DietMealRepository : JpaRepository<DietMeal, Long> {
 
 interface TagRepository : JpaRepository<Tag, Long> {
     fun findByName(name: String): Tag?
+    fun findByFirebaseUid(firebaseUid: String): List<Tag>
+    fun findByFirebaseUidAndName(firebaseUid: String, name: String): Tag?
 }
 
 interface DietTagCrossRefRepository : JpaRepository<DietTagCrossRef, Long> {
     fun findByDietId(dietId: Long): List<DietTagCrossRef>
     fun deleteByDietId(dietId: Long)
+    fun deleteByTagId(tagId: Long)
 }

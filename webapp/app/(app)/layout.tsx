@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FileText, CalendarDays, Settings, Plus, Activity, Salad, ShoppingCart, Dumbbell, Apple, ChevronRight } from "lucide-react";
+import { Home, FileText, CalendarDays, Settings, Plus, Activity, Salad, ShoppingCart, Dumbbell, Apple, ChevronRight, UtensilsCrossed } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/firebase/auth";
@@ -10,8 +10,9 @@ import { useAuth } from "@/context/AuthContext";
 
 // More sheet items (Android MiscSheet)
 const moreItems = [
-  { href: "/diets",     label: "Diets",     subtitle: "Browse & manage diet plans",   icon: Salad,       color: "#2E7D52", bg: "#E8F5EE" },
-  { href: "/health",    label: "Health",    subtitle: "Metrics, weight & activity",   icon: Activity,    color: "#D32F2F", bg: "#FFF0F0" },
+  { href: "/diets",     label: "Diets",     subtitle: "Browse & manage diet plans",   icon: Salad,           color: "#2E7D52", bg: "#E8F5EE" },
+  { href: "/meals",     label: "Meals",     subtitle: "Create & manage meals",        icon: UtensilsCrossed, color: "#D97706", bg: "#FFF8E6" },
+  { href: "/health",    label: "Health",    subtitle: "Metrics, weight & activity",   icon: Activity,        color: "#D32F2F", bg: "#FFF0F0" },
   { href: "/grocery",   label: "Grocery",   subtitle: "Your shopping lists",          icon: ShoppingCart,color: "#6A1B9A", bg: "#F3EEFF" },
   { href: "/foods",     label: "Foods",     subtitle: "Browse & add food items",      icon: Apple,       color: "#E65100", bg: "#FFF3E0" },
   { href: "/exercises", label: "Exercises", subtitle: "Exercise catalogue",           icon: Dumbbell,    color: "#1565C0", bg: "#E3F2FD" },
@@ -126,9 +127,10 @@ const sideNav = [
   { href: "/health",    label: "Health",    icon: Activity,     color: "#D32F2F", bg: "#FFF0F0" },
   { href: "/diets",     label: "Diets",     icon: Salad,        color: "#2E7D52", bg: "#E8F5EE" },
   { href: "/foods",     label: "Foods",     icon: Apple,        color: "#E65100", bg: "#FFF3E0" },
-  { href: "/exercises", label: "Exercises", icon: Dumbbell,     color: "#1565C0", bg: "#E3F2FD" },
-  { href: "/workouts",  label: "Workouts",  icon: Dumbbell,     color: "#7B1FA2", bg: "#F3E5F5" },
-  { href: "/grocery",   label: "Grocery",   icon: ShoppingCart, color: "#6A1B9A", bg: "#F3EEFF" },
+  { href: "/meals",     label: "Meals",     icon: UtensilsCrossed, color: "#D97706", bg: "#FFF8E6" },
+  { href: "/exercises", label: "Exercises", icon: Dumbbell,        color: "#1565C0", bg: "#E3F2FD" },
+  { href: "/workouts",  label: "Workouts",  icon: Dumbbell,        color: "#7B1FA2", bg: "#F3E5F5" },
+  { href: "/grocery",   label: "Grocery",   icon: ShoppingCart,    color: "#6A1B9A", bg: "#F3EEFF" },
   { href: "/settings",  label: "Settings",  icon: Settings,     color: "#555555", bg: "#F0F0F0" },
 ];
 

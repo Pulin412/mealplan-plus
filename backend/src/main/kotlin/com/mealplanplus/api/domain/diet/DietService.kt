@@ -13,10 +13,11 @@ class DietService(
     private val crossRefRepo: DietTagCrossRefRepository,
     private val tombstones: TombstoneService
 ) {
-    private fun Diet.toFullDto() = toDto(
-        dietMealRepo.findByDietId(id),
-        crossRefRepo.findByDietId(id).map { it.tagId }
-    )
+    private fun Diet.toFullDto(): DietDto {
+        val tagIds = crossRefRepo.findByDietId(id).map { it.tagId }
+        val tags = if (tagIds.isEmpty()) emptyList() else tagRepo.findAllById(tagIds).toList()
+        return toDto(dietMealRepo.findByDietId(id), tags)
+    }
 
     fun list(firebaseUid: String): List<DietDto> =
         dietRepo.findByFirebaseUid(firebaseUid).map { it.toFullDto() }
@@ -90,6 +91,24 @@ class DietService(
         }
         tagIds.forEach { tagId -> crossRefRepo.save(DietTagCrossRef(dietId = saved.id, tagId = tagId)) }
         return saved.toFullDto()
+    }
+
+    fun listTags(firebaseUid: String): List<TagDto> =
+        tagRepo.findByFirebaseUid(firebaseUid).map { it.toDto() }
+
+    @Transactional
+    fun createTag(name: String, color: String?, firebaseUid: String): TagDto {
+        val existing = tagRepo.findByFirebaseUidAndName(firebaseUid, name)
+        if (existing != null) return existing.toDto()
+        return tagRepo.save(Tag(firebaseUid = firebaseUid, name = name, color = color)).toDto()
+    }
+
+    @Transactional
+    fun deleteTag(id: Long, firebaseUid: String) {
+        val tag = tagRepo.findById(id).orElseThrow()
+        require(tag.firebaseUid == firebaseUid) { "Forbidden" }
+        crossRefRepo.deleteByTagId(id)
+        tagRepo.delete(tag)
     }
 
     fun since(firebaseUid: String, since: Instant): List<DietDto> =
