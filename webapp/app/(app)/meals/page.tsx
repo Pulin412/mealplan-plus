@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Plus, X, Search, ChevronDown, ChevronUp, Trash2, UtensilsCrossed } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -12,16 +11,6 @@ import type { components } from "@/lib/api/types.generated";
 type MealDto         = components["schemas"]["MealDto"];
 type MealFoodItemDto = components["schemas"]["MealFoodItemDto"];
 type FoodDto         = components["schemas"]["FoodDto"];
-
-const SLOTS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
-type Slot = typeof SLOTS[number];
-
-const SLOT_COLORS: Record<string, { bg: string; text: string }> = {
-  Breakfast: { bg: "#FFF8E6", text: "#D97706" },
-  Lunch:     { bg: "#E8F5EE", text: "#2E7D52" },
-  Dinner:    { bg: "#F3EEFF", text: "#7C3AED" },
-  Snack:     { bg: "#FFF0F0", text: "#DC2626" },
-};
 
 // ── Inline food picker ────────────────────────────────────────────────────────
 function FoodPicker({ foods, onAdd, onClose }: {
@@ -102,12 +91,11 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
   onUpdate: (m: MealDto) => void;
   onDelete: () => void;
 }) {
-  const [expanded,    setExpanded]    = useState(false);
-  const [addingFood,  setAddingFood]  = useState(false);
-  const [saving,      setSaving]      = useState(false);
+  const [expanded,   setExpanded]   = useState(false);
+  const [addingFood, setAddingFood] = useState(false);
+  const [saving,     setSaving]     = useState(false);
 
   const items = meal.items ?? [];
-  const c = SLOT_COLORS[meal.slot] ?? { bg: "#F0F0F0", text: "#555" };
 
   const removeFood = async (idx: number) => {
     setSaving(true);
@@ -137,13 +125,7 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
       >
         <div className="flex-1 min-w-0">
           <p className="text-[15px] font-semibold text-text-primary truncate">{meal.name}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-              style={{ background: c.bg, color: c.text }}>
-              {meal.slot}
-            </span>
-            <span className="text-xs text-text-muted">{items.length} food{items.length !== 1 ? "s" : ""}</span>
-          </div>
+          <p className="text-xs text-text-muted mt-0.5">{items.length} food{items.length !== 1 ? "s" : ""}</p>
         </div>
         {expanded
           ? <ChevronUp className="h-4 w-4 text-text-muted shrink-0" />
@@ -204,7 +186,6 @@ function CreateMealSheet({ onCreated, onClose }: {
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
-  const [slot, setSlot] = useState<Slot>("Breakfast");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -212,9 +193,7 @@ function CreateMealSheet({ onCreated, onClose }: {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      const m = await api.post<MealDto>("/api/v1/meals", {
-        name: name.trim(), slot, items: [],
-      });
+      const m = await api.post<MealDto>("/api/v1/meals", { name: name.trim(), items: [] });
       onCreated(m);
       onClose();
     } finally { setBusy(false); }
@@ -238,15 +217,6 @@ function CreateMealSheet({ onCreated, onClose }: {
                 className="w-full h-11 px-3 rounded-xl border border-divider bg-bg-page text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-green/30"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-text-secondary">Slot</label>
-              <select
-                value={slot} onChange={(e) => setSlot(e.target.value as Slot)}
-                className="w-full h-11 px-3 rounded-xl border border-divider bg-bg-page text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-green/30"
-              >
-                {SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
             <button
               type="submit" disabled={busy || !name.trim()}
               className="w-full h-12 rounded-xl bg-green text-white font-semibold text-[15px] disabled:opacity-50 hover:bg-green/90 transition-colors mt-2"
@@ -263,12 +233,11 @@ function CreateMealSheet({ onCreated, onClose }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function MealsPage() {
   const { user } = useAuth();
-  const [meals,   setMeals]   = useState<MealDto[]>([]);
-  const [foods,   setFoods]   = useState<FoodDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
-  const [query,   setQuery]   = useState("");
-  const [slotFilter, setSlotFilter] = useState<string>("All");
+  const [meals,      setMeals]      = useState<MealDto[]>([]);
+  const [foods,      setFoods]      = useState<FoodDto[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
+  const [query,      setQuery]      = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -287,14 +256,10 @@ export default function MealsPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const filtered = useMemo(() => {
-    let list = meals;
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter((m) => m.name.toLowerCase().includes(q));
-    }
-    if (slotFilter !== "All") list = list.filter((m) => m.slot === slotFilter);
-    return list;
-  }, [meals, query, slotFilter]);
+    if (!query.trim()) return meals;
+    const q = query.toLowerCase();
+    return meals.filter((m) => m.name.toLowerCase().includes(q));
+  }, [meals, query]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this meal?")) return;
@@ -331,33 +296,14 @@ export default function MealsPage() {
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
 
-      {/* Search */}
       <SearchBar value={query} onChange={setQuery} placeholder="Search meals…" />
 
-      {/* Slot filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {["All", ...SLOTS].map((s) => (
-          <button
-            key={s}
-            onClick={() => setSlotFilter(s)}
-            className={`shrink-0 px-3 h-8 rounded-full text-sm font-medium transition-colors ${
-              slotFilter === s
-                ? "bg-green text-white"
-                : "bg-bg-card border border-divider text-text-secondary"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
       {filtered.length === 0 ? (
         <EmptyState
           icon={UtensilsCrossed}
-          title={query || slotFilter !== "All" ? "No meals found" : "No meals yet"}
-          subtitle={query ? `No results for "${query}"` : slotFilter !== "All" ? `No ${slotFilter} meals` : "Create your first meal"}
-          action={!query && slotFilter === "All" ? { label: "Create meal", onClick: () => setShowCreate(true) } : undefined}
+          title={query ? "No meals found" : "No meals yet"}
+          subtitle={query ? `No results for "${query}"` : "Create your first meal"}
+          action={!query ? { label: "Create meal", onClick: () => setShowCreate(true) } : undefined}
         />
       ) : (
         <div className="space-y-3">

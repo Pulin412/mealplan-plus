@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   ChevronDown, ChevronUp, Trash2, Plus, Copy, Star, Salad, X, Tag as TagIcon,

@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.meal
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -27,7 +28,7 @@ class MealService(
 
     @Transactional
     fun create(dto: MealDto, firebaseUid: String): MealDto {
-        val meal = Meal(firebaseUid = firebaseUid, name = dto.name, slot = dto.slot)
+        val meal = Meal(firebaseUid = firebaseUid, name = dto.name)
             .also { if (dto.serverId != null) it.serverId = dto.serverId }
         val saved = mealRepo.save(meal)
         val items = dto.items.map { item ->
@@ -42,7 +43,7 @@ class MealService(
         val meal = mealRepo.findById(id).orElseThrow()
         if (meal.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByMealId(id)
-        val updated = Meal(id = meal.id, firebaseUid = meal.firebaseUid, name = dto.name, slot = dto.slot)
+        val updated = Meal(id = meal.id, firebaseUid = meal.firebaseUid, name = dto.name)
             .also { it.serverId = meal.serverId }
         val saved = mealRepo.save(updated)
         val items = dto.items.map { item ->
@@ -69,9 +70,9 @@ class MealService(
     fun upsert(dto: MealDto, firebaseUid: String): MealDto {
         val existing = dto.serverId?.let { mealRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(itemRepo.findByMealId(existing.id))
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(itemRepo.findByMealId(existing.id))
         itemRepo.deleteByMealId(existing.id)
-        val updated = Meal(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name, slot = dto.slot)
+        val updated = Meal(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name)
             .also { it.serverId = existing.serverId }
         val saved = mealRepo.save(updated)
         val items = dto.items.map { item ->

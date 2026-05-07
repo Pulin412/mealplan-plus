@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.workout
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -126,7 +127,7 @@ class WorkoutService(
     fun upsertExercise(dto: ExerciseDto, firebaseUid: String): ExerciseDto {
         val existing = dto.serverId?.let { exerciseRepo.findByServerId(it) }
         if (existing == null) return createExercise(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto()
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto()
         val updated = Exercise(
             id = existing.id, firebaseUid = existing.firebaseUid,
             name = dto.name, category = dto.category, muscleGroup = dto.muscleGroup,
@@ -181,7 +182,7 @@ class WorkoutService(
     fun upsertSession(dto: WorkoutSessionDto, firebaseUid: String): WorkoutSessionDto {
         val existing = dto.serverId?.let { sessionRepo.findByServerId(it) }
         if (existing == null) return createSession(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(setRepo.findBySessionId(existing.id))
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(setRepo.findBySessionId(existing.id))
         setRepo.deleteBySessionId(existing.id)
         val updated = WorkoutSession(
             id = existing.id, firebaseUid = existing.firebaseUid,

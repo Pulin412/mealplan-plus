@@ -3,6 +3,7 @@ package com.mealplanplus.work
 import android.content.Context
 import android.util.Log
 import androidx.work.*
+import com.mealplanplus.data.repository.SyncPartialFailureException
 import com.mealplanplus.data.repository.SyncRepository
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.SyncPreferences
@@ -35,8 +36,15 @@ class SyncWorker(
         val since = SyncPreferences.getLastSyncTimestamp(applicationContext).firstOrNull() ?: 0L
 
         syncRepo.push(userId).onFailure { e ->
-            Log.w(TAG, "Push failed (non-fatal): ${e.message}")
-            // Don't retry — pull still runs; unsynced items picked up next cycle
+            when (e) {
+                is SyncPartialFailureException -> {
+                    // Step 1 succeeded (foods/meals/etc.) but daily logs failed.
+                    // Pull still runs below; daily logs will be retried next cycle.
+                    Log.w(TAG, "Push partial failure — daily logs not pushed: ${e.cause?.message}")
+                }
+                else -> Log.w(TAG, "Push failed (non-fatal): ${e.message}")
+            }
+            // Don't return failure — pull still runs; unsynced items retried next cycle
         }
 
         val serverTime = syncRepo.pull(userId, since).getOrElse { e ->

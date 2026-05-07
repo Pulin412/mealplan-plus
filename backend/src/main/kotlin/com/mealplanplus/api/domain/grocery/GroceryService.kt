@@ -5,6 +5,7 @@ import com.mealplanplus.api.domain.diet.DietRepository
 import com.mealplanplus.api.domain.food.FoodRepository
 import com.mealplanplus.api.domain.meal.MealFoodItemRepository
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -79,7 +80,7 @@ class GroceryService(
     fun upsert(dto: GroceryListDto, firebaseUid: String): GroceryListDto {
         val existing = dto.serverId?.let { listRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(itemRepo.findByGroceryListId(existing.id))
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(itemRepo.findByGroceryListId(existing.id))
         itemRepo.deleteByGroceryListId(existing.id)
         val updated = GroceryList(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name, dietId = dto.dietId)
             .also { it.serverId = existing.serverId }

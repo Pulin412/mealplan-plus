@@ -50,7 +50,7 @@ data class MealFoodItemDto(
 )
 data class MealDto(
     val id: Long = 0, val serverId: String? = null, val firebaseUid: String = "",
-    val name: String = "", val slot: String = "Lunch",
+    val name: String = "",
     val items: List<MealFoodItemDto> = emptyList(), val updatedAt: Long? = null
 )
 

@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.log
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -74,7 +75,7 @@ class DailyLogService(
     fun upsert(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
         val existing = dto.serverId?.let { logRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto(foodRepo.findByDailyLogId(existing.id))
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(foodRepo.findByDailyLogId(existing.id))
         foodRepo.deleteByDailyLogId(existing.id)
         val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
             date = dto.date ?: existing.date, notes = dto.notes)

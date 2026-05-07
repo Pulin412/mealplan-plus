@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.health
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -51,7 +52,7 @@ class HealthMetricService(
     fun upsert(dto: HealthMetricDto, firebaseUid: String): HealthMetricDto {
         val existing = dto.serverId?.let { metricRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toDto()
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto()
         val updated = HealthMetric(
             id = existing.id, firebaseUid = existing.firebaseUid, type = dto.type, subType = dto.subType,
             value = dto.value, secondaryValue = dto.secondaryValue, unit = dto.unit,

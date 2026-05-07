@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.diet
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -120,7 +121,7 @@ class DietService(
     fun upsert(dto: DietDto, firebaseUid: String): DietDto {
         val existing = dto.serverId?.let { dietRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) return existing.toFullDto()
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toFullDto()
         dietMealRepo.deleteByDietId(existing.id)
         crossRefRepo.deleteByDietId(existing.id)
         val updated = Diet(

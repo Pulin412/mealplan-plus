@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, LogOut, ChevronRight, Save, Download, Upload, CloudUpload, Trash2, RotateCcw, FolderOpen } from "lucide-react";

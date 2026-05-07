@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
 import { Plus, Search, Trash2, X, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";

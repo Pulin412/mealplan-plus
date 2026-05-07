@@ -10,6 +10,11 @@ interface DailyLogRepository : JpaRepository<DailyLog, Long> {
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<DailyLog>
     fun findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid: String, date: java.time.LocalDate): DailyLog?
     fun findTop5ByFirebaseUidOrderByDateDesc(firebaseUid: String): List<DailyLog>
+    fun findByFirebaseUidAndDateBetweenOrderByDateAsc(
+        firebaseUid: String,
+        start: java.time.LocalDate,
+        end: java.time.LocalDate
+    ): List<DailyLog>
 }
 
 interface LoggedFoodRepository : JpaRepository<LoggedFood, Long> {

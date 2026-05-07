@@ -96,7 +96,7 @@ class SyncRepository @Inject constructor(
         }
         val meals = rawMeals.map { m ->
             MealDto(serverId = m.serverId, firebaseUid = firebaseUid, name = m.name,
-                slot = "", updatedAt = m.updatedAt)
+                updatedAt = m.updatedAt)
         }
         val diets = rawDiets.map { d ->
             DietDto(serverId = d.serverId, firebaseUid = firebaseUid, name = d.name,
@@ -201,17 +201,29 @@ class SyncRepository @Inject constructor(
         }
 
         var totalAccepted = resp.accepted
+        var step2Error: Throwable? = null
+
         if (dailyLogDtos.isNotEmpty()) {
             runCatching {
                 val resp2 = api.push(SyncPushRequest(dailyLogs = dailyLogDtos))
                 Log.d(TAG, "Push step2 (daily logs) accepted=${resp2.accepted}")
                 totalAccepted += resp2.accepted
             }.onFailure { e ->
-                Log.w(TAG, "Daily log push failed (non-fatal, will retry next sync): ${e.message}")
+                Log.w(TAG, "Daily log push failed (will retry next sync): ${e.message}")
+                step2Error = e
             }
         }
 
-        crashlytics.log("sync_push", "accepted=$totalAccepted")
+        crashlytics.log("sync_push", "accepted=$totalAccepted step2Error=${step2Error?.message}")
+
+        // Surface partial failure: caller (SyncWorker) can distinguish
+        // step-2-only failures from full push failures and set a PARTIAL retry.
+        if (step2Error != null && totalAccepted == 0) {
+            throw SyncPartialFailureException(
+                "Daily log push failed after step 1 succeeded",
+                step2Error!!
+            )
+        }
         totalAccepted
     }.onFailure { e ->
         crashlytics.recordNonFatal(e, context = "sync_push", extras = mapOf("userId" to userId.toString()))

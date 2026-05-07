@@ -20,11 +20,10 @@ data class MealDto(
     val firebaseUid: String = "",
     @field:NotBlank(message = "Meal name must not be blank")
     val name: String = "",
-    val slot: String = "Lunch",
     val items: List<MealFoodItemDto> = emptyList(),
     val updatedAt: Instant? = null
 )
 
 fun MealFoodItem.toDto() = MealFoodItemDto(id, mealId, foodId, quantity, unit, notes)
 fun Meal.toDto(items: List<MealFoodItem>) =
-    MealDto(id, serverId, firebaseUid, name, slot, items.map { it.toDto() }, updatedAt)
+    MealDto(id, serverId, firebaseUid, name, items.map { it.toDto() }, updatedAt)

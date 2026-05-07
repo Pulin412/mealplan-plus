@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -10,6 +9,7 @@ import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
+import { todayStr, calcCalories } from "@/lib/utils";
 
 type HealthMetricDto = components["schemas"]["HealthMetricDto"];
 type DailyLogDto    = components["schemas"]["DailyLogDto"];
@@ -40,8 +40,6 @@ function formatShort(iso: string | undefined) {
 
 function avg(vals: number[]) { return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0; }
 
-function todayStr() { return new Date().toISOString().split("T")[0]; }
-
 function computeStreak(logs: DailyLogDto[]): number {
   const loggedDates = new Set(logs.filter((l) => (l.loggedFoods ?? []).length > 0).map((l) => l.date));
   const today = todayStr();
@@ -57,11 +55,10 @@ function computeStreak(logs: DailyLogDto[]): number {
 }
 
 function calcDayCals(log: DailyLogDto, foods: FoodDto[]): number {
-  return (log.loggedFoods ?? []).reduce((sum, lf) => {
+  return (log.loggedFoods ?? []).reduce<number>((sum, lf) => {
     const food = foods.find((f) => f.id === lf.foodId);
     if (!food) return sum;
-    const g = lf.unit === "GRAM" ? lf.quantity : lf.quantity * 100;
-    return sum + (food.caloriesPer100 * g) / 100;
+    return sum + calcCalories(food, lf);
   }, 0);
 }
 

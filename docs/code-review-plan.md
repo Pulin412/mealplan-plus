@@ -473,20 +473,20 @@ The Android `MealDto`, `FoodDto`, etc. in `data/remote/` are hand-coded Kotlin d
 | P1 ✅    | CR-08  | Backend     | Add `PushResponse.dailyLogs` / `exercises` / `workoutSessions`        | S      |
 | P1 ✅    | CR-09  | Backend     | Add `@Valid` + Jakarta Validation constraints on all DTOs             | M      |
 | P1 ✅    | CR-10  | Backend     | Change `log.info` to `log.debug` in `FirebaseTokenFilter`             | XS     |
-| P2       | CR-11  | DB          | Drop `meals.slot` column + entity field (design normalization)        | M      |
-| P2       | CR-12  | Backend     | Extract shared `upsert` scaffold / abstract service base              | L      |
-| P2       | CR-13  | Backend     | Add `@Cacheable` on system foods                                      | S      |
-| P2       | CR-14  | Backend     | Add pagination to `/api/v1/foods`                                     | M      |
-| P2       | CR-15  | Backend     | Add `currentStreak` + `weeklyCalories` to `DashboardDto`             | M      |
-| P2       | CR-16  | Webapp      | Move `todayStr()`, `calcNutrient()`, `MEAL_SLOTS` to `lib/utils.ts`  | S      |
-| P2       | CR-17  | Webapp      | Move USDA/OFF search to `lib/api/external-food.ts` + env var key      | M      |
-| P2       | CR-18  | Webapp      | Add `DashboardDto` to OpenAPI spec, regenerate types                  | S      |
-| P2       | CR-19  | Webapp      | Remove per-page `dynamic = "force-dynamic"`, set globally             | XS     |
-| P3       | CR-20  | Android     | Replace in-memory `find { f.serverId == it }` with DAO queries        | M      |
-| P3       | CR-21  | Android     | Fix two-step push — surface partial failure to `SyncWorker`           | M      |
-| P3       | CR-22  | Webapp      | Add `useFoods()` / `useLogs()` custom hooks (consider SWR)            | L      |
-| P3       | CR-23  | Backend/DB  | Add FK from `firebase_uid` columns to `users.firebase_uid`           | M      |
-| P3       | CR-24  | Android     | Investigate OpenAPI Generator Kotlin client for drift prevention      | L      |
+| P2 ✅    | CR-11  | DB          | Drop `meals.slot` column + entity field (V12 migration + all clients) | M      |
+| P2 ✅    | CR-12  | Backend     | Extract `shouldSkipUpdate()` upsert guard into `SyncUtils.kt`         | S      |
+| P2 ✅    | CR-13  | Backend     | Add `@Cacheable("system-foods")` with Caffeine 60-min TTL             | S      |
+| P2 ✅    | CR-14  | Backend     | Add `GET /api/v1/foods/search?q=&page=&size=` paginated endpoint      | M      |
+| P2 ✅    | CR-15  | Backend     | Add `currentStreak` + `weeklyCalories` + `todayMacros` to Dashboard  | M      |
+| P2 ✅    | CR-16  | Webapp      | Move `todayStr()`, `calcNutrient()`, `MEAL_SLOTS` to `lib/utils.ts`  | S      |
+| P2 ✅    | CR-17  | Webapp      | Move USDA/OFF search to `lib/api/external-food.ts` + env var key      | M      |
+| P2 ✅    | CR-18  | Webapp      | Add `@Schema` on `DashboardDto` for springdoc OpenAPI pickup          | S      |
+| P2 ✅    | CR-19  | Webapp      | Remove per-page `force-dynamic` from all 13 pages                    | XS     |
+| P3 ✅    | CR-20  | Android     | Already done in P0 — `getFoodByServerId` DAO query                   | –      |
+| P3 ✅    | CR-21  | Android     | Surface partial push failure via `SyncPartialFailureException`        | M      |
+| P3 ✅    | CR-22  | Webapp      | Added `useFoods()`, `useLogs()`, `useMeals()`, `useDiets()` hooks     | M      |
+| P3 –     | CR-23  | Backend/DB  | Deferred — adding user FK risks orphaning system foods                | –      |
+| P3 –     | CR-24  | Android     | Investigation only — no code change needed                            | –      |
 
 **Effort key:** XS < 1h | S = 1–2h | M = half-day | L = 1–2 days
 

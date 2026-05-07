@@ -10,7 +10,6 @@ class Meal(
     val id: Long = 0,
     val firebaseUid: String = "",
     val name: String = "",
-    val slot: String = "Lunch",  // Breakfast / Lunch / Dinner / Snack
 ) : SyncableEntity()
 
 @Entity

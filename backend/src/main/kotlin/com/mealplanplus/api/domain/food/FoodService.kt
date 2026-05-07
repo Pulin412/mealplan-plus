@@ -1,6 +1,11 @@
 package com.mealplanplus.api.domain.food
 
 import com.mealplanplus.api.domain.sync.TombstoneService
+import com.mealplanplus.api.domain.sync.shouldSkipUpdate
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -14,6 +19,10 @@ class FoodService(
     private val prefRepo: FoodUserPrefRepository,
     private val tombstones: TombstoneService
 ) {
+
+    /** Cached list of all system foods — re-seeded at most once per hour. */
+    @Cacheable("system-foods")
+    fun getSystemFoods(): List<Food> = repo.findByIsSystemFoodTrue()
 
     /** Build a set of food IDs the user has favorited in food_user_prefs (system foods). */
     private fun systemFavIds(firebaseUid: String): Set<Long> =
@@ -29,9 +38,10 @@ class FoodService(
         toDto().copy(isFavorite = if (isSystemFood) id in favIds else isFavorite)
 
     fun list(firebaseUid: String): List<FoodDto> {
-        val foods = repo.findByFirebaseUidOrIsSystemFoodTrue(firebaseUid)
+        val systemFoods = getSystemFoods()
+        val userFoods   = repo.findByFirebaseUid(firebaseUid)
         val favIds = systemFavIds(firebaseUid)
-        return foods.map { it.toDtoWithPrefs(favIds) }
+        return (systemFoods + userFoods).map { it.toDtoWithPrefs(favIds) }
     }
 
     fun get(id: Long, firebaseUid: String): FoodDto {
@@ -87,18 +97,25 @@ class FoodService(
         }
     }
 
-    fun since(firebaseUid: String, since: Instant): List<FoodDto> {
-        val foods = repo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since) +
-                    repo.findByIsSystemFoodTrueAndUpdatedAtAfter(since)
+    fun search(query: String, firebaseUid: String, pageable: Pageable): Page<FoodDto> {
         val favIds = systemFavIds(firebaseUid)
-        return foods.map { it.toDtoWithPrefs(favIds) }
+        return repo.searchByNameOrBrand(firebaseUid, query.trim(), pageable)
+            .map { it.toDtoWithPrefs(favIds) }
+    }
+
+    fun since(firebaseUid: String, since: Instant): List<FoodDto> {
+        val updatedSystemFoods = repo.findByIsSystemFoodTrueAndUpdatedAtAfter(since)
+        val userFoods = repo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since)
+        val favIds = systemFavIds(firebaseUid)
+        return (updatedSystemFoods + userFoods).map { it.toDtoWithPrefs(favIds) }
     }
 
     @Transactional
+    @CacheEvict(value = ["system-foods"], condition = "#dto.isSystemFood")
     fun upsert(dto: FoodDto, firebaseUid: String): FoodDto {
         val existing = dto.serverId?.let { repo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
-        if ((dto.updatedAt ?: Instant.EPOCH) <= existing.updatedAt) {
+        if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) {
             val favIds = if (existing.isSystemFood) systemFavIds(firebaseUid) else emptySet()
             return existing.toDtoWithPrefs(favIds)
         }
