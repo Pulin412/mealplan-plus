@@ -158,9 +158,13 @@ class SyncRepository @Inject constructor(
 
         var totalAccepted = resp.accepted
         if (dailyLogDtos.isNotEmpty()) {
-            val resp2 = api.push(SyncPushRequest(dailyLogs = dailyLogDtos))
-            Log.d(TAG, "Push step2 (daily logs) accepted=${resp2.accepted}")
-            totalAccepted += resp2.accepted
+            runCatching {
+                val resp2 = api.push(SyncPushRequest(dailyLogs = dailyLogDtos))
+                Log.d(TAG, "Push step2 (daily logs) accepted=${resp2.accepted}")
+                totalAccepted += resp2.accepted
+            }.onFailure { e ->
+                Log.w(TAG, "Daily log push failed (non-fatal, will retry next sync): ${e.message}")
+            }
         }
 
         crashlytics.log("sync_push", "accepted=$totalAccepted")
