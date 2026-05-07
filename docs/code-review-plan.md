@@ -467,12 +467,12 @@ The Android `MealDto`, `FoodDto`, etc. in `data/remote/` are hand-coded Kotlin d
 | P0 ✅    | CR-02  | Android     | Fix tombstone handling — add `food` case; `daily_log` needs Room migration (TODO) | S |
 | P0 ✅    | CR-03  | Android     | Fix positional index serverId matching → use `serverId` map           | S      |
 | P0 ✅    | CR-04  | Backend/DB  | Add FK constraints + indexes (V10 migration)                          | S      |
-| P1       | CR-05  | Android     | Add workout sync to `SyncRepository`                                  | M      |
-| P1       | CR-06  | Backend     | Fix `require(...)` → `ResponseStatusException(FORBIDDEN)` everywhere  | S      |
-| P1       | CR-07  | Backend/DB  | Fix N+1 in `DashboardService` + all `list()` methods (batch fetch)    | M      |
-| P1       | CR-08  | Backend     | Add `PushResponse.dailyLogs` / `exercises` / `workoutSessions`        | S      |
-| P1       | CR-09  | Backend     | Add `@Valid` + Jakarta Validation constraints on all DTOs             | M      |
-| P1       | CR-10  | Backend     | Change `log.info` to `log.debug` in `FirebaseTokenFilter`             | XS     |
+| P1 ✅    | CR-05  | Android     | Add workout sync to `SyncRepository`                                  | M      |
+| P1 ✅    | CR-06  | Backend     | Fix `require(...)` → `ResponseStatusException(FORBIDDEN)` everywhere  | S      |
+| P1 ✅    | CR-07  | Backend/DB  | Fix N+1 in `DashboardService` + all `list()` methods (batch fetch)    | M      |
+| P1 ✅    | CR-08  | Backend     | Add `PushResponse.dailyLogs` / `exercises` / `workoutSessions`        | S      |
+| P1 ✅    | CR-09  | Backend     | Add `@Valid` + Jakarta Validation constraints on all DTOs             | M      |
+| P1 ✅    | CR-10  | Backend     | Change `log.info` to `log.debug` in `FirebaseTokenFilter`             | XS     |
 | P2       | CR-11  | DB          | Drop `meals.slot` column + entity field (design normalization)        | M      |
 | P2       | CR-12  | Backend     | Extract shared `upsert` scaffold / abstract service base              | L      |
 | P2       | CR-13  | Backend     | Add `@Cacheable` on system foods                                      | S      |
