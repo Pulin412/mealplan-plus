@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.workout
 
+import com.fasterxml.jackson.annotation.JsonFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -21,7 +22,7 @@ data class WorkoutSessionDto(
     val serverId: UUID? = null,
     val firebaseUid: String = "",
     val name: String = "",
-    val date: LocalDate? = null,
+    @JsonFormat(pattern = "yyyy-MM-dd") val date: LocalDate? = null,
     val durationMinutes: Int? = null,
     val notes: String? = null,
     val isCompleted: Boolean = false,

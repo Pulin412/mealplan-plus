@@ -97,7 +97,8 @@ object NetworkModule {
                 chain.proceed(req)
             }
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
             .build()
 
         return Retrofit.Builder()
