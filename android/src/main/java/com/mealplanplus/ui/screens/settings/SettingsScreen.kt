@@ -404,10 +404,10 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    if (uiState.syncError != null) {
+                    uiState.syncError?.let { error ->
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            uiState.syncError,
+                            error,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
