@@ -80,6 +80,25 @@ export function getMealSlot(key: string) {
   return MEAL_SLOTS.find((s) => s.key === key);
 }
 
+export const PREDEFINED_SLOTS = [
+  "Early Morning", "Breakfast", "Noon", "Lunch",
+  "Afternoon", "Pre-Workout", "Evening", "Post-Workout",
+  "Dinner", "Post-Dinner",
+] as const;
+
+export const PREDEFINED_SLOT_COLORS: Record<string, { bg: string; text: string }> = {
+  "Early Morning":  { bg: "#E8E0FF", text: "#5B21B6" },
+  "Breakfast":      { bg: "#FFF8E6", text: "#D97706" },
+  "Noon":           { bg: "#FFF3E0", text: "#F97316" },
+  "Lunch":          { bg: "#E8F5EE", text: "#2E7D52" },
+  "Afternoon":      { bg: "#E0F2FE", text: "#0284C7" },
+  "Pre-Workout":    { bg: "#FEE2E2", text: "#B91C1C" },
+  "Evening":        { bg: "#EDE9FE", text: "#6D28D9" },
+  "Post-Workout":   { bg: "#DCFCE7", text: "#16A34A" },
+  "Dinner":         { bg: "#F3EEFF", text: "#7C3AED" },
+  "Post-Dinner":    { bg: "#E0E7FF", text: "#3730A3" },
+};
+
 // ── Misc helpers ──────────────────────────────────────────────────────────────
 
 export function round1(v: number): number {

@@ -146,7 +146,8 @@ export default function FoodsPage() {
   const [foods, setFoods] = useState<FoodDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [query,   setQuery]   = useState("");
+  const [visible, setVisible] = useState(15);
   const [showForm, setShowForm] = useState(false);
   const [formTab, setFormTab] = useState<"lookup" | "manual">("lookup");
   const [form, setForm] = useState<FoodForm>(emptyForm);
@@ -171,6 +172,9 @@ export default function FoodsPage() {
     (f.brand?.toLowerCase().includes(query.toLowerCase()) ?? false) ||
     (f.barcode?.includes(query) ?? false)
   );
+
+  // Reset pagination when search changes
+  useEffect(() => { setVisible(15); }, [query]);
 
   const setField = (k: keyof FoodForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((p) => ({ ...p, [k]: e.target.value }));
@@ -360,8 +364,9 @@ export default function FoodsPage() {
           {!query && <p className="text-xs text-text-placeholder">Tap &quot;Add food&quot; to search or create one</p>}
         </div>
       ) : (
+        <>
         <div className="space-y-2">
-          {filtered.map((food) => {
+          {filtered.slice(0, visible).map((food) => {
             const isExpanded = expandedId === food.id;
             return (
               <div key={food.id} className="bg-bg-card rounded-xl border border-divider overflow-hidden">
@@ -425,6 +430,15 @@ export default function FoodsPage() {
             );
           })}
         </div>
+        {visible < filtered.length && (
+          <button
+            onClick={() => setVisible((v) => v + 15)}
+            className="w-full h-10 rounded-xl border border-divider text-sm text-text-muted hover:bg-bg-card transition-colors"
+          >
+            Load more ({filtered.length - visible} remaining)
+          </button>
+        )}
+        </>
       )}
     </div>
   );
