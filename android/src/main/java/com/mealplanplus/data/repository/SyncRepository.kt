@@ -21,6 +21,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.firstOrNull
@@ -79,11 +80,29 @@ class SyncRepository @Inject constructor(
         val now = System.currentTimeMillis()
 
         // ── Step 1: foods + meals + diets + metrics + groceries ───────────────
-        val rawFoods    = foodDao.getAllFoodsOnce().filter { !it.isSystemFood }
-        val rawMeals    = mealDao.getUnsyncedMeals()
-        val rawDiets    = dietDao.getUnsyncedDiets()
-        val rawMetrics  = healthMetricDao.getUnsyncedMetrics(userId)
-        val rawGroceries = groceryDao.getUnsyncedGroceryLists(userId)
+        // Assign stable UUIDs to any entity that never got one (null serverId
+        // causes the response-matching step below to silently skip, leaving
+        // syncedAt unset and creating a fresh duplicate on every push).
+        val rawFoods = foodDao.getAllFoodsOnce().filter { !it.isSystemFood }.map { food ->
+            if (food.serverId != null) food
+            else food.copy(serverId = UUID.randomUUID().toString()).also { foodDao.updateFood(it) }
+        }
+        val rawMeals = mealDao.getUnsyncedMeals().map { meal ->
+            if (meal.serverId != null) meal
+            else meal.copy(serverId = UUID.randomUUID().toString()).also { mealDao.updateMeal(it) }
+        }
+        val rawDiets = dietDao.getUnsyncedDiets().map { diet ->
+            if (diet.serverId != null) diet
+            else diet.copy(serverId = UUID.randomUUID().toString()).also { dietDao.updateDiet(it) }
+        }
+        val rawMetrics = healthMetricDao.getUnsyncedMetrics(userId).map { metric ->
+            if (metric.serverId != null) metric
+            else metric.copy(serverId = UUID.randomUUID().toString()).also { healthMetricDao.updateHealthMetric(it) }
+        }
+        val rawGroceries = groceryDao.getUnsyncedGroceryLists(userId).map { grocery ->
+            if (grocery.serverId != null) grocery
+            else grocery.copy(serverId = UUID.randomUUID().toString()).also { groceryDao.updateGroceryList(it) }
+        }
 
         val foods = rawFoods.map { f ->
             FoodDto(serverId = f.serverId, firebaseUid = firebaseUid, name = f.name,
@@ -114,7 +133,10 @@ class SyncRepository @Inject constructor(
         }
 
         // ── Workout sessions ──────────────────────────────────────────────────
-        val rawSessions = sessionDao.getUnsyncedSessions(firebaseUid)
+        val rawSessions = sessionDao.getUnsyncedSessions(firebaseUid).map { session ->
+            if (session.serverId != null) session
+            else session.copy(serverId = UUID.randomUUID().toString()).also { sessionDao.update(it) }
+        }
         val allSets = setDao.getAllSetsOnce()
         val setsBySessionId = allSets.groupBy { it.sessionId }
         val sessions = rawSessions.map { s ->
