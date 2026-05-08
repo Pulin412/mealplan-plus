@@ -1,12 +1,16 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DietPickerModal } from "./DietPickerModal";
 import type { components } from "@/lib/api/types.generated";
 
 type DietDto = components["schemas"]["DietDto"];
+type MealDto = components["schemas"]["MealDto"];
+type FoodDto = components["schemas"]["FoodDto"];
+type TagDto  = components["schemas"]["TagDto"];
 
 // Inline type — will be added to generated types after OpenAPI spec update
 interface DayPlanDto {
@@ -36,6 +40,10 @@ export default function PlanPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [diets, setDiets] = useState<DietDto[]>([]);
+  const [meals, setMeals] = useState<MealDto[]>([]);
+  const [foods, setFoods] = useState<FoodDto[]>([]);
+  const [tags,  setTags]  = useState<TagDto[]>([]);
+  const [favs,  setFavs]  = useState<Set<number>>(new Set());
   // Map of date string → dietId, derived from server plans
   const [plan, setPlan] = useState<Map<string, number>>(new Map());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -47,11 +55,17 @@ export default function PlanPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const [fetchedDiets, plans] = await Promise.all([
+      const [fetchedDiets, plans, fetchedMeals, fetchedFoods, fetchedTags] = await Promise.all([
         api.get<DietDto[]>("/api/v1/diets"),
         api.get<DayPlanDto[]>("/api/v1/plans"),
+        api.get<MealDto[]>("/api/v1/meals"),
+        api.get<FoodDto[]>("/api/v1/foods"),
+        api.get<TagDto[]>("/api/v1/tags"),
       ]);
       setDiets(fetchedDiets);
+      setMeals(fetchedMeals);
+      setFoods(fetchedFoods);
+      setTags(fetchedTags);
       const map = new Map<string, number>();
       plans.forEach((p) => map.set(p.date, p.dietId));
       setPlan(map);
@@ -61,6 +75,13 @@ export default function PlanPage() {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("diet_favorites");
+      if (raw) setFavs(new Set(JSON.parse(raw)));
+    } catch {}
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -99,8 +120,6 @@ export default function PlanPage() {
   const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1); setSelectedDate(null); };
 
   const upcoming = Array.from({ length: 7 }, (_, i) => addDaysToStr(today, i));
-
-  const selectedDietId = selectedDate ? plan.get(selectedDate) : undefined;
 
   return (
     <div className="space-y-4">
@@ -143,7 +162,7 @@ export default function PlanPage() {
                 return (
                   <button
                     key={idx}
-                    onClick={() => setSelectedDate(isSelected ? null : ds)}
+                    onClick={() => setSelectedDate(ds)}
                     className={[
                       "relative flex flex-col items-center py-1.5 rounded-lg transition-colors min-h-[44px]",
                       isSelected ? "bg-text-primary" : isToday ? "bg-green-light" : "hover:bg-bg-page",
@@ -176,63 +195,22 @@ export default function PlanPage() {
         </div>
       </div>
 
-      {/* ── Day assignment panel ── */}
+      {/* ── Diet picker modal ── */}
       {selectedDate && (
-        <div className="bg-bg-card rounded-xl border border-divider overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-divider">
-            <div>
-              <p className="text-[13px] font-semibold text-text-primary">
-                {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
-              </p>
-              {selectedDietId ? (
-                <p className="text-[11px] text-green mt-0.5">
-                  {diets.find((d) => d.id === selectedDietId)?.name ?? "Diet planned"}
-                </p>
-              ) : (
-                <p className="text-[11px] text-text-muted mt-0.5">No diet planned</p>
-              )}
-            </div>
-            <button onClick={() => setSelectedDate(null)} className="text-text-muted hover:text-text-primary">
-              <X size={16} />
-            </button>
-          </div>
-          <div className="px-4 py-3">
-            <p className="text-[10px] font-bold text-text-muted uppercase mb-2">Assign a diet</p>
-            <div className="flex flex-wrap gap-2">
-              {diets.length === 0 ? (
-                <p className="text-sm text-text-muted">No diets yet — create one in the Diets screen.</p>
-              ) : diets.map((diet) => {
-                const assigned = plan.get(selectedDate) === diet.id;
-                return (
-                  <button
-                    key={diet.id}
-                    disabled={saving}
-                    onClick={() => assignDiet(selectedDate, assigned ? null : diet.id!)}
-                    className={[
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors disabled:opacity-50",
-                      assigned
-                        ? "bg-text-primary text-bg-card border-text-primary"
-                        : "border-divider text-text-secondary hover:bg-bg-page",
-                    ].join(" ")}
-                  >
-                    {assigned && <Check size={12} />}
-                    {diet.name}
-                  </button>
-                );
-              })}
-              {plan.has(selectedDate) && (
-                <button
-                  disabled={saving}
-                  onClick={() => assignDiet(selectedDate, null)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium border border-red-200 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-            {saving && <p className="text-[11px] text-text-muted mt-2">Saving…</p>}
-          </div>
-        </div>
+        <DietPickerModal
+          date={selectedDate}
+          currentDietId={plan.get(selectedDate) ?? null}
+          diets={diets}
+          meals={meals}
+          foods={foods}
+          tags={tags}
+          favs={favs}
+          onClose={() => setSelectedDate(null)}
+          onAssign={(dietId) => {
+            setSelectedDate(null);
+            assignDiet(selectedDate, dietId);
+          }}
+        />
       )}
 
       {/* ── Upcoming 7 days ── */}
@@ -245,18 +223,14 @@ export default function PlanPage() {
               const dietId = plan.get(ds);
               const diet = dietId !== undefined ? diets.find((d) => d.id === dietId) : undefined;
               const isToday = ds === today;
-              const isSelected = ds === selectedDate;
               const dayOfWeek = new Date(ds + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
               const dayNum = new Date(ds + "T00:00:00").getDate();
 
               return (
                 <button
                   key={ds}
-                  onClick={() => setSelectedDate(isSelected ? null : ds)}
-                  className={[
-                    "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
-                    isSelected ? "bg-bg-page" : "hover:bg-bg-page",
-                  ].join(" ")}
+                  onClick={() => setSelectedDate(ds)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-bg-page"
                 >
                   {/* Date column */}
                   <div className="w-9 text-center shrink-0">
