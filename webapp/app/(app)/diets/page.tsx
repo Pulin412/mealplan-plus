@@ -476,8 +476,7 @@ function DietCard({ diet, meals, foods, allTags, isFav, onToggleFav, onDelete, o
 
   const dietMeals  = diet.meals ?? [];
   const dietTags   = diet.tags  ?? [];
-  const mealCount  = dietMeals.length;
-  const uniqueSlots = Array.from(new Set(dietMeals.map((dm) => dm.slot)));
+  const mealCount = dietMeals.length;
   const macros = calcDietMacros(diet, meals, foods);
 
   const enterReorder = () => {
@@ -573,18 +572,9 @@ function DietCard({ diet, meals, foods, allTags, isFav, onToggleFav, onDelete, o
             </div>
           )}
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {uniqueSlots.map((s) => {
-              const c = SLOT_COLORS[s] ?? { bg: "#F0F0F0", text: "#555" };
-              return (
-                <span key={s} className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                  style={{ background: c.bg, color: c.text }}>
-                  {s}
-                </span>
-              );
-            })}
             {mealCount > 0 && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bg-page text-text-muted border border-divider">
-                {mealCount} meal{mealCount !== 1 ? "s" : ""}
+                {mealCount} meal slot{mealCount !== 1 ? "s" : ""}
               </span>
             )}
           </div>
@@ -880,6 +870,12 @@ export default function DietsPage() {
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Pre-fill search from ?q= (e.g. when navigating from meals page)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setQuery(q);
+  }, []);
 
   const mealIngredients = useMemo(() => {
     const map = new Map<number, string[]>();

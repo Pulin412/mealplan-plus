@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { X, Search, ChevronDown, ChevronUp, Trash2, UtensilsCrossed } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, Search, ChevronDown, ChevronUp, Trash2, UtensilsCrossed, ExternalLink } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,8 +13,54 @@ import type { components } from "@/lib/api/types.generated";
 type MealDto         = components["schemas"]["MealDto"];
 type MealFoodItemDto = components["schemas"]["MealFoodItemDto"];
 type FoodDto         = components["schemas"]["FoodDto"];
+type DietDto         = components["schemas"]["DietDto"];
 
 const PAGE_SIZE = 12;
+
+const SLOT_COLORS: Record<string, { bg: string; text: string }> = {
+  Breakfast: { bg: "#FFF8E6", text: "#D97706" },
+  Lunch:     { bg: "#E8F5EE", text: "#2E7D52" },
+  Dinner:    { bg: "#F3EEFF", text: "#7C3AED" },
+  Snack:     { bg: "#FFF0F0", text: "#DC2626" },
+};
+
+const SLOTS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+
+interface DietAssoc { dietId: number; dietName: string; slot: string; }
+
+// ── Filter chip ───────────────────────────────────────────────────────────────
+function FilterChip({ label, active, onClick, colorBg, colorText }: {
+  label: string; active: boolean; onClick: () => void;
+  colorBg?: string; colorText?: string;
+}) {
+  if (colorBg && colorText) {
+    return (
+      <button
+        onClick={onClick}
+        className="shrink-0 px-3 h-8 rounded-full text-[12px] font-medium border transition-colors"
+        style={{
+          background:  active ? colorBg  : "transparent",
+          borderColor: active ? colorText : "var(--color-divider)",
+          color:       active ? colorText : "var(--color-text-secondary)",
+        }}
+      >
+        {label}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={onClick}
+      className={`shrink-0 px-3 h-8 rounded-full text-[12px] font-medium transition-colors border ${
+        active
+          ? "bg-green text-white border-green"
+          : "bg-bg-card border-divider text-text-secondary"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
 
 // ── Inline food picker ────────────────────────────────────────────────────────
 function FoodPicker({ foods, onAdd, onClose }: {
@@ -89,11 +136,13 @@ function FoodPicker({ foods, onAdd, onClose }: {
 }
 
 // ── Meal card ─────────────────────────────────────────────────────────────────
-function MealCard({ meal, foods, onUpdate, onDelete }: {
+function MealCard({ meal, foods, dietAssocs, onUpdate, onDelete, onNavigateToDiet }: {
   meal: MealDto;
   foods: FoodDto[];
+  dietAssocs: DietAssoc[];
   onUpdate: (m: MealDto) => void;
   onDelete: () => void;
+  onNavigateToDiet: (dietId: number, dietName: string) => void;
 }) {
   const [expanded,   setExpanded]   = useState(false);
   const [addingFood, setAddingFood] = useState(false);
@@ -104,6 +153,16 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
     const food = foods.find((f) => f.id === item.foodId);
     return sum + (food ? Math.round(food.caloriesPer100 * item.quantity / 100) : 0);
   }, 0);
+
+  // Dedupe: if same diet appears multiple times (different slots), show distinct chips
+  const uniqueDietAssocs = useMemo(() => {
+    const seen = new Set<string>();
+    return dietAssocs.filter((a) => {
+      const key = `${a.dietId}-${a.slot}`;
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+  }, [dietAssocs]);
 
   const removeFood = async (idx: number) => {
     setSaving(true);
@@ -128,21 +187,50 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
   return (
     <div className="bg-bg-card rounded-2xl border border-divider overflow-hidden">
       <button
-        className="w-full text-left px-4 pt-3.5 pb-3 flex items-center gap-3"
+        className="w-full text-left px-4 pt-3.5 pb-3 flex items-start gap-3"
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex-1 min-w-0">
           <p className="text-[15px] font-semibold text-text-primary truncate">{meal.name}</p>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <p className="text-xs text-text-muted">{items.length} food{items.length !== 1 ? "s" : ""}</p>
             {totalKcal > 0 && (
-              <span className="text-xs font-medium text-text-muted">· {totalKcal} kcal</span>
+              <span className="text-xs text-text-muted">· {totalKcal} kcal</span>
             )}
           </div>
+
+          {/* Diet association chips */}
+          {uniqueDietAssocs.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {uniqueDietAssocs.slice(0, 3).map((assoc, i) => {
+                const c = SLOT_COLORS[assoc.slot] ?? { bg: "#F0F0F5", text: "#666" };
+                return (
+                  <button
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigateToDiet(assoc.dietId, assoc.dietName);
+                    }}
+                    className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full hover:opacity-80 transition-opacity"
+                    style={{ background: c.bg, color: c.text }}
+                  >
+                    {assoc.dietName}
+                    <span className="opacity-70">· {assoc.slot}</span>
+                    <ExternalLink size={9} className="opacity-60" />
+                  </button>
+                );
+              })}
+              {uniqueDietAssocs.length > 3 && (
+                <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded-full border border-divider">
+                  +{uniqueDietAssocs.length - 3} more
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {expanded
-          ? <ChevronUp className="h-4 w-4 text-text-muted shrink-0" />
-          : <ChevronDown className="h-4 w-4 text-text-muted shrink-0" />}
+          ? <ChevronUp className="h-4 w-4 text-text-muted shrink-0 mt-1" />
+          : <ChevronDown className="h-4 w-4 text-text-muted shrink-0 mt-1" />}
       </button>
 
       {expanded && (
@@ -177,9 +265,7 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
 
           {items.length > 0 && (
             <div className="flex justify-end mb-2">
-              <span className="text-[11px] font-semibold text-text-secondary">
-                Total: {totalKcal} kcal
-              </span>
+              <span className="text-[11px] font-semibold text-text-secondary">Total: {totalKcal} kcal</span>
             </div>
           )}
 
@@ -209,22 +295,28 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function MealsPage() {
   const { user } = useAuth();
+  const router = useRouter();
+
   const [meals,      setMeals]      = useState<MealDto[]>([]);
   const [foods,      setFoods]      = useState<FoodDto[]>([]);
+  const [diets,      setDiets]      = useState<DietDto[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
   const [query,      setQuery]      = useState("");
+  const [dietFilter, setDietFilter] = useState<number | null>(null);
+  const [slotFilter, setSlotFilter] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [visible,    setVisible]    = useState(PAGE_SIZE);
 
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
-      const [m, f] = await Promise.all([
+      const [m, f, d] = await Promise.all([
         api.get<MealDto[]>("/api/v1/meals"),
         api.get<FoodDto[]>("/api/v1/foods"),
+        api.get<DietDto[]>("/api/v1/diets"),
       ]);
-      setMeals(m); setFoods(f);
+      setMeals(m); setFoods(f); setDiets(d);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally { setLoading(false); }
@@ -232,13 +324,46 @@ export default function MealsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filtered = useMemo(() => {
-    if (!query.trim()) return meals;
-    const q = query.toLowerCase();
-    return meals.filter((m) => m.name.toLowerCase().includes(q));
-  }, [meals, query]);
+  // mealId → [{dietId, dietName, slot}] reverse index
+  const mealDietMap = useMemo(() => {
+    const map = new Map<number, DietAssoc[]>();
+    for (const diet of diets) {
+      if (diet.id == null) continue;
+      for (const dm of diet.meals ?? []) {
+        if (dm.mealId == null) continue;
+        if (!map.has(dm.mealId)) map.set(dm.mealId, []);
+        map.get(dm.mealId)!.push({ dietId: diet.id, dietName: diet.name, slot: dm.slot });
+      }
+    }
+    return map;
+  }, [diets]);
 
-  // Reset pagination when filter changes
+  // Diets that have at least one meal (for the diet filter chips)
+  const dietsWithMeals = useMemo(() =>
+    diets.filter((d) => (d.meals ?? []).length > 0),
+    [diets]
+  );
+
+  const filtered = useMemo(() => {
+    let list = meals;
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter((m) => m.name.toLowerCase().includes(q));
+    }
+    if (dietFilter != null) {
+      list = list.filter((m) =>
+        m.id != null && (mealDietMap.get(m.id) ?? []).some((a) => a.dietId === dietFilter)
+      );
+    }
+    if (slotFilter != null) {
+      list = list.filter((m) =>
+        m.id != null && (mealDietMap.get(m.id) ?? []).some((a) => a.slot === slotFilter)
+      );
+    }
+    return list;
+  }, [meals, query, dietFilter, slotFilter, mealDietMap]);
+
+  // Reset pagination when filters change
   useEffect(() => { setVisible(PAGE_SIZE); }, [filtered]);
 
   const shown   = filtered.slice(0, visible);
@@ -253,6 +378,12 @@ export default function MealsPage() {
       setError(e instanceof Error ? e.message : "Failed to delete");
     }
   };
+
+  const navigateToDiet = (dietId: number, dietName: string) => {
+    router.push(`/diets?q=${encodeURIComponent(dietName)}`);
+  };
+
+  const hasActiveFilter = dietFilter != null || slotFilter != null;
 
   if (loading) return (
     <div className="space-y-3">
@@ -281,12 +412,51 @@ export default function MealsPage() {
 
       <SearchBar value={query} onChange={setQuery} placeholder="Search meals…" />
 
+      {/* Slot filter row */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <FilterChip
+          label={`All (${meals.length})`}
+          active={!hasActiveFilter}
+          onClick={() => { setDietFilter(null); setSlotFilter(null); }}
+        />
+        {SLOTS.map((s) => {
+          const c = SLOT_COLORS[s];
+          return (
+            <FilterChip
+              key={s} label={s}
+              active={slotFilter === s}
+              colorBg={c.bg} colorText={c.text}
+              onClick={() => setSlotFilter(slotFilter === s ? null : s)}
+            />
+          );
+        })}
+      </div>
+
+      {/* Diet filter row (only shown if diets have meals) */}
+      {dietsWithMeals.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <span className="shrink-0 text-[11px] font-semibold text-text-muted self-center pr-1">In diet:</span>
+          {dietsWithMeals.map((d) => (
+            <FilterChip
+              key={d.id} label={d.name}
+              active={dietFilter === d.id}
+              onClick={() => setDietFilter(dietFilter === d.id ? null : (d.id ?? null))}
+            />
+          ))}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <EmptyState
           icon={UtensilsCrossed}
-          title={query ? "No meals found" : "No meals yet"}
-          subtitle={query ? `No results for "${query}"` : "Create your first meal"}
-          action={!query ? { label: "Create meal", onClick: () => setShowCreate(true) } : undefined}
+          title={query || hasActiveFilter ? "No meals found" : "No meals yet"}
+          subtitle={
+            query ? `No results for "${query}"` :
+            dietFilter != null ? "No meals in this diet" :
+            slotFilter != null ? `No meals in ${slotFilter} slot` :
+            "Create your first meal"
+          }
+          action={!query && !hasActiveFilter ? { label: "Create meal", onClick: () => setShowCreate(true) } : undefined}
         />
       ) : (
         <>
@@ -296,8 +466,10 @@ export default function MealsPage() {
                 key={meal.id}
                 meal={meal}
                 foods={foods}
+                dietAssocs={meal.id != null ? (mealDietMap.get(meal.id) ?? []) : []}
                 onUpdate={(m) => setMeals((prev) => prev.map((x) => x.id === m.id ? m : x))}
                 onDelete={() => meal.id != null && handleDelete(meal.id)}
+                onNavigateToDiet={navigateToDiet}
               />
             ))}
           </div>
