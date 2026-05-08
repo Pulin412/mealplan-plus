@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SearchBar } from "@/components/SearchBar";
 import { EmptyState } from "@/components/EmptyState";
 import { CreateDietModal } from "./CreateDietModal";
+import { PREDEFINED_SLOTS, PREDEFINED_SLOT_COLORS } from "@/lib/utils";
 import type { components } from "@/lib/api/types.generated";
 
 type DietDto         = components["schemas"]["DietDto"];
@@ -28,20 +29,15 @@ type MealFoodItemDto = components["schemas"]["MealFoodItemDto"];
 
 const PAGE_SIZE = 10;
 
-const SLOTS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
-type Slot = typeof SLOTS[number];
+const SLOTS = PREDEFINED_SLOTS;
+type Slot = string;
 
 const DAY_NAMES: Record<number, string> = {
   0: "Any day", 1: "Mon", 2: "Tue", 3: "Wed",
   4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun",
 };
 
-const SLOT_COLORS: Record<string, { bg: string; text: string }> = {
-  Breakfast: { bg: "#FFF8E6", text: "#D97706" },
-  Lunch:     { bg: "#E8F5EE", text: "#2E7D52" },
-  Dinner:    { bg: "#F3EEFF", text: "#7C3AED" },
-  Snack:     { bg: "#FFF0F0", text: "#DC2626" },
-};
+const SLOT_COLORS = PREDEFINED_SLOT_COLORS;
 
 const TAG_PALETTE = [
   "#FFEB3B", "#4CAF50", "#F44336", "#2196F3", "#FF9800",
@@ -395,7 +391,7 @@ function AssignMealPanel({ diet, meals, onAssigned, onClose }: {
   onClose: () => void;
 }) {
   const [mealId, setMealId] = useState("");
-  const [slot,   setSlot]   = useState<Slot>("Breakfast");
+  const [slot,   setSlot]   = useState("Breakfast");
   const [day,    setDay]    = useState("0");
   const [busy,   setBusy]   = useState(false);
 
@@ -424,7 +420,7 @@ function AssignMealPanel({ diet, meals, onAssigned, onClose }: {
         {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
       <div className="grid grid-cols-2 gap-2">
-        <select value={slot} onChange={(e) => setSlot(e.target.value as Slot)} className={selectCls}>
+        <select value={slot} onChange={(e) => setSlot(e.target.value)} className={selectCls}>
           {SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={day} onChange={(e) => setDay(e.target.value)} className={selectCls}>
@@ -447,7 +443,7 @@ function AssignMealPanel({ diet, meals, onAssigned, onClose }: {
 }
 
 // ── Diet card ─────────────────────────────────────────────────────────────────
-function DietCard({ diet, meals, foods, allTags, isFav, onToggleFav, onDelete, onDuplicate, onUpdate, onTagCreated }: {
+function DietCard({ diet, meals, foods, allTags, isFav, onToggleFav, onDelete, onDuplicate, onUpdate, onTagCreated, defaultExpanded = false }: {
   diet: DietDto;
   meals: MealDto[];
   foods: FoodDto[];
@@ -458,8 +454,9 @@ function DietCard({ diet, meals, foods, allTags, isFav, onToggleFav, onDelete, o
   onDuplicate: () => void;
   onUpdate: (d: DietDto) => void;
   onTagCreated: (t: TagDto) => void;
+  defaultExpanded?: boolean;
 }) {
-  const [expanded,    setExpanded]    = useState(false);
+  const [expanded,    setExpanded]    = useState(defaultExpanded);
   const [assigning,   setAssigning]   = useState(false);
   const [addingTag,   setAddingTag]   = useState(false);
   const [removingIdx, setRemovingIdx] = useState<number | null>(null);
@@ -805,6 +802,123 @@ function DietCard({ diet, meals, foods, allTags, isFav, onToggleFav, onDelete, o
   );
 }
 
+// ── Manage slots modal ────────────────────────────────────────────────────────
+function ManageSlotsModal({ diets, onUpdated, onClose }: {
+  diets: DietDto[];
+  onUpdated: (updated: DietDto[]) => void;
+  onClose: () => void;
+}) {
+  const slotsInUse = useMemo(() => {
+    const s = new Set<string>();
+    for (const d of diets) {
+      for (const dm of d.meals ?? []) { if (dm.slot) s.add(dm.slot); }
+    }
+    return Array.from(s).sort();
+  }, [diets]);
+
+  const [renames, setRenames] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const s of slotsInUse) init[s] = s;
+    return init;
+  });
+  const [busy, setBusy] = useState(false);
+  const [err,  setErr]  = useState<string | null>(null);
+
+  const hasChanges = slotsInUse.some((s) => renames[s] && renames[s] !== s);
+
+  const apply = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const toRename = slotsInUse.filter((s) => renames[s] && renames[s] !== s);
+      const affected = diets.filter((d) =>
+        (d.meals ?? []).some((dm) => toRename.includes(dm.slot))
+      );
+      const updated = await Promise.all(
+        affected.map((diet) => {
+          const meals = (diet.meals ?? []).map((dm) => {
+            const nw = renames[dm.slot];
+            return nw && nw !== dm.slot ? { ...dm, slot: nw } : dm;
+          });
+          return api.put<DietDto>(`/api/v1/diets/${diet.id}`, { ...diet, meals });
+        })
+      );
+      onUpdated(updated);
+      onClose();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to apply");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-6 pointer-events-none">
+        <div className="pointer-events-auto w-full md:max-w-md max-h-[85vh] flex flex-col bg-bg-card md:rounded-3xl rounded-t-3xl shadow-2xl">
+          <div className="flex justify-center pt-3 md:hidden shrink-0">
+            <div className="w-9 h-1 rounded-full bg-text-muted/30" />
+          </div>
+          <div className="flex items-center justify-between px-5 py-4 shrink-0">
+            <div>
+              <h2 className="text-[18px] font-bold text-text-primary">Manage Slots</h2>
+              <p className="text-xs text-text-muted mt-0.5">Rename a slot to update it across all diets.</p>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-bg-page transition-colors">
+              <X className="h-5 w-5 text-text-muted" />
+            </button>
+          </div>
+          <div className="h-px bg-divider shrink-0" />
+
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+            {err && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</p>}
+            {slotsInUse.length === 0 ? (
+              <p className="text-sm text-text-muted py-4 text-center">No slots in use yet.</p>
+            ) : (
+              slotsInUse.map((s) => {
+                const c = SLOT_COLORS[s] ?? { bg: "#F0F0F5", text: "#666" };
+                const current = renames[s] ?? s;
+                const changed = current !== s;
+                return (
+                  <div key={s} className="flex items-center gap-3">
+                    <span
+                      className="text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0"
+                      style={{ background: c.bg, color: c.text }}
+                    >
+                      {s}
+                    </span>
+                    <span className="text-text-muted text-xs shrink-0">→</span>
+                    <select
+                      value={current}
+                      onChange={(e) => setRenames((prev) => ({ ...prev, [s]: e.target.value }))}
+                      className={`flex-1 h-8 rounded-lg border px-2 text-sm bg-bg-card text-text-primary focus:outline-none focus:ring-2 focus:ring-green/30 ${
+                        changed ? "border-green/60" : "border-divider"
+                      }`}
+                    >
+                      {PREDEFINED_SLOTS.map((ps) => (
+                        <option key={ps} value={ps}>{ps}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="h-px bg-divider shrink-0" />
+          <div className="px-5 py-4 shrink-0" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+            <button
+              onClick={apply}
+              disabled={busy || !hasChanges}
+              className="w-full h-12 rounded-xl bg-green text-white font-semibold text-[15px] disabled:opacity-50 hover:bg-green/90 transition-colors"
+            >
+              {busy ? "Applying…" : "Apply renames"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Filter chip ───────────────────────────────────────────────────────────────
 function FilterChip({ label, active, onClick, color }: {
   label: string; active: boolean; onClick: () => void; color?: string;
@@ -845,12 +959,14 @@ export default function DietsPage() {
   const [tags,    setTags]    = useState<TagDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
-  const [query,      setQuery]      = useState("");
-  const [favOnly,    setFavOnly]    = useState(false);
-  const [tagFilter,  setTagFilter]  = useState<number | null>(null);
-  const [slotFilter, setSlotFilter] = useState<Slot | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [visible,    setVisible]    = useState(PAGE_SIZE);
+  const [query,           setQuery]           = useState("");
+  const [favOnly,         setFavOnly]         = useState(false);
+  const [tagFilter,       setTagFilter]       = useState<number | null>(null);
+  const [slotFilter,      setSlotFilter]      = useState<Slot | null>(null);
+  const [highlightId,     setHighlightId]     = useState<number | null>(null);
+  const [showCreate,      setShowCreate]      = useState(false);
+  const [showManageSlots, setShowManageSlots] = useState(false);
+  const [visible,         setVisible]         = useState(PAGE_SIZE);
 
   const { favs, toggle: toggleFav } = useFavorites("diet_favorites");
 
@@ -871,10 +987,13 @@ export default function DietsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Pre-fill search from ?q= (e.g. when navigating from meals page)
+  // Handle ?dietId= (exact highlight) or ?q= (search prefill) from navigation
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (q) setQuery(q);
+    const params = new URLSearchParams(window.location.search);
+    const dietId = params.get("dietId");
+    const q = params.get("q");
+    if (dietId) setHighlightId(parseInt(dietId));
+    else if (q) setQuery(q);
   }, []);
 
   const mealIngredients = useMemo(() => {
@@ -890,7 +1009,17 @@ export default function DietsPage() {
     return map;
   }, [meals, foods]);
 
+  // Slots actually in use across all diets (in predefined order)
+  const slotsInUse = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of diets) {
+      for (const dm of d.meals ?? []) { if (dm.slot) set.add(dm.slot); }
+    }
+    return PREDEFINED_SLOTS.filter((s) => set.has(s));
+  }, [diets]);
+
   const filtered = useMemo(() => {
+    if (highlightId != null) return diets.filter((d) => d.id === highlightId);
     let list = diets;
 
     if (query.trim()) {
@@ -913,7 +1042,7 @@ export default function DietsPage() {
     if (slotFilter != null) list = list.filter((d) => (d.meals ?? []).some((dm) => dm.slot === slotFilter));
 
     return list;
-  }, [diets, query, favOnly, favs, tagFilter, slotFilter, meals, mealIngredients]);
+  }, [diets, query, favOnly, favs, tagFilter, slotFilter, meals, mealIngredients, highlightId]);
 
   // Reset pagination when filters change
   useEffect(() => { setVisible(PAGE_SIZE); }, [filtered]);
@@ -940,7 +1069,7 @@ export default function DietsPage() {
     }
   };
 
-  const hasActiveFilter = favOnly || tagFilter != null || slotFilter != null;
+  const hasActiveFilter = favOnly || tagFilter != null || slotFilter != null || highlightId != null;
 
   if (loading) return (
     <div className="space-y-3">
@@ -957,15 +1086,36 @@ export default function DietsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-[22px] font-bold text-text-primary">Diets</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 px-3 h-9 rounded-xl bg-green text-white text-sm font-medium hover:bg-green/90 transition-colors"
-        >
-          <Plus className="h-4 w-4" />New
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowManageSlots(true)}
+            className="px-3 h-9 rounded-xl border border-divider text-sm font-medium text-text-secondary hover:bg-bg-page transition-colors"
+          >
+            Slots
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 px-3 h-9 rounded-xl bg-green text-white text-sm font-medium hover:bg-green/90 transition-colors"
+          >
+            <Plus className="h-4 w-4" />New
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+
+      {/* Highlight mode banner */}
+      {highlightId != null && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
+          <span className="text-xs text-amber-700">Showing 1 diet</span>
+          <button
+            onClick={() => setHighlightId(null)}
+            className="text-xs font-medium text-amber-700 hover:underline"
+          >
+            Show all →
+          </button>
+        </div>
+      )}
 
       <SearchBar value={query} onChange={setQuery} placeholder="Search name, tag, meal, ingredient…" />
 
@@ -974,7 +1124,7 @@ export default function DietsPage() {
         <FilterChip
           label={`All (${diets.length})`}
           active={!hasActiveFilter}
-          onClick={() => { setFavOnly(false); setTagFilter(null); setSlotFilter(null); }}
+          onClick={() => { setFavOnly(false); setTagFilter(null); setSlotFilter(null); setHighlightId(null); }}
         />
         <FilterChip
           label="⭐ Favorites"
@@ -995,21 +1145,23 @@ export default function DietsPage() {
         ))}
       </div>
 
-      {/* Slot filter row */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {SLOTS.map((s) => {
-          const c = SLOT_COLORS[s];
-          return (
-            <FilterChip
-              key={s}
-              label={s}
-              active={slotFilter === s}
-              color={c.text}
-              onClick={() => setSlotFilter(slotFilter === s ? null : s)}
-            />
-          );
-        })}
-      </div>
+      {/* Slot filter row (only slots in use) */}
+      {slotsInUse.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {slotsInUse.map((s) => {
+            const c = SLOT_COLORS[s] ?? { text: "#666" };
+            return (
+              <FilterChip
+                key={s}
+                label={s}
+                active={slotFilter === s}
+                color={c.text}
+                onClick={() => setSlotFilter(slotFilter === s ? null : s)}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* List */}
       {filtered.length === 0 ? (
@@ -1041,6 +1193,7 @@ export default function DietsPage() {
                 onDuplicate={() => diet.id != null && handleDuplicate(diet.id)}
                 onUpdate={(d) => setDiets((prev) => prev.map((x) => x.id === d.id ? d : x))}
                 onTagCreated={(t) => setTags((prev) => [...prev, t])}
+                defaultExpanded={highlightId === diet.id}
               />
             ))}
           </div>
@@ -1062,6 +1215,16 @@ export default function DietsPage() {
           foods={foods}
           onCreated={(d) => setDiets((prev) => [d, ...prev])}
           onClose={() => setShowCreate(false)}
+        />
+      )}
+
+      {showManageSlots && (
+        <ManageSlotsModal
+          diets={diets}
+          onUpdated={(updated) => {
+            setDiets((prev) => prev.map((d) => updated.find((u) => u.id === d.id) ?? d));
+          }}
+          onClose={() => setShowManageSlots(false)}
         />
       )}
     </div>
