@@ -404,6 +404,14 @@ fun SettingsScreen(
                             }
                         }
                     }
+                    if (uiState.syncError != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            uiState.syncError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
 
