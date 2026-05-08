@@ -7,6 +7,7 @@ import java.util.UUID
 interface MealRepository : JpaRepository<Meal, Long> {
     fun findByFirebaseUid(firebaseUid: String): List<Meal>
     fun findByServerId(serverId: UUID): Meal?
+    fun findByFirebaseUidAndName(firebaseUid: String, name: String): Meal?
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<Meal>
 }
 

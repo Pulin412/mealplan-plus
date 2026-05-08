@@ -21,6 +21,7 @@ import com.mealplanplus.util.ThemePreferences
 import com.mealplanplus.util.toEpochMs
 import com.mealplanplus.util.toLocalDate
 import com.mealplanplus.work.SyncWorker
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,6 +41,7 @@ data class SettingsUiState(
     // Cloud sync state
     val isSyncing: Boolean = false,
     val lastSyncTimestamp: Long = 0L,
+    val syncError: String? = null,
 )
 
 data class ThemeState(
@@ -441,20 +443,24 @@ class SettingsViewModel @Inject constructor(
 
     fun triggerSync() {
         if (_uiState.value.isSyncing) return
-        _uiState.update { it.copy(isSyncing = true) }
+        _uiState.update { it.copy(isSyncing = true, syncError = null) }
         val request = SyncWorker.oneTimeRequest()
         WorkManager.getInstance(context).enqueue(request)
-        // Observe the work until it finishes to flip isSyncing back
         viewModelScope.launch {
             WorkManager.getInstance(context)
                 .getWorkInfoByIdFlow(request.id)
                 .collect { info ->
                     if (info != null && info.state.isFinished) {
-                        _uiState.update { it.copy(isSyncing = false) }
+                        val error = if (info.state == WorkInfo.State.FAILED)
+                            info.outputData.getString(SyncWorker.KEY_ERROR) ?: "Sync failed"
+                        else null
+                        _uiState.update { it.copy(isSyncing = false, syncError = error) }
                     }
                 }
         }
     }
+
+    fun clearSyncError() = _uiState.update { it.copy(syncError = null) }
 
     /**
      * Writes the most recent weight from Health Connect as a WEIGHT metric entry in

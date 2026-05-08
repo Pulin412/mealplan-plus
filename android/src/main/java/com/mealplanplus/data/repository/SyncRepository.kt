@@ -3,14 +3,12 @@ package com.mealplanplus.data.repository
 import android.content.Context
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import com.mealplanplus.data.local.DailyLogDao
 import com.mealplanplus.data.local.FoodDao
 import com.mealplanplus.data.local.GroceryDao
 import com.mealplanplus.data.local.HealthMetricDao
 import com.mealplanplus.data.local.MealDao
 import com.mealplanplus.data.local.DietDao
 import com.mealplanplus.data.local.WorkoutSessionDao
-import com.mealplanplus.data.local.WorkoutSetDao
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.remote.*
 import com.mealplanplus.util.AuthPreferences
@@ -38,9 +36,7 @@ class SyncRepository @Inject constructor(
     private val healthMetricDao: HealthMetricDao,
     private val groceryDao: GroceryDao,
     private val foodDao: FoodDao,
-    private val dailyLogDao: DailyLogDao,
     private val sessionDao: WorkoutSessionDao,
-    private val setDao: WorkoutSetDao,
     private val crashlytics: CrashlyticsReporter
 ) {
     private val TAG = "SyncRepository"
@@ -72,17 +68,15 @@ class SyncRepository @Inject constructor(
         }
     }
 
-    /** Push local changes to backend. Two-step: foods+meals+diets+metrics+groceries, then daily logs. */
+    /** Push local foods, meals, and diets to backend. */
     suspend fun push(userId: Long): Result<Int> = runCatching {
         val firebaseUid = resolveFirebaseUid()
             ?: return Result.failure(Exception("Not signed in with Firebase"))
 
         val now = System.currentTimeMillis()
 
-        // ── Step 1: foods + meals + diets + metrics + groceries ───────────────
-        // Assign stable UUIDs to any entity that never got one (null serverId
-        // causes the response-matching step below to silently skip, leaving
-        // syncedAt unset and creating a fresh duplicate on every push).
+        // Assign stable UUIDs before push — null serverId causes response matching to fail,
+        // leaving syncedAt unset and re-pushing the same entity on every sync.
         val rawFoods = foodDao.getAllFoodsOnce().filter { !it.isSystemFood }.map { food ->
             if (food.serverId != null) food
             else food.copy(serverId = UUID.randomUUID().toString()).also { foodDao.updateFood(it) }
@@ -94,14 +88,6 @@ class SyncRepository @Inject constructor(
         val rawDiets = dietDao.getUnsyncedDiets().map { diet ->
             if (diet.serverId != null) diet
             else diet.copy(serverId = UUID.randomUUID().toString()).also { dietDao.updateDiet(it) }
-        }
-        val rawMetrics = healthMetricDao.getUnsyncedMetrics(userId).map { metric ->
-            if (metric.serverId != null) metric
-            else metric.copy(serverId = UUID.randomUUID().toString()).also { healthMetricDao.updateHealthMetric(it) }
-        }
-        val rawGroceries = groceryDao.getUnsyncedGroceryLists(userId).map { grocery ->
-            if (grocery.serverId != null) grocery
-            else grocery.copy(serverId = UUID.randomUUID().toString()).also { groceryDao.updateGroceryList(it) }
         }
 
         val foods = rawFoods.map { f ->
@@ -121,54 +107,14 @@ class SyncRepository @Inject constructor(
             DietDto(serverId = d.serverId, firebaseUid = firebaseUid, name = d.name,
                 description = d.description, updatedAt = d.updatedAt)
         }
-        val metrics = rawMetrics.map { h ->
-            HealthMetricDto(serverId = h.serverId, firebaseUid = firebaseUid,
-                type = h.metricType ?: "CUSTOM", subType = h.subType, value = h.value,
-                secondaryValue = h.secondaryValue, unit = h.metricType ?: "",
-                recordedAt = h.timestamp, updatedAt = h.updatedAt)
-        }
-        val groceryLists = rawGroceries.map { g ->
-            GroceryListDto(serverId = g.serverId, firebaseUid = firebaseUid,
-                name = g.name, updatedAt = g.updatedAt)
-        }
 
-        // ── Workout sessions ──────────────────────────────────────────────────
-        val rawSessions = sessionDao.getUnsyncedSessions(firebaseUid).map { session ->
-            if (session.serverId != null) session
-            else session.copy(serverId = UUID.randomUUID().toString()).also { sessionDao.update(it) }
-        }
-        val allSets = setDao.getAllSetsOnce()
-        val setsBySessionId = allSets.groupBy { it.sessionId }
-        val sessions = rawSessions.map { s ->
-            val dateStr = java.time.Instant.ofEpochMilli(s.date)
-                .atOffset(ZoneOffset.UTC).toLocalDate().toString()
-            WorkoutSessionSyncDto(
-                serverId = s.serverId, firebaseUid = firebaseUid,
-                name = s.name, date = dateStr, durationMinutes = s.durationMinutes,
-                notes = s.notes, isCompleted = s.isCompleted,
-                sets = (setsBySessionId[s.id] ?: emptyList()).map { ws ->
-                    WorkoutSetSyncDto(exerciseId = ws.exerciseId, setNumber = ws.setNumber,
-                        reps = ws.reps, weightKg = ws.weightKg,
-                        durationSeconds = ws.durationSeconds, distanceMeters = ws.distanceMeters,
-                        notes = ws.notes)
-                },
-                updatedAt = s.updatedAt
-            )
-        }
+        val resp = api.push(SyncPushRequest(foods = foods, meals = meals, diets = diets))
+        Log.d(TAG, "Push accepted=${resp.accepted} foods=${foods.size} meals=${meals.size} diets=${diets.size}")
 
-        val resp = api.push(SyncPushRequest(foods = foods, meals = meals, diets = diets,
-            healthMetrics = metrics, groceryLists = groceryLists, workoutSessions = sessions))
-        Log.d(TAG, "Push step1 accepted=${resp.accepted}")
-
-        // Write backend-assigned serverIds back to local rows.
-        // Match by serverId (stable cross-device identity) rather than array index,
-        // so reordering or deduplication on the server side never writes the wrong serverId.
-        val respFoodsBySid    = resp.foods.associateBy { it.serverId }
-        val respMealsBySid    = resp.meals.associateBy { it.serverId }
-        val respDietsBySid    = resp.diets.associateBy { it.serverId }
-        val respMetricsBySid  = resp.healthMetrics.associateBy { it.serverId }
-        val respGrocBySid     = resp.groceryLists.associateBy { it.serverId }
-        val respSessionsBySid = resp.workoutSessions.associateBy { it.serverId }
+        // Match response by serverId so any server-side dedup doesn't corrupt local records.
+        val respFoodsBySid = resp.foods.associateBy { it.serverId }
+        val respMealsBySid = resp.meals.associateBy { it.serverId }
+        val respDietsBySid = resp.diets.associateBy { it.serverId }
 
         rawFoods.forEach { food ->
             val dto = respFoodsBySid[food.serverId] ?: return@forEach
@@ -182,71 +128,9 @@ class SyncRepository @Inject constructor(
             val dto = respDietsBySid[diet.serverId] ?: return@forEach
             dietDao.updateDiet(diet.copy(serverId = dto.serverId ?: diet.serverId, syncedAt = now))
         }
-        rawMetrics.forEach { metric ->
-            val dto = respMetricsBySid[metric.serverId] ?: return@forEach
-            healthMetricDao.updateHealthMetric(metric.copy(serverId = dto.serverId ?: metric.serverId, syncedAt = now))
-        }
-        rawGroceries.forEach { grocery ->
-            val dto = respGrocBySid[grocery.serverId] ?: return@forEach
-            groceryDao.updateGroceryList(grocery.copy(serverId = dto.serverId ?: grocery.serverId, syncedAt = now))
-        }
-        rawSessions.forEach { session ->
-            val dto = respSessionsBySid[session.serverId] ?: return@forEach
-            sessionDao.update(session.copy(serverId = dto.serverId ?: session.serverId, syncedAt = now))
-        }
 
-        // ── Step 2: daily logs (needs backend food IDs from step 1) ──────────
-        // Build localFoodId → backendFoodId map via serverId
-        val serverIdToBackendFoodId: Map<String, Long> = resp.foods
-            .mapNotNull { dto -> dto.serverId?.let { it to dto.id } }.toMap()
-        val localFoodIdToBackendId: Map<Long, Long> = rawFoods.mapNotNull { food ->
-            val sid = food.serverId ?: return@mapNotNull null
-            val bid = serverIdToBackendFoodId[sid] ?: return@mapNotNull null
-            food.id to bid
-        }.toMap()
-
-        val allLogs = dailyLogDao.getAllLogsOnce(userId)
-        val allLoggedFoods = dailyLogDao.getAllLoggedFoodsOnce(userId)
-        val foodsByDate = allLoggedFoods.groupBy { it.logDate }
-
-        val dailyLogDtos = allLogs.mapNotNull { log ->
-            val loggedFoodDtos = (foodsByDate[log.date] ?: emptyList()).mapNotNull { lf ->
-                val backendFoodId = localFoodIdToBackendId[lf.foodId] ?: return@mapNotNull null
-                LoggedFoodDto(foodId = backendFoodId, mealSlot = lf.slotType,
-                    quantity = lf.quantity, unit = lf.unit.name)
-            }
-            if (loggedFoodDtos.isEmpty()) return@mapNotNull null
-            val dateStr = java.time.Instant.ofEpochMilli(log.date)
-                .atOffset(java.time.ZoneOffset.UTC).toLocalDate().toString()
-            DailyLogDto(firebaseUid = firebaseUid, date = dateStr,
-                notes = log.notes, loggedFoods = loggedFoodDtos, updatedAt = log.createdAt)
-        }
-
-        var totalAccepted = resp.accepted
-        var step2Error: Throwable? = null
-
-        if (dailyLogDtos.isNotEmpty()) {
-            runCatching {
-                val resp2 = api.push(SyncPushRequest(dailyLogs = dailyLogDtos))
-                Log.d(TAG, "Push step2 (daily logs) accepted=${resp2.accepted}")
-                totalAccepted += resp2.accepted
-            }.onFailure { e ->
-                Log.w(TAG, "Daily log push failed (will retry next sync): ${e.message}")
-                step2Error = e
-            }
-        }
-
-        crashlytics.log("sync_push", "accepted=$totalAccepted step2Error=${step2Error?.message}")
-
-        // Surface partial failure: caller (SyncWorker) can distinguish
-        // step-2-only failures from full push failures and set a PARTIAL retry.
-        if (step2Error != null && totalAccepted == 0) {
-            throw SyncPartialFailureException(
-                "Daily log push failed after step 1 succeeded",
-                step2Error!!
-            )
-        }
-        totalAccepted
+        crashlytics.log("sync_push", "accepted=${resp.accepted}")
+        resp.accepted
     }.onFailure { e ->
         crashlytics.recordNonFatal(e, context = "sync_push", extras = mapOf("userId" to userId.toString()))
         Log.e(TAG, "Push failed: ${e.message}")
