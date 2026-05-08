@@ -69,6 +69,7 @@ class MealService(
     @Transactional
     fun upsert(dto: MealDto, firebaseUid: String): MealDto {
         val existing = dto.serverId?.let { mealRepo.findByServerId(it) }
+            ?: if (dto.serverId == null) mealRepo.findByFirebaseUidAndName(firebaseUid, dto.name) else null
         if (existing == null) return create(dto, firebaseUid)
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(itemRepo.findByMealId(existing.id))
         itemRepo.deleteByMealId(existing.id)
