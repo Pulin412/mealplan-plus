@@ -119,9 +119,11 @@ class DietService(
 
     @Transactional
     fun upsert(dto: DietDto, firebaseUid: String): DietDto {
-        val existing = dto.serverId?.let { dietRepo.findByServerId(it) }
-            ?: if (dto.serverId == null) dietRepo.findByFirebaseUidAndName(firebaseUid, dto.name) else null
+        val existingByServerId = dto.serverId?.let { dietRepo.findByServerId(it) }
+        val existing = existingByServerId ?: dietRepo.findByFirebaseUidAndName(firebaseUid, dto.name)
         if (existing == null) return create(dto, firebaseUid)
+        // Adopt client UUID when found by name — lets Android match the response and stops re-creating
+        if (existingByServerId == null && dto.serverId != null) existing.serverId = dto.serverId
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toFullDto()
         dietMealRepo.deleteByDietId(existing.id)
         crossRefRepo.deleteByDietId(existing.id)
