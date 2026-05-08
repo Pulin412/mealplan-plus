@@ -128,114 +128,6 @@ function FoodPicker({ foods, onAdd, onClose }: {
   );
 }
 
-// ── Deduplicate modal ─────────────────────────────────────────────────────────
-function DeduplicateMealsModal({ groups, onDelete, onClose }: {
-  groups: MealDto[][];
-  onDelete: (ids: number[]) => Promise<void>;
-  onClose: () => void;
-}) {
-  const [keepers, setKeepers] = useState<Record<string, number>>(() => {
-    const init: Record<string, number> = {};
-    for (const group of groups) {
-      const key = group[0].name.toLowerCase().trim();
-      const sorted = [...group].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
-      init[key] = sorted[0].id!;
-    }
-    return init;
-  });
-  const [busy, setBusy] = useState(false);
-  const [err,  setErr]  = useState<string | null>(null);
-
-  const idsToDelete = groups.flatMap((group) => {
-    const key = group[0].name.toLowerCase().trim();
-    return group.filter((m) => m.id !== keepers[key] && m.id != null).map((m) => m.id!);
-  });
-
-  const apply = async () => {
-    setBusy(true); setErr(null);
-    try {
-      await onDelete(idsToDelete);
-      onClose();
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Failed to delete");
-      setBusy(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-6 pointer-events-none">
-        <div className="pointer-events-auto w-full md:max-w-md max-h-[85vh] flex flex-col bg-bg-card md:rounded-3xl rounded-t-3xl shadow-2xl">
-          <div className="flex justify-center pt-3 md:hidden shrink-0">
-            <div className="w-9 h-1 rounded-full bg-text-muted/30" />
-          </div>
-          <div className="flex items-center justify-between px-5 py-4 shrink-0">
-            <div>
-              <h2 className="text-[18px] font-bold text-text-primary">Remove Duplicates</h2>
-              <p className="text-xs text-text-muted mt-0.5">Tap a meal to keep it; others will be deleted.</p>
-            </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-bg-page transition-colors">
-              <X className="h-5 w-5 text-text-muted" />
-            </button>
-          </div>
-          <div className="h-px bg-divider shrink-0" />
-
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-            {err && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</p>}
-            {groups.map((group) => {
-              const key = group[0].name.toLowerCase().trim();
-              const keeperId = keepers[key];
-              return (
-                <div key={key} className="space-y-1.5">
-                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">{group[0].name}</p>
-                  {group.map((meal) => {
-                    const isKeeper = meal.id === keeperId;
-                    return (
-                      <button
-                        key={meal.id}
-                        onClick={() => setKeepers((prev) => ({ ...prev, [key]: meal.id! }))}
-                        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-colors ${
-                          isKeeper
-                            ? "border-green/50 bg-green/5"
-                            : "border-divider hover:bg-bg-page opacity-60"
-                        }`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">{meal.name}</p>
-                          <p className="text-xs text-text-muted">{(meal.items ?? []).length} foods · ID {meal.id}</p>
-                        </div>
-                        <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                            isKeeper ? "bg-green/10 text-green" : "bg-red-50 text-red-500"
-                          }`}
-                        >
-                          {isKeeper ? "keep" : "delete"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="h-px bg-divider shrink-0" />
-          <div className="px-5 py-4 shrink-0" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
-            <button
-              onClick={apply}
-              disabled={busy || idsToDelete.length === 0}
-              className="w-full h-12 rounded-xl bg-red-500 text-white font-semibold text-[15px] disabled:opacity-50 hover:bg-red-600 transition-colors"
-            >
-              {busy ? "Deleting…" : `Delete ${idsToDelete.length} duplicate${idsToDelete.length !== 1 ? "s" : ""}`}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
 // ── Meal card ─────────────────────────────────────────────────────────────────
 function MealCard({ meal, foods, dietAssocs, onUpdate, onDelete, onNavigateToDiet }: {
   meal: MealDto;
@@ -405,7 +297,6 @@ export default function MealsPage() {
   const [dietFilter, setDietFilter] = useState<number | null>(null);
   const [slotFilter, setSlotFilter] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [showDedup,  setShowDedup]  = useState(false);
   const [visible,    setVisible]    = useState(PAGE_SIZE);
 
   const loadData = useCallback(async () => {
@@ -452,17 +343,6 @@ export default function MealsPage() {
     return PREDEFINED_SLOTS.filter((s) => set.has(s));
   }, [mealDietMap]);
 
-  // Groups of duplicate meals (same name, case-insensitive)
-  const duplicateGroups = useMemo(() => {
-    const map = new Map<string, MealDto[]>();
-    for (const meal of meals) {
-      const key = meal.name.toLowerCase().trim();
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(meal);
-    }
-    return Array.from(map.values()).filter((g) => g.length > 1);
-  }, [meals]);
-
   const filtered = useMemo(() => {
     let list = meals;
     if (query.trim()) {
@@ -497,11 +377,6 @@ export default function MealsPage() {
     }
   };
 
-  const handleDeleteMany = async (ids: number[]) => {
-    await Promise.all(ids.map((id) => api.delete(`/api/v1/meals/${id}`)));
-    setMeals((prev) => prev.filter((m) => m.id == null || !ids.includes(m.id)));
-  };
-
   const navigateToDiet = (dietId: number) => {
     router.push(`/diets?dietId=${dietId}`);
   };
@@ -532,21 +407,6 @@ export default function MealsPage() {
       </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
-
-      {/* Duplicates banner */}
-      {duplicateGroups.length > 0 && (
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
-          <span className="text-xs text-amber-700">
-            {duplicateGroups.length} duplicate group{duplicateGroups.length !== 1 ? "s" : ""} found
-          </span>
-          <button
-            onClick={() => setShowDedup(true)}
-            className="text-xs font-medium text-amber-700 hover:underline"
-          >
-            Fix →
-          </button>
-        </div>
-      )}
 
       <SearchBar value={query} onChange={setQuery} placeholder="Search meals…" />
 
@@ -633,13 +493,6 @@ export default function MealsPage() {
         />
       )}
 
-      {showDedup && (
-        <DeduplicateMealsModal
-          groups={duplicateGroups}
-          onDelete={handleDeleteMany}
-          onClose={() => setShowDedup(false)}
-        />
-      )}
     </div>
   );
 }
