@@ -2,25 +2,21 @@
 import { useState, useMemo } from "react";
 import { X, Plus, Search, ChevronRight, UtensilsCrossed, Apple } from "lucide-react";
 import { api } from "@/lib/api/client";
+import { PREDEFINED_SLOTS, PREDEFINED_SLOT_COLORS } from "@/lib/utils";
 import type { components } from "@/lib/api/types.generated";
 
 type DietDto = components["schemas"]["DietDto"];
 type MealDto = components["schemas"]["MealDto"];
 type FoodDto = components["schemas"]["FoodDto"];
 
-const STD_SLOTS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+const STD_SLOTS = PREDEFINED_SLOTS;
 
 const DAYS: readonly [number, string][] = [
   [0, "Any"], [1, "Mon"], [2, "Tue"], [3, "Wed"],
   [4, "Thu"], [5, "Fri"], [6, "Sat"], [7, "Sun"],
 ];
 
-const SLOT_COLORS: Record<string, { bg: string; text: string }> = {
-  Breakfast: { bg: "#FFF8E6", text: "#D97706" },
-  Lunch:     { bg: "#E8F5EE", text: "#2E7D52" },
-  Dinner:    { bg: "#F3EEFF", text: "#7C3AED" },
-  Snack:     { bg: "#FFF0F0", text: "#DC2626" },
-};
+const SLOT_COLORS = PREDEFINED_SLOT_COLORS;
 
 interface SlotEntry {
   slot: string;
