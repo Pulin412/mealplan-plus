@@ -1,7 +1,6 @@
 package com.mealplanplus
 
 import android.app.Application
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mealplanplus.data.local.MealSlotReseeder
@@ -48,7 +47,6 @@ class MealPlanApp : Application() {
         applicationScope.launch {
             mealSlotReseeder.reseedIfNeeded(this@MealPlanApp)
         }
-        scheduleSyncWork()
         cancelLegacyNotificationWork()
         scheduleNotificationAlarms()
     }
@@ -75,21 +73,13 @@ class MealPlanApp : Application() {
         }
     }
 
-    private fun scheduleSyncWork() {
-        // Daily background sync. Manual sync available via Settings → Cloud Sync.
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            SyncWorker.TAG,
-            ExistingPeriodicWorkPolicy.KEEP,
-            SyncWorker.periodicRequest()
-        )
-    }
-
-    /** Cancel legacy WorkManager notification workers (replaced by AlarmManager). */
+    /** Cancel legacy WorkManager notification workers (replaced by AlarmManager) and any periodic sync. */
     private fun cancelLegacyNotificationWork() {
         val wm = WorkManager.getInstance(this)
         wm.cancelUniqueWork("meal_reminder_work")
         wm.cancelUniqueWork("streak_protection_work")
         wm.cancelUniqueWork("weekly_plan_work")
+        wm.cancelUniqueWork(SyncWorker.TAG)
     }
 
     /** Schedule exact AlarmManager alarms for all notification types. */
