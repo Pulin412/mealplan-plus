@@ -3,7 +3,6 @@ package com.mealplanplus.work
 import android.content.Context
 import android.util.Log
 import androidx.work.*
-import com.mealplanplus.data.repository.SyncPartialFailureException
 import com.mealplanplus.data.repository.SyncRepository
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.SyncPreferences
@@ -36,20 +35,13 @@ class SyncWorker(
         val since = SyncPreferences.getLastSyncTimestamp(applicationContext).firstOrNull() ?: 0L
 
         syncRepo.push(userId).onFailure { e ->
-            when (e) {
-                is SyncPartialFailureException -> {
-                    // Step 1 succeeded (foods/meals/etc.) but daily logs failed.
-                    // Pull still runs below; daily logs will be retried next cycle.
-                    Log.w(TAG, "Push partial failure — daily logs not pushed: ${e.cause?.message}")
-                }
-                else -> Log.w(TAG, "Push failed (non-fatal): ${e.message}")
-            }
-            // Don't return failure — pull still runs; unsynced items retried next cycle
+            Log.w(TAG, "Push failed: ${e.message}")
+            return Result.failure(workDataOf(KEY_ERROR to (e.message ?: "Push failed")))
         }
 
         val serverTime = syncRepo.pull(userId, since).getOrElse { e ->
             Log.w(TAG, "Pull failed: ${e.message}")
-            return Result.retry()
+            return Result.failure(workDataOf(KEY_ERROR to (e.message ?: "Pull failed")))
         }
 
         SyncPreferences.setLastSyncTimestamp(applicationContext, serverTime)
@@ -59,6 +51,7 @@ class SyncWorker(
 
     companion object {
         const val TAG = "SyncWorker"
+        const val KEY_ERROR = "sync_error"
 
         fun periodicRequest(): PeriodicWorkRequest =
             PeriodicWorkRequestBuilder<SyncWorker>(24, TimeUnit.HOURS)
