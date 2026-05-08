@@ -248,8 +248,9 @@ export function DietPickerModal({ date, currentDietId, diets, meals, foods, tags
   onClose:       () => void;
   onAssign:      (dietId: number | null) => void;
 }) {
-  const [phase,     setPhase]     = useState<"pick" | "detail">("pick");
-  const [selected,  setSelected]  = useState<DietDto | null>(null);
+  const assignedDiet = currentDietId != null ? (diets.find((d) => d.id === currentDietId) ?? null) : null;
+  const [phase,     setPhase]     = useState<"pick" | "detail">(assignedDiet ? "detail" : "pick");
+  const [selected,  setSelected]  = useState<DietDto | null>(assignedDiet);
   const [query,     setQuery]     = useState("");
   const [favOnly,   setFavOnly]   = useState(false);
   const [tagFilter, setTagFilter] = useState<number | null>(null);
