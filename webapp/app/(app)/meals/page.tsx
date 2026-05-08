@@ -1,16 +1,19 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, X, Search, ChevronDown, ChevronUp, Trash2, UtensilsCrossed } from "lucide-react";
+import { X, Search, ChevronDown, ChevronUp, Trash2, UtensilsCrossed } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchBar } from "@/components/SearchBar";
 import { EmptyState } from "@/components/EmptyState";
+import { CreateMealModal } from "./CreateMealModal";
 import type { components } from "@/lib/api/types.generated";
 
 type MealDto         = components["schemas"]["MealDto"];
 type MealFoodItemDto = components["schemas"]["MealFoodItemDto"];
 type FoodDto         = components["schemas"]["FoodDto"];
+
+const PAGE_SIZE = 12;
 
 // ── Inline food picker ────────────────────────────────────────────────────────
 function FoodPicker({ foods, onAdd, onClose }: {
@@ -46,7 +49,8 @@ function FoodPicker({ foods, onAdd, onClose }: {
                 onClick={() => setSelected(f)}
                 className="w-full text-left text-sm px-2 py-1.5 rounded-lg hover:bg-bg-card transition-colors flex justify-between"
               >
-                <span className="text-text-primary">{f.name}
+                <span className="text-text-primary">
+                  {f.name}
                   {f.brand && <span className="text-text-muted"> · {f.brand}</span>}
                 </span>
                 <span className="text-text-muted text-xs">{f.caloriesPer100} kcal/100g</span>
@@ -67,9 +71,9 @@ function FoodPicker({ foods, onAdd, onClose }: {
           <span className="text-xs text-text-muted">g</span>
           <button
             onClick={() => {
-              const q = parseFloat(qty);
-              if (!isNaN(q) && q > 0 && selected.id != null) {
-                onAdd({ foodId: selected.id, quantity: q, unit: "GRAM" } as MealFoodItemDto);
+              const g = parseFloat(qty);
+              if (!isNaN(g) && g > 0 && selected.id != null) {
+                onAdd({ foodId: selected.id, quantity: g, unit: "GRAM" } as MealFoodItemDto);
                 onClose();
               }
             }}
@@ -96,6 +100,10 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
   const [saving,     setSaving]     = useState(false);
 
   const items = meal.items ?? [];
+  const totalKcal = items.reduce((sum, item) => {
+    const food = foods.find((f) => f.id === item.foodId);
+    return sum + (food ? Math.round(food.caloriesPer100 * item.quantity / 100) : 0);
+  }, 0);
 
   const removeFood = async (idx: number) => {
     setSaving(true);
@@ -125,7 +133,12 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
       >
         <div className="flex-1 min-w-0">
           <p className="text-[15px] font-semibold text-text-primary truncate">{meal.name}</p>
-          <p className="text-xs text-text-muted mt-0.5">{items.length} food{items.length !== 1 ? "s" : ""}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-text-muted">{items.length} food{items.length !== 1 ? "s" : ""}</p>
+            {totalKcal > 0 && (
+              <span className="text-xs font-medium text-text-muted">· {totalKcal} kcal</span>
+            )}
+          </div>
         </div>
         {expanded
           ? <ChevronUp className="h-4 w-4 text-text-muted shrink-0" />
@@ -145,16 +158,29 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
                 const kcal = food ? Math.round(food.caloriesPer100 * item.quantity / 100) : null;
                 return (
                   <li key={idx} className="flex items-center gap-2 text-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-text-muted/40 shrink-0" />
                     <span className="flex-1 text-text-primary truncate">{food?.name ?? `Food #${item.foodId}`}</span>
-                    <span className="text-xs text-text-muted shrink-0">{item.quantity}g{kcal ? ` · ${kcal} kcal` : ""}</span>
-                    <button onClick={() => removeFood(idx)} disabled={saving}
-                      className="p-1 rounded-lg hover:bg-bg-page transition-colors shrink-0">
+                    <span className="text-xs text-text-muted shrink-0">
+                      {item.quantity}g{kcal ? ` · ${kcal} kcal` : ""}
+                    </span>
+                    <button
+                      onClick={() => removeFood(idx)} disabled={saving}
+                      className="p-1 rounded-lg hover:bg-bg-page transition-colors shrink-0"
+                    >
                       <X className="h-3.5 w-3.5 text-text-muted" />
                     </button>
                   </li>
                 );
               })}
             </ul>
+          )}
+
+          {items.length > 0 && (
+            <div className="flex justify-end mb-2">
+              <span className="text-[11px] font-semibold text-text-secondary">
+                Total: {totalKcal} kcal
+              </span>
+            </div>
           )}
 
           {addingFood
@@ -164,7 +190,7 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
                 onClick={() => setAddingFood(true)} disabled={saving}
                 className="w-full h-9 rounded-xl border border-dashed border-divider text-sm text-text-muted hover:bg-bg-page transition-colors flex items-center justify-center gap-1"
               >
-                <Plus className="h-3.5 w-3.5" />Add food
+                <X className="h-3.5 w-3.5 rotate-45" />Add food
               </button>
             )}
 
@@ -180,56 +206,6 @@ function MealCard({ meal, foods, onUpdate, onDelete }: {
   );
 }
 
-// ── Create meal sheet ─────────────────────────────────────────────────────────
-function CreateMealSheet({ onCreated, onClose }: {
-  onCreated: (m: MealDto) => void;
-  onClose: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setBusy(true);
-    try {
-      const m = await api.post<MealDto>("/api/v1/meals", { name: name.trim(), items: [] });
-      onCreated(m);
-      onClose();
-    } finally { setBusy(false); }
-  };
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 inset-x-0 z-50 bg-bg-card rounded-t-3xl shadow-xl animate-in slide-in-from-bottom duration-200">
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-9 h-1 rounded-full bg-text-muted/30" />
-        </div>
-        <div className="px-5 pb-10 pt-2">
-          <p className="text-[17px] font-semibold text-text-primary mb-5">New meal</p>
-          <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-text-secondary">Name *</label>
-              <input
-                value={name} onChange={(e) => setName(e.target.value)} autoFocus
-                placeholder="e.g. High protein breakfast"
-                className="w-full h-11 px-3 rounded-xl border border-divider bg-bg-page text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-green/30"
-              />
-            </div>
-            <button
-              type="submit" disabled={busy || !name.trim()}
-              className="w-full h-12 rounded-xl bg-green text-white font-semibold text-[15px] disabled:opacity-50 hover:bg-green/90 transition-colors mt-2"
-            >
-              {busy ? "Creating…" : "Create meal"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function MealsPage() {
   const { user } = useAuth();
@@ -239,6 +215,7 @@ export default function MealsPage() {
   const [error,      setError]      = useState<string | null>(null);
   const [query,      setQuery]      = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [visible,    setVisible]    = useState(PAGE_SIZE);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -260,6 +237,12 @@ export default function MealsPage() {
     const q = query.toLowerCase();
     return meals.filter((m) => m.name.toLowerCase().includes(q));
   }, [meals, query]);
+
+  // Reset pagination when filter changes
+  useEffect(() => { setVisible(PAGE_SIZE); }, [filtered]);
+
+  const shown   = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this meal?")) return;
@@ -290,7 +273,7 @@ export default function MealsPage() {
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 px-3 h-9 rounded-xl bg-green text-white text-sm font-medium hover:bg-green/90 transition-colors"
         >
-          <Plus className="h-4 w-4" />New
+          <X className="h-4 w-4 rotate-45" />New
         </button>
       </div>
 
@@ -306,21 +289,33 @@ export default function MealsPage() {
           action={!query ? { label: "Create meal", onClick: () => setShowCreate(true) } : undefined}
         />
       ) : (
-        <div className="space-y-3">
-          {filtered.map((meal) => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              foods={foods}
-              onUpdate={(m) => setMeals((prev) => prev.map((x) => x.id === m.id ? m : x))}
-              onDelete={() => meal.id != null && handleDelete(meal.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="space-y-3">
+            {shown.map((meal) => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                foods={foods}
+                onUpdate={(m) => setMeals((prev) => prev.map((x) => x.id === m.id ? m : x))}
+                onDelete={() => meal.id != null && handleDelete(meal.id)}
+              />
+            ))}
+          </div>
+
+          {hasMore && (
+            <button
+              onClick={() => setVisible((v) => v + PAGE_SIZE)}
+              className="w-full h-10 rounded-xl border border-divider text-sm text-text-muted hover:bg-bg-card transition-colors"
+            >
+              Load more ({filtered.length - visible} remaining)
+            </button>
+          )}
+        </>
       )}
 
       {showCreate && (
-        <CreateMealSheet
+        <CreateMealModal
+          foods={foods}
           onCreated={(m) => setMeals((prev) => [m, ...prev])}
           onClose={() => setShowCreate(false)}
         />
