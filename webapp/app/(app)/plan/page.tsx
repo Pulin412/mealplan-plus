@@ -48,7 +48,6 @@ export default function PlanPage() {
   const [plan, setPlan] = useState<Map<string, number>>(new Map());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -86,7 +85,6 @@ export default function PlanPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const assignDiet = useCallback(async (date: string, dietId: number | null) => {
-    setSaving(true);
     try {
       if (dietId === null) {
         await api.delete(`/api/v1/plans/${date}`);
@@ -97,8 +95,6 @@ export default function PlanPage() {
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSaving(false);
     }
   }, []);
 
