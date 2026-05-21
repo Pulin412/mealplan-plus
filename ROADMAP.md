@@ -452,6 +452,23 @@ Vercel's auto-deploy fires on every push to main regardless of what changed. Usi
 
 ---
 
+## Phase 3e — Webapp Stabilisation
+> **Goal:** Fix auth, sync, and UI issues discovered post-deployment.  
+> **Depends on:** Phase 3d (app live on Vercel)
+
+| Task | Status |
+|---|---|
+| Auth — Firebase auth state race on page refresh (`authStateReady()`) | ✅ Done |
+| Auth — remove Edge middleware, move guard client-side | ✅ Done |
+| Sync — include foods + daily logs in push/pull | ✅ Done |
+| Sync — exclude system diets/meals from push; dedup backend duplicates | ✅ Done |
+| Sync — fix spinner never clearing on daily log push failure | ✅ Done |
+| Backend — `GET /api/v1/dashboard` single endpoint replaces N calls | ✅ Done |
+| UI — webapp redesign: design tokens, tags, plan screen diet picker | ✅ Done |
+| UI — UX improvements (#118, #119) | ✅ Done |
+
+---
+
 ## Phase 4 — AI on Web (Spring AI + RAG)
 > **Goal:** Dietary chatbot on the web app, powered by user's actual data via RAG.  
 > **Depends on:** Phase 3c (backend deployed, pgvector accumulating data), Phase 3 (web app exists)
@@ -507,7 +524,8 @@ Foundation (#81, #82, #98 UI redesign)
             │               └── Phase 3b (Backup & Restore) ← done ✅ · Drive + local file · #105–#107
             │                       └── Phase 3c (Deploy + iOS PWA) ← done ✅ · Cloud Run + Vercel live
             │                               └── Phase 3d (Repo + CI/CD Overhaul) ← done ✅ · clean repo + independent pipelines
-            │                                       └── Phase 4 (AI Web) ← needs backend live + pgvector data
+            │                                       └── Phase 3e (Webapp Stabilisation) ← done ✅ · auth + sync fixes + UI polish
+            │                                               └── Phase 4 (AI Web) ← needs backend live + pgvector data
             │                                               └── Phase 5 (AI Android) ← same backend endpoint
             └── (pgvector enabled here)
 ```
@@ -527,6 +545,7 @@ Foundation (#81, #82, #98 UI redesign)
 | 2e | **Phase 3b** · Backup & Restore | ✅ Done | #105–#107: Drive + local file, Android + Webapp; GZIP; all 20 tables |
 | 2f | **Phase 3c** · Deploy + iOS PWA | ✅ Done | Cloud Run ✅ · Vercel ✅ · CORS ✅ · Android URL ✅ |
 | 2g | **Phase 3d** · Repo + CI/CD Overhaul | ✅ Done | `ios/` + `shared/` deleted · `android.yml` + `backend.yml` + `webapp.yml` · cross-fire on backend changes |
+| 2h | **Phase 3e** · Webapp Stabilisation | ✅ Done | Auth race fix · sync foods/logs · dedup · dashboard endpoint · UI polish (#118, #119) |
 | 3 | **Phase 4** · AI Web | ⬜ Open | Needs Phase 3c (backend live) + pgvector data accumulating |
 | 4 | **Phase 5** · AI Android | ⬜ Open | Needs Phase 4 backend endpoint |
 

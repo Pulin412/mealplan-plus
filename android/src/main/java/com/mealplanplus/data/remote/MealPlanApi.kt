@@ -46,6 +46,7 @@ data class DailyLogDto(
 
 data class MealFoodItemDto(
     val id: Long = 0, val mealId: Long = 0, val foodId: Long = 0,
+    val foodServerId: String? = null,
     val quantity: Double = 0.0, val unit: String = "GRAM", val notes: String? = null
 )
 data class MealDto(
