@@ -32,8 +32,8 @@ class DashboardService(
     private val mealRepo: MealRepository,
     private val mealFoodItemRepo: MealFoodItemRepository,
 ) {
-    fun get(firebaseUid: String): DashboardDto {
-        val today = LocalDate.now()
+    fun get(firebaseUid: String, clientDate: LocalDate? = null): DashboardDto {
+        val today = clientDate ?: LocalDate.now()
 
         val todayEntity = logRepo.findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid, today)
         val recentLogs  = logRepo.findTop5ByFirebaseUidOrderByDateDesc(firebaseUid)

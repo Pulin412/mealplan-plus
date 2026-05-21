@@ -195,7 +195,7 @@ export default function DashboardPage() {
   const load = useCallback(() => {
     if (!user) return;
     setLoading(true);
-    api.get<DashboardDto>("/api/v1/dashboard")
+    api.get<DashboardDto>(`/api/v1/dashboard?date=${today}`)
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
