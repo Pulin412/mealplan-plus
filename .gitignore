@@ -19,3 +19,11 @@ node_modules/
 webapp/.next/
 webapp/out/
 webapp/.env.local
+webapp/.env
+webapp/.idea/
+
+# Root env (local secrets)
+.env
+
+# Misplaced android module directory
+/app/
