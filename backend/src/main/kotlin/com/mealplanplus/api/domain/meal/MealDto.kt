@@ -9,6 +9,7 @@ data class MealFoodItemDto(
     val id: Long = 0,
     val mealId: Long = 0,
     val foodId: Long = 0,
+    val foodServerId: String? = null,
     @field:PositiveOrZero val quantity: Double = 0.0,
     val unit: String = "GRAM",
     val notes: String? = null
@@ -24,6 +25,6 @@ data class MealDto(
     val updatedAt: Instant? = null
 )
 
-fun MealFoodItem.toDto() = MealFoodItemDto(id, mealId, foodId, quantity, unit, notes)
+fun MealFoodItem.toDto() = MealFoodItemDto(id = id, mealId = mealId, foodId = foodId, quantity = quantity, unit = unit, notes = notes)
 fun Meal.toDto(items: List<MealFoodItem>) =
     MealDto(id, serverId, firebaseUid, name, items.map { it.toDto() }, updatedAt)

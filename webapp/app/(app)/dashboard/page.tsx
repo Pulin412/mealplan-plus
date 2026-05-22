@@ -1,100 +1,176 @@
 "use client";
-import { useEffect, useState } from "react";
-import { UtensilsCrossed, Flame, Dumbbell, Weight } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { ChevronDown, ChevronUp, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
-import { todayStr, calcCalories, formatDateShort, MEAL_SLOTS } from "@/lib/utils";
+import { todayStr } from "@/lib/utils";
 
 type DailyLogDto     = components["schemas"]["DailyLogDto"];
 type FoodDto         = components["schemas"]["FoodDto"];
 type HealthMetricDto = components["schemas"]["HealthMetricDto"];
 
-interface DayCalories { date: string; calories: number; }
-interface MacroTotals { protein: number; carbs: number; fat: number; calories: number; }
-
-interface DashboardDto {
-  todayLog: DailyLogDto | null;
-  recentLogs: DailyLogDto[];
-  foods: FoodDto[];
-  dietCount: number;
-  latestWeight: HealthMetricDto | null;
-  currentStreak: number;
-  weeklyCalories: DayCalories[];
-  todayMacros: MacroTotals;
+// ── Local DTOs (not yet in generated types) ───────────────────────────────────
+interface TodayMealItemDto {
+  foodId: number; foodName: string;
+  quantity: number; unit: string;
+  caloriesPer100: number; proteinPer100: number;
+  carbsPer100: number; fatPer100: number;
+  glycemicIndex: number | null; notes: string | null;
+}
+interface TodaySlotDto  { slot: string; mealId: number; mealName: string; items: TodayMealItemDto[]; }
+interface TodayPlanDto  {
+  dietId: number; dietName: string; description: string | null;
+  targetCalories: number | null; targetProtein: number | null;
+  targetCarbs: number | null; targetFat: number | null;
+  avgGlycemicIndex: number | null; slots: TodaySlotDto[];
+}
+interface DayCalories   { date: string; calories: number; }
+interface MacroTotals   { protein: number; carbs: number; fat: number; calories: number; }
+interface DashboardDto  {
+  todayLog: DailyLogDto | null; recentLogs: DailyLogDto[]; foods: FoodDto[];
+  dietCount: number; latestWeight: HealthMetricDto | null;
+  currentStreak: number; weeklyCalories: DayCalories[]; todayMacros: MacroTotals;
+  todayPlan: TodayPlanDto | null; todaySteps: number | null; todayCaloriesBurned: number | null;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
 }
-
 function todayLabel() {
   return new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 }
-
-function calcLogCalories(log: DailyLogDto, foods: FoodDto[]): number {
-  const foodMap = new Map(foods.map((f) => [f.id, f]));
-  return (log.loggedFoods ?? []).reduce((sum, lf) => {
-    const food = foodMap.get(lf.foodId);
-    if (!food) return sum;
-    return sum + calcCalories(food, lf);
-  }, 0);
+function normalizeSlot(slot: string): string {
+  const map: Record<string, string> = {
+    BREAKFAST: "Breakfast", LUNCH: "Lunch", DINNER: "Dinner",
+    SNACK: "Snack", PRE_WORKOUT: "Pre-Workout", POST_WORKOUT: "Post-Workout", NOON: "Snack",
+  };
+  return map[slot.toUpperCase()] ?? slot;
+}
+// Thresholds match Android: ≤55 Low, 56–69 Med, ≥70 High
+function giMeta(gi: number) {
+  if (gi <= 55) return { label: "Low GI",  color: "#2E7D52", bg: "#E8F5EE" };
+  if (gi <= 69) return { label: "Med GI",  color: "#F57F17", bg: "#FFF8E1" };
+  return              { label: "High GI", color: "#B71C1C", bg: "#FFEBEE" };
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
-function StatCard({ icon, iconBg, iconColor, label, value, unit, loading }: {
-  icon: React.ReactNode; iconBg: string; iconColor: string;
-  label: string; value: string | number; unit?: string; loading: boolean;
-}) {
+// ── Sub-components ────────────────────────────────────────────────────────────
+function StatPill({ value, label }: { value: string; label: string }) {
   return (
-    <div className="bg-bg-card rounded-lg border border-outline p-4 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-md flex items-center justify-center shrink-0" style={{ background: iconBg }}>
-        <span style={{ color: iconColor }}>{icon}</span>
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-text-muted">{label}</p>
-        {loading ? <Skeleton className="h-6 w-16 mt-1" /> : (
-          <p className="text-xl font-semibold text-text-primary leading-tight">
-            {value}
-            {unit && <span className="text-sm font-normal text-text-muted ml-1">{unit}</span>}
-          </p>
-        )}
-      </div>
+    <div className="flex-1 bg-bg-card border border-outline rounded-lg p-3 flex flex-col items-center gap-1 min-w-0">
+      <span className="text-lg font-bold text-text-primary leading-none">{value}</span>
+      <span className="text-[11px] text-text-muted text-center">{label}</span>
     </div>
   );
 }
 
-function MacroRow({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-        <span className="text-text-secondary">{label}</span>
-      </div>
-      <span className="font-semibold text-text-primary">{Math.round(value)}{unit}</span>
-    </div>
-  );
-}
-
-function SlotRow({ label, color, bg, logged, count }: {
-  label: string; color: string; bg: string; logged: boolean; count: number;
+function MacroBar({ label, logged, target, color, unit = "g" }: {
+  label: string; logged: number; target: number | null; color: string; unit?: string;
 }) {
+  const pct = target ? Math.min(100, (logged / target) * 100) : 0;
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-divider last:border-0">
-      <div className="flex items-center gap-3">
-        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-        <span className="text-sm font-medium text-text-primary">{label}</span>
-      </div>
-      {logged ? (
-        <span className="text-xs font-medium px-2.5 py-0.5 rounded-xl" style={{ background: bg, color }}>
-          {count} item{count !== 1 ? "s" : ""} logged
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-text-secondary font-medium">{label}</span>
+        <span className="text-text-muted">
+          <span className="font-semibold text-text-primary">{Math.round(logged)}</span>
+          {target ? `/${Math.round(target)} ${unit}` : ` ${unit}`}
         </span>
-      ) : (
-        <span className="text-xs text-text-placeholder">Not logged</span>
+      </div>
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function GiBadge({ gi }: { gi: number }) {
+  const { label, color, bg } = giMeta(gi);
+  return (
+    <span className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+      style={{ background: bg, color }}>
+      GI {gi} · {label}
+    </span>
+  );
+}
+
+function MealSlotCard({ slotDto, logged, loggingThis, unloggingThis, onLog, onUnlog }: {
+  slotDto: TodaySlotDto; logged: boolean; loggingThis: boolean; unloggingThis: boolean;
+  onLog: () => void; onUnlog: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const slotName  = normalizeSlot(slotDto.slot);
+  const totalCals = slotDto.items.reduce((s, item) => {
+    const g = item.unit === "GRAM" ? item.quantity : item.quantity * 100;
+    return s + (item.caloriesPer100 * g / 100);
+  }, 0);
+
+  return (
+    <div className={`bg-bg-card rounded-lg border overflow-hidden ${logged ? "border-green-200" : "border-outline"}`}>
+      <button className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        onClick={() => setExpanded((v) => !v)}>
+        <div className="flex-1 min-w-0">
+          <span className="text-[11px] font-medium text-text-muted">{slotName}</span>
+          <p className="text-sm font-semibold text-text-primary truncate">{slotDto.mealName}</p>
+          <p className="text-xs text-text-muted">
+            {Math.round(totalCals)} kcal · {slotDto.items.length} item{slotDto.items.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {logged ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onUnlog(); }}
+              disabled={unloggingThis}
+              className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-60"
+            >
+              {unloggingThis ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+              Logged
+            </button>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onLog(); }}
+              disabled={loggingThis}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full text-white disabled:opacity-60 transition-opacity"
+              style={{ background: "#2E7D52" }}
+            >
+              {loggingThis ? <Loader2 size={10} className="animate-spin" /> : null}
+              Log
+            </button>
+          )}
+          {expanded
+            ? <ChevronUp size={14} className="text-text-muted" />
+            : <ChevronDown size={14} className="text-text-muted" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-3 border-t border-divider space-y-1.5 pt-2">
+          {slotDto.items.length === 0
+            ? <p className="text-xs text-text-muted">No ingredients added</p>
+            : slotDto.items.map((item, i) => {
+                const g    = item.unit === "GRAM" ? item.quantity : item.quantity * 100;
+                const kcal = Math.round(item.caloriesPer100 * g / 100);
+                return (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-text-secondary truncate">{item.foodName}</span>
+                      {item.glycemicIndex != null && <GiBadge gi={item.glycemicIndex} />}
+                    </div>
+                    <span className="text-text-muted shrink-0">
+                      {item.quantity}{item.unit === "GRAM" ? "g" : ` ${item.unit.toLowerCase()}`}
+                      {" "}· {kcal} kcal
+                    </span>
+                  </div>
+                );
+              })
+          }
+        </div>
       )}
     </div>
   );
@@ -108,26 +184,85 @@ export default function DashboardPage() {
   const [data,    setData]    = useState<DashboardDto | null>(null);
   const [error,   setError]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingSlot,   setLoggingSlot]   = useState<string | null>(null);
+  const [unloggingSlot, setUnloggingSlot] = useState<string | null>(null);
+  const [planExpanded,  setPlanExpanded]  = useState(true);
 
-  useEffect(() => {
+  const today = todayStr();
+
+  const load = useCallback(() => {
     if (!user) return;
     setLoading(true);
-    api.get<DashboardDto>("/api/v1/dashboard")
+    api.get<DashboardDto>(`/api/v1/dashboard?date=${today}`)
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [user]);
 
-  const today = todayStr();
-  const slotsLogged = new Set((data?.todayLog?.loggedFoods ?? []).map((lf) => lf.mealSlot));
+  useEffect(() => { load(); }, [load]);
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const loggedSlotSet = new Set(
+    (data?.todayLog?.loggedFoods ?? []).map((lf) => normalizeSlot(lf.mealSlot ?? ""))
+  );
+  const planSlots = data?.todayPlan?.slots ?? [];
+  const allPlanSlotsLogged = planSlots.length > 0 &&
+    planSlots.every((s) => loggedSlotSet.has(normalizeSlot(s.slot)));
+
+  // ── Log a meal ────────────────────────────────────────────────────────────
+  async function logMeal(slotDto: TodaySlotDto) {
+    setLoggingSlot(slotDto.slot);
+    try {
+      const slotKey  = normalizeSlot(slotDto.slot);
+      const newItems = slotDto.items.map((item) => ({
+        id: 0, dailyLogId: data?.todayLog?.id ?? 0,
+        foodId: item.foodId, mealSlot: slotKey,
+        quantity: item.quantity, unit: item.unit,
+      }));
+      const existing    = data?.todayLog;
+      const mergedFoods = [...(existing?.loggedFoods ?? []), ...newItems];
+
+      if (existing) {
+        await api.put<DailyLogDto>(`/api/v1/daily-logs/${existing.id}`, { ...existing, loggedFoods: mergedFoods });
+      } else {
+        await api.post<DailyLogDto>("/api/v1/daily-logs", { date: today, loggedFoods: newItems });
+      }
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to log meal");
+    } finally {
+      setLoggingSlot(null);
+    }
+  }
+
+  // ── Unlog a single slot ───────────────────────────────────────────────────
+  async function unlogMeal(slotDto: TodaySlotDto) {
+    const existing = data?.todayLog;
+    if (!existing) return;
+    setUnloggingSlot(slotDto.slot);
+    try {
+      const slotKey     = normalizeSlot(slotDto.slot);
+      const remaining   = (existing.loggedFoods ?? []).filter((lf) => lf.mealSlot !== slotKey);
+      await api.put<DailyLogDto>(`/api/v1/daily-logs/${existing.id}`, { ...existing, loggedFoods: remaining });
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to unlog meal");
+    } finally {
+      setUnloggingSlot(null);
+    }
+  }
+
+
+  const plan    = data?.todayPlan;
+  const dayDone = allPlanSlotsLogged && !planExpanded;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
       {/* Header */}
       <div>
         <h1 className="text-[22px] font-semibold text-text-primary leading-tight">
-          {greeting()}, {displayName} 👋
+          {greeting()}, {displayName}
         </h1>
         <p className="text-sm text-text-muted mt-0.5">{todayLabel()}</p>
       </div>
@@ -138,82 +273,113 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 4 stat cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={<UtensilsCrossed size={18} />} iconBg="#E8F5EE" iconColor="#2E7D52"
-          label="Meals today" value={loading ? "—" : `${slotsLogged.size}/3`} loading={false} />
-        <StatCard icon={<Flame size={18} />} iconBg="#FFF8E6" iconColor="#F59E0B"
-          label="Calories" value={loading ? "—" : Math.round(data?.todayMacros?.calories ?? 0)} unit="kcal" loading={false} />
-        <StatCard icon={<Dumbbell size={18} />} iconBg="#E8EEFF" iconColor="#1E4FBF"
-          label={`Streak ${loading ? "" : "🔥"}`}
-          value={loading ? "—" : data?.currentStreak ?? 0} unit="days" loading={false} />
-        <StatCard icon={<Weight size={18} />} iconBg="#F3EEFF" iconColor="#7C3AED"
-          label="Weight" value={loading ? "—" : data?.latestWeight ? data.latestWeight.value : "—"}
-          unit={data?.latestWeight?.unit ?? "kg"} loading={false} />
-      </div>
-
-      {/* Today's meals */}
-      <div className="bg-bg-card rounded-lg border border-outline overflow-hidden">
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-sm font-semibold text-text-primary">Today&apos;s meals</p>
+      {/* Streak / Steps / Calories burned */}
+      {loading ? (
+        <div className="flex gap-2">{[1,2,3].map((i) => <Skeleton key={i} className="flex-1 h-20 rounded-lg" />)}</div>
+      ) : (
+        <div className="flex gap-2">
+          <StatPill value={`${data?.currentStreak ?? 0}`} label="streak" />
+          <StatPill
+            value={data?.todaySteps != null ? Math.round(data.todaySteps).toLocaleString() : "—"}
+            label="steps today" />
+          <StatPill
+            value={data?.todayCaloriesBurned != null ? `${Math.round(data.todayCaloriesBurned)}` : "—"}
+            label="kcal burned" />
         </div>
-        <div className="px-4 pb-2">
-          {loading ? (
-            <div className="space-y-3 py-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-5 w-full" />)}</div>
-          ) : (
-            MEAL_SLOTS.filter((s) => s.key !== "Snack").map((slot) => {
-              const count = (data?.todayLog?.loggedFoods ?? []).filter((lf) => lf.mealSlot === slot.key).length;
-              return <SlotRow key={slot.key} label={slot.key} color={slot.color} bg={slot.bg} logged={count > 0} count={count} />;
-            })
-          )}
-        </div>
-      </div>
+      )}
 
-      {/* Macros */}
-      <div className="bg-bg-card rounded-lg border border-outline p-4 space-y-3">
-        <p className="text-sm font-semibold text-text-primary">Macros today</p>
+      {/* Macros: logged vs target */}
+      <div className="bg-bg-card border border-outline rounded-lg p-4 space-y-3">
+        <p className="text-sm font-semibold text-text-primary">
+          Macros {plan ? "vs target" : "today"}
+        </p>
         {loading ? (
-          <div className="space-y-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-4 w-full" />)}</div>
+          <div className="space-y-3">{[1,2,3,4].map((i) => <Skeleton key={i} className="h-5 w-full" />)}</div>
         ) : (
           <>
-            <MacroRow label="Protein" value={data?.todayMacros?.protein ?? 0} unit="g" color="#2E7D52" />
-            <MacroRow label="Carbs"   value={data?.todayMacros?.carbs ?? 0}   unit="g" color="#C05200" />
-            <MacroRow label="Fat"     value={data?.todayMacros?.fat ?? 0}     unit="g" color="#1E4FBF" />
+            <MacroBar label="Calories" logged={data?.todayMacros?.calories ?? 0} target={plan?.targetCalories ?? null} color="#F59E0B" unit="kcal" />
+            <MacroBar label="Protein"  logged={data?.todayMacros?.protein  ?? 0} target={plan?.targetProtein  ?? null} color="#2E7D52" />
+            <MacroBar label="Carbs"    logged={data?.todayMacros?.carbs    ?? 0} target={plan?.targetCarbs    ?? null} color="#C05200" />
+            <MacroBar label="Fat"      logged={data?.todayMacros?.fat      ?? 0} target={plan?.targetFat      ?? null} color="#1E4FBF" />
           </>
         )}
       </div>
 
-      {/* Recent logs */}
-      <div className="bg-bg-card rounded-lg border border-outline overflow-hidden">
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-sm font-semibold text-text-primary">Recent activity</p>
+      {/* Today's plan — expandable */}
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-14 w-full rounded-lg" />
+          {[1,2,3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
         </div>
-        <div className="px-4 pb-2">
-          {loading ? (
-            <div className="space-y-3 py-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-5 w-full" />)}</div>
-          ) : !data || data.recentLogs.length === 0 ? (
-            <p className="text-sm text-text-muted py-3">No logs yet &mdash; start tracking in the Log tab.</p>
-          ) : (
-            data.recentLogs.map((log) => {
-              const cal = Math.round(calcLogCalories(log, data.foods));
-              const slots = new Set((log.loggedFoods ?? []).map((lf) => lf.mealSlot)).size;
-              return (
-                <div key={log.id ?? log.date} className="flex items-center justify-between py-2.5 border-b border-divider last:border-0">
-                  <span className="text-sm font-medium text-text-primary">{formatDateShort(log.date ?? today)}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-muted">{slots} meal{slots !== 1 ? "s" : ""}</span>
-                    {cal > 0 && (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-xl bg-green-light text-green">
-                        {cal} kcal
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })
+      ) : plan ? (
+        <div className={`rounded-lg border overflow-hidden transition-colors ${dayDone ? "bg-green-50 border-green-300" : "bg-bg-card border-outline"}`}>
+          {/* Header row */}
+          <button
+            className="w-full flex items-center gap-3 px-4 py-3 text-left"
+            onClick={() => setPlanExpanded((v) => !v)}
+          >
+            <div className="flex-1 min-w-0">
+              <p className={`text-[11px] font-medium uppercase tracking-wide ${dayDone ? "text-green-700" : "text-text-muted"}`}>
+                {dayDone ? "Day complete" : "Today's plan"}
+              </p>
+              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                <p className={`text-sm font-semibold ${dayDone ? "text-green-800" : "text-text-primary"}`}>{plan.dietName}</p>
+                {plan.avgGlycemicIndex != null && (
+                  <>
+                    <span className="text-text-muted text-xs">·</span>
+                    <GiBadge gi={plan.avgGlycemicIndex} />
+                  </>
+                )}
+              </div>
+              {!dayDone && (plan.targetCalories || plan.targetProtein || plan.targetCarbs || plan.targetFat) && (
+                <p className="text-[11px] text-text-muted mt-0.5 flex flex-wrap gap-x-2">
+                  {plan.targetCalories != null && <span>{Math.round(plan.targetCalories)} kcal</span>}
+                  {plan.targetProtein  != null && <span>{Math.round(plan.targetProtein)}g P</span>}
+                  {plan.targetCarbs    != null && <span>{Math.round(plan.targetCarbs)}g C</span>}
+                  {plan.targetFat      != null && <span>{Math.round(plan.targetFat)}g F</span>}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {allPlanSlotsLogged && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPlanExpanded(false); }}
+                  className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors ${dayDone ? "bg-green-200 cursor-default" : "bg-green-100 hover:bg-green-200"}`}
+                  title="Mark day complete"
+                >
+                  <Check size={13} className="text-green-700" />
+                </button>
+              )}
+              {planExpanded
+                ? <ChevronUp size={16} className="text-text-muted" />
+                : <ChevronDown size={16} className="text-text-muted" />}
+            </div>
+          </button>
+
+          {/* Meal slot cards */}
+          {planExpanded && plan.slots.length > 0 && (
+            <div className="px-3 pb-3 space-y-2 border-t border-divider pt-3">
+              {plan.slots.map((slotDto) => (
+                <MealSlotCard
+                  key={slotDto.slot}
+                  slotDto={slotDto}
+                  logged={loggedSlotSet.has(normalizeSlot(slotDto.slot))}
+                  loggingThis={loggingSlot === slotDto.slot}
+                  unloggingThis={unloggingSlot === slotDto.slot}
+                  onLog={() => logMeal(slotDto)}
+                  onUnlog={() => unlogMeal(slotDto)}
+                />
+              ))}
+            </div>
           )}
         </div>
-      </div>
+      ) : (
+        <div className="bg-bg-card border border-outline rounded-lg px-4 py-3">
+          <p className="text-xs font-medium text-text-muted">No diet planned for today</p>
+          <p className="text-xs text-text-placeholder mt-0.5">Assign a plan in the <strong>Plan</strong> tab</p>
+        </div>
+      )}
+
 
     </div>
   );

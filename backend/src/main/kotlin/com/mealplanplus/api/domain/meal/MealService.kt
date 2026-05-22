@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.meal
 
+import com.mealplanplus.api.domain.food.FoodRepository
 import com.mealplanplus.api.domain.sync.TombstoneService
 import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
@@ -7,13 +8,23 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
+import java.util.UUID
 
 @Service
 class MealService(
     private val mealRepo: MealRepository,
     private val itemRepo: MealFoodItemRepository,
+    private val foodRepo: FoodRepository,
     private val tombstones: TombstoneService
 ) {
+
+    private fun resolveFoodId(dto: MealFoodItemDto): Long {
+        if (dto.foodServerId != null) {
+            val food = runCatching { foodRepo.findByServerId(UUID.fromString(dto.foodServerId)) }.getOrNull()
+            if (food != null) return food.id
+        }
+        return dto.foodId
+    }
     fun list(firebaseUid: String): List<MealDto> {
         val meals = mealRepo.findByFirebaseUid(firebaseUid)
         if (meals.isEmpty()) return emptyList()
@@ -32,7 +43,7 @@ class MealService(
             .also { if (dto.serverId != null) it.serverId = dto.serverId }
         val saved = mealRepo.save(meal)
         val items = dto.items.map { item ->
-            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = item.foodId,
+            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
                 quantity = item.quantity, unit = item.unit, notes = item.notes))
         }
         return saved.toDto(items)
@@ -47,7 +58,7 @@ class MealService(
             .also { it.serverId = meal.serverId }
         val saved = mealRepo.save(updated)
         val items = dto.items.map { item ->
-            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = item.foodId,
+            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
                 quantity = item.quantity, unit = item.unit, notes = item.notes))
         }
         return saved.toDto(items)
@@ -79,7 +90,7 @@ class MealService(
             .also { it.serverId = existing.serverId }
         val saved = mealRepo.save(updated)
         val items = dto.items.map { item ->
-            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = item.foodId,
+            itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
                 quantity = item.quantity, unit = item.unit, notes = item.notes))
         }
         return saved.toDto(items)
