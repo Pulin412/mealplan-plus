@@ -257,7 +257,8 @@ export default function DashboardPage() {
   }
 
 
-  const plan = data?.todayPlan;
+  const plan    = data?.todayPlan;
+  const dayDone = allPlanSlotsLogged && !planExpanded;
 
   return (
     <div className="space-y-4">
@@ -317,16 +318,18 @@ export default function DashboardPage() {
           {[1,2,3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
         </div>
       ) : plan ? (
-        <div className="bg-bg-card border border-outline rounded-lg overflow-hidden">
+        <div className={`rounded-lg border overflow-hidden transition-colors ${dayDone ? "bg-green-50 border-green-300" : "bg-bg-card border-outline"}`}>
           {/* Header row */}
           <button
             className="w-full flex items-center gap-3 px-4 py-3 text-left"
             onClick={() => setPlanExpanded((v) => !v)}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">Today&apos;s plan</p>
+              <p className={`text-[11px] font-medium uppercase tracking-wide ${dayDone ? "text-green-700" : "text-text-muted"}`}>
+                {dayDone ? "Day complete" : "Today's plan"}
+              </p>
               <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                <p className="text-sm font-semibold text-text-primary">{plan.dietName}</p>
+                <p className={`text-sm font-semibold ${dayDone ? "text-green-800" : "text-text-primary"}`}>{plan.dietName}</p>
                 {plan.avgGlycemicIndex != null && (
                   <>
                     <span className="text-text-muted text-xs">·</span>
@@ -334,7 +337,7 @@ export default function DashboardPage() {
                   </>
                 )}
               </div>
-              {(plan.targetCalories || plan.targetProtein || plan.targetCarbs || plan.targetFat) && (
+              {!dayDone && (plan.targetCalories || plan.targetProtein || plan.targetCarbs || plan.targetFat) && (
                 <p className="text-[11px] text-text-muted mt-0.5 flex flex-wrap gap-x-2">
                   {plan.targetCalories != null && <span>{Math.round(plan.targetCalories)} kcal</span>}
                   {plan.targetProtein  != null && <span>{Math.round(plan.targetProtein)}g P</span>}
@@ -345,9 +348,13 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {allPlanSlotsLogged && (
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPlanExpanded(false); }}
+                  className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors ${dayDone ? "bg-green-200 cursor-default" : "bg-green-100 hover:bg-green-200"}`}
+                  title="Mark day complete"
+                >
                   <Check size={13} className="text-green-700" />
-                </span>
+                </button>
               )}
               {planExpanded
                 ? <ChevronUp size={16} className="text-text-muted" />
