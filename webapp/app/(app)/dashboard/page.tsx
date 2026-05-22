@@ -182,7 +182,6 @@ export default function DashboardPage() {
   const [error,   setError]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingSlot, setLoggingSlot] = useState<string | null>(null);
-  const [dayComplete, setDayComplete] = useState(false);
 
   const today = todayStr();
 
@@ -349,19 +348,10 @@ export default function DashboardPage() {
 
       {/* Mark day complete */}
       {!loading && allPlanSlotsLogged && (
-        <button
-          onClick={() => setDayComplete(true)}
-          disabled={dayComplete}
-          className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm transition-all ${
-            dayComplete
-              ? "bg-green-50 text-green-700 border border-green-200 cursor-default"
-              : "text-white hover:opacity-90 active:scale-[0.98]"
-          }`}
-          style={!dayComplete ? { background: "#2E7D52" } : undefined}
-        >
+        <div className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm bg-green-50 text-green-700 border border-green-200 cursor-default">
           <Check size={16} />
-          {dayComplete ? "Day Complete! 🎉" : "Mark Day Complete"}
-        </button>
+          Day Complete! 🎉
+        </div>
       )}
 
 

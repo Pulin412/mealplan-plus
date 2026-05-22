@@ -54,7 +54,7 @@ class DashboardService(
                         else foodRepo.findAllById(foodIds).associateBy { it.id }
         val foodDtos = foodsById.values.map { it.toDto() }
 
-        val currentStreak = computeStreak(firebaseUid, today, foodsByLogId)
+        val currentStreak = computeStreak(firebaseUid, today)
 
         val weeklyCalories = (0..6).map { offset ->
             val date = sevenDaysAgo.plusDays(offset.toLong())
@@ -148,17 +148,13 @@ class DashboardService(
         )
     }
 
-    private fun computeStreak(
-        firebaseUid: String,
-        today: LocalDate,
-        foodsByLogId: Map<Long, List<LoggedFood>>
-    ): Int {
+    private fun computeStreak(firebaseUid: String, today: LocalDate): Int {
         val since = today.minusDays(59)
         val logs  = logRepo.findByFirebaseUidAndDateBetweenOrderByDateAsc(firebaseUid, since, today)
-        val datesWithFood = logs
-            .filter { (foodsByLogId[it.id]?.isNotEmpty() == true) }
-            .map { it.date }
-            .toSet()
+        if (logs.isEmpty()) return 0
+        val logIdsWithFood = loggedFoodRepo.findByDailyLogIdIn(logs.map { it.id })
+            .map { it.dailyLogId }.toSet()
+        val datesWithFood = logs.filter { it.id in logIdsWithFood }.map { it.date }.toSet()
 
         var streak = 0
         var cursor = if (today in datesWithFood) today else today.minusDays(1)
