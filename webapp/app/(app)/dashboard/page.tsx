@@ -182,6 +182,7 @@ export default function DashboardPage() {
   const [error,   setError]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingSlot, setLoggingSlot] = useState<string | null>(null);
+  const [planExpanded, setPlanExpanded] = useState(true);
 
   const today = todayStr();
 
@@ -266,25 +267,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Today's plan header */}
-      {loading ? (
-        <Skeleton className="h-14 w-full rounded-lg" />
-      ) : plan ? (
-        <div className="bg-bg-card border border-outline rounded-lg px-4 py-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">Today&apos;s plan</p>
-            <p className="text-sm font-semibold text-text-primary">{plan.dietName}</p>
-            {plan.description && <p className="text-xs text-text-muted mt-0.5 truncate">{plan.description}</p>}
-          </div>
-          {plan.avgGlycemicIndex != null && <GiBadge gi={plan.avgGlycemicIndex} />}
-        </div>
-      ) : (
-        <div className="bg-bg-card border border-outline rounded-lg px-4 py-3">
-          <p className="text-xs font-medium text-text-muted">No diet planned for today</p>
-          <p className="text-xs text-text-placeholder mt-0.5">Assign a plan in the <strong>Plan</strong> tab</p>
-        </div>
-      )}
-
       {/* Macros: logged vs target */}
       <div className="bg-bg-card border border-outline rounded-lg p-4 space-y-3">
         <p className="text-sm font-semibold text-text-primary">
@@ -302,55 +284,56 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Today's meals */}
+      {/* Today's plan — expandable */}
       {loading ? (
-        <div className="space-y-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>
-      ) : plan && plan.slots.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-text-primary">Today&apos;s meals</p>
-          {plan.slots.map((slotDto) => (
-            <MealSlotCard
-              key={slotDto.slot}
-              slotDto={slotDto}
-              logged={loggedSlotSet.has(normalizeSlot(slotDto.slot))}
-              loggingThis={loggingSlot === slotDto.slot}
-              onLog={() => logMeal(slotDto)}
-            />
-          ))}
+          <Skeleton className="h-14 w-full rounded-lg" />
+          {[1,2,3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
         </div>
-      ) : !loading && (
-        <div className="bg-bg-card rounded-lg border border-outline overflow-hidden">
-          <div className="px-4 pt-4 pb-2">
-            <p className="text-sm font-semibold text-text-primary">Today&apos;s meals</p>
-          </div>
-          <div className="px-4 pb-2">
-            {MEAL_SLOTS.filter((s) => s.key !== "Snack").map((slot) => {
-              const count = (data?.todayLog?.loggedFoods ?? []).filter((lf) => lf.mealSlot === slot.key).length;
-              return (
-                <div key={slot.key} className="flex items-center justify-between py-2.5 border-b border-divider last:border-0">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: slot.color }} />
-                    <span className="text-sm font-medium text-text-primary">{slot.key}</span>
-                  </div>
-                  {count > 0 ? (
-                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-xl" style={{ background: slot.bg, color: slot.color }}>
-                      {count} item{count !== 1 ? "s" : ""} logged
-                    </span>
-                  ) : (
-                    <span className="text-xs text-text-placeholder">Not logged</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      ) : plan ? (
+        <div className="bg-bg-card border border-outline rounded-lg overflow-hidden">
+          {/* Header row */}
+          <button
+            className="w-full flex items-center gap-3 px-4 py-3 text-left"
+            onClick={() => setPlanExpanded((v) => !v)}
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">Today&apos;s plan</p>
+              <p className="text-sm font-semibold text-text-primary">{plan.dietName}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {allPlanSlotsLogged ? (
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
+                  <Check size={13} className="text-green-700" />
+                </span>
+              ) : plan.avgGlycemicIndex != null ? (
+                <GiBadge gi={plan.avgGlycemicIndex} />
+              ) : null}
+              {planExpanded
+                ? <ChevronUp size={16} className="text-text-muted" />
+                : <ChevronDown size={16} className="text-text-muted" />}
+            </div>
+          </button>
 
-      {/* Mark day complete */}
-      {!loading && allPlanSlotsLogged && (
-        <div className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm bg-green-50 text-green-700 border border-green-200 cursor-default">
-          <Check size={16} />
-          Day Complete! 🎉
+          {/* Meal slot cards */}
+          {planExpanded && plan.slots.length > 0 && (
+            <div className="px-3 pb-3 space-y-2 border-t border-divider pt-3">
+              {plan.slots.map((slotDto) => (
+                <MealSlotCard
+                  key={slotDto.slot}
+                  slotDto={slotDto}
+                  logged={loggedSlotSet.has(normalizeSlot(slotDto.slot))}
+                  loggingThis={loggingSlot === slotDto.slot}
+                  onLog={() => logMeal(slotDto)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-bg-card border border-outline rounded-lg px-4 py-3">
+          <p className="text-xs font-medium text-text-muted">No diet planned for today</p>
+          <p className="text-xs text-text-placeholder mt-0.5">Assign a plan in the <strong>Plan</strong> tab</p>
         </div>
       )}
 
