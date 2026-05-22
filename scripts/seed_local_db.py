@@ -1,126 +1,199 @@
 #!/usr/bin/env python3
 """
-Seeds the local PostgreSQL DB with foods (from SQLite backup) and
-diets/meals (from seed_data.json). Run once after starting the local stack.
-"""
-import sqlite3, json, uuid
-from datetime import datetime, timezone
-import psycopg2
+Seed the LOCAL Docker postgres from an Android Room SQLite database.
+ONLY targets localhost:5434 — never touches Neon.tech (production).
 
-FIREBASE_UID = "iUMTqIa65jV0Om25TAae8yJdrVz1"
-SQLITE_DB    = "/Users/pulin@backbase.com/personal/mealplan-plus/backup/mealplan_database_backup.db"
-SEED_JSON    = "/Users/pulin@backbase.com/personal/mealplan-plus/data/seed_data.json"
+Usage:
+    python3 scripts/seed_local_db.py <sqlite_db_path> <firebase_uid>
+
+Getting the SQLite file (choose one):
+    ADB (USB debugging on):
+        adb exec-out run-as com.mealplanplus cat databases/mealplan_database > /tmp/mealplan.db
+    Android Studio:
+        View > Tool Windows > Device Explorer
+        data/data/com.mealplanplus/databases/mealplan_database
+
+Getting your Firebase UID:
+    1. Open https://mealplan-plus.vercel.app in Chrome and sign in
+    2. DevTools > Application > IndexedDB > firebaseLocalStorageDb > firebaseLocalStorage
+    3. Find the entry — the "uid" field is your Firebase UID
+
+Prerequisites:
+    pip install psycopg2-binary
+    Docker stack must be running: docker compose up -d
+"""
+import sys, sqlite3, uuid, argparse
+from datetime import datetime, timezone
+
+try:
+    import psycopg2
+except ImportError:
+    sys.exit("Missing dependency: pip install psycopg2-binary")
 
 PG = dict(host="localhost", port=5434, dbname="mealplanplus",
           user="mealplan", password="mealplan_dev")
 
-now = datetime.now(timezone.utc)
-
-def gen_uuid():
-    return str(uuid.uuid4())
-
-# ── Connect ───────────────────────────────────────────────────────────────────
-sqlite_conn = sqlite3.connect(SQLITE_DB)
-sqlite_conn.row_factory = sqlite3.Row
-pg = psycopg2.connect(**PG)
-cur = pg.cursor()
-
-# ── 1. Clear existing user data (idempotent re-runs) ──────────────────────────
-print("Clearing existing data for this UID...")
-cur.execute("DELETE FROM diet_meals WHERE diet_id IN (SELECT id FROM diets WHERE firebase_uid=%s)", (FIREBASE_UID,))
-cur.execute("DELETE FROM meal_food_items WHERE meal_id IN (SELECT id FROM meals WHERE firebase_uid=%s)", (FIREBASE_UID,))
-cur.execute("DELETE FROM diets WHERE firebase_uid=%s", (FIREBASE_UID,))
-cur.execute("DELETE FROM meals WHERE firebase_uid=%s", (FIREBASE_UID,))
-cur.execute("DELETE FROM foods WHERE firebase_uid=%s OR (firebase_uid IS NULL AND is_system_food=TRUE)", (FIREBASE_UID,))
-
-# ── 2. Insert foods from SQLite ───────────────────────────────────────────────
-print("Inserting foods...")
-rows = sqlite_conn.execute("""
-    SELECT name, brand, barcode, caloriesPer100, proteinPer100, carbsPer100,
-           fatPer100, gramsPerPiece, gramsPerCup, gramsPerTbsp, gramsPerTsp,
-           glycemicIndex, isSystemFood, isFavorite
-    FROM food_items
-""").fetchall()
-
-food_name_to_id = {}
-for r in rows:
-    uid = FIREBASE_UID if not r["isSystemFood"] else None
-    cur.execute("""
-        INSERT INTO foods (firebase_uid, name, brand, barcode,
-            calories_per100, protein_per100, carbs_per100, fat_per100,
-            grams_per_piece, grams_per_cup, grams_per_tbsp, grams_per_tsp,
-            glycemic_index, is_system_food, created_at, updated_at, server_id)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        RETURNING id
-    """, (uid, r["name"], r["brand"], r["barcode"],
-          r["caloriesPer100"], r["proteinPer100"], r["carbsPer100"], r["fatPer100"],
-          r["gramsPerPiece"], r["gramsPerCup"], r["gramsPerTbsp"], r["gramsPerTsp"],
-          r["glycemicIndex"], bool(r["isSystemFood"]),
-          now, now, gen_uuid()))
-    food_name_to_id[r["name"]] = cur.fetchone()[0]
-
-print(f"  Inserted {len(food_name_to_id)} foods")
-
-# ── 3. Insert meals + diets from seed_data.json ───────────────────────────────
-with open(SEED_JSON) as f:
-    seed = json.load(f)
-
 SLOT_MAP = {
-    "BREAKFAST": "Breakfast", "LUNCH": "Lunch", "DINNER": "Dinner",
-    "NOON": "Snack", "SNACK": "Snack", "PRE_WORKOUT": "Pre-Workout",
-    "POST_WORKOUT": "Post-Workout",
+    "BREAKFAST": "BREAKFAST", "LUNCH": "LUNCH", "DINNER": "DINNER",
+    "SNACK": "SNACK", "PRE_WORKOUT": "PRE_WORKOUT", "POST_WORKOUT": "POST_WORKOUT",
+    "NOON": "SNACK",
 }
-UNIT_MAP = {"g": "GRAM", "piece": "PIECE", "cup": "CUP",
-            "tbsp": "TBSP", "tsp": "TSP", "ml": "ML"}
 
-print("Inserting diets and meals...")
-diets_inserted = 0
-meals_inserted = 0
 
-for diet_data in seed.get("diets", []):
-    diet_meal_links = []
+def epoch_ms_to_ts(ms):
+    return datetime.fromtimestamp((ms or 0) / 1000.0, tz=timezone.utc)
 
-    for slot_key, meal_data in diet_data.get("meals", {}).items():
-        slot = SLOT_MAP.get(slot_key, slot_key.capitalize())
-        meal_name = meal_data.get("name", f"{diet_data['name']} {slot}")
 
+def main():
+    parser = argparse.ArgumentParser(description="Seed local postgres from Android SQLite DB")
+    parser.add_argument("sqlite_db", help="Path to mealplan_database SQLite file")
+    parser.add_argument("firebase_uid", help="Your Firebase UID")
+    args = parser.parse_args()
+
+    uid = args.firebase_uid
+    now = datetime.now(timezone.utc)
+
+    sc = sqlite3.connect(args.sqlite_db)
+    sc.row_factory = sqlite3.Row
+
+    print(f"Connecting to local postgres at localhost:{PG['port']}...")
+    pg = psycopg2.connect(**PG)
+    cur = pg.cursor()
+
+    # Confirm we're on local — Neon hostnames contain ".neon.tech"
+    cur.execute("SELECT inet_server_addr(), current_database()")
+    addr, db = cur.fetchone()
+    print(f"Connected: {addr or 'local'}/{db}")
+
+    # ── Clear all user data (FK-safe order) ───────────────────────────────────
+    print("Clearing existing user data from local postgres...")
+    cur.execute("DELETE FROM diet_meals WHERE diet_id IN (SELECT id FROM diets WHERE firebase_uid=%s)", (uid,))
+    cur.execute("DELETE FROM meal_food_items WHERE meal_id IN (SELECT id FROM meals WHERE firebase_uid=%s)", (uid,))
+    cur.execute("DELETE FROM food_user_prefs WHERE firebase_uid=%s", (uid,))
+    cur.execute("DELETE FROM logged_foods WHERE daily_log_id IN (SELECT id FROM daily_logs WHERE firebase_uid=%s)", (uid,))
+    cur.execute("DELETE FROM daily_logs WHERE firebase_uid=%s", (uid,))
+    cur.execute("DELETE FROM health_metrics WHERE firebase_uid=%s", (uid,))
+    cur.execute("DELETE FROM grocery_items WHERE grocery_list_id IN "
+                "(SELECT id FROM grocery_lists WHERE firebase_uid=%s)", (uid,))
+    cur.execute("DELETE FROM grocery_lists WHERE firebase_uid=%s", (uid,))
+    cur.execute("DELETE FROM diets WHERE firebase_uid=%s", (uid,))
+    cur.execute("DELETE FROM meals WHERE firebase_uid=%s", (uid,))
+    cur.execute("DELETE FROM foods WHERE firebase_uid=%s", (uid,))
+
+    # ── Foods ─────────────────────────────────────────────────────────────────
+    # sqlite_food_id_map: SQLite local int ID → postgres bigint ID
+    sqlite_food_id_map = {}
+
+    all_food_rows = sc.execute("""
+        SELECT id, name, brand, barcode, caloriesPer100, proteinPer100, carbsPer100,
+               fatPer100, gramsPerPiece, gramsPerCup, gramsPerTbsp, gramsPerTsp,
+               glycemicIndex, isFavorite, isSystemFood, serverId, updatedAt
+        FROM food_items
+    """).fetchall()
+
+    # Clear existing system foods too (safe — local only)
+    cur.execute("DELETE FROM food_user_prefs")
+    cur.execute("DELETE FROM meal_food_items")  # already cleared user meals above; catches orphans
+    cur.execute("DELETE FROM foods WHERE is_system_food=TRUE")
+
+    print(f"Inserting {len(all_food_rows)} foods (user + system)...")
+    for r in all_food_rows:
+        ts = epoch_ms_to_ts(r["updatedAt"])
+        is_sys = bool(r["isSystemFood"])
+        food_uid = None if is_sys else uid
+        server_id = r["serverId"] if r["serverId"] else str(uuid.uuid4())
         cur.execute("""
-            INSERT INTO meals (firebase_uid, name, slot, created_at, updated_at, server_id)
-            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id
-        """, (FIREBASE_UID, meal_name, slot, now, now, gen_uuid()))
-        meal_id = cur.fetchone()[0]
-        meals_inserted += 1
+            INSERT INTO foods (firebase_uid, name, brand, barcode,
+                calories_per100, protein_per100, carbs_per100, fat_per100,
+                grams_per_piece, grams_per_cup, grams_per_tbsp, grams_per_tsp,
+                glycemic_index, is_system_food, is_favorite,
+                created_at, updated_at, server_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (server_id) DO UPDATE SET name=EXCLUDED.name RETURNING id
+        """, (food_uid, r["name"], r["brand"], r["barcode"],
+              r["caloriesPer100"], r["proteinPer100"], r["carbsPer100"], r["fatPer100"],
+              r["gramsPerPiece"], r["gramsPerCup"], r["gramsPerTbsp"], r["gramsPerTsp"],
+              r["glycemicIndex"], is_sys, bool(r["isFavorite"]),
+              ts, ts, server_id))
+        sqlite_food_id_map[r["id"]] = cur.fetchone()[0]
 
-        for item in meal_data.get("items", []):
-            food_id = food_name_to_id.get(item["food"])
-            if food_id is None:
-                print(f"  WARN: food not found: {item['food']}")
+    sys_count = sum(1 for r in all_food_rows if r["isSystemFood"])
+    user_count = len(all_food_rows) - sys_count
+    print(f"  {user_count} user foods, {sys_count} system foods inserted")
+
+    # ── Meals + food items ────────────────────────────────────────────────────
+    print("Inserting meals and food items...")
+    sqlite_meal_id_map = {}
+    meals_n = items_n = 0
+
+    meal_rows = sc.execute(
+        "SELECT id, name, updatedAt FROM meals WHERE isSystem = 0"
+    ).fetchall()
+
+    for m in meal_rows:
+        ts = epoch_ms_to_ts(m["updatedAt"])
+        cur.execute("""
+            INSERT INTO meals (firebase_uid, name, created_at, updated_at, server_id)
+            VALUES (%s,%s,%s,%s,%s) RETURNING id
+        """, (uid, m["name"], ts, ts, str(uuid.uuid4())))
+        pg_meal_id = cur.fetchone()[0]
+        sqlite_meal_id_map[m["id"]] = pg_meal_id
+        meals_n += 1
+
+        for item in sc.execute(
+            "SELECT foodId, quantity, unit, notes FROM meal_food_items WHERE mealId=?",
+            (m["id"],)
+        ).fetchall():
+            pg_food_id = sqlite_food_id_map.get(item["foodId"])
+            if pg_food_id is None:
                 continue
-            unit = UNIT_MAP.get(item.get("unit", "g"), "GRAM")
             cur.execute("""
-                INSERT INTO meal_food_items (meal_id, food_id, quantity, unit)
-                VALUES (%s,%s,%s,%s)
-            """, (meal_id, food_id, item["quantity"], unit))
+                INSERT INTO meal_food_items (meal_id, food_id, quantity, unit, notes)
+                VALUES (%s,%s,%s,%s,%s)
+            """, (pg_meal_id, pg_food_id, item["quantity"], item["unit"], item["notes"]))
+            items_n += 1
 
-        diet_meal_links.append((meal_id, slot))
+    print(f"  {meals_n} meals, {items_n} food items inserted")
 
-    cur.execute("""
-        INSERT INTO diets (firebase_uid, name, description, created_at, updated_at, server_id)
-        VALUES (%s,%s,%s,%s,%s,%s) RETURNING id
-    """, (FIREBASE_UID, diet_data["name"], diet_data.get("description"), now, now, gen_uuid()))
-    diet_id = cur.fetchone()[0]
-    diets_inserted += 1
+    # ── Diets + diet-meal links ───────────────────────────────────────────────
+    print("Inserting diets and diet-meal links...")
+    diets_n = links_n = 0
 
-    for idx, (meal_id, slot) in enumerate(diet_meal_links):
+    diet_rows = sc.execute(
+        "SELECT id, name, description, updatedAt FROM diets WHERE isSystem = 0"
+    ).fetchall()
+
+    for d in diet_rows:
+        ts = epoch_ms_to_ts(d["updatedAt"])
         cur.execute("""
-            INSERT INTO diet_meals (diet_id, meal_id, day_of_week, slot)
-            VALUES (%s,%s,%s,%s)
-        """, (diet_id, meal_id, idx % 7, slot))
+            INSERT INTO diets (firebase_uid, name, description, created_at, updated_at, server_id)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (uid, d["name"], d["description"], ts, ts, str(uuid.uuid4())))
+        pg_diet_id = cur.fetchone()[0]
+        diets_n += 1
 
-print(f"  Inserted {diets_inserted} diets, {meals_inserted} meals")
+        for slot in sc.execute(
+            "SELECT slotType, mealId, instructions FROM diet_slots WHERE dietId=?",
+            (d["id"],)
+        ).fetchall():
+            pg_meal_id = sqlite_meal_id_map.get(slot["mealId"])
+            if pg_meal_id is None:
+                continue
+            slot_name = SLOT_MAP.get(slot["slotType"], slot["slotType"])
+            cur.execute("""
+                INSERT INTO diet_meals (diet_id, meal_id, day_of_week, slot, instructions)
+                VALUES (%s,%s,%s,%s,%s)
+            """, (pg_diet_id, pg_meal_id, 0, slot_name, slot["instructions"]))
+            links_n += 1
 
-pg.commit()
-cur.close()
-pg.close()
-sqlite_conn.close()
-print("Done! Refresh the webapp to see the data.")
+    print(f"  {diets_n} diets, {links_n} diet-meal links inserted")
+
+    pg.commit()
+    cur.close()
+    pg.close()
+    sc.close()
+    print("\nDone. Open http://localhost:3000 to see your data.")
+
+
+if __name__ == "__main__":
+    main()

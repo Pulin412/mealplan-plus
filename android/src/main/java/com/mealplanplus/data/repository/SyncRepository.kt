@@ -99,9 +99,16 @@ class SyncRepository @Inject constructor(
                 gramsPerTsp = f.gramsPerTsp, glycemicIndex = f.glycemicIndex,
                 isSystemFood = false, isFavorite = f.isFavorite, updatedAt = f.updatedAt)
         }
+        val localFoodServerIdMap = rawFoods.associate { it.id to it.serverId }
         val meals = rawMeals.map { m ->
+            val foodItems = mealDao.getMealFoodItems(m.id).mapNotNull { item ->
+                val serverId = localFoodServerIdMap[item.foodId]
+                    ?: foodDao.getFoodById(item.foodId)?.serverId
+                    ?: return@mapNotNull null
+                MealFoodItemDto(foodServerId = serverId, quantity = item.quantity, unit = item.unit.name, notes = item.notes)
+            }
             MealDto(serverId = m.serverId, firebaseUid = firebaseUid, name = m.name,
-                updatedAt = m.updatedAt)
+                items = foodItems, updatedAt = m.updatedAt)
         }
         val diets = rawDiets.map { d ->
             DietDto(serverId = d.serverId, firebaseUid = firebaseUid, name = d.name,

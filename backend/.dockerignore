@@ -1,5 +1,6 @@
 .gradle/
 build/
+!build/libs/backend.jar
 .idea/
 *.md
 *.sh
