@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
-import { todayStr, calcCalories, formatDateShort, MEAL_SLOTS, PREDEFINED_SLOT_COLORS } from "@/lib/utils";
+import { todayStr, MEAL_SLOTS, PREDEFINED_SLOT_COLORS } from "@/lib/utils";
 
 type DailyLogDto     = components["schemas"]["DailyLogDto"];
 type FoodDto         = components["schemas"]["FoodDto"];
@@ -51,12 +51,6 @@ function normalizeSlot(slot: string): string {
     SNACK: "Snack", PRE_WORKOUT: "Pre-Workout", POST_WORKOUT: "Post-Workout", NOON: "Snack",
   };
   return map[slot.toUpperCase()] ?? slot;
-}
-function calcLogCalories(log: DailyLogDto, foods: FoodDto[]): number {
-  const fm = new Map(foods.map((f) => [f.id, f]));
-  return (log.loggedFoods ?? []).reduce((s, lf) => {
-    const f = fm.get(lf.foodId); return f ? s + calcCalories(f, lf) : s;
-  }, 0);
 }
 function giMeta(gi: number) {
   if (gi < 55) return { label: "Low GI",  color: "#2E7D52", bg: "#E8F5EE" };
@@ -370,37 +364,6 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {/* Recent activity */}
-      <div className="bg-bg-card rounded-lg border border-outline overflow-hidden">
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-sm font-semibold text-text-primary">Recent activity</p>
-        </div>
-        <div className="px-4 pb-2">
-          {loading ? (
-            <div className="space-y-3 py-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-5 w-full" />)}</div>
-          ) : !data || data.recentLogs.length === 0 ? (
-            <p className="text-sm text-text-muted py-3">No logs yet — start tracking in the Log tab.</p>
-          ) : (
-            data.recentLogs.map((log) => {
-              const cal   = Math.round(calcLogCalories(log, data.foods));
-              const slots = new Set((log.loggedFoods ?? []).map((lf) => lf.mealSlot)).size;
-              return (
-                <div key={log.id ?? log.date} className="flex items-center justify-between py-2.5 border-b border-divider last:border-0">
-                  <span className="text-sm font-medium text-text-primary">{formatDateShort(log.date ?? today)}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-muted">{slots} meal{slots !== 1 ? "s" : ""}</span>
-                    {cal > 0 && (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-xl bg-green-light text-green">
-                        {cal} kcal
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
 
     </div>
   );
