@@ -98,7 +98,8 @@ class DashboardService(
     }
 
     private fun buildTodayPlan(firebaseUid: String, today: LocalDate): TodayPlanDto? {
-        val plan = dayPlanRepo.findByFirebaseUidAndDate(firebaseUid, today) ?: return null
+        val plan = dayPlanRepo.findByFirebaseUidAndDate(firebaseUid, today)
+        plan ?: return null
         val diet = dietRepo.findById(plan.dietId).orElse(null) ?: return null
         val dietMeals = dietMealRepo.findByDietId(diet.id)
         if (dietMeals.isEmpty()) return null
