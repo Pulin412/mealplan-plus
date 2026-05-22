@@ -52,10 +52,11 @@ function normalizeSlot(slot: string): string {
   };
   return map[slot.toUpperCase()] ?? slot;
 }
+// Thresholds match Android: ≤55 Low, 56–69 Med, ≥70 High
 function giMeta(gi: number) {
-  if (gi < 55) return { label: "Low GI",  color: "#2E7D52", bg: "#E8F5EE" };
-  if (gi < 70) return { label: "Med GI",  color: "#C05200", bg: "#FFF3E0" };
-  return           { label: "High GI", color: "#DC2626", bg: "#FFF0F0" };
+  if (gi <= 55) return { label: "Low GI",  color: "#2E7D52", bg: "#E8F5EE" };
+  if (gi <= 69) return { label: "Med GI",  color: "#F57F17", bg: "#FFF8E1" };
+  return              { label: "High GI", color: "#B71C1C", bg: "#FFEBEE" };
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -100,8 +101,9 @@ function GiBadge({ gi }: { gi: number }) {
   );
 }
 
-function MealSlotCard({ slotDto, logged, loggingThis, onLog }: {
-  slotDto: TodaySlotDto; logged: boolean; loggingThis: boolean; onLog: () => void;
+function MealSlotCard({ slotDto, logged, loggingThis, unloggingThis, onLog, onUnlog }: {
+  slotDto: TodaySlotDto; logged: boolean; loggingThis: boolean; unloggingThis: boolean;
+  onLog: () => void; onUnlog: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const slotName   = normalizeSlot(slotDto.slot);
@@ -126,9 +128,14 @@ function MealSlotCard({ slotDto, logged, loggingThis, onLog }: {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {logged ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-              <Check size={10} /> Logged
-            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); onUnlog(); }}
+              disabled={unloggingThis}
+              className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-60"
+            >
+              {unloggingThis ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+              Logged
+            </button>
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); onLog(); }}
@@ -181,8 +188,10 @@ export default function DashboardPage() {
   const [data,    setData]    = useState<DashboardDto | null>(null);
   const [error,   setError]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loggingSlot, setLoggingSlot] = useState<string | null>(null);
-  const [planExpanded, setPlanExpanded] = useState(true);
+  const [loggingSlot,   setLoggingSlot]   = useState<string | null>(null);
+  const [unloggingSlot, setUnloggingSlot] = useState<string | null>(null);
+  const [unloggingAll,  setUnloggingAll]  = useState(false);
+  const [planExpanded,  setPlanExpanded]  = useState(true);
 
   const today = todayStr();
 
@@ -228,6 +237,38 @@ export default function DashboardPage() {
       setError(e instanceof Error ? e.message : "Failed to log meal");
     } finally {
       setLoggingSlot(null);
+    }
+  }
+
+  // ── Unlog a single slot ───────────────────────────────────────────────────
+  async function unlogMeal(slotDto: TodaySlotDto) {
+    const existing = data?.todayLog;
+    if (!existing) return;
+    setUnloggingSlot(slotDto.slot);
+    try {
+      const slotKey     = normalizeSlot(slotDto.slot);
+      const remaining   = (existing.loggedFoods ?? []).filter((lf) => lf.mealSlot !== slotKey);
+      await api.put<DailyLogDto>(`/api/v1/daily-logs/${existing.id}`, { ...existing, loggedFoods: remaining });
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to unlog meal");
+    } finally {
+      setUnloggingSlot(null);
+    }
+  }
+
+  // ── Unlog all (open the day) ──────────────────────────────────────────────
+  async function unlogAll() {
+    const existing = data?.todayLog;
+    if (!existing) return;
+    setUnloggingAll(true);
+    try {
+      await api.put<DailyLogDto>(`/api/v1/daily-logs/${existing.id}`, { ...existing, loggedFoods: [] });
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to open day");
+    } finally {
+      setUnloggingAll(false);
     }
   }
 
@@ -300,12 +341,27 @@ export default function DashboardPage() {
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">Today&apos;s plan</p>
               <p className="text-sm font-semibold text-text-primary">{plan.dietName}</p>
+              {(plan.targetCalories || plan.targetProtein || plan.targetCarbs || plan.targetFat) && (
+                <p className="text-[11px] text-text-muted mt-0.5 flex flex-wrap gap-x-2">
+                  {plan.targetCalories != null && <span>{Math.round(plan.targetCalories)} kcal</span>}
+                  {plan.targetProtein  != null && <span>{Math.round(plan.targetProtein)}g P</span>}
+                  {plan.targetCarbs    != null && <span>{Math.round(plan.targetCarbs)}g C</span>}
+                  {plan.targetFat      != null && <span>{Math.round(plan.targetFat)}g F</span>}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {allPlanSlotsLogged ? (
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
-                  <Check size={13} className="text-green-700" />
-                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); unlogAll(); }}
+                  disabled={unloggingAll}
+                  className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 hover:bg-red-100 transition-colors disabled:opacity-60"
+                  title="Unmark day"
+                >
+                  {unloggingAll
+                    ? <Loader2 size={12} className="animate-spin text-text-muted" />
+                    : <Check size={13} className="text-green-700" />}
+                </button>
               ) : plan.avgGlycemicIndex != null ? (
                 <GiBadge gi={plan.avgGlycemicIndex} />
               ) : null}
@@ -324,7 +380,9 @@ export default function DashboardPage() {
                   slotDto={slotDto}
                   logged={loggedSlotSet.has(normalizeSlot(slotDto.slot))}
                   loggingThis={loggingSlot === slotDto.slot}
+                  unloggingThis={unloggingSlot === slotDto.slot}
                   onLog={() => logMeal(slotDto)}
+                  onUnlog={() => unlogMeal(slotDto)}
                 />
               ))}
             </div>
