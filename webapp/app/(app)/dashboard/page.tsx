@@ -190,7 +190,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loggingSlot,   setLoggingSlot]   = useState<string | null>(null);
   const [unloggingSlot, setUnloggingSlot] = useState<string | null>(null);
-  const [unloggingAll,  setUnloggingAll]  = useState(false);
   const [planExpanded,  setPlanExpanded]  = useState(true);
 
   const today = todayStr();
@@ -257,20 +256,6 @@ export default function DashboardPage() {
     }
   }
 
-  // ── Unlog all (open the day) ──────────────────────────────────────────────
-  async function unlogAll() {
-    const existing = data?.todayLog;
-    if (!existing) return;
-    setUnloggingAll(true);
-    try {
-      await api.put<DailyLogDto>(`/api/v1/daily-logs/${existing.id}`, { ...existing, loggedFoods: [] });
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to open day");
-    } finally {
-      setUnloggingAll(false);
-    }
-  }
 
   const plan = data?.todayPlan;
 
@@ -340,7 +325,15 @@ export default function DashboardPage() {
           >
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">Today&apos;s plan</p>
-              <p className="text-sm font-semibold text-text-primary">{plan.dietName}</p>
+              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                <p className="text-sm font-semibold text-text-primary">{plan.dietName}</p>
+                {plan.avgGlycemicIndex != null && (
+                  <>
+                    <span className="text-text-muted text-xs">·</span>
+                    <GiBadge gi={plan.avgGlycemicIndex} />
+                  </>
+                )}
+              </div>
               {(plan.targetCalories || plan.targetProtein || plan.targetCarbs || plan.targetFat) && (
                 <p className="text-[11px] text-text-muted mt-0.5 flex flex-wrap gap-x-2">
                   {plan.targetCalories != null && <span>{Math.round(plan.targetCalories)} kcal</span>}
@@ -351,20 +344,11 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {allPlanSlotsLogged ? (
-                <button
-                  onClick={(e) => { e.stopPropagation(); unlogAll(); }}
-                  disabled={unloggingAll}
-                  className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 hover:bg-red-100 transition-colors disabled:opacity-60"
-                  title="Unmark day"
-                >
-                  {unloggingAll
-                    ? <Loader2 size={12} className="animate-spin text-text-muted" />
-                    : <Check size={13} className="text-green-700" />}
-                </button>
-              ) : plan.avgGlycemicIndex != null ? (
-                <GiBadge gi={plan.avgGlycemicIndex} />
-              ) : null}
+              {allPlanSlotsLogged && (
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
+                  <Check size={13} className="text-green-700" />
+                </span>
+              )}
               {planExpanded
                 ? <ChevronUp size={16} className="text-text-muted" />
                 : <ChevronDown size={16} className="text-text-muted" />}
