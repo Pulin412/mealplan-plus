@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { Flame, Footprints, Zap, ChevronDown, ChevronUp, Check, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
-import { todayStr, MEAL_SLOTS, PREDEFINED_SLOT_COLORS } from "@/lib/utils";
+import { todayStr } from "@/lib/utils";
 
 type DailyLogDto     = components["schemas"]["DailyLogDto"];
 type FoodDto         = components["schemas"]["FoodDto"];
@@ -60,10 +60,9 @@ function giMeta(gi: number) {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-function StatPill({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+function StatPill({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex-1 bg-bg-card border border-outline rounded-lg p-3 flex flex-col items-center gap-1 min-w-0">
-      <span className="text-text-muted">{icon}</span>
       <span className="text-lg font-bold text-text-primary leading-none">{value}</span>
       <span className="text-[11px] text-text-muted text-center">{label}</span>
     </div>
@@ -106,10 +105,8 @@ function MealSlotCard({ slotDto, logged, loggingThis, unloggingThis, onLog, onUn
   onLog: () => void; onUnlog: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const slotName   = normalizeSlot(slotDto.slot);
-  const slotMeta   = MEAL_SLOTS.find((s) => s.key === slotName) ?? MEAL_SLOTS[1];
-  const slotColors = PREDEFINED_SLOT_COLORS[slotName] ?? { bg: "#F5F5F5", text: "#555" };
-  const totalCals  = slotDto.items.reduce((s, item) => {
+  const slotName  = normalizeSlot(slotDto.slot);
+  const totalCals = slotDto.items.reduce((s, item) => {
     const g = item.unit === "GRAM" ? item.quantity : item.quantity * 100;
     return s + (item.caloriesPer100 * g / 100);
   }, 0);
@@ -118,9 +115,8 @@ function MealSlotCard({ slotDto, logged, loggingThis, unloggingThis, onLog, onUn
     <div className={`bg-bg-card rounded-lg border overflow-hidden ${logged ? "border-green-200" : "border-outline"}`}>
       <button className="w-full flex items-center gap-3 px-4 py-3 text-left"
         onClick={() => setExpanded((v) => !v)}>
-        <span className="text-lg shrink-0">{slotMeta.emoji}</span>
         <div className="flex-1 min-w-0">
-          <span className="text-[11px] font-medium" style={{ color: slotColors.text }}>{slotName}</span>
+          <span className="text-[11px] font-medium text-text-muted">{slotName}</span>
           <p className="text-sm font-semibold text-text-primary truncate">{slotDto.mealName}</p>
           <p className="text-xs text-text-muted">
             {Math.round(totalCals)} kcal · {slotDto.items.length} item{slotDto.items.length !== 1 ? "s" : ""}
@@ -266,7 +262,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-[22px] font-semibold text-text-primary leading-tight">
-          {greeting()}, {displayName} 👋
+          {greeting()}, {displayName}
         </h1>
         <p className="text-sm text-text-muted mt-0.5">{todayLabel()}</p>
       </div>
@@ -282,13 +278,11 @@ export default function DashboardPage() {
         <div className="flex gap-2">{[1,2,3].map((i) => <Skeleton key={i} className="flex-1 h-20 rounded-lg" />)}</div>
       ) : (
         <div className="flex gap-2">
-          <StatPill icon={<Flame size={16} />}
-            value={`${data?.currentStreak ?? 0}${(data?.currentStreak ?? 0) > 0 ? "🔥" : ""}`}
-            label="streak" />
-          <StatPill icon={<Footprints size={16} />}
+          <StatPill value={`${data?.currentStreak ?? 0}`} label="streak" />
+          <StatPill
             value={data?.todaySteps != null ? Math.round(data.todaySteps).toLocaleString() : "—"}
             label="steps today" />
-          <StatPill icon={<Zap size={16} />}
+          <StatPill
             value={data?.todayCaloriesBurned != null ? `${Math.round(data.todayCaloriesBurned)}` : "—"}
             label="kcal burned" />
         </div>
