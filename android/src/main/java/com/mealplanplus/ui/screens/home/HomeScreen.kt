@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.mealplanplus.data.healthconnect.ActivitySummary
 import com.mealplanplus.data.model.HealthMetric
+import com.mealplanplus.data.model.DefaultMealSlot
 import com.mealplanplus.util.ThemePreferences
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
@@ -72,6 +75,7 @@ import com.mealplanplus.ui.theme.TextPrimary
 import com.mealplanplus.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToLog: () -> Unit = {},
@@ -88,12 +92,15 @@ fun HomeScreen(
     onNavigateToDiets: () -> Unit = {},
     onNavigateToWorkoutLog: (Long) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    quickLogViewModel: QuickLogViewModel = hiltViewModel()
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val scope   = rememberCoroutineScope()
     val context    = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var showQuickLog by remember { mutableStateOf(false) }
+    val quickLogState by quickLogViewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState.finishCompleted) {
         if (uiState.finishCompleted) {
@@ -117,9 +124,43 @@ fun HomeScreen(
         }
     }
 
+    if (showQuickLog) {
+        QuickLogBottomSheet(
+            uiState = quickLogState,
+            onDismiss = {
+                showQuickLog = false
+                quickLogViewModel.resetOnClose()
+            },
+            onSlotSelect = quickLogViewModel::updateSlot,
+            onSearchQueryChange = quickLogViewModel::updateSearchQuery,
+            onSearch = quickLogViewModel::search,
+            onLocalFoodSelect = quickLogViewModel::selectLocalFood,
+            onUsdaFoodSelect = quickLogViewModel::selectUsdaFood,
+            onDismissFood = quickLogViewModel::dismissSelectedFood,
+            onQuantityChange = quickLogViewModel::updateQuantity,
+            onUnitChange = quickLogViewModel::updateUnit,
+            onGiChange = quickLogViewModel::updateGiInput,
+            onAddFood = quickLogViewModel::addFood,
+            onRemoveItem = quickLogViewModel::removeItem
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = BgPage
+        containerColor = BgPage,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    quickLogViewModel.initForToday()
+                    showQuickLog = true
+                },
+                containerColor = PrimaryGreen,
+                contentColor = Color.White,
+                shape = androidx.compose.foundation.shape.CircleShape
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Quick log food")
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -173,6 +214,8 @@ fun HomeScreen(
                 isTodayCompleted   = uiState.isTodayCompleted,
                 todayDietName      = uiState.todayDietName,
                 todayDietGl        = uiState.todayDietGl,
+                todayDietGlIsPartial = uiState.todayDietGlIsPartial,
+                ingredientChecks   = uiState.ingredientChecks,
                 onPlanOrChangeDiet = onNavigateToDietPickerForToday,
                 onSlotToggle       = { slot -> viewModel.toggleSlotLogged(slot) },
                 onSlotTap          = { slot ->
@@ -180,6 +223,7 @@ fun HomeScreen(
                     if (dId != null && slot.plannedMealId != null)
                         onNavigateToMealDetail(dId, slot.slotType)
                 },
+                onToggleIngredientCheck = viewModel::toggleIngredientCheck,
                 onFinishDay        = { viewModel.finishTodayPlan() },
                 onReopenDay        = { viewModel.reopenTodayPlan() },
                 plannedWorkout     = uiState.plannedWorkoutToday,
@@ -468,6 +512,9 @@ fun TodayMealsSection(
     modifier: Modifier = Modifier,
     todayDietName: String? = null,
     todayDietGl: Double? = null,
+    todayDietGlIsPartial: Boolean = false,
+    ingredientChecks: Set<String> = emptySet(),
+    onToggleIngredientCheck: (slotType: String, foodId: Long) -> Unit = { _, _ -> },
     plannedWorkout: PlannedWorkoutWithTemplate? = null,
     onStartWorkout: (Long) -> Unit = {}
 ) {
@@ -502,7 +549,7 @@ fun TodayMealsSection(
                         color = glColor.copy(alpha = 0.12f)
                     ) {
                         Text(
-                            text = "GL ${String.format("%.0f", todayDietGl)}",
+                            text = "GL ${String.format("%.0f", todayDietGl)}${if (todayDietGlIsPartial) "*" else ""}",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = glColor,
@@ -610,7 +657,9 @@ fun TodayMealsSection(
                 slots.forEachIndexed { index, slot ->
                     val canNavigate = slot.dietId != null && slot.plannedMealId != null
                     NewTodaySlotRow(
-                        slot     = slot,
+                        slot                    = slot,
+                        ingredientChecks        = ingredientChecks,
+                        onToggleIngredientCheck = onToggleIngredientCheck,
                         onToggle = if (!isTodayCompleted) { -> onSlotToggle(slot) } else { -> },
                         onTap    = if (canNavigate) { -> onSlotTap(slot) } else null
                     )
@@ -666,6 +715,8 @@ private fun Canvas22dp(color: Color) {
 @Composable
 fun NewTodaySlotRow(
     slot: TodayPlanSlot,
+    ingredientChecks: Set<String> = emptySet(),
+    onToggleIngredientCheck: (slotType: String, foodId: Long) -> Unit = { _, _ -> },
     onToggle: () -> Unit = {},
     onTap: (() -> Unit)? = null
 ) {
@@ -769,23 +820,61 @@ fun NewTodaySlotRow(
             }
         }
 
-        // Expandable ingredient chips
+        // Expandable ingredient list with meal-prep checkboxes
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
-            val foods = if (hasLoggedFoods)
-                slot.loggedFoods.map { "${it.food.name} · ${it.loggedFood.quantity.toInt()}${it.loggedFood.unit.name.take(1).lowercase()}" }
+            data class IngredientRow(val label: String, val foodId: Long)
+            val foods: List<IngredientRow> = if (hasLoggedFoods)
+                slot.loggedFoods.map { lfd ->
+                    IngredientRow(
+                        label = "${lfd.food.name} · ${lfd.loggedFood.quantity.toInt()}${lfd.loggedFood.unit.name.take(1).lowercase()}",
+                        foodId = lfd.food.id
+                    )
+                }
             else
-                slot.plannedFoods.map { "${it.food.name} · ${it.mealFoodItem.quantity.toInt()}${it.mealFoodItem.unit.name.take(1).lowercase()}" }
+                slot.plannedFoods.map { mfi ->
+                    IngredientRow(
+                        label = "${mfi.food.name} · ${mfi.mealFoodItem.quantity.toInt()}${mfi.mealFoodItem.unit.name.take(1).lowercase()}",
+                        foodId = mfi.food.id
+                    )
+                }
             if (foods.isNotEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 28.dp, end = 14.dp, bottom = 12.dp)
+                        .padding(start = 24.dp, end = 14.dp, bottom = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    IngredientChips(foods)
+                    foods.forEach { row ->
+                        val checkKey = "${slot.slotType}:${row.foodId}"
+                        val isChecked = checkKey in ingredientChecks
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggleIngredientCheck(slot.slotType, row.foodId) }
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isChecked,
+                                onCheckedChange = { onToggleIngredientCheck(slot.slotType, row.foodId) },
+                                modifier = Modifier.size(32.dp),
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = PrimaryGreen,
+                                    uncheckedColor = Color(0xFFCCCCCC)
+                                )
+                            )
+                            Text(
+                                text = row.label,
+                                fontSize = 12.sp,
+                                color = if (isChecked) TextMuted else Color(0xFF555555),
+                                textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -826,40 +915,6 @@ private fun PlannedWorkoutRow(
             fontWeight = FontWeight.SemiBold,
             color = PrimaryGreen
         )
-    }
-}
-
-@Composable
-private fun IngredientChips(items: List<String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        items.chunked(3).forEach { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                rowItems.forEach { label ->
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = CardBg,
-                        tonalElevation = 0.dp,
-                        shadowElevation = 0.dp
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(CardBg)
-                                .clip(RoundedCornerShape(8.dp))
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 11.sp,
-                                color = Color(0xFF555555),
-                                modifier = Modifier
-                                    .background(Color(0xFFF8F8F8))
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

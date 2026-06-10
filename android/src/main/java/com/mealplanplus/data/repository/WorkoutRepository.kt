@@ -47,8 +47,13 @@ class WorkoutRepository @Inject constructor(
     suspend fun addSet(set: WorkoutSet): Long = setDao.insert(set)
     suspend fun updateSet(set: WorkoutSet) = setDao.update(set)
     suspend fun deleteSet(set: WorkoutSet) = setDao.delete(set)
-    suspend fun getLastSetsForExercise(userId: String, exerciseId: Long, excludeSessionId: Long): List<WorkoutSet> =
-        setDao.getLastSetsForExercise(userId, exerciseId, excludeSessionId)
+    suspend fun getLastSetsForExercise(
+        userId: String,
+        exerciseId: Long,
+        excludeSessionId: Long,
+        templateId: Long? = null
+    ): List<WorkoutSet> =
+        setDao.getLastSetsForExercise(userId, exerciseId, excludeSessionId, templateId)
 
     // ── Exercises ─────────────────────────────────────────────────────────────
     fun getAllExercisesForUser(userId: String) = exerciseDao.getAllForUser(userId)

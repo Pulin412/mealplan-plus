@@ -35,7 +35,7 @@ fun DietDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToFoodPicker: () -> Unit,
     onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
-    onNavigateToEditSlot: (String) -> Unit = {},
+    onNavigateToMealPicker: (slotType: String) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     autoEdit: Boolean = false,
     viewModel: DietDetailViewModel = hiltViewModel()
@@ -53,39 +53,64 @@ fun DietDetailScreen(
     // Handle food selection result from picker
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.let { handle ->
-            handle.get<Long>("selected_food_id")?.let { foodId ->
-                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
-                val unit = handle.get<String>("selected_unit")?.let { runCatching { FoodUnit.valueOf(it) }.getOrNull() } ?: FoodUnit.GRAM
-                viewModel.addFoodById(foodId, quantity, unit)
-                handle.remove<Long>("selected_food_id")
-                handle.remove<Double>("selected_quantity")
-                handle.remove<String>("selected_unit")
+            val localCount = handle.get<Int>("selected_food_count") ?: 0
+            repeat(localCount) { i ->
+                handle.get<Long>("selected_food_id_$i")?.let { foodId ->
+                    val qty  = handle.get<Double>("selected_quantity_$i") ?: 1.0
+                    val unit = handle.get<String>("selected_unit_$i")?.let {
+                        runCatching { FoodUnit.valueOf(it) }.getOrNull()
+                    } ?: FoodUnit.GRAM
+                    viewModel.addFoodById(foodId, qty, unit)
+                }
+                handle.remove<Long>("selected_food_id_$i")
+                handle.remove<Double>("selected_quantity_$i")
+                handle.remove<String>("selected_unit_$i")
             }
-            handle.get<String>("usda_food_name")?.let { name ->
-                val usdaFood = UsdaFoodResult(
-                    fdcId = 0,
-                    name = name,
-                    brand = handle.get<String>("usda_food_brand"),
-                    calories = handle.get<Double>("usda_food_calories") ?: 0.0,
-                    protein = handle.get<Double>("usda_food_protein") ?: 0.0,
-                    carbs = handle.get<Double>("usda_food_carbs") ?: 0.0,
-                    fat = handle.get<Double>("usda_food_fat") ?: 0.0,
-                    servingSize = handle.get<Double>("usda_food_serving_size") ?: 100.0,
-                    servingUnit = handle.get<String>("usda_food_serving_unit") ?: "g"
-                )
-                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
-                val unit = handle.get<String>("selected_unit")?.let { runCatching { FoodUnit.valueOf(it) }.getOrNull() } ?: FoodUnit.GRAM
-                viewModel.addUsdaFood(usdaFood, quantity, unit)
-                handle.remove<String>("usda_food_name")
-                handle.remove<String>("usda_food_brand")
-                handle.remove<Double>("usda_food_calories")
-                handle.remove<Double>("usda_food_protein")
-                handle.remove<Double>("usda_food_carbs")
-                handle.remove<Double>("usda_food_fat")
-                handle.remove<Double>("usda_food_serving_size")
-                handle.remove<String>("usda_food_serving_unit")
-                handle.remove<Double>("selected_quantity")
-                handle.remove<String>("selected_unit")
+            if (localCount > 0) handle.remove<Int>("selected_food_count")
+
+            val usdaCount = handle.get<Int>("usda_food_count") ?: 0
+            repeat(usdaCount) { i ->
+                handle.get<String>("usda_food_name_$i")?.let { name ->
+                    val usdaFood = UsdaFoodResult(
+                        fdcId       = 0,
+                        name        = name,
+                        brand       = handle.get<String>("usda_food_brand_$i"),
+                        calories    = handle.get<Double>("usda_food_calories_$i") ?: 0.0,
+                        protein     = handle.get<Double>("usda_food_protein_$i") ?: 0.0,
+                        carbs       = handle.get<Double>("usda_food_carbs_$i") ?: 0.0,
+                        fat         = handle.get<Double>("usda_food_fat_$i") ?: 0.0,
+                        servingSize = handle.get<Double>("usda_food_serving_size_$i") ?: 100.0,
+                        servingUnit = handle.get<String>("usda_food_serving_unit_$i") ?: "g"
+                    )
+                    val qty  = handle.get<Double>("usda_food_quantity_$i") ?: 1.0
+                    val unit = handle.get<String>("usda_food_unit_$i")?.let {
+                        runCatching { FoodUnit.valueOf(it) }.getOrNull()
+                    } ?: FoodUnit.GRAM
+                    viewModel.addUsdaFood(usdaFood, qty, unit)
+                }
+                handle.remove<String>("usda_food_name_$i")
+                handle.remove<String>("usda_food_brand_$i")
+                handle.remove<Double>("usda_food_calories_$i")
+                handle.remove<Double>("usda_food_protein_$i")
+                handle.remove<Double>("usda_food_carbs_$i")
+                handle.remove<Double>("usda_food_fat_$i")
+                handle.remove<Double>("usda_food_serving_size_$i")
+                handle.remove<String>("usda_food_serving_unit_$i")
+                handle.remove<Double>("usda_food_quantity_$i")
+                handle.remove<String>("usda_food_unit_$i")
+            }
+            if (usdaCount > 0) handle.remove<Int>("usda_food_count")
+        }
+    }
+
+    // Handle meal selection result from DietMealPickerScreen (VIEW MODE slot taps)
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.getStateFlow<Long?>("selected_meal_id", null)?.collect { mealId ->
+            if (mealId != null) {
+                val slotType = savedStateHandle.get<String>("selected_slot_type") ?: return@collect
+                viewModel.assignMealToSlotById(slotType, mealId)
+                savedStateHandle.remove<Long>("selected_meal_id")
+                savedStateHandle.remove<String>("selected_slot_type")
             }
         }
     }
@@ -212,7 +237,11 @@ fun DietDetailScreen(
                         },
                         isEditing = true,
                         instructions = uiState.editSlotInstructions[slot.name] ?: "",
-                        onInstructionsChange = { text -> viewModel.updateSlotInstructions(slot, text) }
+                        onInstructionsChange = { text -> viewModel.updateSlotInstructions(slot, text) },
+                        onChangeMeal = {
+                            viewModel.setPickingSlot(slot)
+                            onNavigateToMealPicker(slot.name)
+                        }
                     )
                 }
 
@@ -370,7 +399,9 @@ fun DietDetailScreen(
 
                 // Slot rows card
                 item {
-                    val allSlots = DefaultMealSlot.entries
+                    val allSlots = DefaultMealSlot.entries.filter { slot ->
+                        dwm?.meals?.get(slot.name) != null
+                    }
                     Column(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
@@ -378,12 +409,20 @@ fun DietDetailScreen(
                             .clip(RoundedCornerShape(14.dp))
                             .background(cardBg)
                     ) {
+                        if (allSlots.isEmpty() && customSlotTypes.isEmpty()) {
+                            Text(
+                                "No meals assigned. Tap Edit to assign meals to slots.",
+                                fontSize = 13.sp,
+                                color = textMuted,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                            )
+                        }
                         allSlots.forEachIndexed { index, slot ->
                             val mealWithFoods = dwm?.meals?.get(slot.name)
                             DietViewSlotRow(
                                 slot = slot,
                                 mealWithFoods = mealWithFoods,
-                                onClick = { onNavigateToEditSlot(slot.name) },
+                                onClick = { onNavigateToMealPicker(slot.name) },
                                 textPrimary = textPrimary,
                                 textMuted = textMuted
                             )
@@ -399,7 +438,7 @@ fun DietDetailScreen(
                                 displayName = slotType.removePrefix("CUSTOM:"),
                                 slotType = slotType,
                                 mealWithFoods = mealWithFoods,
-                                onClick = { onNavigateToEditSlot(slotType) },
+                                onClick = { onNavigateToMealPicker(slotType) },
                                 textPrimary = textPrimary,
                                 textMuted = textMuted
                             )
