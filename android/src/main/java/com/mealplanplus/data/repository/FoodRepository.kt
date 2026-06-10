@@ -30,6 +30,9 @@ class FoodRepository @Inject constructor(
 
     suspend fun updateLastUsed(id: Long) = foodDao.updateLastUsed(id)
 
+    suspend fun updateLastUsedWithQuantity(id: Long, quantity: Double, unit: String) =
+        foodDao.updateLastUsedWithQuantity(id, quantity, unit)
+
     suspend fun insertFood(food: FoodItem): Long = foodDao.insertFood(food)
 
     /** Upsert a system food by name (insert or replace). Used by the manual food import. */

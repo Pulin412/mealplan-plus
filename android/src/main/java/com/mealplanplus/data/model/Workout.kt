@@ -154,7 +154,8 @@ data class WorkoutSession(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val serverId: String? = null,
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+    @ColumnInfo(defaultValue = "NULL") val templateId: Long? = null
 )
 
 @Entity(

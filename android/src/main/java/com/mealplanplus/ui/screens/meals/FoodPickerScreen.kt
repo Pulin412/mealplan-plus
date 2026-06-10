@@ -43,25 +43,54 @@ enum class MeasureUnit(val label: String) {
 @Composable
 fun FoodPickerScreen(
     onNavigateBack: () -> Unit,
-    onFoodSelected: (FoodItem, Double, com.mealplanplus.data.model.FoodUnit) -> Unit,
-    onUsdaFoodSelected: (UsdaFoodResult, Double, com.mealplanplus.data.model.FoodUnit) -> Unit,
+    onDone: (List<PendingSelection>) -> Unit,
     viewModel: FoodPickerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val allFoods by viewModel.allFoods.collectAsState()
 
-    // Detail sheet state
+    val snackbarHostState = remember { SnackbarHostState() }
     var selectedLocalFood by remember { mutableStateOf<FoodItem?>(null) }
     var selectedUsdaFood by remember { mutableStateOf<UsdaFoodResult?>(null) }
 
+    val pendingCount = uiState.pendingSelections.size
+
+    // Snackbar when food is added
+    LaunchedEffect(uiState.lastAddedName) {
+        val name = uiState.lastAddedName ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar("$name added to meal")
+        viewModel.clearLastAdded()
+    }
+
+    fun handleDone() {
+        if (pendingCount > 0) {
+            onDone(uiState.pendingSelections)
+            viewModel.clearSelections()
+        } else {
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         containerColor = BgPage,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Select Food", color = TextPrimary) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { handleDone() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                    }
+                },
+                actions = {
+                    if (pendingCount > 0) {
+                        TextButton(onClick = { handleDone() }) {
+                            Text(
+                                "Done ($pendingCount)",
+                                color = DesignGreen,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     }
                 },
                 colors = minimalTopAppBarColors()
@@ -101,6 +130,34 @@ fun FoodPickerScreen(
             ) {
                 // Show search results or all foods
                 if (uiState.searchQuery.length < 2) {
+                    // Starred foods section
+                    if (uiState.favorites.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Starred (${uiState.favorites.size})",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = DesignGreen,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                        items(uiState.favorites, key = { "fav_${it.id}" }) { food ->
+                            FoodSearchCard(
+                                name = food.name,
+                                subtitle = food.brand,
+                                calories = food.calories,
+                                protein = food.protein,
+                                carbs = food.carbs,
+                                fat = food.fat,
+                                servingSize = food.servingSize,
+                                servingUnit = food.servingUnit,
+                                isLocal = true,
+                                isFavorite = true,
+                                onToggleFavorite = { viewModel.toggleFavorite(food) },
+                                onClick = { selectedLocalFood = food }
+                            )
+                        }
+                    }
+
                     // Show all local foods
                     item {
                         Text(
@@ -131,6 +188,8 @@ fun FoodPickerScreen(
                                 servingSize = food.servingSize,
                                 servingUnit = food.servingUnit,
                                 isLocal = true,
+                                isFavorite = food.isFavorite,
+                                onToggleFavorite = { viewModel.toggleFavorite(food) },
                                 onClick = { selectedLocalFood = food }
                             )
                         }
@@ -157,6 +216,8 @@ fun FoodPickerScreen(
                                 servingSize = food.servingSize,
                                 servingUnit = food.servingUnit,
                                 isLocal = true,
+                                isFavorite = food.isFavorite,
+                                onToggleFavorite = { viewModel.toggleFavorite(food) },
                                 onClick = { selectedLocalFood = food }
                             )
                         }
@@ -261,18 +322,23 @@ fun FoodPickerScreen(
 
     // Food detail bottom sheet for quantity selection
     if (selectedLocalFood != null) {
+        val food = selectedLocalFood!!
+        val initialQty  = food.lastUsedQuantity
+        val initialUnit = food.lastUsedUnit?.let { runCatching { MeasureUnit.valueOf(it) }.getOrNull() }
         FoodDetailBottomSheet(
-            name = selectedLocalFood!!.name,
-            brand = selectedLocalFood!!.brand,
-            calories = selectedLocalFood!!.calories,
-            protein = selectedLocalFood!!.protein,
-            carbs = selectedLocalFood!!.carbs,
-            fat = selectedLocalFood!!.fat,
-            servingSize = selectedLocalFood!!.servingSize,
-            servingUnit = selectedLocalFood!!.servingUnit,
-            gramsPerPiece = selectedLocalFood!!.gramsPerPiece,
+            name = food.name,
+            brand = food.brand,
+            calories = food.calories,
+            protein = food.protein,
+            carbs = food.carbs,
+            fat = food.fat,
+            servingSize = food.servingSize,
+            servingUnit = food.servingUnit,
+            gramsPerPiece = food.gramsPerPiece,
+            initialQuantity = initialQty,
+            initialUnit = initialUnit,
             onConfirm = { quantity, unit ->
-                onFoodSelected(selectedLocalFood!!, quantity, unit)
+                viewModel.addPendingSelection(food = food, quantity = quantity, unit = unit)
                 selectedLocalFood = null
             },
             onDismiss = { selectedLocalFood = null }
@@ -291,7 +357,7 @@ fun FoodPickerScreen(
             servingUnit = selectedUsdaFood!!.servingUnit,
             gramsPerPiece = null,
             onConfirm = { quantity, unit ->
-                onUsdaFoodSelected(selectedUsdaFood!!, quantity, unit)
+                viewModel.addPendingSelection(usdaFood = selectedUsdaFood, quantity = quantity, unit = unit)
                 selectedUsdaFood = null
             },
             onDismiss = { selectedUsdaFood = null }
@@ -339,6 +405,8 @@ fun FoodSearchCard(
     servingSize: Double,
     servingUnit: String,
     isLocal: Boolean,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     Card(
@@ -378,14 +446,16 @@ fun FoodSearchCard(
                     color = TextSecondary
                 )
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (isLocal) {
-                    Icon(
-                        Icons.Default.Star,
-                        contentDescription = "Local",
-                        tint = DesignGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isLocal && onToggleFavorite != null) {
+                    IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = if (isFavorite) "Unstar" else "Star",
+                            tint = if (isFavorite) DesignGreen else TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
                 Icon(
                     Icons.Default.KeyboardArrowRight,
@@ -409,11 +479,16 @@ fun FoodDetailBottomSheet(
     servingSize: Double,
     servingUnit: String,
     gramsPerPiece: Double? = null,
+    initialQuantity: Double? = null,
+    initialUnit: MeasureUnit? = null,
     onConfirm: (Double, com.mealplanplus.data.model.FoodUnit) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var quantityText by remember { mutableStateOf("1") }
-    var selectedUnit by remember { mutableStateOf(MeasureUnit.SERVING) }
+    val defaultQty  = initialQuantity?.let {
+        if (it == it.toLong().toDouble()) it.toInt().toString() else it.toString()
+    } ?: servingSize.toInt().coerceAtLeast(1).toString()
+    var quantityText by remember { mutableStateOf(defaultQty) }
+    var selectedUnit by remember { mutableStateOf(initialUnit ?: MeasureUnit.GRAM) }
     var unitDropdownExpanded by remember { mutableStateOf(false) }
 
     val quantity = quantityText.toDoubleOrNull() ?: 1.0
@@ -492,13 +567,6 @@ fun FoodDetailBottomSheet(
                                 text = { Text(unit.label) },
                                 onClick = {
                                     selectedUnit = unit
-                                    // Reset quantity when switching units
-                                    quantityText = when (unit) {
-                                        MeasureUnit.SERVING -> "1"
-                                        MeasureUnit.GRAM -> servingSize.toInt().toString()
-                                        MeasureUnit.ML -> servingSize.toInt().toString()
-                                        MeasureUnit.PIECE -> "1"
-                                    }
                                     unitDropdownExpanded = false
                                 }
                             )

@@ -44,6 +44,9 @@ interface ExerciseDao {
     @Query("SELECT COUNT(*) FROM exercises WHERE isSystem = 1")
     suspend fun getSystemExerciseCount(): Int
 
+    @Query("SELECT name FROM exercises WHERE isSystem = 1")
+    suspend fun getSystemExerciseNames(): List<String>
+
     // ── Backup ────────────────────────────────────────────────────────────────
     @Query("SELECT * FROM exercises WHERE isSystem = 0 AND userId = :userId ORDER BY category, name")
     suspend fun getCustomExercisesOnce(userId: String): List<Exercise>

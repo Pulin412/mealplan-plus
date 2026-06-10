@@ -33,6 +33,9 @@ interface FoodDao {
     @Query("UPDATE food_items SET lastUsed = :timestamp WHERE id = :id")
     suspend fun updateLastUsed(id: Long, timestamp: Long = System.currentTimeMillis())
 
+    @Query("UPDATE food_items SET lastUsed = :timestamp, lastUsedQuantity = :quantity, lastUsedUnit = :unit WHERE id = :id")
+    suspend fun updateLastUsedWithQuantity(id: Long, quantity: Double, unit: String, timestamp: Long = System.currentTimeMillis())
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFood(food: FoodItem): Long
 

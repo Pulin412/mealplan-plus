@@ -78,11 +78,8 @@ class GroceryRepository @Inject constructor(
         val startDate = dates.minOrNull()?.toEpochMs()
         val endDate = dates.maxOrNull()?.toEpochMs()
 
-        val list = GroceryList(userId = userId, name = name, startDate = startDate, endDate = endDate)
-        val listId = groceryDao.insertList(list)
-
+        // Aggregate first — only create the list if there are actual foods to add.
         val aggregatedFoods = mutableMapOf<AggregationKey, AggregatedFood>()
-
         for (date in dates) {
             val plan = planDao.getPlanForDate(userId, date.toEpochMs())
             val dietId = plan?.dietId ?: continue
@@ -90,6 +87,12 @@ class GroceryRepository @Inject constructor(
             aggregateMeals(dietWithMeals, aggregatedFoods)
         }
 
+        if (aggregatedFoods.isEmpty()) {
+            throw IllegalStateException("No foods found for the selected dates. Make sure you have diets with meals and foods planned.")
+        }
+
+        val list = GroceryList(userId = userId, name = name, startDate = startDate, endDate = endDate)
+        val listId = groceryDao.insertList(list)
         insertAggregated(aggregatedFoods, listId)
         return listId
     }
@@ -131,11 +134,16 @@ class GroceryRepository @Inject constructor(
         val dietWithMeals = dietRepository.getDietWithMeals(dietId)
             ?: throw IllegalArgumentException("Diet not found")
 
-        val list = GroceryList(userId = userId, name = name)
-        val listId = groceryDao.insertList(list)
-
+        // Aggregate first — only create the list if there are actual foods to add.
         val aggregatedFoods = mutableMapOf<AggregationKey, AggregatedFood>()
         aggregateMeals(dietWithMeals, aggregatedFoods)
+
+        if (aggregatedFoods.isEmpty()) {
+            throw IllegalStateException("Diet has no foods. Add foods to the diet meals first.")
+        }
+
+        val list = GroceryList(userId = userId, name = name)
+        val listId = groceryDao.insertList(list)
         insertAggregated(aggregatedFoods, listId)
         return listId
     }

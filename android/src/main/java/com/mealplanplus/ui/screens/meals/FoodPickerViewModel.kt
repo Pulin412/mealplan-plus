@@ -3,6 +3,7 @@ package com.mealplanplus.ui.screens.meals
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.FoodItem
+import com.mealplanplus.data.model.FoodUnit
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.UsdaFoodRepository
 import com.mealplanplus.data.repository.UsdaFoodResult
@@ -11,13 +12,23 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class PendingSelection(
+    val localFood: FoodItem? = null,
+    val usdaFood: UsdaFoodResult? = null,
+    val quantity: Double,
+    val unit: FoodUnit
+)
+
 data class FoodPickerUiState(
     val searchQuery: String = "",
     val localResults: List<FoodItem> = emptyList(),
     val usdaResults: List<UsdaFoodResult> = emptyList(),
     val isSearchingUsda: Boolean = false,
     val hasSearchedUsda: Boolean = false,
-    val searchError: String? = null
+    val searchError: String? = null,
+    val pendingSelections: List<PendingSelection> = emptyList(),
+    val lastAddedName: String? = null,
+    val favorites: List<FoodItem> = emptyList()
 )
 
 @HiltViewModel
@@ -31,6 +42,14 @@ class FoodPickerViewModel @Inject constructor(
 
     val allFoods: StateFlow<List<FoodItem>> = foodRepository.getAllFoods()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    init {
+        viewModelScope.launch {
+            foodRepository.getFavorites().collect { favs ->
+                _uiState.update { it.copy(favorites = favs) }
+            }
+        }
+    }
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query, hasSearchedUsda = false, usdaResults = emptyList()) }
@@ -51,6 +70,35 @@ class FoodPickerViewModel @Inject constructor(
             it.name.contains(trimmed, ignoreCase = true)
         }
         _uiState.update { it.copy(localResults = localMatches) }
+    }
+
+    fun addPendingSelection(food: FoodItem? = null, usdaFood: UsdaFoodResult? = null, quantity: Double, unit: FoodUnit) {
+        val name = food?.name ?: usdaFood?.name ?: ""
+        _uiState.update {
+            it.copy(
+                pendingSelections = it.pendingSelections + PendingSelection(food, usdaFood, quantity, unit),
+                lastAddedName = name
+            )
+        }
+        food?.let { f ->
+            viewModelScope.launch {
+                foodRepository.updateLastUsedWithQuantity(f.id, quantity, unit.name)
+            }
+        }
+    }
+
+    fun toggleFavorite(food: FoodItem) {
+        viewModelScope.launch {
+            foodRepository.setFavorite(food.id, !food.isFavorite)
+        }
+    }
+
+    fun clearLastAdded() {
+        _uiState.update { it.copy(lastAddedName = null) }
+    }
+
+    fun clearSelections() {
+        _uiState.update { it.copy(pendingSelections = emptyList(), lastAddedName = null) }
     }
 
     // Manual USDA search triggered by button
