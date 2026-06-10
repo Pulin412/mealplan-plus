@@ -253,6 +253,7 @@ class HomeViewModel @Inject constructor(
                     val dietSlots: List<TodayPlanSlot> = if (dietId != null) {
                         dietWithMeals?.meals
                             ?.entries
+                            ?.filter { (_, mwf) -> mwf != null }
                             ?.sortedBy { (slotType, _) ->
                                 DefaultMealSlot.fromString(slotType)?.order ?: Int.MAX_VALUE
                             }

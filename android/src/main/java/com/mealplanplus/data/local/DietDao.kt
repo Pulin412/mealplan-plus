@@ -94,7 +94,7 @@ interface DietDao {
     @Query("""
         SELECT
             d.id, d.name, d.description, d.createdAt,
-            COUNT(DISTINCT ds.slotType) as mealCount,
+            COUNT(DISTINCT CASE WHEN ds.mealId IS NOT NULL THEN ds.slotType ELSE NULL END) as mealCount,
             COALESCE(SUM(
                 CASE WHEN mfi.unit = 'GRAM' THEN f.caloriesPer100 * mfi.quantity / 100
                      WHEN mfi.unit = 'PIECE' THEN f.caloriesPer100 * COALESCE(f.gramsPerPiece, 100) * mfi.quantity / 100
@@ -160,7 +160,7 @@ interface DietDao {
     @Query("""
         SELECT
             d.id, d.name, d.description, d.createdAt,
-            COUNT(DISTINCT ds.slotType) as mealCount,
+            COUNT(DISTINCT CASE WHEN ds.mealId IS NOT NULL THEN ds.slotType ELSE NULL END) as mealCount,
             COALESCE(SUM(
                 CASE WHEN mfi.unit = 'GRAM' THEN f.caloriesPer100 * mfi.quantity / 100
                      WHEN mfi.unit = 'PIECE' THEN f.caloriesPer100 * COALESCE(f.gramsPerPiece, 100) * mfi.quantity / 100

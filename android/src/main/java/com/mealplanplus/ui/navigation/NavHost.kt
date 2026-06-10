@@ -92,6 +92,7 @@ import com.mealplanplus.ui.screens.settings.WidgetSettingsScreen
 import com.mealplanplus.ui.screens.scanner.BarcodeScannerScreen
 import com.mealplanplus.ui.screens.scanner.OnlineSearchScreen
 import com.mealplanplus.ui.screens.meals.FoodPickerScreen
+import com.mealplanplus.ui.screens.meals.PendingSelection
 import com.mealplanplus.ui.screens.diets.DietMealSlotScreen
 import com.mealplanplus.ui.screens.diets.DietMealPickerScreen
 import com.mealplanplus.ui.screens.diets.MealDetailScreen
@@ -494,27 +495,8 @@ fun MealPlanNavHost(
             composable(Screen.FoodPicker.route) {
                 FoodPickerScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onFoodSelected = { food, quantity, unit ->
-                        navController.previousBackStackEntry?.savedStateHandle?.apply {
-                            set("selected_food_id", food.id)
-                            set("selected_quantity", quantity)
-                            set("selected_unit", unit.name)
-                        }
-                        navController.popBackStack()
-                    },
-                    onUsdaFoodSelected = { usdaFood, quantity, unit ->
-                        navController.previousBackStackEntry?.savedStateHandle?.apply {
-                            set("usda_food_name", usdaFood.name)
-                            set("usda_food_brand", usdaFood.brand)
-                            set("usda_food_calories", usdaFood.calories)
-                            set("usda_food_protein", usdaFood.protein)
-                            set("usda_food_carbs", usdaFood.carbs)
-                            set("usda_food_fat", usdaFood.fat)
-                            set("usda_food_serving_size", usdaFood.servingSize)
-                            set("usda_food_serving_unit", usdaFood.servingUnit)
-                            set("selected_quantity", quantity)
-                            set("selected_unit", unit.name)
-                        }
+                    onDone = { selections ->
+                        writeBatchSelections(navController, selections)
                         navController.popBackStack()
                     }
                 )
@@ -533,27 +515,8 @@ fun MealPlanNavHost(
             composable(Screen.FoodPickerForEdit.route) {
                 FoodPickerScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onFoodSelected = { food, quantity, unit ->
-                        navController.previousBackStackEntry?.savedStateHandle?.apply {
-                            set("selected_food_id", food.id)
-                            set("selected_quantity", quantity)
-                            set("selected_unit", unit.name)
-                        }
-                        navController.popBackStack()
-                    },
-                    onUsdaFoodSelected = { usdaFood, quantity, unit ->
-                        navController.previousBackStackEntry?.savedStateHandle?.apply {
-                            set("usda_food_name", usdaFood.name)
-                            set("usda_food_brand", usdaFood.brand)
-                            set("usda_food_calories", usdaFood.calories)
-                            set("usda_food_protein", usdaFood.protein)
-                            set("usda_food_carbs", usdaFood.carbs)
-                            set("usda_food_fat", usdaFood.fat)
-                            set("usda_food_serving_size", usdaFood.servingSize)
-                            set("usda_food_serving_unit", usdaFood.servingUnit)
-                            set("selected_quantity", quantity)
-                            set("selected_unit", unit.name)
-                        }
+                    onDone = { selections ->
+                        writeBatchSelections(navController, selections)
                         navController.popBackStack()
                     }
                 )
@@ -566,14 +529,18 @@ fun MealPlanNavHost(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.AddDiet.route) {
+            composable(Screen.AddDiet.route) { backStackEntry ->
                 AddDietScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onDietSaved = { dietId ->
                         navController.navigate(Screen.DietDetail.createRoute(dietId, autoEdit = false)) {
                             popUpTo(Screen.AddDiet.route) { inclusive = true }
                         }
-                    }
+                    },
+                    onNavigateToMealPicker = { slotType ->
+                        navController.navigate(Screen.DietMealPicker.createRoute(slotType))
+                    },
+                    savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
             composable(
@@ -585,15 +552,14 @@ fun MealPlanNavHost(
             ) { backStackEntry ->
                 val savedStateHandle = backStackEntry.savedStateHandle
                 val autoEdit = backStackEntry.arguments?.getBoolean("autoEdit") ?: false
-                val dietId = backStackEntry.arguments?.getLong("dietId") ?: 0L
                 DietDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToFoodPicker = { navController.navigate(Screen.FoodPickerForDietSlot.route) },
                     onNavigateToMealDetail = { dId, slotType ->
                         navController.navigate(Screen.MealDetail.createRoute(dId, slotType))
                     },
-                    onNavigateToEditSlot = { slotType ->
-                        navController.navigate(Screen.DietMealSlot.createRoute(dietId, slotType))
+                    onNavigateToMealPicker = { slotType ->
+                        navController.navigate(Screen.DietMealPicker.createRoute(slotType))
                     },
                     savedStateHandle = savedStateHandle,
                     autoEdit = autoEdit
@@ -633,27 +599,8 @@ fun MealPlanNavHost(
             composable(Screen.FoodPickerForDietSlot.route) {
                 FoodPickerScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onFoodSelected = { food, quantity, unit ->
-                        navController.previousBackStackEntry?.savedStateHandle?.apply {
-                            set("selected_food_id", food.id)
-                            set("selected_quantity", quantity)
-                            set("selected_unit", unit.name)
-                        }
-                        navController.popBackStack()
-                    },
-                    onUsdaFoodSelected = { usdaFood, quantity, unit ->
-                        navController.previousBackStackEntry?.savedStateHandle?.apply {
-                            set("usda_food_name", usdaFood.name)
-                            set("usda_food_brand", usdaFood.brand)
-                            set("usda_food_calories", usdaFood.calories)
-                            set("usda_food_protein", usdaFood.protein)
-                            set("usda_food_carbs", usdaFood.carbs)
-                            set("usda_food_fat", usdaFood.fat)
-                            set("usda_food_serving_size", usdaFood.servingSize)
-                            set("usda_food_serving_unit", usdaFood.servingUnit)
-                            set("selected_quantity", quantity)
-                            set("selected_unit", unit.name)
-                        }
+                    onDone = { selections ->
+                        writeBatchSelections(navController, selections)
                         navController.popBackStack()
                     }
                 )
@@ -669,6 +616,13 @@ fun MealPlanNavHost(
                     onMealSelected = { mealId ->
                         navController.previousBackStackEntry?.savedStateHandle?.apply {
                             set("selected_meal_id", mealId)
+                            set("selected_slot_type", slotType)
+                        }
+                        navController.popBackStack()
+                    },
+                    onClearMeal = {
+                        navController.previousBackStackEntry?.savedStateHandle?.apply {
+                            set("selected_meal_id", -1L)
                             set("selected_slot_type", slotType)
                         }
                         navController.popBackStack()
@@ -1199,6 +1153,34 @@ private fun RowScope.NavTab(
             unselectedTextColor = UnselectedNavColor
         )
     )
+}
+
+private fun writeBatchSelections(navController: NavController, selections: List<PendingSelection>) {
+    val handle = navController.previousBackStackEntry?.savedStateHandle ?: return
+    val localFoods = selections.filter { it.localFood != null }
+    val usdaFoods  = selections.filter { it.usdaFood  != null }
+
+    handle.set("selected_food_count", localFoods.size)
+    localFoods.forEachIndexed { i, sel ->
+        handle.set("selected_food_id_$i",  sel.localFood!!.id)
+        handle.set("selected_quantity_$i", sel.quantity)
+        handle.set("selected_unit_$i",     sel.unit.name)
+    }
+
+    handle.set("usda_food_count", usdaFoods.size)
+    usdaFoods.forEachIndexed { i, sel ->
+        val f = sel.usdaFood!!
+        handle.set("usda_food_name_$i",         f.name)
+        handle.set("usda_food_brand_$i",         f.brand)
+        handle.set("usda_food_calories_$i",      f.calories)
+        handle.set("usda_food_protein_$i",       f.protein)
+        handle.set("usda_food_carbs_$i",         f.carbs)
+        handle.set("usda_food_fat_$i",           f.fat)
+        handle.set("usda_food_serving_size_$i",  f.servingSize)
+        handle.set("usda_food_serving_unit_$i",  f.servingUnit)
+        handle.set("usda_food_quantity_$i",      sel.quantity)
+        handle.set("usda_food_unit_$i",          sel.unit.name)
+    }
 }
 
 // ── Quick-add action model ────────────────────────────────────────────────────
