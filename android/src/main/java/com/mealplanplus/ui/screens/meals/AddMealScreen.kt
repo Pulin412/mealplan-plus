@@ -40,45 +40,53 @@ fun AddMealScreen(
     val uiState by viewModel.uiState.collectAsState()
     var editingFood by remember { mutableStateOf<SelectedFood?>(null) }
 
-    // Handle food selection results from FoodPickerScreen
+    // Handle batch food selection results from FoodPickerScreen
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.let { handle ->
-            handle.get<Long>("selected_food_id")?.let { foodId ->
-                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
-                val unit = handle.get<String>("selected_unit")?.let {
-                    runCatching { FoodUnit.valueOf(it) }.getOrNull()
-                } ?: FoodUnit.GRAM
-                viewModel.addFoodById(foodId, quantity, unit)
-                handle.remove<Long>("selected_food_id")
-                handle.remove<Double>("selected_quantity")
-                handle.remove<String>("selected_unit")
+            val localCount = handle.get<Int>("selected_food_count") ?: 0
+            repeat(localCount) { i ->
+                handle.get<Long>("selected_food_id_$i")?.let { foodId ->
+                    val qty  = handle.get<Double>("selected_quantity_$i") ?: 1.0
+                    val unit = handle.get<String>("selected_unit_$i")?.let {
+                        runCatching { FoodUnit.valueOf(it) }.getOrNull()
+                    } ?: FoodUnit.GRAM
+                    viewModel.addFoodById(foodId, qty, unit)
+                }
+                handle.remove<Long>("selected_food_id_$i")
+                handle.remove<Double>("selected_quantity_$i")
+                handle.remove<String>("selected_unit_$i")
             }
+            if (localCount > 0) handle.remove<Int>("selected_food_count")
 
-            handle.get<String>("usda_food_name")?.let { name ->
-                val usdaFood = UsdaFoodResult(
-                    fdcId = 0,
-                    name = name,
-                    brand = handle.get<String>("usda_food_brand"),
-                    calories = handle.get<Double>("usda_food_calories") ?: 0.0,
-                    protein = handle.get<Double>("usda_food_protein") ?: 0.0,
-                    carbs = handle.get<Double>("usda_food_carbs") ?: 0.0,
-                    fat = handle.get<Double>("usda_food_fat") ?: 0.0,
-                    servingSize = handle.get<Double>("usda_food_serving_size") ?: 100.0,
-                    servingUnit = handle.get<String>("usda_food_serving_unit") ?: "g"
-                )
-                val quantity = handle.get<Double>("selected_quantity") ?: 1.0
-                viewModel.addUsdaFoodWithQuantity(usdaFood, quantity)
-                handle.remove<String>("usda_food_name")
-                handle.remove<String>("usda_food_brand")
-                handle.remove<Double>("usda_food_calories")
-                handle.remove<Double>("usda_food_protein")
-                handle.remove<Double>("usda_food_carbs")
-                handle.remove<Double>("usda_food_fat")
-                handle.remove<Double>("usda_food_serving_size")
-                handle.remove<String>("usda_food_serving_unit")
-                handle.remove<Double>("selected_quantity")
-                handle.remove<String>("selected_unit")
+            val usdaCount = handle.get<Int>("usda_food_count") ?: 0
+            repeat(usdaCount) { i ->
+                handle.get<String>("usda_food_name_$i")?.let { name ->
+                    val usdaFood = UsdaFoodResult(
+                        fdcId       = 0,
+                        name        = name,
+                        brand       = handle.get<String>("usda_food_brand_$i"),
+                        calories    = handle.get<Double>("usda_food_calories_$i") ?: 0.0,
+                        protein     = handle.get<Double>("usda_food_protein_$i") ?: 0.0,
+                        carbs       = handle.get<Double>("usda_food_carbs_$i") ?: 0.0,
+                        fat         = handle.get<Double>("usda_food_fat_$i") ?: 0.0,
+                        servingSize = handle.get<Double>("usda_food_serving_size_$i") ?: 100.0,
+                        servingUnit = handle.get<String>("usda_food_serving_unit_$i") ?: "g"
+                    )
+                    val qty = handle.get<Double>("usda_food_quantity_$i") ?: 1.0
+                    viewModel.addUsdaFoodWithQuantity(usdaFood, qty)
+                }
+                handle.remove<String>("usda_food_name_$i")
+                handle.remove<String>("usda_food_brand_$i")
+                handle.remove<Double>("usda_food_calories_$i")
+                handle.remove<Double>("usda_food_protein_$i")
+                handle.remove<Double>("usda_food_carbs_$i")
+                handle.remove<Double>("usda_food_fat_$i")
+                handle.remove<Double>("usda_food_serving_size_$i")
+                handle.remove<String>("usda_food_serving_unit_$i")
+                handle.remove<Double>("usda_food_quantity_$i")
+                handle.remove<String>("usda_food_unit_$i")
             }
+            if (usdaCount > 0) handle.remove<Int>("usda_food_count")
         }
     }
 
@@ -119,37 +127,52 @@ fun AddMealScreen(
                 }
             }
 
-            // Ingredients section label
+            // Search & add ingredient button
             item {
-                FormSectionLabel(
-                    "Ingredients",
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-            }
-
-            // Ingredient card
-            item {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(cardBg)
+                        .clickable { onNavigateToFoodPicker() }
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (uiState.selectedFoods.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No ingredients added yet",
-                                fontSize = 13.sp,
-                                color = textMuted,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                            )
-                        }
-                    } else {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(iconBgGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("+", fontSize = 20.sp, color = textMuted, fontWeight = FontWeight.Light)
+                    }
+                    Text(
+                        "Search & add ingredient…",
+                        fontSize = 13.sp,
+                        color = textMuted,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // Ingredients section label + card (only when there are ingredients)
+            if (uiState.selectedFoods.isNotEmpty()) {
+                item {
+                    FormSectionLabel(
+                        "Ingredients (${uiState.selectedFoods.size})",
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(cardBg)
+                    ) {
                         uiState.selectedFoods.forEachIndexed { index, sf ->
                             IngredientRow(
                                 food = sf.food,
@@ -162,33 +185,6 @@ fun AddMealScreen(
                                 HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(start = 62.dp))
                             }
                         }
-                    }
-
-                    // Add ingredient row
-                    HorizontalDivider(color = dividerColor, thickness = 1.dp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToFoodPicker() }
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(iconBgGray),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("+", fontSize = 20.sp, color = textMuted, fontWeight = FontWeight.Light)
-                        }
-                        Text(
-                            "Search & add ingredient…",
-                            fontSize = 13.sp,
-                            color = textMuted,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
                 }
             }

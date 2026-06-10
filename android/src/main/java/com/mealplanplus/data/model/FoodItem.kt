@@ -24,6 +24,8 @@ data class FoodItem(
     val preferredUnit: String? = null,
     val isFavorite: Boolean = false,
     val lastUsed: Long? = null,
+    val lastUsedQuantity: Double? = null,
+    val lastUsedUnit: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val isSystemFood: Boolean = false,   // Bundled foods from common_foods.json
     // Sync columns (v19)
