@@ -104,7 +104,8 @@ fun WorkoutLogScreen(
             sessionName = sessionWithSets.session.name
 
             // Build slots: template exercises first, then any extras from logged sets
-            val templateId = sessionWithSets.session.notes?.toLongOrNull()
+            val templateId = sessionWithSets.session.templateId
+                ?: sessionWithSets.session.notes?.toLongOrNull()
             val template = templateId?.let { viewModel.getTemplateWithExercises(it) }
             val templateEntries = template?.exercises ?: emptyList()
             val templateExIds = templateEntries.map { it.exercise.id }.toSet()
@@ -463,10 +464,8 @@ private fun ActiveSessionStep(
 
                                 // ── Last session history ───────────────────────
                                 val lastSets = lastSetsByExercise[slot.exercise.id] ?: emptyList()
-                                if (lastSets.isNotEmpty()) {
-                                    LastTimeSection(lastSets)
-                                    Spacer(Modifier.height(10.dp))
-                                }
+                                LastTimeSection(lastSets)
+                                Spacer(Modifier.height(10.dp))
 
                                 // ── Pyramid reference (from template) ─────────
                                 val plannedSets = slot.templateEntry?.plannedSets ?: emptyList()
@@ -692,6 +691,23 @@ private fun ActiveSessionStep(
 
 @Composable
 private fun LastTimeSection(lastSets: List<WorkoutSet>) {
+    if (lastSets.isEmpty()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFFF5F0FF))
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("LAST TIME", fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                color = Color(0xFF7B5EA7), letterSpacing = 0.6.sp)
+            Text("—", fontSize = 11.sp, color = Color(0xFFAAAAAA))
+        }
+        return
+    }
+
     var expanded by remember { mutableStateOf(false) }
 
     val summary = buildString {

@@ -23,6 +23,7 @@ import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
 import com.mealplanplus.util.AuthPreferences
+import com.mealplanplus.util.PrepCheckPreferences
 import com.mealplanplus.util.SyncPreferences
 import com.mealplanplus.util.extractShortDietName
 import com.mealplanplus.util.toEpochMs
@@ -109,9 +110,13 @@ data class HomeUiState(
     val finishCompleted: Boolean = false,
     val todayDietName: String? = null,
     val todayDietGl: Double? = null,
+    /** True when some diet/logged foods have no GI data, making todayDietGl a partial estimate. */
+    val todayDietGlIsPartial: Boolean = false,
     /** Epoch ms of the last successful sync, or null if never synced. */
     val lastSyncedAt: Long? = null,
-    val plannedWorkoutToday: PlannedWorkoutWithTemplate? = null
+    val plannedWorkoutToday: PlannedWorkoutWithTemplate? = null,
+    /** Keys of checked meal-prep ingredients for today. Format: "SLOTTYPE:foodId" */
+    val ingredientChecks: Set<String> = emptySet()
 )
 
 @HiltViewModel
@@ -144,6 +149,7 @@ class HomeViewModel @Inject constructor(
         loadStreakData()
         loadLastSyncedAt()
         loadActivityData()
+        loadPrepChecks()
         observeDateChange()
         viewModelScope.launch {
             _weekOffset.collect { loadWeekData() }
@@ -299,7 +305,50 @@ class HomeViewModel @Inject constructor(
 
                     val isTodayCompleted = plans.firstOrNull()?.isCompleted == true
                     val todayDietName = plans.firstOrNull { it.dietId != null }?.dietName
-                    val todayDietGl = dietWithMeals?.totalGlycemicLoad
+
+                    // Base GL = full planned diet (matches what the Diet screen shows).
+                    val dietGlBase: Double? = dietWithMeals?.totalGlycemicLoad
+
+                    // Food IDs already counted in the planned diet — don't double-count them.
+                    val dietFoodIds: Set<Long> = dietWithMeals?.meals?.values
+                        ?.filterNotNull()
+                        ?.flatMap { mwf -> mwf.items.map { it.food.id } }
+                        ?.toSet() ?: emptySet()
+
+                    // Extra GL from foods logged today that are NOT in the planned diet
+                    // (i.e. added via Quick Log or other ad-hoc logging).
+                    val loggedFoods = logWithFoods?.foods ?: emptyList()
+                    val extraLoggedGl: Double? = run {
+                        val extras = loggedFoods.filter { it.food.id !in dietFoodIds }
+                        if (extras.isEmpty()) return@run null
+                        var total = 0.0
+                        var hasGi = false
+                        for (lfd in extras) {
+                            val gi = lfd.food.glycemicIndex ?: continue
+                            val carbs = lfd.food.carbsPer100 * lfd.quantityInGrams / 100.0
+                            total += gi * carbs / 100.0
+                            hasGi = true
+                        }
+                        if (hasGi) total else null
+                    }
+
+                    val todayDietGl: Double? = when {
+                        dietGlBase != null && extraLoggedGl != null -> dietGlBase + extraLoggedGl
+                        dietGlBase != null -> dietGlBase
+                        else -> extraLoggedGl
+                    }
+
+                    // Mark partial when any planned diet food or any extra logged food lacks GI data.
+                    val todayDietGlIsPartial: Boolean = when {
+                        dietWithMeals != null ->
+                            dietWithMeals.meals.values.filterNotNull()
+                                .any { mwf -> mwf.items.any { it.food.glycemicIndex == null } } ||
+                            loggedFoods.filter { it.food.id !in dietFoodIds }
+                                .any { it.food.glycemicIndex == null }
+                        loggedFoods.isNotEmpty() ->
+                            loggedFoods.any { it.food.glycemicIndex == null }
+                        else -> false
+                    }
 
                     _uiState.update {
                         it.copy(
@@ -307,7 +356,8 @@ class HomeViewModel @Inject constructor(
                             hasDietToday = dietId != null,
                             isTodayCompleted = isTodayCompleted,
                             todayDietName = todayDietName,
-                            todayDietGl = todayDietGl
+                            todayDietGl = todayDietGl,
+                            todayDietGlIsPartial = todayDietGlIsPartial
                         )
                     }
                 }
@@ -562,6 +612,20 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             SyncPreferences.getLastSyncTimestamp(context)
                 .collect { ts -> _uiState.update { it.copy(lastSyncedAt = if (ts == 0L) null else ts) } }
+        }
+    }
+
+    private fun loadPrepChecks() {
+        viewModelScope.launch {
+            PrepCheckPreferences.getChecks(context, LocalDate.now()).collect { checks ->
+                _uiState.update { it.copy(ingredientChecks = checks) }
+            }
+        }
+    }
+
+    fun toggleIngredientCheck(slotType: String, foodId: Long) {
+        viewModelScope.launch {
+            PrepCheckPreferences.toggle(context, LocalDate.now(), "$slotType:$foodId")
         }
     }
 }

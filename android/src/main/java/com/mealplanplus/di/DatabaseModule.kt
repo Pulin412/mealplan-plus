@@ -1737,6 +1737,36 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_44_45 = object : Migration(44, 45) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Old startSession stored templateId as a plain integer string in the notes column
+            // instead of the proper templateId column. Backfill the column for those sessions.
+            // Safety conditions: notes must round-trip through INTEGER cast exactly (ruling out
+            // free-text notes), the value must be positive, and the template must still exist.
+            db.execSQL("""
+                UPDATE workout_sessions
+                SET templateId = CAST(notes AS INTEGER)
+                WHERE templateId IS NULL
+                  AND notes IS NOT NULL
+                  AND TRIM(notes) = CAST(CAST(TRIM(notes) AS INTEGER) AS TEXT)
+                  AND CAST(notes AS INTEGER) > 0
+                  AND CAST(notes AS INTEGER) IN (SELECT id FROM workout_templates)
+            """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_43_44 = object : Migration(43, 44) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Delete grocery lists that have no items — these were created by the pre-fix
+            // generateFromDateRange / generateFromDiet which inserted the list row before
+            // knowing whether any foods existed, leaving empty lists when no plans were found.
+            db.execSQL("""
+                DELETE FROM grocery_lists
+                WHERE id NOT IN (SELECT DISTINCT listId FROM grocery_items)
+            """.trimIndent())
+        }
+    }
+
     private val MIGRATION_42_43 = object : Migration(42, 43) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // Remove diet_slots records for non-CUSTOM slots that point to meals with no
@@ -1913,7 +1943,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45)
             // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()
