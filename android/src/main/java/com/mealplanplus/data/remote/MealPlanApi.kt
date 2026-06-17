@@ -150,6 +150,18 @@ data class SyncPullResponse(
     val serverTime: Long? = null
 )
 
+// ── Agent DTOs ────────────────────────────────────────────────────────────────
+
+data class AgentChatRequest(
+    val message: String,
+    val date: String? = null,
+    val slot: String? = null
+)
+
+data class AgentChatResponse(
+    val reply: String
+)
+
 // ── Retrofit interface ────────────────────────────────────────────────────────
 
 interface MealPlanApi {
@@ -158,4 +170,7 @@ interface MealPlanApi {
 
     @GET("api/v1/sync/pull")
     suspend fun pull(@Query("since") since: String): SyncPullResponse
+
+    @POST("api/v1/agent/chat")
+    suspend fun agentChat(@Body request: AgentChatRequest): AgentChatResponse
 }
