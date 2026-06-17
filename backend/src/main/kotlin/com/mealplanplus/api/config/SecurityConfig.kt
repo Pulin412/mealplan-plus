@@ -44,7 +44,8 @@ class SecurityConfig(private val firebaseTokenFilter: FirebaseTokenFilter) {
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
-                        "/h2-console/**"
+                        "/h2-console/**",
+                        "/api/v1/agent/**"
                     ).permitAll()
                     .anyRequest().authenticated()
             }
