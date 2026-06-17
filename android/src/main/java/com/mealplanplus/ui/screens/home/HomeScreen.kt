@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -58,6 +59,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
+import com.mealplanplus.ui.screens.agent.AgentChatBottomSheet
+import com.mealplanplus.ui.screens.agent.AgentViewModel
 import com.mealplanplus.ui.theme.AiPurple
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
@@ -93,13 +96,15 @@ fun HomeScreen(
     onNavigateToWorkoutLog: (Long) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel(),
-    quickLogViewModel: QuickLogViewModel = hiltViewModel()
+    quickLogViewModel: QuickLogViewModel = hiltViewModel(),
+    agentViewModel: AgentViewModel = hiltViewModel()
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val scope   = rememberCoroutineScope()
     val context    = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showQuickLog by remember { mutableStateOf(false) }
+    var showAgentChat by remember { mutableStateOf(false) }
     val quickLogState by quickLogViewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState.finishCompleted) {
@@ -122,6 +127,13 @@ fun HomeScreen(
             viewModel.planDietForToday(selectedDietId)
             savedStateHandle?.set("selected_diet_id", -1L)
         }
+    }
+
+    if (showAgentChat) {
+        AgentChatBottomSheet(
+            onDismiss = { showAgentChat = false },
+            viewModel = agentViewModel
+        )
     }
 
     if (showQuickLog) {
@@ -149,16 +161,28 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BgPage,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    quickLogViewModel.initForToday()
-                    showQuickLog = true
-                },
-                containerColor = PrimaryGreen,
-                contentColor = Color.White,
-                shape = androidx.compose.foundation.shape.CircleShape
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Quick log food")
+                SmallFloatingActionButton(
+                    onClick = { showAgentChat = true },
+                    containerColor = AiPurple,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "AI food logging")
+                }
+                FloatingActionButton(
+                    onClick = {
+                        quickLogViewModel.initForToday()
+                        showQuickLog = true
+                    },
+                    containerColor = PrimaryGreen,
+                    contentColor = Color.White,
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Quick log food")
+                }
             }
         }
     ) { innerPadding ->
