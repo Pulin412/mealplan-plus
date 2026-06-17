@@ -1,5 +1,6 @@
 package com.mealplanplus.di
 
+import com.mealplanplus.BuildConfig
 import com.mealplanplus.data.remote.OpenFoodFactsApi
 import com.mealplanplus.data.remote.UsdaFoodApi
 import dagger.Module
@@ -20,7 +21,7 @@ object NetworkModule {
 
     private const val OPEN_FOOD_FACTS_URL = "https://world.openfoodfacts.org/"
     private const val USDA_API_URL = "https://api.nal.usda.gov/"
-    private const val MEAL_PLAN_API_URL = "https://mealplan-api-rfo22lhanq-ez.a.run.app/"
+    private val MEAL_PLAN_API_URL = BuildConfig.MEAL_PLAN_API_URL
 
     @Provides
     @Singleton

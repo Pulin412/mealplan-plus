@@ -34,6 +34,8 @@ android {
             applicationIdSuffix = ".dev"
             isMinifyEnabled = false
             isShrinkResources = false
+            // Emulator → 10.0.2.2, real device → your machine's local IP
+            buildConfigField("String", "MEAL_PLAN_API_URL", "\"http://10.0.2.2:8080/\"")
         }
         release {
             isMinifyEnabled = true
@@ -42,6 +44,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "MEAL_PLAN_API_URL", "\"https://mealplan-api-rfo22lhanq-ez.a.run.app/\"")
         }
     }
 
