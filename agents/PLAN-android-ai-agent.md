@@ -22,15 +22,15 @@ Phase 1 (backend) → Test 1 (curl/Postman) → Deploy to Cloud Run
 ## Phase 1 — Backend foundation
 > No Android or app needed. Work entirely in `backend/`.
 
-- [ ] **1.1** Add Spring AI BOM + Anthropic starter to `backend/build.gradle.kts`
+- [x] **1.1** Add Spring AI BOM + Anthropic starter to `backend/build.gradle.kts`
 - [ ] **1.2** Add `ANTHROPIC_API_KEY` to local `.env` and Cloud Run secret manager
-- [ ] **1.3** Create `AgentChatRequest` + `AgentChatResponse` DTOs
-- [ ] **1.4** Create `MealPlanToolService` with three `@Tool` methods:
+- [x] **1.3** Create `AgentChatRequest` + `AgentChatResponse` DTOs
+- [x] **1.4** Create `MealPlanToolService` with three `@Tool` methods:
   - `searchFoods(query)` — find matching foods for the user
   - `getTodayLog(date)` — read what is already logged today (agent context)
   - `logFood(foodId, quantity, unit, slot, date)` — write the log entry
-- [ ] **1.5** Create `AgentController` — `POST /api/v1/agent/chat`
-- [ ] **1.6** Add the new endpoint to `SecurityConfig` (authenticated like all `/api/v1/**`)
+- [x] **1.5** Create `AgentController` — `POST /api/v1/agent/chat`
+- [x] **1.6** Add the new endpoint to `SecurityConfig` (authenticated like all `/api/v1/**`)
 - [ ] **1.7** Integration test: "I had 2 eggs" → assert log entry created in DB
 
 ### 🧪 Test point 1 — curl, no Android needed
