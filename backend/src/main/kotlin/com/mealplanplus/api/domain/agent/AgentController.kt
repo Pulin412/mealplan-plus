@@ -1,7 +1,6 @@
 package com.mealplanplus.api.domain.agent
 
 import org.springframework.ai.chat.client.ChatClient
-import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -18,7 +17,7 @@ class AgentController(
     private val chatClient: ChatClient by lazy { chatClientBuilder.build() }
 
     @PostMapping("/chat")
-    fun chat(@RequestBody request: AgentChatRequest, auth: Authentication): AgentChatResponse {
+    fun chat(@RequestBody request: AgentChatRequest): AgentChatResponse {
         val today = request.date ?: LocalDate.now().toString()
         val slotHint = request.slot?.let { "The user is likely eating $it." } ?: ""
 
