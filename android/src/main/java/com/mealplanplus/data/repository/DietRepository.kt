@@ -55,7 +55,14 @@ class DietRepository @Inject constructor(
         val dietMeals = dietDao.getDietMeals(dietId)
         val mealsMap = mutableMapOf<String, MealWithFoods?>()
         for (dm in dietMeals) {
-            mealsMap[dm.slotType] = dm.mealId?.let { mealRepository.getMealWithFoods(it) }
+            val isCustom = dm.slotType.startsWith("CUSTOM:")
+            // Skip null-mealId records for default slots — they're stale placeholders.
+            // Custom slots (CUSTOM:*) keep their placeholder so they remain visible.
+            if (dm.mealId == null && !isCustom) continue
+            val mealWithFoods = dm.mealId?.let { mealRepository.getMealWithFoods(it) }
+            // Skip default slots where the meal row was deleted from the meals table.
+            if (mealWithFoods == null && dm.mealId != null && !isCustom) continue
+            mealsMap[dm.slotType] = mealWithFoods
         }
         val instructionsMap = dietMeals.associate { it.slotType to it.instructions }
         return DietWithMeals(diet, mealsMap, instructionsMap)
@@ -72,15 +79,23 @@ class DietRepository @Inject constructor(
     suspend fun deleteDiet(diet: Diet) = dietDao.deleteDiet(diet)
 
     suspend fun setMealForSlot(dietId: Long, slotType: String, mealId: Long?) {
-        val existing = dietDao.getDietMeal(dietId, slotType)
-        dietDao.insertDietMeal(DietMeal(dietId, slotType, mealId, existing?.instructions))
+        if (mealId == null && !slotType.startsWith("CUSTOM:")) {
+            // Clearing a default slot — remove the record entirely so it stops
+            // appearing as an empty slot in daily log planning.
+            dietDao.removeMealFromDiet(dietId, slotType)
+        } else {
+            val existing = dietDao.getDietMeal(dietId, slotType)
+            dietDao.insertDietMeal(DietMeal(dietId, slotType, mealId, existing?.instructions))
+        }
     }
 
     suspend fun updateSlotInstructions(dietId: Long, slotType: String, instructions: String?) {
         val existing = dietDao.getDietMeal(dietId, slotType)
         if (existing != null) {
             dietDao.updateDietMealInstructions(dietId, slotType, instructions)
-        } else {
+        } else if (slotType.startsWith("CUSTOM:")) {
+            // Only create placeholder records for custom slots, not for default slots
+            // without a meal assigned (those would show as empty in daily log).
             dietDao.insertDietMeal(DietMeal(dietId, slotType, null, instructions))
         }
     }

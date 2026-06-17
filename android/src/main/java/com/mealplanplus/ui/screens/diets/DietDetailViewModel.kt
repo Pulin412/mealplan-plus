@@ -240,6 +240,21 @@ class DietDetailViewModel @Inject constructor(
         }
     }
 
+    fun assignMealToSlotById(slotType: String, mealId: Long) {
+        viewModelScope.launch {
+            try {
+                if (mealId == -1L) {
+                    dietRepository.removeMealFromSlot(dietId, slotType)
+                } else {
+                    dietRepository.setMealForSlot(dietId, slotType, mealId)
+                }
+                loadDiet()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
     fun updateSlotInstructions(slot: DefaultMealSlot, text: String) =
         updateSlotInstructionsForType(slot.name, text)
 

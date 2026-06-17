@@ -246,7 +246,7 @@ class WorkoutViewModel @Inject constructor(
                 userId = userId,
                 name = name,
                 date = date.toEpochMs(),
-                notes = templateId?.toString()
+                templateId = templateId
             )
             val id = workoutRepository.createSession(session)
             _uiState.update { it.copy(activeSession = session.copy(id = id), activeSets = emptyList()) }
@@ -348,7 +348,9 @@ class WorkoutViewModel @Inject constructor(
         val session = _uiState.value.activeSession ?: return
         viewModelScope.launch {
             val result = exerciseIds.associateWith { exerciseId ->
-                val all = workoutRepository.getLastSetsForExercise(userId, exerciseId, session.id)
+                val all = workoutRepository.getLastSetsForExercise(
+                    userId, exerciseId, session.id, session.templateId
+                )
                 val lastSessionId = all.firstOrNull()?.sessionId ?: return@associateWith emptyList()
                 all.filter { it.sessionId == lastSessionId }
             }

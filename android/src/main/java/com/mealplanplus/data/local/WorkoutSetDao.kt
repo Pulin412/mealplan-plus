@@ -38,10 +38,16 @@ interface WorkoutSetDao {
           AND (sess.userId = :userId OR sess.userId = '')
           AND sess.isCompleted = 1
           AND sess.id != :excludeSessionId
+          AND sess.templateId = :templateId
         ORDER BY sess.date DESC, ws.setNumber ASC
         LIMIT 50
     """)
-    suspend fun getLastSetsForExercise(userId: String, exerciseId: Long, excludeSessionId: Long): List<WorkoutSet>
+    suspend fun getLastSetsForExercise(
+        userId: String,
+        exerciseId: Long,
+        excludeSessionId: Long,
+        templateId: Long? = null
+    ): List<WorkoutSet>
 
     // ── Backup ────────────────────────────────────────────────────────────────
     @Query("SELECT * FROM workout_sets ORDER BY sessionId, setNumber")

@@ -262,7 +262,8 @@ fun DietSlotSection(
     isEditing: Boolean = false,
     instructions: String = "",
     onInstructionsChange: ((String) -> Unit)? = null,
-    onViewDetails: (() -> Unit)? = null
+    onViewDetails: (() -> Unit)? = null,
+    onChangeMeal: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val totalKcal = foods.sumOf { it.calculatedCalories }.toInt()
@@ -291,11 +292,21 @@ fun DietSlotSection(
                         text = slotEmoji(slot),
                         style = MaterialTheme.typography.titleMedium
                     )
-                    Text(
-                        text = slot.displayName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column {
+                        Text(
+                            text = slot.displayName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isEditing && onChangeMeal != null) {
+                            Text(
+                                text = if (foods.isEmpty()) "Assign meal" else "Change meal",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = FormGreen,
+                                modifier = Modifier.clickable { onChangeMeal() }
+                            )
+                        }
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(

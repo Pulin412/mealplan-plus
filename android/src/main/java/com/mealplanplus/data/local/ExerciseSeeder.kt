@@ -48,7 +48,7 @@ class ExerciseSeeder @Inject constructor(
         val type = object : TypeToken<List<ExerciseJson>>() {}.type
         val items: List<ExerciseJson> = Gson().fromJson(json, type)
 
-        val exercises = items.map { e ->
+        val allExercises = items.map { e ->
             Exercise(
                 name = e.name,
                 category = e.category.trim().uppercase().ifBlank { "OTHER" },
@@ -57,8 +57,16 @@ class ExerciseSeeder @Inject constructor(
                 isSystem = true
             )
         }
-        exerciseDao.upsertAll(exercises)
-        Log.d(TAG, "Seeded ${exercises.size} exercises")
+
+        // Only insert exercises that don't already exist by name — preserves existing IDs
+        val existingNames = exerciseDao.getSystemExerciseNames().toSet()
+        val newExercises = allExercises.filter { it.name !in existingNames }
+        if (newExercises.isNotEmpty()) {
+            exerciseDao.upsertAll(newExercises)
+            Log.d(TAG, "Seeded ${newExercises.size} new exercises (${existingNames.size} already existed)")
+        } else {
+            Log.d(TAG, "All ${allExercises.size} exercises already exist — no new inserts")
+        }
 
         context.dataStore.edit { prefs ->
             prefs[EXERCISE_DATA_VERSION_KEY] = EXERCISE_DATA_VERSION

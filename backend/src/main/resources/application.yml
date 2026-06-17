@@ -22,6 +22,21 @@ spring:
     serialization:
       write-dates-as-timestamps: true
       write-date-timestamps-as-nanoseconds: false
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      chat:
+        options:
+          model: ${AI_MODEL:claude-haiku-4-5-20251001}
+          max-tokens: 1024
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen2.5:7b}
+
+agent:
+  provider: ${AGENT_PROVIDER:ollama}
 
 server:
   port: ${PORT:8080}

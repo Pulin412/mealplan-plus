@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.DietWithMeals
 import com.mealplanplus.data.model.MealWithFoods
+import com.mealplanplus.data.model.Tag
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.MealRepository
+import com.mealplanplus.data.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -17,9 +19,12 @@ data class DietMealPickerUiState(
     val slotType: String = "",
     val searchQuery: String = "",
     val filterSlot: String? = null,
+    val filterTagIds: Set<Long> = emptySet(),
     val showDietBrowser: Boolean = false,
     val allMeals: List<MealWithFoods> = emptyList(),
     val filteredMeals: List<MealWithFoods> = emptyList(),
+    val allTags: List<Tag> = emptyList(),
+    val dietTagMap: Map<Long, List<Tag>> = emptyMap(),
     val diets: List<DietWithMeals> = emptyList(),
     val expandedDietId: Long? = null,
     val isLoading: Boolean = true
@@ -30,6 +35,7 @@ class DietMealPickerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val mealRepository: MealRepository,
     private val dietRepository: DietRepository,
+    private val tagRepository: TagRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
@@ -41,6 +47,15 @@ class DietMealPickerViewModel @Inject constructor(
     init {
         loadMeals()
         loadDiets()
+        loadTags()
+    }
+
+    private fun loadTags() {
+        viewModelScope.launch {
+            tagRepository.getTagsByUser().collect { tags ->
+                _uiState.update { it.copy(allTags = tags) }
+            }
+        }
     }
 
     private fun loadMeals() {
@@ -72,7 +87,10 @@ class DietMealPickerViewModel @Inject constructor(
                     val dietsWithMeals = diets.mapNotNull { diet ->
                         dietRepository.getDietWithMeals(diet.id)
                     }
-                    _uiState.update { it.copy(diets = dietsWithMeals) }
+                    val dietIds = diets.map { it.id }
+                    val tagRows = if (dietIds.isNotEmpty()) tagRepository.getTagsForDiets(dietIds) else emptyList()
+                    val dietTagMap = tagRows.groupBy({ it.dietId }, { it.toTag() })
+                    _uiState.update { it.copy(diets = dietsWithMeals, dietTagMap = dietTagMap) }
                 }
         }
     }
@@ -95,6 +113,14 @@ class DietMealPickerViewModel @Inject constructor(
         _uiState.update { it.copy(showDietBrowser = show) }
     }
 
+    fun toggleTagFilter(tagId: Long) {
+        _uiState.update { state ->
+            val ids = state.filterTagIds.toMutableSet()
+            if (ids.contains(tagId)) ids.remove(tagId) else ids.add(tagId)
+            state.copy(filterTagIds = ids)
+        }
+    }
+
     fun toggleExpandDiet(dietId: Long) {
         _uiState.update { state ->
             state.copy(
@@ -114,16 +140,17 @@ class DietMealPickerViewModel @Inject constructor(
         _uiState.update { it.copy(filteredMeals = filtered) }
     }
 
-    // Filter diets based on search query
     fun getFilteredDiets(): List<DietWithMeals> {
-        val query = _uiState.value.searchQuery
-        if (query.isBlank()) return _uiState.value.diets
-
-        return _uiState.value.diets.filter { dietWithMeals ->
-            dietWithMeals.diet.name.contains(query, ignoreCase = true) ||
-                    dietWithMeals.meals.values.any { mealWithFoods ->
-                        mealWithFoods?.meal?.name?.contains(query, ignoreCase = true) == true
-                    }
+        val state = _uiState.value
+        return state.diets.filter { dietWithMeals ->
+            val matchesSearch = state.searchQuery.isBlank() ||
+                dietWithMeals.diet.name.contains(state.searchQuery, ignoreCase = true) ||
+                dietWithMeals.meals.values.any { mwf ->
+                    mwf?.meal?.name?.contains(state.searchQuery, ignoreCase = true) == true
+                }
+            val matchesTags = state.filterTagIds.isEmpty() ||
+                (state.dietTagMap[dietWithMeals.diet.id]?.any { it.id in state.filterTagIds } == true)
+            matchesSearch && matchesTags
         }
     }
 }

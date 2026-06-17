@@ -4,6 +4,7 @@ import android.content.Context
 import com.mealplanplus.data.local.TagDao
 import com.mealplanplus.data.model.DietTagCrossRef
 import com.mealplanplus.data.model.Tag
+import com.mealplanplus.data.model.TagWithDietId
 import com.mealplanplus.util.AuthPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +27,9 @@ class TagRepository @Inject constructor(
     suspend fun getTagById(tagId: Long): Tag? = tagDao.getTagById(tagId)
 
     suspend fun getTagsForDiet(dietId: Long): List<Tag> = tagDao.getTagsForDiet(dietId)
+
+    suspend fun getTagsForDiets(dietIds: List<Long>): List<TagWithDietId> =
+        tagDao.getTagsForDiets(dietIds)
 
     fun getTagsForDietFlow(dietId: Long): Flow<List<Tag>> = tagDao.getTagsForDietFlow(dietId)
 

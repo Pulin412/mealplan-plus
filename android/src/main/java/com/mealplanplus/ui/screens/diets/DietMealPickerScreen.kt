@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -35,6 +36,7 @@ fun DietMealPickerScreen(
     slotType: String,
     onNavigateBack: () -> Unit,
     onMealSelected: (Long) -> Unit,
+    onClearMeal: (() -> Unit)? = null,
     viewModel: DietMealPickerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -81,7 +83,23 @@ fun DietMealPickerScreen(
                 singleLine = true
             )
 
-            // Filter chips
+            // Remove current meal option
+            if (onClearMeal != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onClearMeal() }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Clear, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = androidx.compose.ui.Modifier.size(20.dp))
+                    Text("Remove meal from this slot", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                }
+                androidx.compose.material3.HorizontalDivider(color = TextMuted.copy(alpha = 0.15f))
+            }
+
+            // Slot / source filter chips
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,6 +145,29 @@ fun DietMealPickerScreen(
                             { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null
                     )
+                }
+            }
+
+            // Tag filter chips — shown only when tags exist and "From Diets" is active
+            if (uiState.showDietBrowser && uiState.allTags.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.allTags) { tag ->
+                        val isSelected = tag.id in uiState.filterTagIds
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.toggleTagFilter(tag.id) },
+                            label = { Text(tag.name) },
+                            leadingIcon = if (isSelected) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
+                    }
                 }
             }
 

@@ -1737,6 +1737,153 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_44_45 = object : Migration(44, 45) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Old startSession stored templateId as a plain integer string in the notes column
+            // instead of the proper templateId column. Backfill the column for those sessions.
+            // Safety conditions: notes must round-trip through INTEGER cast exactly (ruling out
+            // free-text notes), the value must be positive, and the template must still exist.
+            db.execSQL("""
+                UPDATE workout_sessions
+                SET templateId = CAST(notes AS INTEGER)
+                WHERE templateId IS NULL
+                  AND notes IS NOT NULL
+                  AND TRIM(notes) = CAST(CAST(TRIM(notes) AS INTEGER) AS TEXT)
+                  AND CAST(notes AS INTEGER) > 0
+                  AND CAST(notes AS INTEGER) IN (SELECT id FROM workout_templates)
+            """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_43_44 = object : Migration(43, 44) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Delete grocery lists that have no items — these were created by the pre-fix
+            // generateFromDateRange / generateFromDiet which inserted the list row before
+            // knowing whether any foods existed, leaving empty lists when no plans were found.
+            db.execSQL("""
+                DELETE FROM grocery_lists
+                WHERE id NOT IN (SELECT DISTINCT listId FROM grocery_items)
+            """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_42_43 = object : Migration(42, 43) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Remove diet_slots records for non-CUSTOM slots that point to meals with no
+            // food items, or to meal rows that no longer exist. These produce empty slot rows
+            // on the Diets screen and Home screen.
+            db.execSQL("""
+                DELETE FROM diet_slots
+                WHERE slotType NOT LIKE 'CUSTOM:%'
+                AND mealId IS NOT NULL
+                AND (
+                    mealId NOT IN (SELECT id FROM meals)
+                    OR mealId NOT IN (SELECT DISTINCT mealId FROM meal_food_items)
+                )
+            """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_41_42 = object : Migration(41, 42) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Remove stale null-mealId diet_slots rows for default slots.
+            // Custom slots (CUSTOM:*) keep their placeholder rows to remain discoverable.
+            db.execSQL("DELETE FROM diet_slots WHERE mealId IS NULL AND slotType NOT LIKE 'CUSTOM:%'")
+
+            // Rebuild workout_sessions so that templateId has DEFAULT NULL in the column
+            // metadata. MIGRATION_39_40 added it with ALTER TABLE … ADD COLUMN templateId INTEGER
+            // (no default clause), leaving defaultValue='undefined' in SQLite's schema metadata.
+            // The WorkoutSession entity has @ColumnInfo(defaultValue = "NULL"), so Room's
+            // post-migration schema validation rejects the mismatch unless we fix it here.
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS workout_sessions_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    userId TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    date INTEGER NOT NULL,
+                    durationMinutes INTEGER,
+                    notes TEXT,
+                    isCompleted INTEGER NOT NULL DEFAULT 0,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    serverId TEXT,
+                    syncedAt INTEGER,
+                    templateId INTEGER DEFAULT NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO workout_sessions_new
+                SELECT id, userId, name, date, durationMinutes, notes, isCompleted,
+                       createdAt, updatedAt, serverId, syncedAt, templateId
+                FROM workout_sessions
+            """.trimIndent())
+            db.execSQL("DROP TABLE workout_sessions")
+            db.execSQL("ALTER TABLE workout_sessions_new RENAME TO workout_sessions")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_workout_sessions_user ON workout_sessions (userId)")
+        }
+    }
+
+    private val MIGRATION_40_41 = object : Migration(40, 41) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Remap workout_sets.exerciseId to the canonical (lowest) ID for each exercise name.
+            // This fixes duplicate exercise rows created by re-seeding (v1→v2 bump).
+            db.execSQL("""
+                UPDATE workout_sets
+                SET exerciseId = (
+                    SELECT MIN(e.id) FROM exercises e
+                    WHERE e.name = (SELECT name FROM exercises WHERE id = workout_sets.exerciseId)
+                )
+            """.trimIndent())
+
+            // For workout_template_exercises: first remove the non-canonical duplicate
+            // entries where the canonical row already exists in the same template
+            // (avoids composite PK conflict on the subsequent UPDATE).
+            db.execSQL("""
+                DELETE FROM workout_template_exercises
+                WHERE exerciseId != (
+                    SELECT MIN(e.id) FROM exercises e
+                    WHERE e.name = (SELECT name FROM exercises WHERE id = workout_template_exercises.exerciseId)
+                )
+                AND EXISTS (
+                    SELECT 1 FROM workout_template_exercises t2
+                    WHERE t2.templateId = workout_template_exercises.templateId
+                    AND t2.exerciseId = (
+                        SELECT MIN(e2.id) FROM exercises e2
+                        WHERE e2.name = (SELECT name FROM exercises WHERE id = workout_template_exercises.exerciseId)
+                    )
+                )
+            """.trimIndent())
+
+            // Remap remaining template exercises to canonical IDs
+            db.execSQL("""
+                UPDATE workout_template_exercises
+                SET exerciseId = (
+                    SELECT MIN(e.id) FROM exercises e
+                    WHERE e.name = (SELECT name FROM exercises WHERE id = workout_template_exercises.exerciseId)
+                )
+            """.trimIndent())
+
+            // Delete non-canonical exercise rows — all FK references have been remapped above
+            db.execSQL("""
+                DELETE FROM exercises
+                WHERE id NOT IN (SELECT MIN(id) FROM exercises GROUP BY name)
+            """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_39_40 = object : Migration(39, 40) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE workout_sessions ADD COLUMN templateId INTEGER")
+        }
+    }
+
+    private val MIGRATION_38_39 = object : Migration(38, 39) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE food_items ADD COLUMN lastUsedQuantity REAL")
+            db.execSQL("ALTER TABLE food_items ADD COLUMN lastUsedUnit TEXT")
+        }
+    }
+
     private val MIGRATION_36_37 = object : Migration(36, 37) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // WorkoutTemplate.category changed from WorkoutTemplateCategory enum to String.
@@ -1796,7 +1943,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "mealplan_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45)
             // Removed fallbackToDestructiveMigration() — this was destroying user data!
             // If migration fails, app will crash (better than silent data loss)
             .build()

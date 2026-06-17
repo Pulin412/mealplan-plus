@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.model.*
 import com.mealplanplus.data.repository.AuthRepository
 import com.mealplanplus.data.repository.DietRepository
+import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -19,14 +20,17 @@ data class AddDietUiState(
     val newTagName: String = "",
     val isLoading: Boolean = false,
     val savedDietId: Long? = null,
-    val error: String? = null
+    val error: String? = null,
+    val allMeals: List<Meal> = emptyList(),
+    val slotAssignments: Map<String, Meal> = emptyMap()
 )
 
 @HiltViewModel
 class AddDietViewModel @Inject constructor(
     private val dietRepository: DietRepository,
     private val tagRepository: TagRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val mealRepository: MealRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddDietUiState())
@@ -34,12 +38,21 @@ class AddDietViewModel @Inject constructor(
 
     init {
         loadTags()
+        loadMeals()
     }
 
     private fun loadTags() {
         viewModelScope.launch {
             tagRepository.getTagsByUser().collect { tags ->
                 _uiState.update { it.copy(allTags = tags) }
+            }
+        }
+    }
+
+    private fun loadMeals() {
+        viewModelScope.launch {
+            mealRepository.getAllMeals().collect { meals ->
+                _uiState.update { it.copy(allMeals = meals) }
             }
         }
     }
@@ -64,14 +77,29 @@ class AddDietViewModel @Inject constructor(
             try {
                 val tagId = tagRepository.createTag(name)
                 _uiState.update { state ->
-                    state.copy(
-                        selectedTagIds = state.selectedTagIds + tagId,
-                        newTagName = ""
-                    )
+                    state.copy(selectedTagIds = state.selectedTagIds + tagId, newTagName = "")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Tag already exists") }
             }
+        }
+    }
+
+    fun assignMealToSlot(slotType: String, meal: Meal) {
+        _uiState.update { state ->
+            state.copy(slotAssignments = state.slotAssignments + (slotType to meal))
+        }
+    }
+
+    fun assignMealToSlotById(slotType: String, mealId: Long) {
+        if (mealId == -1L) { clearSlotAssignment(slotType); return }
+        val meal = _uiState.value.allMeals.find { it.id == mealId } ?: return
+        assignMealToSlot(slotType, meal)
+    }
+
+    fun clearSlotAssignment(slotType: String) {
+        _uiState.update { state ->
+            state.copy(slotAssignments = state.slotAssignments - slotType)
         }
     }
 
@@ -93,6 +121,9 @@ class AddDietViewModel @Inject constructor(
                 val dietId = dietRepository.insertDiet(diet)
                 if (state.selectedTagIds.isNotEmpty()) {
                     dietRepository.setDietTags(dietId, state.selectedTagIds.toList())
+                }
+                state.slotAssignments.forEach { (slotType, meal) ->
+                    dietRepository.setMealForSlot(dietId, slotType, meal.id)
                 }
                 _uiState.update { it.copy(isLoading = false, savedDietId = dietId) }
             } catch (e: Exception) {
