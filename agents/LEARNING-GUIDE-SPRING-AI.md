@@ -296,46 +296,173 @@ curl http://localhost:11434/api/tags
 
 ## 7. How to run and test
 
-### Start the backend with Ollama
+### Step 1 — Start Ollama
 
 ```bash
-# Terminal 1 — start Ollama
-ollama serve
+# Install (one-time)
+brew install ollama
 
-# Terminal 2 — start the backend (AGENT_PROVIDER defaults to 'ollama')
+# Pull a model (one-time, ~4 GB download)
+ollama pull qwen2.5:7b
+
+# Start the server (keep this terminal open)
+ollama serve
+```
+
+Verify it's ready:
+```bash
+curl http://localhost:11434/api/tags
+# → {"models":[{"name":"qwen2.5:7b", ...}]}
+```
+
+If you get "connection refused", Ollama isn't running. Run `ollama serve` first.
+
+---
+
+### Step 2 — Open the agent endpoint for local testing
+
+The endpoint requires a Firebase JWT by default. For a quick smoke test, temporarily
+add it to the permit-all list in
+[`SecurityConfig.kt`](../backend/src/main/kotlin/com/mealplanplus/api/config/SecurityConfig.kt):
+
+```kotlin
+.requestMatchers(
+    "/actuator/health",
+    "/v3/api-docs/**",
+    "/swagger-ui/**",
+    "/swagger-ui.html",
+    "/h2-console/**",
+    "/api/v1/agent/**"   // ← add this line for local smoke testing only
+).permitAll()
+```
+
+> **Remember to remove this before committing.** It's only for local dev.
+
+---
+
+### Step 3 — Start the backend
+
+```bash
+# From the repo root (AGENT_PROVIDER defaults to 'ollama')
 ./gradlew :backend:bootRun
 ```
 
-### Test with curl (no Firebase token needed for a quick smoke test)
+You should see in the logs:
+```
+Started MealPlanApiApplication in X.XXX seconds
+```
 
-If you temporarily add `/api/v1/agent/**` to the permit-all list in `SecurityConfig`
-for local testing:
+If you see `Ollama not available — run: ollama serve`, Ollama isn't running (go back to Step 1).
+
+---
+
+### Step 4 — Send a test message
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/agent/chat \
+curl -s -X POST http://localhost:8080/api/v1/agent/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message": "I just had 100g of chicken breast for lunch",
     "date": "2026-06-17",
     "slot": "LUNCH"
-  }'
-```
-
-With a real Firebase token:
-```bash
-curl -X POST http://localhost:8080/api/v1/agent/chat \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <firebase-id-token>" \
-  -d '{"message": "I just had 2 scrambled eggs", "date": "2026-06-17"}'
+  }' | python3 -m json.tool
 ```
 
 Expected response:
 ```json
 {
-  "reply": "Logged: 2 scrambled eggs — ~140 kcal to BREAKFAST on 2026-06-17.",
+  "reply": "Logged 100g of chicken breast (~165 kcal) to your LUNCH on 2026-06-17.",
   "actionsPerformed": []
 }
 ```
+
+Try a few more messages to exercise the tools:
+
+```bash
+# Should search and log
+"I had a banana and 200ml of whole milk for breakfast"
+
+# Should say it can't find the food and suggest adding manually
+"I had a bowl of my grandma's kheer"
+
+# Should read the existing log before logging
+"What did I eat today so far? I want to add a protein shake"
+```
+
+---
+
+### Step 5 — Verify the tool calls happened (logs)
+
+Watch the backend terminal. When the agent calls a tool, Spring AI logs it at DEBUG
+level. You should see lines like:
+
+```
+[agent] Calling tool: searchFoods(query=chicken breast)
+[agent] Tool result: id=42 | Chicken Breast | 165 kcal ...
+[agent] Calling tool: logFood(foodId=42, quantity=100.0, ...)
+```
+
+If you only see the final reply but no tool call logs, set the log level for Spring AI
+temporarily in `application.yml`:
+
+```yaml
+logging:
+  level:
+    org.springframework.ai: DEBUG
+```
+
+---
+
+### Step 6 — Verify the food was actually logged (H2 console)
+
+The H2 in-memory database console is available at:
+`http://localhost:8080/h2-console`
+
+- JDBC URL: `jdbc:h2:mem:mealplandb`
+- Username: `sa`
+- Password: *(leave blank)*
+
+Run this query to see logged foods:
+```sql
+SELECT lf.*, dl.date, dl.firebase_uid
+FROM logged_foods lf
+JOIN daily_logs dl ON dl.id = lf.daily_log_id
+ORDER BY lf.id DESC
+LIMIT 10;
+```
+
+If a row appears with your food ID, slot, and today's date — the full tool calling loop
+worked end to end.
+
+---
+
+### Testing with a real Firebase token
+
+Once you remove the permit-all shortcut above, use a real token:
+
+```bash
+# Get your token from the Android app's Logcat — search for "idToken"
+# Or generate one via the Firebase Auth REST API emulator
+
+curl -s -X POST http://localhost:8080/api/v1/agent/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{"message": "I just had 2 scrambled eggs", "date": "2026-06-17"}'
+```
+
+---
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `connection refused` on port 8080 | Backend not started | `./gradlew :backend:bootRun` |
+| `connection refused` on port 11434 | Ollama not running | `ollama serve` |
+| `Ollama not available` error at startup | Ollama started after backend | Restart backend |
+| Agent replies but no food logged | Tool call failed silently | Check DEBUG logs, verify food exists in DB |
+| `model not found` from Ollama | Model not pulled | `ollama pull qwen2.5:7b` |
+| `401 Unauthorized` | Forgot to add permit-all | Add `/api/v1/agent/**` to SecurityConfig (Step 2) |
+| Empty or garbled reply | Model too small for tool calling | Switch to `qwen2.5:7b` or `mistral:7b` |
 
 ---
 
