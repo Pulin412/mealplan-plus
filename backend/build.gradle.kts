@@ -23,6 +23,7 @@ kotlin {
 
 dependencies {
     implementation("org.springframework.ai:spring-ai-starter-model-anthropic:1.0.0")
+    implementation("org.springframework.ai:spring-ai-starter-model-ollama:1.0.0")
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
