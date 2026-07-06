@@ -464,7 +464,32 @@ private fun ActiveSessionStep(
 
                                 // ── Last session history ───────────────────────
                                 val lastSets = lastSetsByExercise[slot.exercise.id] ?: emptyList()
-                                LastTimeSection(lastSets)
+                                LastTimeSection(
+                                    lastSets = lastSets,
+                                    onCopyAll = if (lastSets.isNotEmpty()) {
+                                        {
+                                            // Remove all pending (not-yet-logged) drafts for this slot
+                                            draftSets.removeAll(
+                                                draftSets.filter { it.slotKey == slot.slotKey && !it.isDone }
+                                            )
+                                            // Seed one pre-filled pending draft per previous set
+                                            lastSets.forEach { set ->
+                                                draftSets.add(
+                                                    DraftSet(
+                                                        slotKey     = slot.slotKey,
+                                                        reps        = set.reps?.toString() ?: "",
+                                                        weightKg    = set.weightKg?.let { w ->
+                                                            if (w % 1 == 0.0) w.toInt().toString()
+                                                            else "%.1f".format(w)
+                                                        } ?: "",
+                                                        durationSec = set.durationSeconds?.toString() ?: "",
+                                                        isDone      = false
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    } else null
+                                )
                                 Spacer(Modifier.height(10.dp))
 
                                 // ── Pyramid reference (from template) ─────────
@@ -690,7 +715,7 @@ private fun ActiveSessionStep(
 // ── Last session history ──────────────────────────────────────────────────────
 
 @Composable
-private fun LastTimeSection(lastSets: List<WorkoutSet>) {
+private fun LastTimeSection(lastSets: List<WorkoutSet>, onCopyAll: (() -> Unit)? = null) {
     if (lastSets.isEmpty()) {
         Row(
             modifier = Modifier
@@ -742,6 +767,17 @@ private fun LastTimeSection(lastSets: List<WorkoutSet>) {
                 fontSize = 11.sp, color = Color(0xFF555555),
                 modifier = Modifier.weight(1f)
             )
+            if (onCopyAll != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(onClick = onCopyAll)
+                        .background(Color(0xFF7B5EA7))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text("Copy", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
             Icon(
                 if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 contentDescription = null,
