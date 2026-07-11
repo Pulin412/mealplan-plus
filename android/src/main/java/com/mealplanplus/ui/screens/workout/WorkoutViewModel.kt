@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -71,6 +73,10 @@ class WorkoutViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, FirebaseAuth.getInstance().currentUser?.uid ?: "")
 
     private val userId get() = firebaseUidFlow.value
+
+    val inProgressSession: StateFlow<WorkoutSession?> = firebaseUidFlow
+        .flatMapLatest { uid -> workoutRepository.observeInProgressSession(uid) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         loadHistory()
@@ -279,10 +285,20 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    suspend fun finishSession() {
-        val session = _uiState.value.activeSession ?: return
-        workoutRepository.updateSession(session.copy(isCompleted = true, updatedAt = System.currentTimeMillis()))
-        _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
+    fun finishSession(sessionId: Long? = null, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            // Mark the specific session if we have an ID, then sweep all remaining in-progress
+            // sessions for this user. The sweep handles stale sessions from interrupted tests.
+            val id = sessionId
+                ?: _uiState.value.activeSession?.id
+                ?: workoutRepository.getInProgressSession(userId)?.id
+            if (id != null) {
+                workoutRepository.markSessionCompleted(id)
+            }
+            workoutRepository.markAllInProgressCompleted(userId)
+            _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
+            withContext(Dispatchers.Main) { onComplete() }
+        }
     }
 
     fun deleteSession(session: WorkoutSession) {
@@ -307,6 +323,35 @@ class WorkoutViewModel @Inject constructor(
 
     fun deleteSet(set: WorkoutSet) {
         viewModelScope.launch { workoutRepository.deleteSet(set) }
+    }
+
+    fun copyPreviousSets(
+        exerciseId: Long,
+        previousSets: List<WorkoutSet>,
+        onInserted: (List<Pair<Int, Long>>) -> Unit
+    ) {
+        val session = _uiState.value.activeSession ?: return
+        viewModelScope.launch {
+            val baseSetNumber = _uiState.value.activeSets.count { it.exerciseId == exerciseId }
+            val inserted = mutableListOf<Pair<Int, Long>>() // (index, dbId)
+            val newSets = mutableListOf<WorkoutSet>()
+            previousSets.forEachIndexed { idx, prev ->
+                val set = WorkoutSet(
+                    sessionId = session.id,
+                    exerciseId = exerciseId,
+                    setNumber = baseSetNumber + idx + 1,
+                    reps = prev.reps,
+                    weightKg = prev.weightKg,
+                    durationSeconds = prev.durationSeconds,
+                    notes = prev.notes
+                )
+                val id = workoutRepository.addSet(set)
+                inserted.add(Pair(idx, id))
+                newSets.add(set.copy(id = id))
+            }
+            _uiState.update { it.copy(activeSets = it.activeSets + newSets) }
+            onInserted(inserted)
+        }
     }
 
     fun updateSet(setId: Long, exerciseId: Long, reps: Int?, weightKg: Double?, durationSec: Int?, notes: String?) {
@@ -368,6 +413,14 @@ class WorkoutViewModel @Inject constructor(
             workoutRepository.deleteSession(session)
             _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
         }
+    }
+
+    suspend fun getInProgressSession(): WorkoutSession? =
+        workoutRepository.getInProgressSession(userId)
+
+    /** Leaves the active session without deleting it — session stays in DB as isCompleted=0. */
+    fun leaveSession() {
+        _uiState.update { it.copy(activeSession = null, activeSets = emptyList()) }
     }
 
     // ── Planning ──────────────────────────────────────────────────────────────

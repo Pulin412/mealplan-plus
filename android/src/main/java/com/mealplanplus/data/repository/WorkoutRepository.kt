@@ -29,6 +29,8 @@ class WorkoutRepository @Inject constructor(
     // ── Sessions ─────────────────────────────────────────────────────────────
     fun getSessions(userId: String) = sessionDao.getSessions(userId)
     fun getSessionsWithSets(userId: String) = sessionDao.getSessionsWithSets(userId)
+    fun observeInProgressSession(userId: String) = sessionDao.observeInProgressSession(userId)
+    suspend fun getInProgressSession(userId: String) = sessionDao.getInProgressSession(userId)
     fun getSessionsForDate(userId: String, date: Long) = sessionDao.getSessionsForDate(userId, date)
     fun getSessionsInRange(userId: String, from: Long, to: Long) = sessionDao.getSessionsInRange(userId, from, to)
     suspend fun getSessionWithSets(id: Long) = sessionDao.getSessionWithSets(id)
@@ -37,6 +39,15 @@ class WorkoutRepository @Inject constructor(
     suspend fun updateSession(session: WorkoutSession) = sessionDao.update(session)
     suspend fun deleteSession(session: WorkoutSession) = sessionDao.delete(session)
     suspend fun getUnsyncedSessions(userId: String) = sessionDao.getUnsyncedSessions(userId)
+    suspend fun markSessionCompleted(id: Long) =
+        sessionDao.markCompleted(id, System.currentTimeMillis())
+
+    suspend fun markAllInProgressCompleted(userId: String) =
+        sessionDao.markAllInProgressCompleted(userId, System.currentTimeMillis())
+
+    fun getCompletedSessionsWithSetsForDate(userId: String, date: Long) =
+        sessionDao.getCompletedSessionsWithSetsForDate(userId, date)
+
     suspend fun deleteSessionsInRange(userId: String, from: Long, to: Long) {
         val ids = sessionDao.getSessionsInRangeOnce(userId, from, to).map { it.id }
         if (ids.isNotEmpty()) setDao.deleteAllForSessions(ids)

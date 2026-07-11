@@ -46,15 +46,18 @@ fun WorkoutHistoryScreen(
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToSession: (Long) -> Unit = {},
     onCreateTemplate: () -> Unit = {},
+    onResumeSession: (Long) -> Unit = {},
     viewModel: WorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val inProgressSession by viewModel.inProgressSession.collectAsState()
     var toDelete by remember { mutableStateOf<WorkoutSessionWithSets?>(null) }
     var viewMode by remember { mutableStateOf(HistoryView.LIST) }
     var calendarMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
     var bulkDeleteTarget by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     var bulkDeleteLabel by remember { mutableStateOf("") }
+    var showConflictDialog by remember { mutableStateOf(false) }
 
     val zone = ZoneId.systemDefault()
 
@@ -152,6 +155,33 @@ fun WorkoutHistoryScreen(
                 }
             }
 
+            // ── Resume in-progress session banner ─────────────────────────
+            if (inProgressSession != null) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF0E3D28))
+                            .clickable { onResumeSession(inProgressSession!!.id) }
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("IN PROGRESS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF5DBF8A), letterSpacing = 0.6.sp)
+                                Text(inProgressSession!!.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 2.dp))
+                            }
+                            Text("Continue ›", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF5DBF8A))
+                        }
+                    }
+                }
+            }
+
             // ── "Log a Workout" button ────────────────────────────────────
             item {
                 Box(
@@ -160,7 +190,10 @@ fun WorkoutHistoryScreen(
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xFF111111))
-                        .clickable(onClick = onNavigateToLog)
+                        .clickable {
+                            if (inProgressSession != null) showConflictDialog = true
+                            else onNavigateToLog()
+                        }
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     Row(
@@ -293,6 +326,35 @@ fun WorkoutHistoryScreen(
                 }
             },
             dismissButton = { TextButton(onClick = { bulkDeleteTarget = null }) { Text("Cancel") } },
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // ── Conflict dialog (start new vs resume) ─────────────────────────────────
+    if (showConflictDialog) {
+        val session = inProgressSession
+        AlertDialog(
+            onDismissRequest = { showConflictDialog = false },
+            title   = { Text("Unfinished workout", fontWeight = FontWeight.Bold) },
+            text    = { Text("You have an unfinished session \"${session?.name ?: ""}\". Resume it or discard and start a new one?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConflictDialog = false
+                        if (session != null) onResumeSession(session.id)
+                    },
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Resume", fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showConflictDialog = false
+                    if (session != null) viewModel.deleteSession(session)
+                    onNavigateToLog()
+                }) {
+                    Text("Start new", color = TextDestructive)
+                }
+            },
             shape = RoundedCornerShape(16.dp)
         )
     }

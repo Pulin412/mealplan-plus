@@ -194,7 +194,7 @@ private fun PlannedWorkoutsSection(
                 plannedWorkouts.forEachIndexed { idx, pw ->
                     // Match a logged session to this planned workout via templateId stored in session.notes
                     val loggedSession = loggedWorkouts.find {
-                        it.session.notes == pw.plannedWorkout.templateId.toString()
+                        it.session.templateId == pw.plannedWorkout.templateId
                     }
                     val isLogged = loggedSession != null
 

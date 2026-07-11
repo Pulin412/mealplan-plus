@@ -55,9 +55,10 @@ class PlanRepository @Inject constructor(
     suspend fun completePlan(date: LocalDate) {
         val userId = getCurrentUserId()
         val plan = planDao.getPlanForDate(userId, date.toEpochMs())
-        plan?.let {
-            planDao.upsertPlan(it.copy(isCompleted = true))
-        }
+        planDao.upsertPlan(
+            plan?.copy(isCompleted = true)
+                ?: Plan(userId = userId, date = date.toEpochMs(), dietId = null, isCompleted = true)
+        )
     }
 
     suspend fun uncompletePlan(date: LocalDate) {
