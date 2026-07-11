@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Exercise
 import com.mealplanplus.data.model.WorkoutSet
@@ -79,7 +80,10 @@ fun WorkoutLogScreen(
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    val isReopenMode = reopenSessionId != null
+    // effectiveReopenId can be the explicit parameter OR an in-progress session discovered at runtime
+    var effectiveReopenId by remember { mutableStateOf(reopenSessionId) }
+
+    val isReopenMode = effectiveReopenId != null
     var step by remember {
         mutableStateOf(
             when {
@@ -92,79 +96,85 @@ fun WorkoutLogScreen(
     val sessionDate = preselectedDate ?: LocalDate.now()
 
     val sessionSlots = remember { mutableStateListOf<ExerciseSlot>() }
-    // Initial draft sets (pre-filled with already-logged sets when reopening)
     val initialDraftSets = remember { mutableStateListOf<DraftSet>() }
-    var reopenReady by remember { mutableStateOf(!isReopenMode) }
+    // Always start false — LaunchedEffect(Unit) or LaunchedEffect(effectiveReopenId) sets it true when ready
+    var reopenReady by remember { mutableStateOf(false) }
 
-    // Reopen an existing finished session for editing
-    LaunchedEffect(reopenSessionId) {
-        if (reopenSessionId != null) {
-            // Use returned data directly — never read from stale `state` snapshot after a suspend call
-            val sessionWithSets = viewModel.reopenSession(reopenSessionId) ?: return@LaunchedEffect
-            sessionName = sessionWithSets.session.name
-
-            // Build slots: template exercises first, then any extras from logged sets
-            val templateId = sessionWithSets.session.templateId
-                ?: sessionWithSets.session.notes?.toLongOrNull()
-            val template = templateId?.let { viewModel.getTemplateWithExercises(it) }
-            val templateEntries = template?.exercises ?: emptyList()
-            val templateExIds = templateEntries.map { it.exercise.id }.toSet()
-
-            // All logged sets and their exercise objects (no DB lookup needed)
-            val loggedSets = sessionWithSets.sets.map { it.workoutSet }
-            val extraExercises = sessionWithSets.sets
-                .map { it.exercise }
-                .distinctBy { it.id }
-                .filter { it.id !in templateExIds }
-
-            sessionSlots.clear()
-            templateEntries.forEachIndexed { idx, entry ->
-                sessionSlots.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
+    // Single serialised entry-point: check for in-progress session first, then seed template if none.
+    // For explicit reopens (reopenSessionId != null), LaunchedEffect(effectiveReopenId) sets reopenReady.
+    LaunchedEffect(Unit) {
+        if (reopenSessionId == null) {
+            val existing = viewModel.getInProgressSession()
+            if (existing != null) {
+                // Resume directly — same flow as WorkoutHistoryScreen "IN PROGRESS" banner
+                step = Step.ACTIVE_SESSION
+                effectiveReopenId = existing.id
+                return@LaunchedEffect  // LaunchedEffect(effectiveReopenId) sets reopenReady = true when done
             }
-            extraExercises.forEachIndexed { idx, ex ->
-                sessionSlots.add(ExerciseSlot(ex, "${ex.id}_extra_$idx"))
-            }
-
-            // Seed initial drafts from already-logged sets (isDone = true)
-            initialDraftSets.clear()
-            sessionSlots.forEach { slot ->
-                val logged = loggedSets
-                    .filter { it.exerciseId == slot.exercise.id }
-                    .sortedBy { it.setNumber }
-                logged.forEach { set ->
-                    initialDraftSets.add(
-                        DraftSet(
-                            slotKey     = slot.slotKey,
-                            reps        = set.reps?.toString() ?: "",
-                            weightKg    = set.weightKg?.let { w ->
-                                if (w % 1 == 0.0) w.toInt().toString() else "%.1f".format(w)
-                            } ?: "",
-                            durationSec = set.durationSeconds?.toString() ?: "",
-                            notes       = set.notes ?: "",
-                            isDone      = true,
-                            dbSetId     = set.id
-                        )
-                    )
+            if (preselectedTemplateId != null) {
+                val t = viewModel.getTemplateWithExercises(preselectedTemplateId)
+                val name = t?.template?.name ?: "Workout"
+                sessionName = name
+                viewModel.startSession(name, sessionDate, preselectedTemplateId)
+                sessionSlots.clear()
+                t?.exercises?.forEachIndexed { idx, entry ->
+                    sessionSlots.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
                 }
-                // Add one blank pending draft for the next set of this slot
-                initialDraftSets.add(DraftSet(slotKey = slot.slotKey))
             }
             reopenReady = true
         }
+        // reopenSessionId != null: LaunchedEffect(effectiveReopenId) is responsible for reopenReady = true
     }
 
-    // Seed from preselected template (original flow)
-    LaunchedEffect(preselectedTemplateId) {
-        if (preselectedTemplateId != null && !isReopenMode) {
-            val t = viewModel.getTemplateWithExercises(preselectedTemplateId)
-            val name = t?.template?.name ?: "Workout"
-            sessionName = name
-            viewModel.startSession(name, sessionDate, preselectedTemplateId)
-            sessionSlots.clear()
-            t?.exercises?.forEachIndexed { idx, entry ->
-                sessionSlots.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
-            }
+    // Reopen/resume a session — fires for both the explicit param and dynamically-set id
+    LaunchedEffect(effectiveReopenId) {
+        val id = effectiveReopenId ?: return@LaunchedEffect
+        val sessionWithSets = viewModel.reopenSession(id) ?: return@LaunchedEffect
+        sessionName = sessionWithSets.session.name
+
+        val templateId = sessionWithSets.session.templateId
+            ?: sessionWithSets.session.notes?.toLongOrNull()
+        val template = templateId?.let { viewModel.getTemplateWithExercises(it) }
+        val templateEntries = template?.exercises ?: emptyList()
+        val templateExIds = templateEntries.map { it.exercise.id }.toSet()
+
+        val loggedSets = sessionWithSets.sets.map { it.workoutSet }
+        val extraExercises = sessionWithSets.sets
+            .map { it.exercise }
+            .distinctBy { it.id }
+            .filter { it.id !in templateExIds }
+
+        sessionSlots.clear()
+        templateEntries.forEachIndexed { idx, entry ->
+            sessionSlots.add(ExerciseSlot(entry.exercise, "${entry.exercise.id}_$idx", entry))
         }
+        extraExercises.forEachIndexed { idx, ex ->
+            sessionSlots.add(ExerciseSlot(ex, "${ex.id}_extra_$idx"))
+        }
+
+        initialDraftSets.clear()
+        sessionSlots.forEach { slot ->
+            val logged = loggedSets
+                .filter { it.exerciseId == slot.exercise.id }
+                .sortedBy { it.setNumber }
+            logged.forEach { set ->
+                initialDraftSets.add(
+                    DraftSet(
+                        slotKey     = slot.slotKey,
+                        reps        = set.reps?.toString() ?: "",
+                        weightKg    = set.weightKg?.let { w ->
+                            if (w % 1 == 0.0) w.toInt().toString() else "%.1f".format(w)
+                        } ?: "",
+                        durationSec = set.durationSeconds?.toString() ?: "",
+                        notes       = set.notes ?: "",
+                        isDone      = true,
+                        dbSetId     = set.id
+                    )
+                )
+            }
+            initialDraftSets.add(DraftSet(slotKey = slot.slotKey))
+        }
+        reopenReady = true
     }
 
     if (!reopenReady) return  // wait until reopen state is seeded
@@ -201,14 +211,18 @@ fun WorkoutLogScreen(
                 lastSetsByExercise = lastSetsByExercise,
                 onAddSet = viewModel::addSet,
                 onUpdateSet = viewModel::updateSet,
+                onCopySets = viewModel::copyPreviousSets,
                 onFinish = {
-                    if (isReopenMode) onFinished()
-                    else scope.launch { viewModel.finishSession(); onFinished() }
+                    val sessionId = state.activeSession?.id ?: effectiveReopenId
+                    viewModel.finishSession(sessionId) { onFinished() }
                 },
                 onBack = {
-                    if (isReopenMode) onFinished()
-                    else { viewModel.cancelSession(); onBack() }
+                    viewModel.cancelSession(); onBack()
                 },
+                onSaveAndExit = {
+                    viewModel.leaveSession(); onBack()
+                },
+                isNewSession = !isReopenMode,
                 allExercises = state.exercises
             )
         }
@@ -304,16 +318,23 @@ private fun ActiveSessionStep(
     allExercises: List<Exercise>,
     initialDraftSets: List<DraftSet> = emptyList(),
     lastSetsByExercise: Map<Long, List<WorkoutSet>> = emptyMap(),
+    isNewSession: Boolean = true,
     onAddSet: (Long, Int?, Double?, Int?, String?, (Long) -> Unit) -> Unit,
     onUpdateSet: (Long, Long, Int?, Double?, Int?, String?) -> Unit,
+    onCopySets: (Long, List<WorkoutSet>, (List<Pair<Int, Long>>) -> Unit) -> Unit,
     onFinish: () -> Unit,
+    onSaveAndExit: () -> Unit,
     onBack: () -> Unit
 ) {
     val draftSets = remember { mutableStateListOf(*initialDraftSets.toTypedArray()) }
     var expandedSlotKey by remember { mutableStateOf<String?>(null) }
     var showExercisePicker by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
     var slotCounter by remember { mutableStateOf(sessionSlots.size) }
+
+    // Intercept system back so new sessions show the save/discard dialog
+    BackHandler(enabled = isNewSession) { showExitDialog = true }
 
     // Auto-open first slot when slots load asynchronously (preselected template)
     LaunchedEffect(sessionSlots.size) {
@@ -346,7 +367,7 @@ private fun ActiveSessionStep(
                         .padding(start = 4.dp, end = 16.dp, top = 52.dp, bottom = 18.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = { if (isNewSession) showExitDialog = true else onBack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF888888))
                         }
                         Text(state.activeSession?.name ?: "Workout", fontSize = 13.sp, color = Color(0xFF888888), modifier = Modifier.weight(1f))
@@ -464,7 +485,39 @@ private fun ActiveSessionStep(
 
                                 // ── Last session history ───────────────────────
                                 val lastSets = lastSetsByExercise[slot.exercise.id] ?: emptyList()
-                                LastTimeSection(lastSets)
+                                LastTimeSection(
+                                    lastSets = lastSets,
+                                    onCopyAll = if (lastSets.isNotEmpty()) {
+                                        {
+                                            // Remove existing pending (blank) drafts for this slot
+                                            draftSets.removeAll(
+                                                draftSets.filter { it.slotKey == slot.slotKey && !it.isDone }
+                                            )
+                                            val capturedSlotKey = slot.slotKey
+                                            // Insert all previous sets into DB, then show them as done rows
+                                            onCopySets(slot.exercise.id, lastSets) { inserted ->
+                                                inserted.forEachIndexed { _, (idx, dbId) ->
+                                                    val prev = lastSets[idx]
+                                                    draftSets.add(
+                                                        DraftSet(
+                                                            slotKey     = capturedSlotKey,
+                                                            reps        = prev.reps?.toString() ?: "",
+                                                            weightKg    = prev.weightKg?.let { w ->
+                                                                if (w % 1 == 0.0) w.toInt().toString()
+                                                                else "%.1f".format(w)
+                                                            } ?: "",
+                                                            durationSec = prev.durationSeconds?.toString() ?: "",
+                                                            isDone      = true,
+                                                            dbSetId     = dbId
+                                                        )
+                                                    )
+                                                }
+                                                // Add a blank pending draft for the next new set
+                                                draftSets.add(DraftSet(slotKey = capturedSlotKey))
+                                            }
+                                        }
+                                    } else null
+                                )
                                 Spacer(Modifier.height(10.dp))
 
                                 // ── Pyramid reference (from template) ─────────
@@ -671,6 +724,34 @@ private fun ActiveSessionStep(
         )
     }
 
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Leave session?", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary) },
+            text = {
+                Text(
+                    "Your progress will be saved. You can resume this session later.",
+                    fontSize = 13.sp,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showExitDialog = false; onSaveAndExit() },
+                    colors = ButtonDefaults.buttonColors(containerColor = TextPrimary),
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Save & exit", color = CardBg, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false; onBack() }) {
+                    Text("Discard", color = TextDestructive)
+                }
+            },
+            containerColor = CardBg,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
     if (showExercisePicker) {
         ExercisePickerSheet(
             exercises = allExercises,
@@ -690,7 +771,7 @@ private fun ActiveSessionStep(
 // ── Last session history ──────────────────────────────────────────────────────
 
 @Composable
-private fun LastTimeSection(lastSets: List<WorkoutSet>) {
+private fun LastTimeSection(lastSets: List<WorkoutSet>, onCopyAll: (() -> Unit)? = null) {
     if (lastSets.isEmpty()) {
         Row(
             modifier = Modifier
@@ -742,6 +823,17 @@ private fun LastTimeSection(lastSets: List<WorkoutSet>) {
                 fontSize = 11.sp, color = Color(0xFF555555),
                 modifier = Modifier.weight(1f)
             )
+            if (onCopyAll != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(onClick = onCopyAll)
+                        .background(Color(0xFF7B5EA7))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text("Copy", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
             Icon(
                 if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 contentDescription = null,

@@ -205,7 +205,7 @@ fun FoodLogTopBar(
     val plan = uiState.planForDate
     val today = LocalDate.now()
     val isCompleted = plan?.isCompleted == true
-    val canFinish = plan != null && !isCompleted &&
+    val canFinish = !isCompleted &&
             (uiState.date == today || uiState.date.isBefore(today))
 
     TopAppBar(
