@@ -58,6 +58,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
+import com.mealplanplus.data.model.WorkoutSessionWithSets
 import com.mealplanplus.ui.theme.AiPurple
 import com.mealplanplus.ui.theme.BgPage
 import com.mealplanplus.ui.theme.CardBg
@@ -91,6 +92,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToDiets: () -> Unit = {},
     onNavigateToWorkoutLog: (Long) -> Unit = {},
+    onNavigateToWorkoutSession: (Long) -> Unit = {},
     savedStateHandle: SavedStateHandle? = null,
     viewModel: HomeViewModel = hiltViewModel(),
     quickLogViewModel: QuickLogViewModel = hiltViewModel()
@@ -226,12 +228,14 @@ fun HomeScreen(
                 onToggleIngredientCheck = viewModel::toggleIngredientCheck,
                 onFinishDay        = { viewModel.finishTodayPlan() },
                 onReopenDay        = { viewModel.reopenTodayPlan() },
-                plannedWorkout     = uiState.plannedWorkoutToday,
+                plannedWorkouts    = uiState.plannedWorkoutsToday,
+                completedWorkoutsToday = uiState.completedWorkoutsToday,
                 onStartWorkout     = { templateId -> onNavigateToWorkoutLog(templateId) },
+                onViewWorkoutSession = onNavigateToWorkoutSession,
                 modifier           = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(88.dp))
         }
     }
 }
@@ -515,8 +519,10 @@ fun TodayMealsSection(
     todayDietGlIsPartial: Boolean = false,
     ingredientChecks: Set<String> = emptySet(),
     onToggleIngredientCheck: (slotType: String, foodId: Long) -> Unit = { _, _ -> },
-    plannedWorkout: PlannedWorkoutWithTemplate? = null,
-    onStartWorkout: (Long) -> Unit = {}
+    plannedWorkouts: List<PlannedWorkoutWithTemplate> = emptyList(),
+    completedWorkoutsToday: List<WorkoutSessionWithSets> = emptyList(),
+    onStartWorkout: (Long) -> Unit = {},
+    onViewWorkoutSession: (Long) -> Unit = {}
 ) {
     val loggedCount = slots.count { it.isLogged }
     val totalCount  = slots.size
@@ -583,7 +589,7 @@ fun TodayMealsSection(
                             .then(
                                 if (isTodayCompleted) Modifier else Modifier.background(Color.Transparent)
                             )
-                            .clickable(onClick = if (isTodayCompleted) onReopenDay else if (allLogged) onFinishDay else { {} }),
+                            .clickable(onClick = if (isTodayCompleted) onReopenDay else onFinishDay),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -608,7 +614,7 @@ fun TodayMealsSection(
                                         .background(Color.Transparent)
                                 ) {
                                     Canvas22dp(
-                                        color = if (allLogged) PrimaryGreen else Color(0xFFD4D4D4)
+                                        color = PrimaryGreen
                                     )
                                 }
                             }
@@ -667,12 +673,29 @@ fun TodayMealsSection(
                         HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
                     }
                 }
-                if (plannedWorkout != null) {
-                    HorizontalDivider(color = Color(0xFFEAEAEA), thickness = 2.dp)
+            }
+        }
+        if (plannedWorkouts.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                plannedWorkouts.forEachIndexed { index, workout ->
+                    val completedSession = completedWorkoutsToday.firstOrNull {
+                        it.session.templateId == workout.plannedWorkout.templateId
+                    }
                     PlannedWorkoutRow(
-                        workout   = plannedWorkout,
-                        onStart   = { onStartWorkout(plannedWorkout.plannedWorkout.templateId) }
+                        workout = workout,
+                        completedSession = completedSession,
+                        onStart = { onStartWorkout(workout.plannedWorkout.templateId) },
+                        onView = { completedSession?.let { onViewWorkoutSession(it.session.id) } }
                     )
+                    if (index < plannedWorkouts.lastIndex) {
+                        HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
+                    }
                 }
             }
         }
@@ -884,14 +907,17 @@ fun NewTodaySlotRow(
 @Composable
 private fun PlannedWorkoutRow(
     workout: PlannedWorkoutWithTemplate,
-    onStart: () -> Unit
+    completedSession: WorkoutSessionWithSets? = null,
+    onStart: () -> Unit,
+    onView: () -> Unit = {}
 ) {
     val name = workout.template.template.name
     val exerciseCount = workout.template.exercises.size
+    val isCompleted = completedSession != null
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onStart)
+            .clickable(onClick = if (isCompleted) onView else onStart)
             .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -903,17 +929,27 @@ private fun PlannedWorkoutRow(
                 fontWeight = FontWeight.SemiBold,
                 color = TextPrimary
             )
-            Text(
-                text = "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · Planned workout",
-                fontSize = 11.sp,
-                color = TextSecondary
-            )
+            if (isCompleted) {
+                val s = completedSession!!.sets.size
+                val e = completedSession.sets.map { it.exercise.id }.distinct().size
+                Text(
+                    text = "$s set${if (s != 1) "s" else ""} · $e exercise${if (e != 1) "s" else ""} · Done",
+                    fontSize = 11.sp,
+                    color = PrimaryGreen
+                )
+            } else {
+                Text(
+                    text = "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · Planned workout",
+                    fontSize = 11.sp,
+                    color = TextSecondary
+                )
+            }
         }
         Text(
-            text = "Start ›",
+            text = if (isCompleted) "✓ View ›" else "Start ›",
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
-            color = PrimaryGreen
+            color = if (isCompleted) PrimaryGreen else PrimaryGreen
         )
     }
 }

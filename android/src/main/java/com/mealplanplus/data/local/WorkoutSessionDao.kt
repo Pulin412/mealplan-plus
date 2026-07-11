@@ -54,10 +54,26 @@ interface WorkoutSessionDao {
     @Query("DELETE FROM workout_sessions WHERE (userId = :userId OR userId = '') AND date BETWEEN :from AND :to")
     suspend fun deleteSessionsInRange(userId: String, from: Long, to: Long)
 
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND isCompleted = 0 ORDER BY createdAt DESC LIMIT 1")
+    fun observeInProgressSession(userId: String): Flow<WorkoutSession?>
+
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND isCompleted = 0 ORDER BY createdAt DESC LIMIT 1")
+    suspend fun getInProgressSession(userId: String): WorkoutSession?
+
     // ── Backup ────────────────────────────────────────────────────────────────
     @Query("SELECT * FROM workout_sessions WHERE userId = :userId ORDER BY date DESC")
     suspend fun getAllSessionsOnce(userId: String): List<WorkoutSession>
 
     @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun upsert(session: WorkoutSession): Long
+
+    @Query("UPDATE workout_sessions SET isCompleted = 1, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun markCompleted(id: Long, updatedAt: Long)
+
+    @Query("UPDATE workout_sessions SET isCompleted = 1, updatedAt = :updatedAt WHERE (userId = :userId OR userId = '') AND isCompleted = 0")
+    suspend fun markAllInProgressCompleted(userId: String, updatedAt: Long)
+
+    @Transaction
+    @Query("SELECT * FROM workout_sessions WHERE (userId = :userId OR userId = '') AND date = :date AND isCompleted = 1 ORDER BY createdAt DESC")
+    fun getCompletedSessionsWithSetsForDate(userId: String, date: Long): Flow<List<WorkoutSessionWithSets>>
 }

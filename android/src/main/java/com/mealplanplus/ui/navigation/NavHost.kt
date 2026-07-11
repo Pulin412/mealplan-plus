@@ -458,6 +458,9 @@ fun MealPlanNavHost(
                     onNavigateToWorkoutLog = { templateId ->
                         navController.navigate(Screen.WorkoutLog.create(templateId)) { launchSingleTop = true }
                     },
+                    onNavigateToWorkoutSession = { sessionId ->
+                        navController.navigate(Screen.WorkoutSessionDetail.create(sessionId))
+                    },
                     savedStateHandle = backStackEntry.savedStateHandle
                 )
             }
@@ -872,6 +875,9 @@ fun MealPlanNavHost(
                     onCreateTemplate = { navController.navigate(Screen.AddWorkoutTemplate.create()) },
                     onNavigateToSession = { sessionId ->
                         navController.navigate(Screen.WorkoutSessionDetail.create(sessionId))
+                    },
+                    onResumeSession = { sessionId ->
+                        navController.navigate(Screen.WorkoutLog.create(sessionId = sessionId))
                     }
                 )
             }

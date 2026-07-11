@@ -22,6 +22,7 @@ import com.mealplanplus.data.repository.HealthRepository
 import com.mealplanplus.data.repository.PlanRepository
 import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
+import com.mealplanplus.data.model.WorkoutSessionWithSets
 import com.mealplanplus.util.AuthPreferences
 import com.mealplanplus.util.PrepCheckPreferences
 import com.mealplanplus.util.SyncPreferences
@@ -114,7 +115,8 @@ data class HomeUiState(
     val todayDietGlIsPartial: Boolean = false,
     /** Epoch ms of the last successful sync, or null if never synced. */
     val lastSyncedAt: Long? = null,
-    val plannedWorkoutToday: PlannedWorkoutWithTemplate? = null,
+    val plannedWorkoutsToday: List<PlannedWorkoutWithTemplate> = emptyList(),
+    val completedWorkoutsToday: List<WorkoutSessionWithSets> = emptyList(),
     /** Keys of checked meal-prep ingredients for today. Format: "SLOTTYPE:foodId" */
     val ingredientChecks: Set<String> = emptySet()
 )
@@ -145,6 +147,7 @@ class HomeViewModel @Inject constructor(
         loadTodayData()
         loadTodayPlanSlots()
         loadTodayPlannedWorkout()
+        loadTodayCompletedWorkouts()
         loadGlucoseHistory()
         loadStreakData()
         loadLastSyncedAt()
@@ -370,7 +373,17 @@ class HomeViewModel @Inject constructor(
             val userId = AuthPreferences.getFirebaseUid(context).first() ?: return@launch
             workoutRepository.getPlannedForDate(userId, LocalDate.now().toEpochMs())
                 .collect { planned ->
-                    _uiState.update { it.copy(plannedWorkoutToday = planned.firstOrNull()) }
+                    _uiState.update { it.copy(plannedWorkoutsToday = planned) }
+                }
+        }
+    }
+
+    private fun loadTodayCompletedWorkouts() {
+        viewModelScope.launch {
+            val userId = AuthPreferences.getFirebaseUid(context).first() ?: return@launch
+            workoutRepository.getCompletedSessionsWithSetsForDate(userId, LocalDate.now().toEpochMs())
+                .collect { sessions ->
+                    _uiState.update { it.copy(completedWorkoutsToday = sessions) }
                 }
         }
     }
@@ -535,6 +548,7 @@ class HomeViewModel @Inject constructor(
         loadTodayData()
         loadTodayPlanSlots()
         loadTodayPlannedWorkout()
+        loadTodayCompletedWorkouts()
         loadWeekData()
         loadGlucoseHistory()
         loadStreakData()

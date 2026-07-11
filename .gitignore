@@ -27,3 +27,8 @@ webapp/.idea/
 
 # Misplaced android module directory
 /app/
+
+# Personal Claude memory — never commit
+CLAUDE.local.md
+**/CLAUDE.local.md
+CLAUDE.md.bak
