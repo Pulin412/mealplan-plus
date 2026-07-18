@@ -21,6 +21,6 @@ class Tombstone(
 
 fun Tombstone.toDto() = TombstoneDto(
     entityType = entityType,
-    serverId   = serverId.toString(),
+    serverId   = serverId,
     deletedAt  = deletedAt
 )

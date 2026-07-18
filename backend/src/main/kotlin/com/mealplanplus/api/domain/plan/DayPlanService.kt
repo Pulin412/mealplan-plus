@@ -95,9 +95,9 @@ fun PlannedWorkout.toDto() = PlannedWorkoutDto(
 
 fun DayPlan.toDto(workouts: List<PlannedWorkout> = emptyList()) = DayPlanDto(
     id              = id,
-    serverId        = serverId?.toString(),
+    serverId        = serverId,
     firebaseUid     = firebaseUid,
-    date            = date.toString(),
+    date            = date,
     dietId          = dietId,
     plannedWorkouts = workouts.map { it.toDto() },
     updatedAt       = updatedAt

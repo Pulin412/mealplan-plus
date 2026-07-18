@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.log
 
 import com.mealplanplus.api.generated.model.DailyLogDto
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.LoggedFoodDto
 import com.mealplanplus.api.domain.sync.TombstoneService
 import com.mealplanplus.api.domain.sync.shouldSkipUpdate
@@ -32,16 +33,16 @@ class DailyLogService(
 
     @Transactional
     fun create(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
-        val date = dto.date?.let { LocalDate.parse(it) } ?: LocalDate.now()
+        val date = dto.date
         val log = DailyLog(
             firebaseUid = firebaseUid,
             date = date,
             notes = dto.notes
-        ).also { if (dto.serverId != null) it.serverId = UUID.fromString(dto.serverId.toString()) }
+        ).also { if (dto.serverId != null) it.serverId = dto.serverId }
         val saved = logRepo.save(log)
         val foods = (dto.loggedFoods ?: emptyList()).map { f ->
             foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId ?: 0L,
-                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit ?: "GRAM"))
+                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit.value))
         }
         return saved.toDto(foods)
     }
@@ -64,33 +65,33 @@ class DailyLogService(
         val existing = logRepo.findById(id).orElseThrow()
         if (existing.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         foodRepo.deleteByDailyLogId(existing.id)
-        val date = dto.date?.let { LocalDate.parse(it) } ?: existing.date
+        val date = dto.date
         val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
             date = date, notes = dto.notes)
             .also { it.serverId = existing.serverId }
         val saved = logRepo.save(updated)
         val foods = (dto.loggedFoods ?: emptyList()).map { f ->
             foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId ?: 0L,
-                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit ?: "GRAM"))
+                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit.value))
         }
         return saved.toDto(foods)
     }
 
     @Transactional
     fun upsert(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
-        val serverId = dto.serverId?.let { UUID.fromString(it.toString()) }
+        val serverId = dto.serverId
         val existing = serverId?.let { logRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(foodRepo.findByDailyLogId(existing.id))
         foodRepo.deleteByDailyLogId(existing.id)
-        val date = dto.date?.let { LocalDate.parse(it) } ?: existing.date
+        val date = dto.date
         val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
             date = date, notes = dto.notes)
             .also { it.serverId = existing.serverId }
         val saved = logRepo.save(updated)
         val foods = (dto.loggedFoods ?: emptyList()).map { f ->
             foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId ?: 0L,
-                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit ?: "GRAM"))
+                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit.value))
         }
         return saved.toDto(foods)
     }
@@ -102,14 +103,14 @@ fun LoggedFood.toDto() = LoggedFoodDto(
     foodId     = foodId,
     mealSlot   = mealSlot,
     quantity   = quantity,
-    unit       = unit
+    unit       = FoodUnit.forValue(unit)
 )
 
 fun DailyLog.toDto(loggedFoods: List<LoggedFood>) = DailyLogDto(
     id          = id,
-    serverId    = serverId?.toString(),
+    serverId    = serverId,
     firebaseUid = firebaseUid,
-    date        = date.toString(),
+    date        = date,
     notes       = notes,
     loggedFoods = loggedFoods.map { it.toDto() },
     updatedAt   = updatedAt

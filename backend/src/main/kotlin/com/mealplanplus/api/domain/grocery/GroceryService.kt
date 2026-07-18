@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.grocery
 
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.GroceryItemDto
 import com.mealplanplus.api.generated.model.GroceryListDto
 import com.mealplanplus.api.domain.diet.DietMealRepository
@@ -45,7 +46,7 @@ class GroceryService(
         val saved = listRepo.save(gl)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
-                quantity = item.quantity, unit = item.unit ?: "GRAM", category = item.category,
+                quantity = item.quantity, unit = item.unit.value, category = item.category,
                 done = item.done ?: false))
         }
         return saved.toDto(items)
@@ -75,7 +76,7 @@ class GroceryService(
         val saved = listRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
-                quantity = item.quantity, unit = item.unit ?: "GRAM", category = item.category,
+                quantity = item.quantity, unit = item.unit.value, category = item.category,
                 done = item.done ?: false))
         }
         return saved.toDto(items)
@@ -93,7 +94,7 @@ class GroceryService(
         val saved = listRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
-                quantity = item.quantity, unit = item.unit ?: "GRAM", category = item.category,
+                quantity = item.quantity, unit = item.unit.value, category = item.category,
                 done = item.done ?: false))
         }
         return saved.toDto(items)
@@ -141,14 +142,14 @@ fun GroceryItem.toDto() = GroceryItemDto(
     foodId        = foodId,
     name          = name,
     quantity      = quantity,
-    unit          = unit,
+    unit          = FoodUnit.forValue(unit),
     category      = category,
     done          = done
 )
 
 fun GroceryList.toDto(items: List<GroceryItem>) = GroceryListDto(
     id          = id,
-    serverId    = serverId?.toString(),
+    serverId    = serverId,
     firebaseUid = firebaseUid,
     name        = name,
     dietId      = dietId,

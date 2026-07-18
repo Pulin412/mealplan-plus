@@ -43,7 +43,7 @@ class SyncController(
         val savedDiets     = (syncPushRequest.diets ?: emptyList()).map { dietService.upsert(it, uid) }
         val savedMetrics   = (syncPushRequest.healthMetrics ?: emptyList()).map { healthService.upsert(it, uid) }
         val savedGroceries = (syncPushRequest.groceryLists ?: emptyList()).map { groceryService.upsert(it, uid) }
-        val savedPlans     = (syncPushRequest.dayPlans ?: emptyList()).map { dayPlanService.upsert(uid, LocalDate.parse(it.date ?: ""), it) }
+        val savedPlans     = (syncPushRequest.dayPlans ?: emptyList()).map { dayPlanService.upsert(uid, it.date, it) }
         val savedSlots     = (syncPushRequest.loggedMealSlots ?: emptyList()).map { loggingService.upsertSlot(uid, it) }
         val accepted = savedFoods.size + savedLogs.size + savedExercises.size +
             savedSessions.size + savedMeals.size + savedDiets.size +

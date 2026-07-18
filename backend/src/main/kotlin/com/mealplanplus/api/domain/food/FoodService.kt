@@ -143,7 +143,7 @@ class FoodService(
             totalElements = page.totalElements,
             totalPages    = page.totalPages,
             number        = page.number,
-            size          = page.size
+            propertySize  = page.size
         )
     }
 
@@ -191,7 +191,7 @@ class FoodService(
 
 fun Food.toDto() = FoodDto(
     id            = id,
-    serverId      = serverId?.toString(),
+    serverId      = serverId,
     firebaseUid   = firebaseUid,
     name          = name,
     brand         = brand,

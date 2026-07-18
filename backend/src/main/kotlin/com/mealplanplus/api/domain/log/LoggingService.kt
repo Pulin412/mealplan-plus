@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.log
 
 import com.mealplanplus.api.generated.model.AddLoggedFoodRequest
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.LoggedFoodResponseDto
 import com.mealplanplus.api.generated.model.LoggedMealSlotDto
 import org.springframework.http.HttpStatus
@@ -29,7 +30,7 @@ class LoggingService(
 
     @Transactional
     fun upsertSlot(firebaseUid: String, dto: LoggedMealSlotDto): LoggedMealSlotDto {
-        val date = LocalDate.parse(dto.date)
+        val date = dto.date
         val existing = slotRepo.findByFirebaseUidAndDateAndSlot(firebaseUid, date, dto.slot)
         val saved = if (existing != null) {
             existing.isLogged = dto.isLogged
@@ -68,7 +69,7 @@ class LoggingService(
         val log = logRepo.findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid, date)
             ?: logRepo.save(DailyLog(firebaseUid = firebaseUid, date = date))
         val food = foodRepo.save(LoggedFood(dailyLogId = log.id, foodId = req.foodId,
-            mealSlot = req.mealSlot, quantity = req.quantity, unit = req.unit ?: "GRAM"))
+            mealSlot = req.mealSlot, quantity = req.quantity, unit = (req.unit ?: FoodUnit.GRAM).value))
         return food.toResponseDto(date)
     }
 
@@ -84,7 +85,7 @@ class LoggingService(
 
 fun LoggedMealSlot.toDto() = LoggedMealSlotDto(
     id       = id,
-    date     = date.toString(),
+    date     = date,
     slot     = slot,
     isLogged = isLogged
 )
@@ -92,9 +93,9 @@ fun LoggedMealSlot.toDto() = LoggedMealSlotDto(
 private fun LoggedFood.toResponseDto(date: LocalDate) = LoggedFoodResponseDto(
     id         = id,
     dailyLogId = dailyLogId,
-    date       = date.toString(),
+    date       = date,
     foodId     = foodId,
     mealSlot   = mealSlot,
     quantity   = quantity,
-    unit       = unit
+    unit       = FoodUnit.forValue(unit)
 )

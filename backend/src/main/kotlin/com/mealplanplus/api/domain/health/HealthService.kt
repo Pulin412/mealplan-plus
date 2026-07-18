@@ -78,7 +78,7 @@ class HealthMetricService(
 
 fun HealthMetric.toDto() = HealthMetricDto(
     id             = id,
-    serverId       = serverId?.toString(),
+    serverId       = serverId,
     firebaseUid    = firebaseUid,
     type           = type,
     subType        = subType,
@@ -91,7 +91,7 @@ fun HealthMetric.toDto() = HealthMetricDto(
 
 fun CustomMetricType.toDto() = CustomMetricTypeDto(
     id          = id,
-    serverId    = serverId?.toString(),
+    serverId    = serverId,
     firebaseUid = firebaseUid,
     name        = name,
     unit        = unit,

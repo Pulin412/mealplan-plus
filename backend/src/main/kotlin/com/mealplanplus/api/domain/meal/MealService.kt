@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.meal
 
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.MealDto
 import com.mealplanplus.api.generated.model.MealFoodItemDto
 import com.mealplanplus.api.domain.food.FoodRepository
@@ -50,7 +51,7 @@ class MealService(
         val saved = mealRepo.save(meal)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
-                quantity = item.quantity, unit = item.unit ?: "GRAM", notes = item.notes))
+                quantity = item.quantity, unit = item.unit.value, notes = item.notes))
         }
         return saved.toDto(items)
     }
@@ -67,7 +68,7 @@ class MealService(
         val saved = mealRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
-                quantity = item.quantity, unit = item.unit ?: "GRAM", notes = item.notes))
+                quantity = item.quantity, unit = item.unit.value, notes = item.notes))
         }
         return saved.toDto(items)
     }
@@ -114,7 +115,7 @@ class MealService(
         val saved = mealRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
-                quantity = item.quantity, unit = item.unit ?: "GRAM", notes = item.notes))
+                quantity = item.quantity, unit = item.unit.value, notes = item.notes))
         }
         return saved.toDto(items)
     }
@@ -125,13 +126,13 @@ fun MealFoodItem.toDto() = MealFoodItemDto(
     mealId      = mealId,
     foodId      = foodId,
     quantity    = quantity,
-    unit        = unit,
+    unit        = FoodUnit.forValue(unit),
     notes       = notes
 )
 
 fun Meal.toDto(items: List<MealFoodItem>) = MealDto(
     id          = id,
-    serverId    = serverId?.toString(),
+    serverId    = serverId,
     firebaseUid = firebaseUid,
     name        = name,
     items       = items.map { it.toDto() },

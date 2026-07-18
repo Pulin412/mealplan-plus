@@ -2,6 +2,7 @@ package com.mealplanplus.api.domain.dashboard
 
 import com.mealplanplus.api.generated.model.CalorieRingDto
 import com.mealplanplus.api.generated.model.DashboardDto
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.LoggedFoodResponseDto
 import com.mealplanplus.api.generated.model.MacroPanelDto
 import com.mealplanplus.api.generated.model.SlotStatusDto
@@ -24,7 +25,6 @@ import com.mealplanplus.api.domain.user.UserRepository
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 
 @Service
 class DashboardService(
@@ -59,8 +59,8 @@ class DashboardService(
         val additionalFoods: List<LoggedFoodResponseDto> = if (todayLog != null) {
             loggedFoodRepo.findByDailyLogId(todayLog.id).map { lf ->
                 LoggedFoodResponseDto(id = lf.id, dailyLogId = lf.dailyLogId,
-                    date = today.toString(), foodId = lf.foodId,
-                    mealSlot = lf.mealSlot, quantity = lf.quantity, unit = lf.unit)
+                    date = today, foodId = lf.foodId,
+                    mealSlot = lf.mealSlot, quantity = lf.quantity, unit = FoodUnit.forValue(lf.unit))
             }
         } else emptyList()
 
@@ -110,7 +110,7 @@ class DashboardService(
             .findTop1ByFirebaseUidAndTypeOrderByRecordedAtDesc(firebaseUid, "WEIGHT")?.toDto()
 
         return DashboardDto(
-            date                = today.format(DateTimeFormatter.ISO_LOCAL_DATE),
+            date                = today,
             dietId              = diet?.id,
             dietName            = diet?.name,
             calorieRing         = calorieRing,
@@ -144,12 +144,12 @@ class DashboardService(
             val items = (itemsByMealId[dm.mealId] ?: emptyList()).mapNotNull { item ->
                 val food = foodsById[item.foodId] ?: return@mapNotNull null
                 TodayMealItemDto(foodId = food.id, foodName = food.name,
-                    quantity = item.quantity, unit = item.unit,
+                    quantity = item.quantity, unit = FoodUnit.forValue(item.unit),
                     caloriesPer100 = food.caloriesPer100, proteinPer100 = food.proteinPer100,
                     carbsPer100 = food.carbsPer100, fatPer100 = food.fatPer100, notes = item.notes)
             }
             val slotNutrition = items.fold(NutritionTotals()) { acc, i ->
-                val g = if (i.unit == "GRAM") i.quantity else i.quantity * 100.0
+                val g = if (i.unit == FoodUnit.GRAM) i.quantity else i.quantity * 100.0
                 val f = g / 100.0
                 acc.copy(kcal = acc.kcal + i.caloriesPer100 * f,
                     protein = acc.protein + i.proteinPer100 * f,

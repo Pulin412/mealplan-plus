@@ -340,7 +340,7 @@ fun WorkoutSet.toDto() = WorkoutSetDto(
 
 fun WorkoutSession.toDto(sets: List<WorkoutSet>) = WorkoutSessionDto(
     id              = id,
-    serverId        = serverId?.toString(),
+    serverId        = serverId,
     firebaseUid     = firebaseUid,
     name            = name,
     date            = date,
@@ -373,7 +373,7 @@ fun WorkoutTemplate.toDto(exercises: List<TemplateExerciseDto>) = WorkoutTemplat
 
 fun Exercise.toDto(tags: List<TagDto> = emptyList()) = ExerciseDto(
     id        = id,
-    serverId  = serverId?.toString(),
+    serverId  = serverId,
     name      = name,
     isSystem  = isSystem,
     tagIds    = tags.map { it.id },

@@ -23,7 +23,7 @@ class FoodController(private val service: FoodService) : FoodsApi {
             totalElements = p.totalElements,
             totalPages    = p.totalPages,
             number        = p.number,
-            propertySize  = p.size
+            propertySize  = p.propertySize
         ))
     }
 

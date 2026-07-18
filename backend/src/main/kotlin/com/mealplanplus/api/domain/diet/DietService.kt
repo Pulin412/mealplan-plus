@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.diet
 
 import com.mealplanplus.api.generated.model.DietDto
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.DietFoodItemDto
 import com.mealplanplus.api.generated.model.DietMealDto
 import com.mealplanplus.api.generated.model.TagDto
@@ -60,7 +61,7 @@ class DietService(
         }
         (dto.foodItems ?: emptyList()).forEach { f ->
             dietFoodItemRepo.save(DietFoodItem(dietId = dietId, foodId = f.foodId ?: 0L,
-                slot = f.slot ?: "", quantity = f.quantity ?: 1.0, unit = f.unit ?: "GRAM"))
+                slot = f.slot ?: "", quantity = f.quantity ?: 1.0, unit = f.unit.value))
         }
         (dto.tagIds ?: emptyList()).forEach { tagId ->
             entityTagRepo.save(EntityTag(tagId = tagId, entityType = TagEntityType.DIET, entityId = dietId))
@@ -237,11 +238,11 @@ fun DietMeal.toDto() = DietMealDto(id = id, dietId = dietId, mealId = mealId,
     dayOfWeek = dayOfWeek, slot = slot, instructions = instructions)
 
 fun DietFoodItem.toDto() = DietFoodItemDto(id = id, dietId = dietId, foodId = foodId,
-    slot = slot, quantity = quantity, unit = unit)
+    slot = slot, quantity = quantity, unit = FoodUnit.forValue(unit))
 
 fun Diet.toDto(meals: List<DietMeal>, foodItems: List<DietFoodItem>, tags: List<Tag>) = DietDto(
     id             = id,
-    serverId       = serverId?.toString(),
+    serverId       = serverId,
     firebaseUid    = firebaseUid,
     name           = name,
     description    = description,
