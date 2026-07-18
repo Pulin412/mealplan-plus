@@ -8,7 +8,7 @@ import { logout } from "@/lib/firebase/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { components } from "@/lib/api/types.generated";
 
-type SyncPullResponse = components["schemas"]["PullResponse"];
+type SyncPullResponse = components["schemas"]["SyncPullResponse"];
 
 // Inline until types.generated updates
 interface UserResponse {
