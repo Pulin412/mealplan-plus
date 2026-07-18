@@ -1,29 +1,25 @@
 package com.mealplanplus.api.domain.sync
 
-import com.mealplanplus.api.domain.diet.DietDto
+import com.mealplanplus.api.generated.api.SyncApi
+import com.mealplanplus.api.generated.model.SyncPullResponse
+import com.mealplanplus.api.generated.model.SyncPushRequest
+import com.mealplanplus.api.generated.model.SyncPushResponse
 import com.mealplanplus.api.domain.diet.DietService
-import com.mealplanplus.api.domain.food.FoodDto
 import com.mealplanplus.api.domain.food.FoodService
-import com.mealplanplus.api.domain.grocery.GroceryListDto
 import com.mealplanplus.api.domain.grocery.GroceryService
-import com.mealplanplus.api.domain.health.HealthMetricDto
 import com.mealplanplus.api.domain.health.HealthMetricService
-import com.mealplanplus.api.domain.log.DailyLogDto
 import com.mealplanplus.api.domain.log.DailyLogService
-import com.mealplanplus.api.domain.meal.MealDto
+import com.mealplanplus.api.domain.log.LoggingService
 import com.mealplanplus.api.domain.meal.MealService
-import com.mealplanplus.api.domain.workout.ExerciseDto
+import com.mealplanplus.api.domain.plan.DayPlanService
 import com.mealplanplus.api.domain.workout.WorkoutService
-import com.mealplanplus.api.domain.workout.WorkoutSessionDto
-import io.swagger.v3.oas.annotations.tags.Tag
-import org.springframework.format.annotation.DateTimeFormat
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
+import java.time.LocalDate
 
 @RestController
-@RequestMapping("/api/v1/sync")
-@Tag(name = "Sync")
 class SyncController(
     private val foodService: FoodService,
     private val mealService: MealService,
@@ -31,85 +27,59 @@ class SyncController(
     private val healthService: HealthMetricService,
     private val groceryService: GroceryService,
     private val logService: DailyLogService,
+    private val loggingService: LoggingService,
     private val workoutService: WorkoutService,
+    private val dayPlanService: DayPlanService,
     private val tombstoneService: TombstoneService
-) {
-    data class PushRequest(
-        val foods: List<FoodDto> = emptyList(),
-        val meals: List<MealDto> = emptyList(),
-        val diets: List<DietDto> = emptyList(),
-        val healthMetrics: List<HealthMetricDto> = emptyList(),
-        val groceryLists: List<GroceryListDto> = emptyList(),
-        val dailyLogs: List<DailyLogDto> = emptyList(),
-        val exercises: List<ExerciseDto> = emptyList(),
-        val workoutSessions: List<WorkoutSessionDto> = emptyList()
-    )
+) : SyncApi {
 
-    data class PushResponse(
-        val accepted: Int,
-        val foods: List<FoodDto> = emptyList(),
-        val meals: List<MealDto> = emptyList(),
-        val diets: List<DietDto> = emptyList(),
-        val healthMetrics: List<HealthMetricDto> = emptyList(),
-        val groceryLists: List<GroceryListDto> = emptyList(),
-        val dailyLogs: List<DailyLogDto> = emptyList(),
-        val exercises: List<ExerciseDto> = emptyList(),
-        val workoutSessions: List<WorkoutSessionDto> = emptyList()
-    )
-
-    data class PullResponse(
-        val foods: List<FoodDto>,
-        val meals: List<MealDto>,
-        val diets: List<DietDto>,
-        val healthMetrics: List<HealthMetricDto>,
-        val groceryLists: List<GroceryListDto>,
-        val dailyLogs: List<DailyLogDto>,
-        val exercises: List<ExerciseDto>,
-        val workoutSessions: List<WorkoutSessionDto>,
-        val tombstones: List<TombstoneDto>,
-        val serverTime: Instant
-    )
-
-    @PostMapping("/push")
-    fun push(@RequestBody req: PushRequest, auth: Authentication): PushResponse {
-        val savedFoods    = req.foods.map { foodService.upsert(it, auth.name) }
-        val savedLogs     = req.dailyLogs.map { logService.upsert(it, auth.name) }
-        val savedExercises = req.exercises.map { workoutService.upsertExercise(it, auth.name) }
-        val savedSessions = req.workoutSessions.map { workoutService.upsertSession(it, auth.name) }
-        val savedMeals    = req.meals.map { mealService.upsert(it, auth.name) }
-        val savedDiets    = req.diets.map { dietService.upsert(it, auth.name) }
-        val savedMetrics  = req.healthMetrics.map { healthService.upsert(it, auth.name) }
-        val savedGroceries = req.groceryLists.map { groceryService.upsert(it, auth.name) }
+    override fun syncPush(syncPushRequest: SyncPushRequest): ResponseEntity<SyncPushResponse> {
+        val uid = currentUid()
+        val savedFoods     = (syncPushRequest.foods ?: emptyList()).map { foodService.upsert(it, uid) }
+        val savedLogs      = (syncPushRequest.dailyLogs ?: emptyList()).map { logService.upsert(it, uid) }
+        val savedExercises = (syncPushRequest.exercises ?: emptyList()).map { workoutService.upsertExercise(it, uid) }
+        val savedSessions  = (syncPushRequest.workoutSessions ?: emptyList()).map { workoutService.upsertSession(it, uid) }
+        val savedMeals     = (syncPushRequest.meals ?: emptyList()).map { mealService.upsert(it, uid) }
+        val savedDiets     = (syncPushRequest.diets ?: emptyList()).map { dietService.upsert(it, uid) }
+        val savedMetrics   = (syncPushRequest.healthMetrics ?: emptyList()).map { healthService.upsert(it, uid) }
+        val savedGroceries = (syncPushRequest.groceryLists ?: emptyList()).map { groceryService.upsert(it, uid) }
+        val savedPlans     = (syncPushRequest.dayPlans ?: emptyList()).map { dayPlanService.upsert(uid, LocalDate.parse(it.date ?: ""), it) }
+        val savedSlots     = (syncPushRequest.loggedMealSlots ?: emptyList()).map { loggingService.upsertSlot(uid, it) }
         val accepted = savedFoods.size + savedLogs.size + savedExercises.size +
             savedSessions.size + savedMeals.size + savedDiets.size +
-            savedMetrics.size + savedGroceries.size
-        return PushResponse(
-            accepted      = accepted,
-            foods         = savedFoods,
-            meals         = savedMeals,
-            diets         = savedDiets,
-            healthMetrics = savedMetrics,
-            groceryLists  = savedGroceries,
-            dailyLogs     = savedLogs,
-            exercises     = savedExercises,
-            workoutSessions = savedSessions
-        )
+            savedMetrics.size + savedGroceries.size + savedPlans.size + savedSlots.size
+        return ResponseEntity.ok(SyncPushResponse(
+            accepted        = accepted,
+            foods           = savedFoods,
+            meals           = savedMeals,
+            diets           = savedDiets,
+            healthMetrics   = savedMetrics,
+            groceryLists    = savedGroceries,
+            dailyLogs       = savedLogs,
+            exercises       = savedExercises,
+            workoutSessions = savedSessions,
+            dayPlans        = savedPlans,
+            loggedMealSlots = savedSlots
+        ))
     }
 
-    @GetMapping("/pull")
-    fun pull(
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) since: Instant,
-        auth: Authentication
-    ): PullResponse = PullResponse(
-        foods = foodService.since(auth.name, since),
-        meals = mealService.since(auth.name, since),
-        diets = dietService.since(auth.name, since),
-        healthMetrics = healthService.since(auth.name, since),
-        groceryLists = groceryService.since(auth.name, since),
-        dailyLogs = logService.since(auth.name, since),
-        exercises = workoutService.exercisesSince(auth.name, since),
-        workoutSessions = workoutService.sessionsSince(auth.name, since),
-        tombstones = tombstoneService.since(auth.name, since),
-        serverTime = Instant.now()
-    )
+    override fun syncPull(since: Instant): ResponseEntity<SyncPullResponse> {
+        val uid = currentUid()
+        return ResponseEntity.ok(SyncPullResponse(
+            foods           = foodService.since(uid, since),
+            meals           = mealService.since(uid, since),
+            diets           = dietService.since(uid, since),
+            healthMetrics   = healthService.since(uid, since),
+            groceryLists    = groceryService.since(uid, since),
+            dailyLogs       = logService.since(uid, since),
+            exercises       = workoutService.exercisesSince(uid, since),
+            workoutSessions = workoutService.sessionsSince(uid, since),
+            dayPlans        = dayPlanService.since(uid, since),
+            loggedMealSlots = loggingService.slotsSince(uid, since),
+            tombstones      = tombstoneService.since(uid, since),
+            serverTime      = Instant.now()
+        ))
+    }
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

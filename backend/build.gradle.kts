@@ -52,6 +52,58 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
 }
 
+// ── OpenAPI code generation ───────────────────────────────────────────────────
+// Run the generator CLI in an isolated JVM so it never shares Spring Boot's
+// Jackson classpath (which would cause NoSuchMethodError on GeneratorBase).
+val openApiCli: Configuration by configurations.creating {
+    isTransitive = true
+}
+
+dependencies {
+    openApiCli("org.openapitools:openapi-generator-cli:7.9.0")
+}
+
+val openApiGenerateDir = layout.buildDirectory.dir("generated/openapi")
+
+tasks.register<JavaExec>("openApiGenerate") {
+    group = "openapi"
+    description = "Generate Spring Boot API interfaces and models from docs/openapi.yaml"
+    classpath = openApiCli
+    mainClass.set("org.openapitools.codegen.OpenAPIGenerator")
+    args = listOf(
+        "generate",
+        "-g", "kotlin-spring",
+        "-i", "${rootProject.projectDir}/docs/openapi.yaml",
+        "-o", openApiGenerateDir.get().asFile.absolutePath,
+        "--api-package",   "com.mealplanplus.api.generated.api",
+        "--model-package", "com.mealplanplus.api.generated.model",
+        "--additional-properties",
+            "interfaceOnly=true,useSpringBoot3=true,useTags=true," +
+            "gradleBuildFile=false,exceptionHandler=false," +
+            "skipDefaultInterface=true,useResponseEntity=false," +
+            "useBeanValidation=true,documentationProvider=none",
+        "--type-mappings",   "DateTime=Instant",
+        "--import-mappings", "Instant=java.time.Instant",
+        "--skip-validate-spec",
+    )
+    outputs.dir(openApiGenerateDir)
+    inputs.file("${rootProject.projectDir}/docs/openapi.yaml")
+}
+
+sourceSets {
+    main {
+        kotlin {
+            srcDir(openApiGenerateDir.map { it.dir("src/main/kotlin") })
+        }
+    }
+}
+
+tasks.compileKotlin {
+    dependsOn(tasks.named("openApiGenerate"))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 tasks.bootJar {
     archiveFileName.set("backend.jar")
 }

@@ -2,6 +2,9 @@ package com.mealplanplus.api.domain.diet
 
 import com.mealplanplus.api.domain.SyncableEntity
 import jakarta.persistence.*
+import java.io.Serializable
+
+enum class TagEntityType { DIET, EXERCISE, MEAL, FOOD }
 
 @Entity
 @Table(name = "diets")
@@ -14,7 +17,8 @@ class Diet(
     val targetCalories: Double? = null,
     val targetProtein: Double? = null,
     val targetCarbs: Double? = null,
-    val targetFat: Double? = null
+    val targetFat: Double? = null,
+    var isFavorite: Boolean = false
 ) : SyncableEntity()
 
 @Entity
@@ -24,9 +28,21 @@ class DietMeal(
     val id: Long = 0,
     val dietId: Long = 0,
     val mealId: Long = 0,
-    val dayOfWeek: Int = 0,  // 1=Mon..7=Sun, 0=any
+    val dayOfWeek: Int = 0,
     val slot: String = "Lunch",
     val instructions: String? = null
+)
+
+@Entity
+@Table(name = "diet_food_items")
+class DietFoodItem(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+    val dietId: Long = 0,
+    val foodId: Long = 0,
+    val slot: String = "",
+    val quantity: Double = 1.0,
+    val unit: String = "GRAM"
 )
 
 @Entity
@@ -34,16 +50,28 @@ class DietMeal(
 class Tag(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
-    val firebaseUid: String = "",
+    val firebaseUid: String? = null,
     val name: String = "",
-    val color: String? = null
+    val color: String? = null,
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "tag_entity_type", nullable = false)
+    val entityType: TagEntityType = TagEntityType.DIET
 )
 
+data class EntityTagId(
+    val tagId: Long = 0,
+    val entityType: String = "",
+    val entityId: Long = 0
+) : Serializable
+
 @Entity
-@Table(name = "diet_tag_cross_refs")
-class DietTagCrossRef(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long = 0,
-    val dietId: Long = 0,
-    val tagId: Long = 0
+@Table(name = "entity_tags")
+@IdClass(EntityTagId::class)
+class EntityTag(
+    @Id val tagId: Long = 0,
+    @Id
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "tag_entity_type")
+    val entityType: TagEntityType = TagEntityType.DIET,
+    @Id val entityId: Long = 0
 )

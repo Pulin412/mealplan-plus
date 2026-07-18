@@ -1,5 +1,7 @@
 package com.mealplanplus.api.domain.grocery
 
+import com.mealplanplus.api.generated.model.GroceryItemDto
+import com.mealplanplus.api.generated.model.GroceryListDto
 import com.mealplanplus.api.domain.diet.DietMealRepository
 import com.mealplanplus.api.domain.diet.DietRepository
 import com.mealplanplus.api.domain.food.FoodRepository
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
+import java.util.UUID
 
 @Service
 class GroceryService(
@@ -38,11 +41,12 @@ class GroceryService(
     @Transactional
     fun create(dto: GroceryListDto, firebaseUid: String): GroceryListDto {
         val gl = GroceryList(firebaseUid = firebaseUid, name = dto.name, dietId = dto.dietId)
-            .also { if (dto.serverId != null) it.serverId = dto.serverId }
+            .also { if (dto.serverId != null) it.serverId = UUID.fromString(dto.serverId.toString()) }
         val saved = listRepo.save(gl)
-        val items = dto.items.map { item ->
+        val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
-                quantity = item.quantity, unit = item.unit, category = item.category, done = item.done))
+                quantity = item.quantity, unit = item.unit ?: "GRAM", category = item.category,
+                done = item.done ?: false))
         }
         return saved.toDto(items)
     }
@@ -69,25 +73,28 @@ class GroceryService(
             name = dto.name, dietId = dto.dietId)
             .also { it.serverId = existing.serverId }
         val saved = listRepo.save(updated)
-        val items = dto.items.map { item ->
+        val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
-                quantity = item.quantity, unit = item.unit, category = item.category, done = item.done))
+                quantity = item.quantity, unit = item.unit ?: "GRAM", category = item.category,
+                done = item.done ?: false))
         }
         return saved.toDto(items)
     }
 
     @Transactional
     fun upsert(dto: GroceryListDto, firebaseUid: String): GroceryListDto {
-        val existing = dto.serverId?.let { listRepo.findByServerId(it) }
+        val serverId = dto.serverId?.let { UUID.fromString(it.toString()) }
+        val existing = serverId?.let { listRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(itemRepo.findByGroceryListId(existing.id))
         itemRepo.deleteByGroceryListId(existing.id)
         val updated = GroceryList(id = existing.id, firebaseUid = existing.firebaseUid, name = dto.name, dietId = dto.dietId)
             .also { it.serverId = existing.serverId }
         val saved = listRepo.save(updated)
-        val items = dto.items.map { item ->
+        val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(GroceryItem(groceryListId = saved.id, foodId = item.foodId, name = item.name,
-                quantity = item.quantity, unit = item.unit, category = item.category, done = item.done))
+                quantity = item.quantity, unit = item.unit ?: "GRAM", category = item.category,
+                done = item.done ?: false))
         }
         return saved.toDto(items)
     }
@@ -127,3 +134,24 @@ class GroceryService(
         return saved.toDto(items)
     }
 }
+
+fun GroceryItem.toDto() = GroceryItemDto(
+    id            = id,
+    groceryListId = groceryListId,
+    foodId        = foodId,
+    name          = name,
+    quantity      = quantity,
+    unit          = unit,
+    category      = category,
+    done          = done
+)
+
+fun GroceryList.toDto(items: List<GroceryItem>) = GroceryListDto(
+    id          = id,
+    serverId    = serverId?.toString(),
+    firebaseUid = firebaseUid,
+    name        = name,
+    dietId      = dietId,
+    items       = items.map { it.toDto() },
+    updatedAt   = updatedAt
+)

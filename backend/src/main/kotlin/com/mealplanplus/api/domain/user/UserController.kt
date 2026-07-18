@@ -1,22 +1,20 @@
 package com.mealplanplus.api.domain.user
 
-import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.tags.Tag
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import com.mealplanplus.api.generated.api.UsersApi
+import com.mealplanplus.api.generated.model.UserResponse
+import com.mealplanplus.api.generated.model.UserUpdateRequest
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/v1/users")
-@Tag(name = "Users", description = "User management")
-class UserController(private val userService: UserService) {
+class UserController(private val userService: UserService) : UsersApi {
 
-    @GetMapping("/me")
-    @Operation(summary = "Get current user", description = "Returns the authenticated user, auto-creating on first call")
-    fun getMe(auth: Authentication): UserResponse =
-        userService.getOrCreate(auth.name)
+    override fun getMe(): ResponseEntity<UserResponse> =
+        ResponseEntity.ok(userService.getOrCreate(currentUid()))
 
-    @PutMapping("/me")
-    @Operation(summary = "Update profile", description = "Update editable profile fields for the current user")
-    fun updateMe(@RequestBody req: UpdateUserRequest, auth: Authentication): UserResponse =
-        userService.update(auth.name, req)
+    override fun updateMe(userUpdateRequest: UserUpdateRequest): ResponseEntity<UserResponse> =
+        ResponseEntity.ok(userService.update(currentUid(), userUpdateRequest))
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

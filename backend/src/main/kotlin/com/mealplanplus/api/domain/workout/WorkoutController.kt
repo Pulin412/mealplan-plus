@@ -1,79 +1,89 @@
 package com.mealplanplus.api.domain.workout
 
-import io.swagger.v3.oas.annotations.tags.Tag
+import com.mealplanplus.api.generated.api.ExercisesApi
+import com.mealplanplus.api.generated.api.WorkoutSessionsApi
+import com.mealplanplus.api.generated.api.WorkoutTemplatesApi
+import com.mealplanplus.api.generated.model.ExerciseDto
+import com.mealplanplus.api.generated.model.LastSetsDto
+import com.mealplanplus.api.generated.model.WorkoutSessionDto
+import com.mealplanplus.api.generated.model.WorkoutTemplateDto
 import org.springframework.http.HttpStatus
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDate
 
 @RestController
-@RequestMapping("/api/v1/exercises")
-@Tag(name = "Exercises")
-class ExerciseController(private val service: WorkoutService) {
+class ExerciseController(private val service: WorkoutService) : ExercisesApi {
 
-    @GetMapping
-    fun list(auth: Authentication) = service.listExercises(auth.name)
+    override fun listExercises(q: String?, tagId: Long?): ResponseEntity<List<ExerciseDto>> =
+        ResponseEntity.ok(service.listExercises(currentUid(), q, tagId))
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun create(@RequestBody dto: ExerciseDto, auth: Authentication) =
-        service.createExercise(dto, auth.name)
+    override fun getExercise(id: Long): ResponseEntity<ExerciseDto> =
+        ResponseEntity.ok(service.getExercise(id))
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) =
-        service.deleteExercise(id, auth.name)
+    override fun createExercise(exerciseDto: ExerciseDto): ResponseEntity<ExerciseDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.createExercise(exerciseDto, currentUid()))
+
+    override fun updateExercise(id: Long, exerciseDto: ExerciseDto): ResponseEntity<ExerciseDto> =
+        ResponseEntity.ok(service.updateExercise(id, exerciseDto, currentUid()))
+
+    override fun deleteExercise(id: Long): ResponseEntity<Unit> {
+        service.deleteExercise(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }
 
 @RestController
-@RequestMapping("/api/v1/workout-sessions")
-@Tag(name = "Workout Sessions")
-class WorkoutSessionController(private val service: WorkoutService) {
+class WorkoutTemplateController(private val service: WorkoutService) : WorkoutTemplatesApi {
 
-    @GetMapping
-    fun list(auth: Authentication) = service.listSessions(auth.name)
+    override fun listWorkoutTemplates(): ResponseEntity<List<WorkoutTemplateDto>> =
+        ResponseEntity.ok(service.listTemplates(currentUid()))
 
-    @GetMapping("/{id}")
-    fun get(@PathVariable id: Long, auth: Authentication) = service.getSession(id)
+    override fun getWorkoutTemplate(id: Long): ResponseEntity<WorkoutTemplateDto> =
+        ResponseEntity.ok(service.getTemplate(id))
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun create(@RequestBody dto: WorkoutSessionDto, auth: Authentication) =
-        service.createSession(dto, auth.name)
+    override fun createWorkoutTemplate(workoutTemplateDto: WorkoutTemplateDto): ResponseEntity<WorkoutTemplateDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.createTemplate(workoutTemplateDto, currentUid()))
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) =
-        service.deleteSession(id, auth.name)
+    override fun updateWorkoutTemplate(id: Long, workoutTemplateDto: WorkoutTemplateDto): ResponseEntity<WorkoutTemplateDto> =
+        ResponseEntity.ok(service.updateTemplate(id, workoutTemplateDto, currentUid()))
+
+    override fun deleteWorkoutTemplate(id: Long): ResponseEntity<Unit> {
+        service.deleteTemplate(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    override fun startWorkoutFromTemplate(id: Long): ResponseEntity<WorkoutSessionDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.startFromTemplate(id, currentUid()))
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }
 
 @RestController
-@RequestMapping("/api/v1/workout-templates")
-@Tag(name = "Workout Templates")
-class WorkoutTemplateController(private val service: WorkoutService) {
+class WorkoutSessionController(private val service: WorkoutService) : WorkoutSessionsApi {
 
-    @GetMapping
-    fun list(auth: Authentication) = service.listTemplates(auth.name)
+    override fun listWorkoutSessions(from: LocalDate?, to: LocalDate?): ResponseEntity<List<WorkoutSessionDto>> =
+        ResponseEntity.ok(service.listSessions(currentUid(), from, to))
 
-    @GetMapping("/{id}")
-    fun get(@PathVariable id: Long, auth: Authentication) = service.getTemplate(id)
+    override fun getWorkoutSession(id: Long): ResponseEntity<WorkoutSessionDto> =
+        ResponseEntity.ok(service.getSession(id))
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun create(@RequestBody dto: WorkoutTemplateDto, auth: Authentication) =
-        service.createTemplate(dto, auth.name)
+    override fun lastSetsForExercise(exerciseId: Long): ResponseEntity<LastSetsDto> =
+        ResponseEntity.ok(service.lastSetsForExercise(currentUid(), exerciseId))
 
-    @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @RequestBody dto: WorkoutTemplateDto, auth: Authentication) =
-        service.updateTemplate(id, dto, auth.name)
+    override fun createWorkoutSession(workoutSessionDto: WorkoutSessionDto): ResponseEntity<WorkoutSessionDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.createSession(workoutSessionDto, currentUid()))
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) =
-        service.deleteTemplate(id, auth.name)
+    override fun updateWorkoutSession(id: Long, workoutSessionDto: WorkoutSessionDto): ResponseEntity<WorkoutSessionDto> =
+        ResponseEntity.ok(service.updateSession(id, workoutSessionDto, currentUid()))
 
-    /** Create a new workout session pre-filled from this template and return it. */
-    @PostMapping("/{id}/start")
-    @ResponseStatus(HttpStatus.CREATED)
-    fun start(@PathVariable id: Long, auth: Authentication) =
-        service.startFromTemplate(id, auth.name)
+    override fun finishWorkoutSession(id: Long): ResponseEntity<WorkoutSessionDto> =
+        ResponseEntity.ok(service.finishSession(id, currentUid()))
+
+    override fun deleteWorkoutSession(id: Long): ResponseEntity<Unit> {
+        service.deleteSession(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

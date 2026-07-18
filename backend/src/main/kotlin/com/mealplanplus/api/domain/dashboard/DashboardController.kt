@@ -1,24 +1,17 @@
 package com.mealplanplus.api.domain.dashboard
 
-import io.swagger.v3.oas.annotations.tags.Tag
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
+import com.mealplanplus.api.generated.api.DashboardApi
+import com.mealplanplus.api.generated.model.DashboardDto
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 
 @RestController
-@RequestMapping("/api/v1/dashboard")
-@Tag(name = "Dashboard")
-class DashboardController(private val service: DashboardService) {
+class DashboardController(private val service: DashboardService) : DashboardApi {
 
-    @GetMapping
-    fun get(
-        auth: Authentication,
-        @RequestParam(required = false) date: String?
-    ): DashboardDto {
-        val today = if (date != null) runCatching { LocalDate.parse(date) }.getOrNull() else null
-        return service.get(auth.name, today)
-    }
+    override fun getDashboard(date: LocalDate?): ResponseEntity<DashboardDto> =
+        ResponseEntity.ok(service.get(currentUid(), date))
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

@@ -4,6 +4,8 @@ import com.mealplanplus.api.domain.SyncableEntity
 import jakarta.persistence.*
 import java.time.Instant
 
+enum class HealthMetricType { GLUCOSE, WEIGHT, BLOOD_PRESSURE }
+
 @Entity
 @Table(name = "health_metrics")
 class HealthMetric(

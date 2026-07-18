@@ -1,22 +1,30 @@
 package com.mealplanplus.api.domain.log
 
-import io.swagger.v3.oas.annotations.tags.Tag
-import jakarta.validation.Valid
+import com.mealplanplus.api.generated.api.DailyLogsApi
+import com.mealplanplus.api.generated.model.DailyLogDto
 import org.springframework.http.HttpStatus
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/v1/daily-logs")
-@Tag(name = "Daily Logs")
-class LogController(private val service: DailyLogService) {
+class LogController(private val service: DailyLogService) : DailyLogsApi {
 
-    @GetMapping fun list(auth: Authentication) = service.list(auth.name)
-    @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id)
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody dto: DailyLogDto, auth: Authentication) = service.create(dto, auth.name)
-    @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @Valid @RequestBody dto: DailyLogDto, auth: Authentication) = service.update(id, dto, auth.name)
-    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+    override fun listDailyLogs(): ResponseEntity<List<DailyLogDto>> =
+        ResponseEntity.ok(service.list(currentUid()))
+
+    override fun getDailyLog(id: Long): ResponseEntity<DailyLogDto> =
+        ResponseEntity.ok(service.get(id))
+
+    override fun createDailyLog(dailyLogDto: DailyLogDto): ResponseEntity<DailyLogDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.create(dailyLogDto, currentUid()))
+
+    override fun updateDailyLog(id: Long, dailyLogDto: DailyLogDto): ResponseEntity<DailyLogDto> =
+        ResponseEntity.ok(service.update(id, dailyLogDto, currentUid()))
+
+    override fun deleteDailyLog(id: Long): ResponseEntity<Unit> {
+        service.delete(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

@@ -1,35 +1,47 @@
 package com.mealplanplus.api.domain.food
 
-import io.swagger.v3.oas.annotations.tags.Tag
-import jakarta.validation.Valid
+import com.mealplanplus.api.generated.api.FoodsApi
+import com.mealplanplus.api.generated.model.FoodDto
+import com.mealplanplus.api.generated.model.FoodPage
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/v1/foods")
-@Tag(name = "Foods")
-class FoodController(private val service: FoodService) {
+class FoodController(private val service: FoodService) : FoodsApi {
 
-    @GetMapping fun list(auth: Authentication) = service.list(auth.name)
+    override fun listFoods(favorites: Boolean): ResponseEntity<List<FoodDto>> =
+        ResponseEntity.ok(service.list(currentUid(), favoritesOnly = favorites))
 
-    @GetMapping("/search")
-    fun search(
-        @RequestParam(defaultValue = "") q: String,
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "30") size: Int,
-        auth: Authentication
-    ) = service.search(q, auth.name, PageRequest.of(page, size.coerceIn(1, 100), Sort.by("name")))
+    override fun searchFoods(q: String, page: Int, size: Int): ResponseEntity<FoodPage> {
+        val p = service.search(q, currentUid(), PageRequest.of(page, size.coerceIn(1, 100), Sort.by("name")))
+        return ResponseEntity.ok(FoodPage(
+            content       = p.content,
+            totalElements = p.totalElements,
+            totalPages    = p.totalPages,
+            number        = p.number,
+            propertySize  = p.size
+        ))
+    }
 
-    @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id, auth.name)
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody dto: FoodDto, auth: Authentication) = service.create(dto, auth.name)
-    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+    override fun getFood(id: Long): ResponseEntity<FoodDto> =
+        ResponseEntity.ok(service.get(id, currentUid()))
 
-    @PatchMapping("/{id}/favorite")
-    fun toggleFavorite(@PathVariable id: Long, auth: Authentication) =
-        service.toggleFavorite(id, auth.name)
+    override fun createFood(foodDto: FoodDto): ResponseEntity<FoodDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.create(foodDto, currentUid()))
+
+    override fun updateFood(id: Long, foodDto: FoodDto): ResponseEntity<FoodDto> =
+        ResponseEntity.ok(service.update(id, foodDto, currentUid()))
+
+    override fun deleteFood(id: Long): ResponseEntity<Unit> {
+        service.delete(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    override fun toggleFoodFavorite(id: Long): ResponseEntity<FoodDto> =
+        ResponseEntity.ok(service.toggleFavorite(id, currentUid()))
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

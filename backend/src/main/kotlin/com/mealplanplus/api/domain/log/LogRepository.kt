@@ -2,6 +2,7 @@ package com.mealplanplus.api.domain.log
 
 import org.springframework.data.jpa.repository.JpaRepository
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 interface DailyLogRepository : JpaRepository<DailyLog, Long> {
@@ -21,4 +22,12 @@ interface LoggedFoodRepository : JpaRepository<LoggedFood, Long> {
     fun findByDailyLogId(dailyLogId: Long): List<LoggedFood>
     fun findByDailyLogIdIn(dailyLogIds: Collection<Long>): List<LoggedFood>
     fun deleteByDailyLogId(dailyLogId: Long)
+}
+
+interface LoggedMealSlotRepository : JpaRepository<LoggedMealSlot, Long> {
+    fun findByFirebaseUidAndDate(firebaseUid: String, date: LocalDate): List<LoggedMealSlot>
+    fun findByFirebaseUidAndDateAndSlot(firebaseUid: String, date: LocalDate, slot: String): LoggedMealSlot?
+    fun findByFirebaseUidAndDateBetween(firebaseUid: String, from: LocalDate, to: LocalDate): List<LoggedMealSlot>
+    fun findByFirebaseUidAndDateGreaterThanEqual(firebaseUid: String, date: LocalDate): List<LoggedMealSlot>
+    fun existsByFirebaseUidAndDateAndIsLoggedTrue(firebaseUid: String, date: LocalDate): Boolean
 }
