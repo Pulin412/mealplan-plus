@@ -73,7 +73,7 @@ tasks.register<JavaExec>("openApiGenerate") {
     args = listOf(
         "generate",
         "-g", "kotlin-spring",
-        "-i", "${rootProject.projectDir}/docs/openapi.yaml",
+        "-i", "${rootProject.projectDir}/../docs/openapi.yaml",
         "-o", openApiGenerateDir.get().asFile.absolutePath,
         "--api-package",   "com.mealplanplus.api.generated.api",
         "--model-package", "com.mealplanplus.api.generated.model",
@@ -87,7 +87,7 @@ tasks.register<JavaExec>("openApiGenerate") {
         "--skip-validate-spec",
     )
     outputs.dir(openApiGenerateDir)
-    inputs.file("${rootProject.projectDir}/docs/openapi.yaml")
+    inputs.file("${rootProject.projectDir}/../docs/openapi.yaml")
 }
 
 sourceSets {
