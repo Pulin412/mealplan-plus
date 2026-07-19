@@ -1,3 +1,17 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+
 export default function RootPage() {
-  return null; // will redirect to /today once auth + routing are wired up
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    router.replace(user ? "/foods" : "/login");
+  }, [user, loading, router]);
+
+  return null;
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useFoods } from "@/hooks/useFoods";
 import { BottomSheet, SheetField } from "@/components/ui/BottomSheet";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import type { FoodDto } from "@/lib/api/foods";
 import type { FoodSort } from "@/types/food";
 
@@ -288,7 +289,7 @@ function SortDropdown({ current, open, onToggle, onPick }: {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function FoodsPage() {
+function FoodsPageInner() {
   const router = useRouter();
   const {
     foods, totalCount, favCount, loading, error,
@@ -416,5 +417,13 @@ export default function FoodsPage() {
         onAdd={addOnlineFood} onClose={closeSheet} />
       <BarcodeSheet open={activeSheet === "barcode"} onClose={closeSheet} />
     </div>
+  );
+}
+
+export default function FoodsPage() {
+  return (
+    <AuthGuard>
+      <FoodsPageInner />
+    </AuthGuard>
   );
 }
