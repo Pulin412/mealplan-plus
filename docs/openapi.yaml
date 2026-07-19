@@ -2828,6 +2828,12 @@ components:
           items:
             $ref: '#/components/schemas/LoggedMealSlotDto'
           default: []
+        tombstones:
+          type: array
+          description: Local deletions to propagate — server deletes each matching `(entityType, serverId)`.
+          items:
+            $ref: '#/components/schemas/TombstoneDto'
+          default: []
 
     SyncPushResponse:
       type: object

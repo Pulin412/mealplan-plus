@@ -110,6 +110,15 @@ class FoodService(
         tombstones.record(firebaseUid, "food", food.serverId)
     }
 
+    /** Sync-push delete: remove by stable serverId and record a tombstone. No-op if absent/foreign. */
+    @Transactional
+    fun deleteByServerId(serverId: UUID, firebaseUid: String) {
+        val food = repo.findByServerId(serverId) ?: return
+        if (food.firebaseUid != firebaseUid) return
+        repo.delete(food)
+        tombstones.record(firebaseUid, "food", food.serverId)
+    }
+
     @Transactional
     fun toggleFavorite(id: Long, firebaseUid: String): FoodDto {
         val food = repo.findById(id).orElseThrow()

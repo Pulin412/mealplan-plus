@@ -45,6 +45,15 @@ class SyncController(
         val savedGroceries = (syncPushRequest.groceryLists ?: emptyList()).map { groceryService.upsert(it, uid) }
         val savedPlans     = (syncPushRequest.dayPlans ?: emptyList()).map { dayPlanService.upsert(uid, it.date, it) }
         val savedSlots     = (syncPushRequest.loggedMealSlots ?: emptyList()).map { loggingService.upsertSlot(uid, it) }
+
+        // Local deletions: remove each entity by serverId and record a server tombstone.
+        (syncPushRequest.tombstones ?: emptyList()).forEach { t ->
+            when (t.entityType) {
+                "food" -> foodService.deleteByServerId(t.serverId, uid)
+                // other entity types wired in as their screens adopt sync
+            }
+        }
+
         val accepted = savedFoods.size + savedLogs.size + savedExercises.size +
             savedSessions.size + savedMeals.size + savedDiets.size +
             savedMetrics.size + savedGroceries.size + savedPlans.size + savedSlots.size
