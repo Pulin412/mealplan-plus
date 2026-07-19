@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { listFoods, createFood, deleteFood, toggleFavorite, searchFoodsOnline } from "@/lib/api/foods";
-import type { FoodDto, FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
+import { listFoods, createFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
+import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
 
 const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "" };
 
@@ -70,6 +70,7 @@ export function useFoods() {
   }, []);
 
   const handleToggleFav = useCallback(async (food: FoodDto) => {
+    if (food.id == null) return;
     setFoods((prev) => prev.map((f) => f.id === food.id ? { ...f, isFavorite: !f.isFavorite } : f));
     try {
       const updated = await toggleFavorite(food.id);
@@ -80,6 +81,7 @@ export function useFoods() {
   }, []);
 
   const handleDelete = useCallback(async (food: FoodDto) => {
+    if (food.id == null) return;
     setFoods((prev) => prev.filter((f) => f.id !== food.id));
     try {
       await deleteFood(food.id);

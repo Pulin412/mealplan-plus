@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useFoods } from "@/hooks/useFoods";
 import { BottomSheet, SheetField } from "@/components/ui/BottomSheet";
-import type { FoodDto, FoodSort } from "@/types/food";
+import type { FoodDto } from "@/lib/api/foods";
+import type { FoodSort } from "@/types/food";
 
 // ─── token shortcuts ─────────────────────────────────────────────────────────
 const C = {
@@ -378,8 +379,8 @@ export default function FoodsPage() {
 
         {!showFavEmpty && viewMode === "list" && foods.map((f) => (
           <FoodListCard key={f.id} food={f}
-            expanded={expandedIds.has(f.id)}
-            onToggleExpand={() => toggleExpand(f.id)}
+            expanded={expandedIds.has(f.id!)}
+            onToggleExpand={() => toggleExpand(f.id!)}
             onToggleFav={(e) => { e.stopPropagation(); void handleToggleFav(f); }}
             onDelete={(e) => { e.stopPropagation(); void handleDelete(f); }} />
         ))}
@@ -389,9 +390,9 @@ export default function FoodsPage() {
             style={{ background: C.surface, border: `1px solid ${C.border}` }}>
             {foods.map((f, i) => (
               <FoodCompactRow key={f.id} food={f}
-                expanded={expandedIds.has(f.id)}
+                expanded={expandedIds.has(f.id!)}
                 isLast={i === foods.length - 1}
-                onToggleExpand={() => toggleExpand(f.id)}
+                onToggleExpand={() => toggleExpand(f.id!)}
                 onToggleFav={(e) => { e.stopPropagation(); void handleToggleFav(f); }}
                 onDelete={(e) => { e.stopPropagation(); void handleDelete(f); }} />
             ))}

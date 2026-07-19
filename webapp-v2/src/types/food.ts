@@ -1,30 +1,6 @@
-export interface FoodDto {
-  id: number;
-  serverId: string | null;
-  firebaseUid: string;
-  name: string;
-  brand: string | null;
-  barcode: string | null;
-  caloriesPer100: number;
-  proteinPer100: number;
-  carbsPer100: number;
-  fatPer100: number;
-  gramsPerPiece: number | null;
-  gramsPerCup: number | null;
-  gramsPerTbsp: number | null;
-  gramsPerTsp: number | null;
-  glycemicIndex: number | null;
-  isFavorite: boolean;
-  verified: boolean;
-  updatedAt: string | null;
-}
-
-export interface FoodPage {
-  content: FoodDto[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-}
+// FoodDto / FoodPage are NOT declared here — they are generated from the API spec.
+// Import them from "@/lib/api/foods" (which re-exports the generated types).
+// Only UI-only types live in this file.
 
 export type FoodSort = "recent" | "name" | "calories" | "protein";
 export type FoodViewMode = "list" | "compact";

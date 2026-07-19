@@ -1,5 +1,11 @@
 import { apiFetch } from "./client";
-import type { FoodDto, FoodPage, ManualFoodForm } from "@/types/food";
+import type { components } from "@/lib/api/types.generated";
+import type { ManualFoodForm } from "@/types/food";
+
+// DTOs come from the generated spec types — never hand-written. Re-exported here
+// so screens/hooks import them from the API layer.
+export type FoodDto = components["schemas"]["FoodDto"];
+export type FoodPage = components["schemas"]["FoodPage"];
 
 export async function listFoods(favoritesOnly = false): Promise<FoodDto[]> {
   return apiFetch<FoodDto[]>(`/api/v1/foods?favorites=${favoritesOnly}`);
