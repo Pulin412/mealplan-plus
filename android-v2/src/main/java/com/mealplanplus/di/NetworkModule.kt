@@ -2,6 +2,7 @@ package com.mealplanplus.di
 
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.BuildConfig
+import com.mealplanplus.data.remote.apiGson
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -41,7 +42,7 @@ object NetworkModule {
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(apiGson()))
             .build()
 
     @Provides @Singleton
