@@ -273,3 +273,50 @@ SyncWorker (bg, event-triggered, all entities):
     push DIRTY ↑  +  pull since-cursor ↓  →  LWW + upsert-by-UUID (no dupes)
 Neon = hub → PWA reads it live and sees everything
 ```
+
+---
+
+# Design system & component library
+
+> Source of truth: **`design_v2/`** — `MealPlan+ Build Spec` (§3 tokens + component
+> vocabulary, data model, screens) and `MealPlan Home` (the interactive prototype = the
+> look & interaction spec). When they disagree: prototype wins on visuals, spec wins on data.
+
+## The rule
+> **Screens compose from a per-platform component library; they do not hand-roll styling.
+> The shared contract across platforms is the *token set* (§3 values), not code — Compose
+> and React each implement it once.**
+
+Clients can't share code (Kotlin vs TS), so there are two libraries implementing one design:
+
+| | Android (Compose) | Webapp (React) |
+|---|---|---|
+| Tokens | `ui/theme/` (`Color.kt`, `Type.kt`) | `globals.css` vars + a tokens module |
+| Components | `ui/components/` | `src/components/ui/` |
+
+## Tokens (`ui/theme/Color.kt`) — from Build Spec §3
+Core (teal/ink/bg/success/danger), the **muted ramp** (`#5b666e → #8a949b → #9aa4aa →
+#a2abb1`), the **border/surface ramp** (`#eaeef0 … #f2f4f5`), **macro colours** (P/C/F),
+and the **favourite gold** (`oklch(0.72 0.13 75)`). DM Mono for all numerals/data
+(`tabular-nums`).
+
+## Component library (`ui/components/`) — extracted from Foods, first consumer
+- `MacroText` — `P12 · C21 · F21` (terse, DM Mono, no units — spec format)
+- `CalorieValue` — SemiBold number + small `kcal`
+- `FavoriteStar` — **gold** when active, `#c4ccd1` when empty
+- `VerifiedBadge` — `✓ Verified` / `Custom`
+- `AppCard` — white, 1px border, 12dp radius
+- `SegmentedControl` — grey track, white active pill (list/compact, and reusable)
+
+Meals/Diets/Home ("same shell" per the spec) compose from these instead of duplicating.
+
+## Non-negotiable design rules (spec §9 / §13 — WCAG 2.1 AA)
+- **≥44px tap targets** on all icon buttons/steppers (a launch blocker, not polish).
+- Body text ≥12px; `tabular-nums` globally; labels on icon buttons for TalkBack.
+- Every screen implements empty / loading / error / offline states — not just the happy path.
+
+## Open decision (logged)
+- **Macros: per-100g vs per-serving.** The design models `Food` macros **per serving** with a
+  free-text `serving` label ("170 g"); our backend/openapi store **per 100g**. We kept
+  per-100g for now (UI shows a subtle "per 100g"); revisit before Meals/Diets, since Meals
+  sum food servings.
