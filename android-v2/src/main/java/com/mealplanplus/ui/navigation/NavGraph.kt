@@ -12,14 +12,19 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.mealplanplus.ui.screens.auth.AuthViewModel
+import com.mealplanplus.ui.screens.auth.LoginScreen
+import com.mealplanplus.ui.screens.auth.RegisterScreen
 import com.mealplanplus.ui.screens.exercises.ExercisesScreen
 import com.mealplanplus.ui.screens.foods.FoodsScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
@@ -40,6 +45,26 @@ private val bottomNavItems = listOf(
     Screen.Exercises to Icons.Default.FitnessCenter,
     Screen.Health    to Icons.Default.MonitorHeart,
 )
+
+/**
+ * Top-level gate: unauthenticated users see the auth flow; signed-in users get the app.
+ * The switch is automatic — [AuthViewModel.authState] flips on sign-in/out.
+ */
+@Composable
+fun AppRoot() {
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val user by authViewModel.authState.collectAsState()
+    if (user == null) AuthNavHost(authViewModel) else MealPlanNavHost()
+}
+
+@Composable
+private fun AuthNavHost(vm: AuthViewModel) {
+    val nav = rememberNavController()
+    NavHost(navController = nav, startDestination = "login") {
+        composable("login")    { LoginScreen(vm, onNavigateRegister = { nav.navigate("register") }) }
+        composable("register") { RegisterScreen(vm, onNavigateLogin = { nav.popBackStack() }) }
+    }
+}
 
 @Composable
 fun MealPlanNavHost() {
