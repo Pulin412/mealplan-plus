@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.model.Food
 import com.mealplanplus.data.repository.FoodRepository
+import com.mealplanplus.data.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,7 @@ data class FoodsUiState(
     val sortMode: FoodSort = FoodSort.RECENT,
     val viewMode: FoodViewMode = FoodViewMode.LIST,
     val favOnly: Boolean = false,
-    val expandedIds: Set<Long> = emptySet(),
+    val expandedIds: Set<String> = emptySet(),
     val activeSheet: FoodSheet? = null,
     val fanOpen: Boolean = false,
     val isLoading: Boolean = false,
@@ -67,19 +68,26 @@ data class FoodsUiState(
 @HiltViewModel
 class FoodViewModel @Inject constructor(
     private val repository: FoodRepository,
+    private val syncManager: SyncManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FoodsUiState())
     val state: StateFlow<FoodsUiState> = _state
 
     init {
+        // UI reads the local cache reactively; sync runs in the background.
         viewModelScope.launch {
             repository.getFoods().collect { foods ->
                 _state.value = _state.value.copy(foods = foods)
             }
         }
+        sync()   // pull server changes on open
+    }
+
+    /** Push local (dirty) changes and pull server changes. Fire-and-forget. */
+    private fun sync() {
         viewModelScope.launch {
-            runCatching { repository.refresh() }
+            syncManager.sync().onFailure { e -> _state.value = _state.value.copy(error = e.message) }
         }
     }
 
@@ -99,7 +107,7 @@ class FoodViewModel @Inject constructor(
         _state.value = _state.value.copy(favOnly = !_state.value.favOnly)
     }
 
-    fun toggleExpand(id: Long) {
+    fun toggleExpand(id: String) {
         val current = _state.value.expandedIds
         _state.value = _state.value.copy(
             expandedIds = if (id in current) current - id else current + id
@@ -110,13 +118,15 @@ class FoodViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repository.toggleFavorite(food) }
                 .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            sync()
         }
     }
 
     fun deleteFood(food: Food) {
         viewModelScope.launch {
-            runCatching { repository.deleteFood(food) }
+            runCatching { repository.delete(food) }
                 .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            sync()
         }
     }
 
@@ -158,18 +168,19 @@ class FoodViewModel @Inject constructor(
         if (!s.isSaveManualEnabled) return
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            val dto = FoodDto(
-                name           = s.manualName.trim(),
-                brand          = null,
-                caloriesPer100 = s.manualKcal.toDoubleOrNull() ?: 0.0,
-                proteinPer100  = s.manualProtein.toDoubleOrNull() ?: 0.0,
-                carbsPer100    = s.manualCarbs.toDoubleOrNull() ?: 0.0,
-                fatPer100      = s.manualFat.toDoubleOrNull() ?: 0.0,
-            )
-            runCatching { repository.createFood(dto) }
-                .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            runCatching {
+                repository.createManual(
+                    name           = s.manualName.trim(),
+                    caloriesPer100 = s.manualKcal.toDoubleOrNull() ?: 0.0,
+                    proteinPer100  = s.manualProtein.toDoubleOrNull() ?: 0.0,
+                    carbsPer100    = s.manualCarbs.toDoubleOrNull() ?: 0.0,
+                    fatPer100      = s.manualFat.toDoubleOrNull() ?: 0.0,
+                    servingLabel   = s.manualServing.ifBlank { null },
+                )
+            }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             _state.value = _state.value.copy(isLoading = false)
             closeSheet()
+            sync()
         }
     }
 
@@ -191,8 +202,9 @@ class FoodViewModel @Inject constructor(
 
     fun addOnlineFood(dto: FoodDto) {
         viewModelScope.launch {
-            runCatching { repository.createFood(dto) }
+            runCatching { repository.addOnline(dto) }
                 .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            sync()
         }
     }
 }

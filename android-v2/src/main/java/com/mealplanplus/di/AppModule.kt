@@ -2,8 +2,7 @@ package com.mealplanplus.di
 
 import com.mealplanplus.data.generated.api.DashboardApi
 import com.mealplanplus.data.generated.api.FoodsApi
-import com.mealplanplus.data.local.dao.FoodDao
-import com.mealplanplus.data.repository.FoodRepository
+import com.mealplanplus.data.generated.api.SyncApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,7 +24,10 @@ object AppModule {
     fun provideDashboardApi(retrofit: Retrofit): DashboardApi =
         retrofit.create(DashboardApi::class.java)
 
+    /** Delta-sync endpoints — the single network path for offline-first domain data. */
     @Provides @Singleton
-    fun provideFoodRepository(dao: FoodDao, api: FoodsApi): FoodRepository =
-        FoodRepository(dao, api)
+    fun provideSyncApi(retrofit: Retrofit): SyncApi =
+        retrofit.create(SyncApi::class.java)
+
+    // FoodRepository, SyncManager, SyncCursorStore use @Inject constructors — Hilt provides them.
 }

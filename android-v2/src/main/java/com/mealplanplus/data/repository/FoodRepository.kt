@@ -8,69 +8,67 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Local-only data source for foods. All reads and writes go to Room; the UI never waits
+ * on the network. Writes are optimistic and marked `dirty` for the [SyncManager] to push.
+ *
+ * The one exception is [searchOnline] — an explicit online-only read against the external
+ * food database (not local data), mirroring the "online-only" case in the offline-first
+ * guidance.
+ */
 @Singleton
 class FoodRepository @Inject constructor(
     private val dao: FoodDao,
     private val api: FoodsApi,
 ) {
-
     fun getFoods(): Flow<List<Food>> = dao.getAllFoods()
 
     fun searchFoods(q: String): Flow<List<Food>> = dao.searchFoods(q)
 
-    suspend fun refresh() {
-        val dtos = api.listFoods(favorites = false).body() ?: return
-        val entities = dtos.map { it.toEntity() }
-        dao.upsertAll(entities)
-    }
-
-    /** Online search — returns generated DTOs for the caller to display or save. */
-    suspend fun searchOnline(q: String): List<FoodDto> =
-        api.searchFoods(q = q, page = 0, size = 30).body()?.content ?: emptyList()
-
-    suspend fun createFood(dto: FoodDto): Food {
-        val created = api.createFood(dto).body() ?: dto
-        val entity = created.toEntity()
-        val localId = dao.upsert(entity)
-        return entity.copy(id = localId)
-    }
-
-    suspend fun deleteFood(food: Food) {
-        val remoteId = food.serverId?.toLongOrNull()
-        if (remoteId != null) {
-            runCatching { api.deleteFood(remoteId) }
-        }
-        dao.delete(food)
+    /** Create a food locally with a client-generated UUID; syncs on the next push. */
+    suspend fun createManual(
+        name: String,
+        caloriesPer100: Double,
+        proteinPer100: Double,
+        carbsPer100: Double,
+        fatPer100: Double,
+        servingLabel: String? = null,
+    ) {
+        dao.upsert(
+            Food(
+                name = name,
+                caloriesPer100 = caloriesPer100,
+                proteinPer100 = proteinPer100,
+                carbsPer100 = carbsPer100,
+                fatPer100 = fatPer100,
+                servingLabel = servingLabel,
+                dirty = true,
+            )
+        )
     }
 
     suspend fun toggleFavorite(food: Food) {
-        val newFav = !food.isFavorite
-        dao.updateFavorite(food.id, newFav)
-        val remoteId = food.serverId?.toLongOrNull()
-        if (remoteId != null) {
-            runCatching {
-                val updated = api.toggleFoodFavorite(remoteId).body()
-                dao.updateFavorite(food.id, updated?.isFavorite ?: newFav)
-            }
-        }
+        dao.upsert(
+            food.copy(
+                isFavorite = !food.isFavorite,
+                updatedAt = System.currentTimeMillis(),
+                dirty = true,
+            )
+        )
+    }
+
+    /** Soft-delete: hidden from the UI now, pushed as a tombstone, removed once synced. */
+    suspend fun delete(food: Food) {
+        val now = System.currentTimeMillis()
+        dao.upsert(food.copy(deletedAt = now, updatedAt = now, dirty = true))
+    }
+
+    // ── Online-only: external food DB search (not local data) ────────────────────
+    suspend fun searchOnline(q: String): List<FoodDto> =
+        api.searchFoods(q = q, page = 0, size = 30).body()?.content ?: emptyList()
+
+    /** Save an online search result as the user's own food (fresh identity), then sync. */
+    suspend fun addOnline(dto: FoodDto) {
+        dao.upsert(dto.toEntity(dirty = true))
     }
 }
-
-private fun FoodDto.toEntity() = Food(
-    serverId       = serverId?.toString() ?: id?.toString(),
-    name           = name,
-    brand          = brand,
-    servingLabel   = null,
-    caloriesPer100 = caloriesPer100,
-    proteinPer100  = proteinPer100,
-    carbsPer100    = carbsPer100,
-    fatPer100      = fatPer100,
-    gramsPerPiece  = gramsPerPiece,
-    gramsPerCup    = gramsPerCup,
-    gramsPerTbsp   = gramsPerTbsp,
-    gramsPerTsp    = gramsPerTsp,
-    glycemicIndex  = glycemicIndex,
-    isFavorite     = isFavorite ?: false,
-    isSystemFood   = isSystemFood ?: false,
-    verified       = verified ?: false,
-)

@@ -360,8 +360,8 @@ private val FoodSort.label: String get() = when (this) {
 @Composable
 fun FoodListView(
     foods: List<Food>,
-    expandedIds: Set<Long>,
-    onToggleExpand: (Long) -> Unit,
+    expandedIds: Set<String>,
+    onToggleExpand: (String) -> Unit,
     onToggleFav: (Food) -> Unit,
     onDelete: (Food) -> Unit,
 ) {
@@ -494,8 +494,8 @@ fun FoodListCard(
 @Composable
 fun FoodCompactView(
     foods: List<Food>,
-    expandedIds: Set<Long>,
-    onToggleExpand: (Long) -> Unit,
+    expandedIds: Set<String>,
+    onToggleExpand: (String) -> Unit,
     onToggleFav: (Food) -> Unit,
     onDelete: (Food) -> Unit,
 ) {
