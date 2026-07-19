@@ -6,9 +6,14 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.mealplanplus.R
 
-// DM Mono for numerals (spec §3) — add font file to res/font/ when available
-val DmMono = FontFamily.Default  // placeholder until font asset is added
+// DM Mono for numerals & data (spec §3). DM Mono ships Regular (400) + Medium (500);
+// heavier weights render as synthetic bold.
+val DmMono = FontFamily(
+    Font(R.font.dm_mono_regular, FontWeight.Normal),
+    Font(R.font.dm_mono_medium, FontWeight.Medium),
+)
 
 val Typography = Typography(
     headlineLarge = TextStyle(fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 32.sp),
