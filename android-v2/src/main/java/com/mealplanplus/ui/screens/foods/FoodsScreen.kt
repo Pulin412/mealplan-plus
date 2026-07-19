@@ -75,6 +75,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Food
 import com.mealplanplus.data.generated.model.FoodDto
+import com.mealplanplus.ui.components.AppCard
+import com.mealplanplus.ui.components.CalorieValue
+import com.mealplanplus.ui.components.FavoriteStar
+import com.mealplanplus.ui.components.MacroText
+import com.mealplanplus.ui.components.SegmentedControl
+import com.mealplanplus.ui.components.VerifiedBadge
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.DmMono
@@ -84,6 +90,7 @@ import com.mealplanplus.ui.theme.Teal
 
 private val Muted      = Color(0xFF9AA4AA)
 private val MutedDark  = Color(0xFF5B666E)
+private val MutedFaint = Color(0xFFA2ABB1)
 private val SearchBg   = Color(0xFFF2F4F5)
 private val VerifiedGreen = Success
 private val DeleteColor   = Color(0xFFC4CCD1)
@@ -288,7 +295,7 @@ fun FoodsToolbar(
                     .clickable(onClick = onSortClick)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
-                Text("↕ ${sortMode.label}", fontSize = 12.sp, color = Ink)
+                Text("↕ ${sortMode.label}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(14.dp))
             }
@@ -315,35 +322,24 @@ fun FoodsToolbar(
                 .clickable(onClick = onFavToggle)
                 .padding(horizontal = 10.dp, vertical = 6.dp),
         ) {
-            Icon(
-                if (favOnly) Icons.Default.Star else Icons.Default.StarBorder,
-                contentDescription = "Favourites",
-                tint     = if (favOnly) Teal else Muted,
-                modifier = Modifier.size(13.dp),
+            Text(
+                "${if (favOnly) "★" else "☆"} $favCount",
+                fontSize   = 11.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color      = if (favOnly) Teal else Ink,
             )
-            Spacer(Modifier.width(4.dp))
-            Text("$favCount", fontSize = 12.sp, color = if (favOnly) Teal else Ink)
         }
 
         Spacer(Modifier.weight(1f))
 
         // List / Compact toggle
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, BorderChip, RoundedCornerShape(8.dp))
-        ) {
-            listOf(FoodViewMode.LIST to "☰", FoodViewMode.COMPACT to "≣").forEach { (mode, icon) ->
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .background(if (viewMode == mode) SearchBg else Color.Transparent)
-                        .clickable { onViewToggle(mode) }
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                ) {
-                    Text(icon, fontSize = 14.sp, color = if (viewMode == mode) Ink else Muted)
-                }
-            }
+        val modes = listOf(FoodViewMode.LIST to "☰", FoodViewMode.COMPACT to "≣")
+        SegmentedControl(
+            optionCount = modes.size,
+            selectedIndex = modes.indexOfFirst { it.first == viewMode },
+            onSelect = { onViewToggle(modes[it].first) },
+        ) { i, selected ->
+            Text(modes[i].second, fontSize = 14.sp, color = if (selected) Color.White else Muted)
         }
     }
 }
@@ -391,14 +387,7 @@ fun FoodListCard(
 ) {
     val chevronRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "chevron")
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-    ) {
+    AppCard {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
@@ -407,35 +396,28 @@ fun FoodListCard(
                 Text(
                     food.name,
                     fontSize    = 12.5.sp,
-                    fontWeight  = FontWeight.SemiBold,
+                    fontWeight  = FontWeight.Bold,
                     color       = Ink,
                     maxLines    = 1,
                     overflow    = TextOverflow.Ellipsis,
                 )
-                val sub = listOfNotNull(food.brand, food.servingLabel ?: "per 100g").joinToString(" · ")
+                val sub = listOfNotNull(food.brand, servingLabel(food.servingLabel)).joinToString(" · ")
                 Text(sub, fontSize = 10.5.sp, color = Muted)
             }
             Spacer(Modifier.width(8.dp))
 
-            // Star
-            IconButton(onClick = onToggleFav, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    if (food.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                    contentDescription = "Favourite",
-                    tint     = if (food.isFavorite) Teal else Muted,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
+            // Star (tight inline — matches design density)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onToggleFav),
+            ) { FavoriteStar(active = food.isFavorite, size = 17.dp) }
+
+            Spacer(Modifier.width(8.dp))
 
             // Calories
-            Text(
-                "${food.caloriesPer100.toInt()}",
-                fontFamily = DmMono,
-                fontSize   = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color      = Ink,
-                modifier   = Modifier.padding(horizontal = 4.dp),
-            )
+            CalorieValue(kcal = food.caloriesPer100.toInt())
+
+            Spacer(Modifier.width(10.dp))
 
             // Expand
             Box(
@@ -456,12 +438,13 @@ fun FoodListCard(
                 )
             }
 
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
 
             // Delete
-            IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Close, contentDescription = "Delete", tint = DeleteColor, modifier = Modifier.size(14.dp))
-            }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onDelete),
+            ) { Icon(Icons.Default.Close, contentDescription = "Delete", tint = DeleteColor, modifier = Modifier.size(15.dp)) }
         }
 
         AnimatedVisibility(
@@ -475,13 +458,9 @@ fun FoodListCard(
                     .fillMaxWidth()
                     .padding(top = 7.dp),
             ) {
-                Text(
-                    "P: ${food.proteinPer100.fmt()}g  C: ${food.carbsPer100.fmt()}g  F: ${food.fatPer100.fmt()}g  (per 100g)",
-                    fontFamily = DmMono,
-                    fontSize   = 10.5.sp,
-                    color      = MutedDark,
-                    modifier   = Modifier.weight(1f),
-                )
+                Box(Modifier.weight(1f)) {
+                    MacroText(food.proteinPer100, food.carbsPer100, food.fatPer100, fontSize = 10.5.sp)
+                }
                 Spacer(Modifier.width(8.dp))
                 VerifiedBadge(food.verified)
             }
@@ -550,24 +529,19 @@ fun FoodCompactRow(
                 Text(
                     food.name,
                     fontSize    = 12.sp,
-                    fontWeight  = FontWeight.SemiBold,
+                    fontWeight  = FontWeight.Bold,
                     color       = Ink,
                     maxLines    = 1,
                     overflow    = TextOverflow.Ellipsis,
                 )
-                val sub = listOfNotNull(food.brand, food.servingLabel ?: "per 100g").joinToString(" · ")
+                val sub = listOfNotNull(food.brand, servingLabel(food.servingLabel)).joinToString(" · ")
                 Text(sub, fontSize = 9.5.sp, color = Color(0xFFA2ABB1))
             }
             Spacer(Modifier.width(6.dp))
 
             // Star
             IconButton(onClick = onToggleFav, modifier = Modifier.size(22.dp)) {
-                Icon(
-                    if (food.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                    contentDescription = "Favourite",
-                    tint     = if (food.isFavorite) Teal else Muted,
-                    modifier = Modifier.size(13.dp),
-                )
+                FavoriteStar(active = food.isFavorite, size = 13.dp)
             }
 
             Spacer(Modifier.width(4.dp))
@@ -622,13 +596,9 @@ fun FoodCompactRow(
                     .fillMaxWidth()
                     .padding(top = 5.dp),
             ) {
-                Text(
-                    "P: ${food.proteinPer100.fmt()}g  C: ${food.carbsPer100.fmt()}g  F: ${food.fatPer100.fmt()}g",
-                    fontFamily = DmMono,
-                    fontSize   = 10.sp,
-                    color      = MutedDark,
-                    modifier   = Modifier.weight(1f),
-                )
+                Box(Modifier.weight(1f)) {
+                    MacroText(food.proteinPer100, food.carbsPer100, food.fatPer100, fontSize = 10.sp)
+                }
                 Spacer(Modifier.width(8.dp))
                 VerifiedBadge(food.verified)
                 Spacer(Modifier.width(8.dp))
@@ -645,28 +615,16 @@ fun FoodCompactRow(
 
 // ── Shared ─────────────────────────────────────────────────────────────────
 
-@Composable
-private fun VerifiedBadge(verified: Boolean) {
-    if (verified) {
-        Text(
-            "✓ Verified",
-            fontSize   = 9.sp,
-            fontWeight = FontWeight.Bold,
-            color      = VerifiedGreen,
-        )
-    } else {
-        Text(
-            "Custom",
-            fontSize   = 9.sp,
-            fontWeight = FontWeight.Bold,
-            color      = Muted,
-        )
-    }
-}
-
 private fun Double.fmt(): String {
     return if (this == kotlin.math.floor(this)) this.toInt().toString()
     else "%.1f".format(this)
+}
+
+/** Serving shown under the food name: bare numbers get a "gm" unit; blank falls back to the per-100g basis. */
+private fun servingLabel(raw: String?): String = when {
+    raw.isNullOrBlank()          -> "100gm"
+    raw.toDoubleOrNull() != null -> "${raw}gm"
+    else                         -> raw
 }
 
 // ── Empty favourites state ──────────────────────────────────────────────────
@@ -951,15 +909,10 @@ private fun OnlineResultRow(dto: FoodDto, onAdd: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 9.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(dto.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(dto.name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val sub = listOfNotNull(dto.brand, "per 100g", "${dto.caloriesPer100.toInt()} kcal").joinToString(" · ")
             Text(sub, fontSize = 10.sp, color = Muted)
-            Text(
-                "P: ${dto.proteinPer100.fmt()}g  C: ${dto.carbsPer100.fmt()}g  F: ${dto.fatPer100.fmt()}g",
-                fontFamily = DmMono,
-                fontSize   = 10.sp,
-                color      = MutedDark,
-            )
+            MacroText(dto.proteinPer100, dto.carbsPer100, dto.fatPer100, fontSize = 10.sp)
         }
         Spacer(Modifier.width(8.dp))
         Box(
