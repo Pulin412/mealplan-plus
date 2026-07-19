@@ -31,6 +31,10 @@ android {
             applicationIdSuffix = ".dev"
             isMinifyEnabled = false
             isShrinkResources = false
+            // Debug builds hit the local v2 backend. 10.0.2.2 is the emulator's alias
+            // for the host machine's localhost. Cleartext for this host is allowed via
+            // the debug-only network security config (src/debug/res/xml).
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080\"")
         }
         release {
             isMinifyEnabled = true
