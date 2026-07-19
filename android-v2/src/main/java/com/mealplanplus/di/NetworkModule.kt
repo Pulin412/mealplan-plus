@@ -1,5 +1,6 @@
 package com.mealplanplus.di
 
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.BuildConfig
 import com.mealplanplus.data.remote.apiGson
@@ -21,8 +22,11 @@ object NetworkModule {
     fun provideOkHttpClient(auth: FirebaseAuth): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor { chain ->
+                // Await the token — `.result` throws when the Task isn't already resolved
+                // (e.g. sync firing on app start), which silently dropped the auth header.
+                // Blocking is fine here: interceptors run on OkHttp's background threads.
                 val token = runCatching {
-                    auth.currentUser?.getIdToken(false)?.result?.token
+                    auth.currentUser?.let { Tasks.await(it.getIdToken(false)) }?.token
                 }.getOrNull()
                 val request = if (token != null)
                     chain.request().newBuilder()
