@@ -28,6 +28,7 @@ import com.mealplanplus.ui.screens.auth.RegisterScreen
 import com.mealplanplus.ui.screens.exercises.ExercisesScreen
 import com.mealplanplus.ui.screens.foods.FoodsScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
+import com.mealplanplus.ui.screens.meals.MealsScreen
 import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
 
@@ -37,6 +38,7 @@ sealed class Screen(val route: String, val label: String) {
     object Exercises : Screen("exercises", "Exercises")
     object Health    : Screen("health",    "Health")
     object Foods     : Screen("foods",     "Foods")
+    object Meals     : Screen("meals",     "Meals")
 }
 
 private val bottomNavItems = listOf(
@@ -100,15 +102,19 @@ fun MealPlanNavHost() {
     ) { innerPadding ->
         NavHost(
             navController    = navController,
-            startDestination = Screen.Foods.route,
+            // TEMP (no bottom nav yet): launch on Meals; back arrows toggle Foods <-> Meals.
+            startDestination = Screen.Meals.route,
             modifier         = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Today.route)     { HomeScreen() }
             composable(Screen.Plan.route)      { PlanScreen() }
             composable(Screen.Exercises.route) { ExercisesScreen() }
             composable(Screen.Health.route)    { HealthScreen() }
+            composable(Screen.Meals.route)     {
+                MealsScreen(onBack = { navController.navigate(Screen.Foods.route) })
+            }
             composable(Screen.Foods.route)     {
-                FoodsScreen(onBack = { navController.popBackStack() })
+                FoodsScreen(onBack = { navController.navigate(Screen.Meals.route) })
             }
         }
     }

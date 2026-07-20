@@ -25,7 +25,7 @@ class FoodRepository @Inject constructor(
 
     fun searchFoods(q: String): Flow<List<Food>> = dao.searchFoods(q)
 
-    /** Create a food locally with a client-generated UUID; syncs on the next push. */
+    /** Create a food locally with a client-generated UUID; returns its id. Syncs on next push. */
     suspend fun createManual(
         name: String,
         caloriesPer100: Double,
@@ -33,18 +33,18 @@ class FoodRepository @Inject constructor(
         carbsPer100: Double,
         fatPer100: Double,
         servingLabel: String? = null,
-    ) {
-        dao.upsert(
-            Food(
-                name = name,
-                caloriesPer100 = caloriesPer100,
-                proteinPer100 = proteinPer100,
-                carbsPer100 = carbsPer100,
-                fatPer100 = fatPer100,
-                servingLabel = servingLabel,
-                dirty = true,
-            )
+    ): String {
+        val food = Food(
+            name = name,
+            caloriesPer100 = caloriesPer100,
+            proteinPer100 = proteinPer100,
+            carbsPer100 = carbsPer100,
+            fatPer100 = fatPer100,
+            servingLabel = servingLabel,
+            dirty = true,
         )
+        dao.upsert(food)
+        return food.id
     }
 
     suspend fun toggleFavorite(food: Food) {
@@ -67,8 +67,10 @@ class FoodRepository @Inject constructor(
     suspend fun searchOnline(q: String): List<FoodDto> =
         api.searchFoods(q = q, page = 0, size = 30).body()?.content ?: emptyList()
 
-    /** Save an online search result as the user's own food (fresh identity), then sync. */
-    suspend fun addOnline(dto: FoodDto) {
-        dao.upsert(dto.toEntity(dirty = true))
+    /** Save an online search result as the user's own food (fresh identity); returns its id. */
+    suspend fun addOnline(dto: FoodDto): String {
+        val food = dto.toEntity(dirty = true)
+        dao.upsert(food)
+        return food.id
     }
 }
