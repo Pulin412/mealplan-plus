@@ -64,24 +64,64 @@ data class MealItemUi(
     val meta: String,
 )
 
+/**
+ * Grams for [quantity] of a food measured in [unit]. GRAM/ML are taken as-is (density ≈ 1);
+ * count-based units multiply by the food's matching gramsPer* factor (fallback 1.0).
+ */
+fun Food?.gramsFor(quantity: Double, unit: String): Double = when (unit) {
+    "PIECE" -> quantity * (this?.gramsPerPiece ?: 1.0)
+    "CUP"   -> quantity * (this?.gramsPerCup ?: 1.0)
+    "TBSP"  -> quantity * (this?.gramsPerTbsp ?: 1.0)
+    "TSP"   -> quantity * (this?.gramsPerTsp ?: 1.0)
+    else    -> quantity   // GRAM, ML
+}
+
+/** Short display label for a unit, e.g. GRAM -> "g", PIECE -> "pcs". */
+fun unitLabel(unit: String): String = when (unit) {
+    "ML"    -> "ml"
+    "PIECE" -> "pcs"
+    "CUP"   -> "cup"
+    "TBSP"  -> "tbsp"
+    "TSP"   -> "tsp"
+    else    -> "g"
+}
+
+/** Selectable food units, in display order. */
+val FOOD_UNITS = listOf("GRAM", "ML", "PIECE", "CUP", "TBSP", "TSP")
+
+/** Count-based units need a grams-per-unit factor to compute calories; GRAM/ML don't. */
+fun isCountUnit(unit: String): Boolean = unit in setOf("PIECE", "CUP", "TBSP", "TSP")
+
+/** Sensible default quantity when a food is first added to a meal, per unit. */
+fun defaultQtyFor(unit: String): Double = if (isCountUnit(unit)) 1.0 else 100.0
+
+/** Grams that one unit of this food weighs (for the totals math); 1.0 for GRAM/ML. */
+fun Food.gramsPerUnit(): Double = when (unit) {
+    "PIECE" -> gramsPerPiece ?: 1.0
+    "CUP"   -> gramsPerCup ?: 1.0
+    "TBSP"  -> gramsPerTbsp ?: 1.0
+    "TSP"   -> gramsPerTsp ?: 1.0
+    else    -> 1.0
+}
+
 /** Resolve a meal's item foodIds against the local food cache and compute totals. */
 fun Meal.resolve(foodsById: Map<String, Food>): MealUi {
     val resolved = items.map { item ->
         val food = foodsById[item.foodServerId]
-        val grams = item.quantity           // New Meal enters grams (unit = GRAM)
+        val grams = food.gramsFor(item.quantity, item.unit)
         val factor = grams / 100.0
         val kcal = ((food?.caloriesPer100 ?: 0.0) * factor).roundToInt()
         MealItemUi(
             name  = food?.name ?: "Unknown food",
             grams = grams,
             kcal  = kcal,
-            meta  = "${grams.trimNum()}g · $kcal kcal",
+            meta  = "${item.quantity.trimNum()} ${unitLabel(item.unit)} · $kcal kcal",
         )
     }
     var kcal = 0.0; var p = 0.0; var c = 0.0; var f = 0.0
     items.forEach { item ->
         val food = foodsById[item.foodServerId] ?: return@forEach
-        val factor = item.quantity / 100.0
+        val factor = food.gramsFor(item.quantity, item.unit) / 100.0
         kcal += food.caloriesPer100 * factor
         p += food.proteinPer100 * factor
         c += food.carbsPer100 * factor

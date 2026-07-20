@@ -10,7 +10,7 @@ import com.mealplanplus.data.model.Meal
 
 @Database(
     entities  = [Food::class, Meal::class],
-    version   = 5,
+    version   = 6,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

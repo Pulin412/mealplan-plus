@@ -752,6 +752,36 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
             value       = state.manualName,
             onValueChange = viewModel::setManualName,
         )
+        Spacer(Modifier.height(12.dp))
+
+        Text("Measured in", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF5A6B72))
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            com.mealplanplus.data.repository.FOOD_UNITS.forEach { u ->
+                val on = u == state.manualUnit
+                Text(
+                    com.mealplanplus.data.repository.unitLabel(u),
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (on) Color.White else Color(0xFF5A6B72),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (on) Teal else Color.Transparent)
+                        .border(1.5.dp, if (on) Teal else Color(0xFFCDD8DB), RoundedCornerShape(20.dp))
+                        .clickable { viewModel.setManualUnit(u) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
+        if (com.mealplanplus.data.repository.isCountUnit(state.manualUnit)) {
+            Spacer(Modifier.height(10.dp))
+            SheetTextField(
+                label       = "Grams per ${com.mealplanplus.data.repository.unitLabel(state.manualUnit)}",
+                placeholder = "e.g. 50",
+                value       = state.manualGramsPerUnit,
+                onValueChange = viewModel::setManualGramsPerUnit,
+                keyboardType  = KeyboardType.Number,
+            )
+        }
         Spacer(Modifier.height(10.dp))
         SheetTextField(
             label       = "Serving size",

@@ -24,6 +24,8 @@ data class Food(
     val proteinPer100: Double,
     val carbsPer100: Double,
     val fatPer100: Double,
+    /** The food's natural measurement unit (GRAM/ML/PIECE/CUP/TBSP/TSP). Stored as the enum name. */
+    val unit: String = "GRAM",
     val gramsPerPiece: Double? = null,
     val gramsPerCup: Double? = null,
     val gramsPerTbsp: Double? = null,

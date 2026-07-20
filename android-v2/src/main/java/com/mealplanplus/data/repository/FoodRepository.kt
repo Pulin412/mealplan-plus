@@ -25,7 +25,14 @@ class FoodRepository @Inject constructor(
 
     fun searchFoods(q: String): Flow<List<Food>> = dao.searchFoods(q)
 
-    /** Create a food locally with a client-generated UUID; returns its id. Syncs on next push. */
+    /**
+     * Create a food locally with a client-generated UUID; returns its id. Syncs on next push.
+     *
+     * [unit] is the food's natural measurement unit (GRAM/ML/PIECE/CUP/TBSP/TSP). For the
+     * count-based units, [gramsPerUnit] is how many grams one unit weighs (e.g. 1 egg = 50 g);
+     * it's routed into the matching gramsPer* column so calories can be computed. Ignored for
+     * GRAM/ML (quantity is already grams/ml ≈ grams).
+     */
     suspend fun createManual(
         name: String,
         caloriesPer100: Double,
@@ -33,6 +40,8 @@ class FoodRepository @Inject constructor(
         carbsPer100: Double,
         fatPer100: Double,
         servingLabel: String? = null,
+        unit: String = "GRAM",
+        gramsPerUnit: Double? = null,
     ): String {
         val food = Food(
             name = name,
@@ -41,6 +50,11 @@ class FoodRepository @Inject constructor(
             carbsPer100 = carbsPer100,
             fatPer100 = fatPer100,
             servingLabel = servingLabel,
+            unit = unit,
+            gramsPerPiece = if (unit == "PIECE") gramsPerUnit else null,
+            gramsPerCup   = if (unit == "CUP")   gramsPerUnit else null,
+            gramsPerTbsp  = if (unit == "TBSP")  gramsPerUnit else null,
+            gramsPerTsp   = if (unit == "TSP")   gramsPerUnit else null,
             dirty = true,
         )
         dao.upsert(food)

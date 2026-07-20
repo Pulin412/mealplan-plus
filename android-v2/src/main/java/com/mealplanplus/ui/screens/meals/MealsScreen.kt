@@ -66,8 +66,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.model.Food
 import com.mealplanplus.data.model.MealItem
+import com.mealplanplus.data.repository.FOOD_UNITS
 import com.mealplanplus.data.repository.MealItemUi
 import com.mealplanplus.data.repository.MealUi
+import com.mealplanplus.data.repository.defaultQtyFor
+import com.mealplanplus.data.repository.gramsPerUnit
+import com.mealplanplus.data.repository.isCountUnit
+import com.mealplanplus.data.repository.unitLabel
 import com.mealplanplus.ui.components.AppCard
 import com.mealplanplus.ui.components.CalorieValue
 import com.mealplanplus.ui.components.FavoriteStar
@@ -425,8 +430,13 @@ private data class BuildItem(
     val proteinPer100: Double,
     val carbsPer100: Double,
     val fatPer100: Double,
-    val grams: Int,
-)
+    val unit: String,
+    val gramsPerUnit: Double,   // grams one [unit] weighs; 1.0 for GRAM/ML
+    val quantity: Double,       // in [unit]
+) {
+    /** Grams this item contributes, for the per-100g macro math. */
+    val grams: Double get() = quantity * gramsPerUnit
+}
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -444,15 +454,12 @@ private fun NewMealSheet(viewModel: MealViewModel) {
     val c = items.sumOf { it.carbsPer100 * it.grams / 100.0 }
     val f = items.sumOf { it.fatPer100 * it.grams / 100.0 }
 
-    fun addOrBump(bi: BuildItem) {
-        val idx = items.indexOfFirst { it.foodId == bi.foodId }
-        if (idx >= 0) items[idx] = items[idx].copy(grams = items[idx].grams + 10) else items.add(bi)
+    fun addItem(bi: BuildItem) {
+        if (items.none { it.foodId == bi.foodId }) items.add(bi)
     }
-    fun bump(foodId: String, delta: Int) {
+    fun setQty(foodId: String, q: Double) {
         val idx = items.indexOfFirst { it.foodId == foodId }
-        if (idx < 0) return
-        val g = items[idx].grams + delta
-        if (g <= 0) items.removeAt(idx) else items[idx] = items[idx].copy(grams = g)
+        if (idx >= 0) items[idx] = items[idx].copy(quantity = q)
     }
 
     Column(Modifier.fillMaxSize().background(AppBg)) {
@@ -502,9 +509,9 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                             modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
                             Column(Modifier.weight(1f)) {
                                 Text(bi.name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                                Text("${bi.grams}g · $kcal kcal", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
+                                Text("$kcal kcal", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
                             }
-                            Stepper(bi.grams, onDec = { bump(bi.foodId, -10) }, onInc = { bump(bi.foodId, +10) })
+                            QtyField(bi.foodId, bi.quantity, bi.unit) { setQty(bi.foodId, it) }
                             Spacer(Modifier.width(8.dp))
                             Text("✕", fontSize = 13.sp, color = DeleteColor,
                                 modifier = Modifier.clickable { items.removeAll { it.foodId == bi.foodId } })
@@ -529,7 +536,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                 .clip(RoundedCornerShape(12.dp)).background(if (canSave) Teal else BorderCool)
                 .clickable(enabled = canSave) {
                     viewModel.createMeal(name.trim(), slots.toList(),
-                        items.map { MealItem(foodServerId = it.foodId, quantity = it.grams.toDouble(), unit = "GRAM") })
+                        items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) })
                 }.padding(vertical = 14.dp)) {
                 Text("Save meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) Color.White else MutedLight)
             }
@@ -540,18 +547,19 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                 foods = state.foods,
                 items = items,
                 onModeChange = { addMode = it },
-                onAdd = ::addOrBump,
-                onBump = ::bump,
+                onAdd = ::addItem,
+                onQty = ::setQty,
                 onDone = { addMode = AddMode.NONE },
                 searchOnline = { q -> viewModel.searchOnline(q) },
                 saveOnline = { dto -> viewModel.saveOnlineFood(dto) },
-                createManual = { n, k, pr, cb, ft, sv -> viewModel.createManualFood(n, k, pr, cb, ft, sv) },
+                createManual = { n, k, pr, cb, ft, sv, u, gpu -> viewModel.createManualFood(n, k, pr, cb, ft, sv, u, gpu) },
                 scope = scope,
             )
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun AddFoodPanel(
     mode: AddMode,
@@ -559,11 +567,11 @@ private fun AddFoodPanel(
     items: List<BuildItem>,
     onModeChange: (AddMode) -> Unit,
     onAdd: (BuildItem) -> Unit,
-    onBump: (String, Int) -> Unit,
+    onQty: (String, Double) -> Unit,
     onDone: () -> Unit,
     searchOnline: suspend (String) -> List<com.mealplanplus.data.generated.model.FoodDto>,
     saveOnline: suspend (com.mealplanplus.data.generated.model.FoodDto) -> String,
-    createManual: suspend (String, Double, Double, Double, Double, String?) -> String,
+    createManual: suspend (String, Double, Double, Double, Double, String?, String, Double?) -> String,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
     var query by remember(mode) { mutableStateOf("") }
@@ -583,8 +591,6 @@ private fun AddFoodPanel(
             }
         }
 
-        fun BuildItem.forFood(f: Food, grams: Int = 100) = BuildItem(f.id, f.name, f.caloriesPer100, f.proteinPer100, f.carbsPer100, f.fatPer100, grams)
-
         when (mode) {
             AddMode.SEARCH -> {
                 SearchField(query, { query = it }, "Search your foods…")
@@ -592,9 +598,9 @@ private fun AddFoodPanel(
                 LazyColumn(Modifier.weight(1f)) {
                     items(list, key = { it.id }) { food ->
                         val bi = items.firstOrNull { it.foodId == food.id }
-                        PickRow(food.name, "${food.caloriesPer100.toInt()} kcal / 100g", bi?.grams,
-                            onAdd = { onAdd(BuildItem(food.id, food.name, food.caloriesPer100, food.proteinPer100, food.carbsPer100, food.fatPer100, 100)) },
-                            onDec = { onBump(food.id, -10) }, onInc = { onBump(food.id, +10) })
+                        PickRow(food.name, "${food.caloriesPer100.toInt()} kcal / 100g", bi,
+                            onAdd = { onAdd(food.toBuildItem()) },
+                            onQty = { onQty(food.id, it) })
                     }
                 }
                 DoneButton(items.size, onDone)
@@ -607,9 +613,9 @@ private fun AddFoodPanel(
                             onAdd = {
                                 scope.launch {
                                     val id = saveOnline(dto)
-                                    onAdd(BuildItem(id, dto.name, dto.caloriesPer100, dto.proteinPer100, dto.carbsPer100, dto.fatPer100, 100))
+                                    onAdd(dto.toBuildItem(id))
                                 }
-                            }, onDec = {}, onInc = {})
+                            }, onQty = {})
                     }
                 }
                 DoneButton(items.size, onDone)
@@ -621,11 +627,30 @@ private fun AddFoodPanel(
                 var pr by remember { mutableStateOf("") }
                 var cb by remember { mutableStateOf("") }
                 var ft by remember { mutableStateOf("") }
+                var unit by remember { mutableStateOf("GRAM") }
+                var gpu by remember { mutableStateOf("") }
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                     Label("Name")
                     OutlinedTextField(mn, { mn = it }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(bottom = 11.dp))
+                    Label("Measured in")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 11.dp)) {
+                        FOOD_UNITS.forEach { u ->
+                            val on = u == unit
+                            Text(unitLabel(u), fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                                color = if (on) Color.White else MutedDark,
+                                modifier = Modifier.clip(RoundedCornerShape(20.dp))
+                                    .background(if (on) Teal else Color.Transparent)
+                                    .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
+                                    .clickable { unit = u }
+                                    .padding(horizontal = 11.dp, vertical = 6.dp))
+                        }
+                    }
                     Row(Modifier.fillMaxWidth().padding(bottom = 11.dp)) {
-                        Column(Modifier.weight(1.4f)) { Label("Serving (g)"); NumField(serving) { serving = it } }
+                        Column(Modifier.weight(1.4f)) {
+                            if (isCountUnit(unit)) { Label("Grams per ${unitLabel(unit)}"); NumField(gpu) { gpu = it } }
+                            else { Label("Serving (g)"); NumField(serving) { serving = it } }
+                        }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) { Label("Calories /100g"); NumField(kcal) { kcal = it } }
                     }
@@ -637,15 +662,18 @@ private fun AddFoodPanel(
                         Column(Modifier.weight(1f)) { Label("Fat"); NumField(ft) { ft = it } }
                     }
                 }
-                val ok = mn.isNotBlank() && kcal.isNotBlank()
+                val gramsPerUnit = gpu.toDoubleOrNull()
+                val ok = mn.isNotBlank() && kcal.isNotBlank() && (!isCountUnit(unit) || (gramsPerUnit ?: 0.0) > 0.0)
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
                     .clip(RoundedCornerShape(12.dp)).background(if (ok) Teal else BorderCool)
                     .clickable(enabled = ok) {
                         scope.launch {
-                            val id = createManual(mn.trim(), kcal.toDoubleOrNull() ?: 0.0, pr.toDoubleOrNull() ?: 0.0,
-                                cb.toDoubleOrNull() ?: 0.0, ft.toDoubleOrNull() ?: 0.0, serving.ifBlank { null })
-                            onAdd(BuildItem(id, mn.trim(), kcal.toDoubleOrNull() ?: 0.0, pr.toDoubleOrNull() ?: 0.0,
-                                cb.toDoubleOrNull() ?: 0.0, ft.toDoubleOrNull() ?: 0.0, serving.toIntOrNull() ?: 100))
+                            val k = kcal.toDoubleOrNull() ?: 0.0
+                            val p = pr.toDoubleOrNull() ?: 0.0
+                            val c = cb.toDoubleOrNull() ?: 0.0
+                            val fat = ft.toDoubleOrNull() ?: 0.0
+                            val id = createManual(mn.trim(), k, p, c, fat, serving.ifBlank { null }, unit, gramsPerUnit)
+                            onAdd(BuildItem(id, mn.trim(), k, p, c, fat, unit, if (isCountUnit(unit)) (gramsPerUnit ?: 1.0) else 1.0, defaultQtyFor(unit)))
                             onDone()
                         }
                     }.padding(vertical = 14.dp)) {
@@ -655,6 +683,25 @@ private fun AddFoodPanel(
             AddMode.NONE -> {}
         }
     }
+}
+
+/** Local Food -> a builder item with its natural unit + default quantity. */
+private fun Food.toBuildItem() = BuildItem(
+    id, name, caloriesPer100, proteinPer100, carbsPer100, fatPer100,
+    unit, gramsPerUnit(), defaultQtyFor(unit),
+)
+
+/** Online result -> a builder item (identity from the just-saved local id). */
+private fun com.mealplanplus.data.generated.model.FoodDto.toBuildItem(id: String): BuildItem {
+    val u = (unit ?: com.mealplanplus.data.generated.model.FoodUnit.GRAM).value
+    val gpu = when (u) {
+        "PIECE" -> gramsPerPiece ?: 1.0
+        "CUP"   -> gramsPerCup ?: 1.0
+        "TBSP"  -> gramsPerTbsp ?: 1.0
+        "TSP"   -> gramsPerTsp ?: 1.0
+        else    -> 1.0
+    }
+    return BuildItem(id, name, caloriesPer100, proteinPer100, carbsPer100, fatPer100, u, gpu, defaultQtyFor(u))
 }
 
 @Composable private fun Label(text: String) =
@@ -679,30 +726,49 @@ private fun AddFoodPanel(
     Spacer(Modifier.height(12.dp))
 }
 
-@Composable private fun PickRow(name: String, meta: String, grams: Int?, onAdd: () -> Unit, onDec: () -> Unit, onInc: () -> Unit) {
+@Composable private fun PickRow(name: String, meta: String, added: BuildItem?, onAdd: () -> Unit, onQty: (Double) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         Column(Modifier.weight(1f)) {
             Text(name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
             Text(meta, fontSize = 10.5.sp, color = Muted)
         }
-        if (grams == null) {
+        if (added == null) {
             Text("+ Add", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
                 modifier = Modifier.clip(RoundedCornerShape(9.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(9.dp)).clickable(onClick = onAdd).padding(horizontal = 12.dp, vertical = 7.dp))
         } else {
-            Stepper(grams, onDec, onInc)
+            QtyField(added.foodId, added.quantity, added.unit, onQty)
         }
     }
     Divider(color = SurfaceMuted)
 }
 
-@Composable private fun Stepper(value: Int, onDec: () -> Unit, onInc: () -> Unit) {
+/** Numeric quantity input with the food's unit label; user types any value. */
+@Composable private fun QtyField(id: String, quantity: Double, unit: String, onChange: (Double) -> Unit) {
+    var text by remember(id) { mutableStateOf(fmtQty(quantity)) }
     Row(verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp))) {
-        Text("−", fontSize = 15.sp, color = MutedDark, modifier = Modifier.clickable(onClick = onDec).padding(horizontal = 9.dp, vertical = 3.dp))
-        Text("$value", fontFamily = DmMono, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.widthIn(min = 30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        Text("+", fontSize = 15.sp, color = Teal, modifier = Modifier.clickable(onClick = onInc).padding(horizontal = 9.dp, vertical = 3.dp))
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp)) {
+        androidx.compose.foundation.text.BasicTextField(
+            value = text,
+            onValueChange = { s ->
+                val filtered = s.filter { it.isDigit() || it == '.' }.let { v ->
+                    if (v.count { it == '.' } > 1) text else v   // keep at most one dot
+                }
+                text = filtered
+                filtered.toDoubleOrNull()?.let(onChange)
+            },
+            textStyle = androidx.compose.ui.text.TextStyle(fontFamily = DmMono, fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold, color = Ink, textAlign = androidx.compose.ui.text.style.TextAlign.End),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.widthIn(min = 34.dp).width(46.dp),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(unitLabel(unit), fontFamily = DmMono, fontSize = 11.sp, color = MutedFaint)
     }
 }
+
+private fun fmtQty(d: Double): String = if (d % 1.0 == 0.0) d.toInt().toString() else d.toString()
 
 @Composable private fun ModeIcon(glyph: String, onClick: () -> Unit) =
     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(SurfaceMuted).clickable(onClick = onClick)) {

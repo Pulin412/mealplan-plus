@@ -115,7 +115,8 @@ class MealViewModel @Inject constructor(
 
     suspend fun createManualFood(
         name: String, kcal: Double, protein: Double, carbs: Double, fat: Double, serving: String?,
-    ): String = foodRepository.createManual(name, kcal, protein, carbs, fat, serving)
+        unit: String = "GRAM", gramsPerUnit: Double? = null,
+    ): String = foodRepository.createManual(name, kcal, protein, carbs, fat, serving, unit, gramsPerUnit)
 
     suspend fun saveOnlineFood(dto: com.mealplanplus.data.generated.model.FoodDto): String =
         foodRepository.addOnline(dto)

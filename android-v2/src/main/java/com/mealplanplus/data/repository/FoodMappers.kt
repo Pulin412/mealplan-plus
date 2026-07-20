@@ -1,6 +1,7 @@
 package com.mealplanplus.data.repository
 
 import com.mealplanplus.data.generated.model.FoodDto
+import com.mealplanplus.data.generated.model.FoodUnit
 import com.mealplanplus.data.model.Food
 import java.time.Instant
 import java.util.UUID
@@ -15,6 +16,7 @@ fun FoodDto.toEntity(dirty: Boolean = false): Food = Food(
     proteinPer100  = proteinPer100,
     carbsPer100    = carbsPer100,
     fatPer100      = fatPer100,
+    unit           = (unit ?: FoodUnit.GRAM).value,
     gramsPerPiece  = gramsPerPiece,
     gramsPerCup    = gramsPerCup,
     gramsPerTbsp   = gramsPerTbsp,
@@ -37,6 +39,7 @@ fun Food.toDto(): FoodDto = FoodDto(
     fatPer100      = fatPer100,
     serverId       = UUID.fromString(id),
     brand          = brand,
+    unit           = FoodUnit.decode(unit) ?: FoodUnit.GRAM,
     gramsPerPiece  = gramsPerPiece,
     gramsPerCup    = gramsPerCup,
     gramsPerTbsp   = gramsPerTbsp,

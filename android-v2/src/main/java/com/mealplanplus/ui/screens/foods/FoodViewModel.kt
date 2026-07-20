@@ -33,6 +33,8 @@ data class FoodsUiState(
     val manualProtein: String = "",
     val manualCarbs: String = "",
     val manualFat: String = "",
+    val manualUnit: String = "GRAM",
+    val manualGramsPerUnit: String = "",
     val onlineQuery: String = "",
     val onlineResults: List<FoodDto> = emptyList(),
     val onlineLoading: Boolean = false,
@@ -62,7 +64,9 @@ data class FoodsUiState(
     val favCount: Int get() = foods.count { it.isFavorite }
 
     val isSaveManualEnabled: Boolean
-        get() = manualName.isNotBlank() && manualKcal.isNotBlank()
+        get() = manualName.isNotBlank() && manualKcal.isNotBlank() &&
+            (!com.mealplanplus.data.repository.isCountUnit(manualUnit) ||
+                (manualGramsPerUnit.toDoubleOrNull() ?: 0.0) > 0.0)
 }
 
 @HiltViewModel
@@ -151,6 +155,8 @@ class FoodViewModel @Inject constructor(
             manualProtein = "",
             manualCarbs = "",
             manualFat = "",
+            manualUnit = "GRAM",
+            manualGramsPerUnit = "",
             onlineQuery = "",
             onlineResults = emptyList(),
         )
@@ -162,6 +168,8 @@ class FoodViewModel @Inject constructor(
     fun setManualProtein(v: String) { _state.value = _state.value.copy(manualProtein = v) }
     fun setManualCarbs(v: String)   { _state.value = _state.value.copy(manualCarbs = v) }
     fun setManualFat(v: String)     { _state.value = _state.value.copy(manualFat = v) }
+    fun setManualUnit(v: String)    { _state.value = _state.value.copy(manualUnit = v) }
+    fun setManualGramsPerUnit(v: String) { _state.value = _state.value.copy(manualGramsPerUnit = v) }
 
     fun saveManual() {
         val s = _state.value
@@ -176,6 +184,9 @@ class FoodViewModel @Inject constructor(
                     carbsPer100    = s.manualCarbs.toDoubleOrNull() ?: 0.0,
                     fatPer100      = s.manualFat.toDoubleOrNull() ?: 0.0,
                     servingLabel   = s.manualServing.ifBlank { null },
+                    unit           = s.manualUnit,
+                    gramsPerUnit   = if (com.mealplanplus.data.repository.isCountUnit(s.manualUnit))
+                        s.manualGramsPerUnit.toDoubleOrNull() else null,
                 )
             }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             _state.value = _state.value.copy(isLoading = false)
