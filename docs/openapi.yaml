@@ -2023,6 +2023,13 @@ components:
         fatPer100:
           type: number
           format: double
+        unit:
+          allOf:
+            - $ref: '#/components/schemas/FoodUnit'
+          description: |
+            The food's natural measurement unit. Macros stay per-100g; for
+            PIECE/CUP/TBSP/TSP the matching gramsPer* factor converts a quantity
+            (in this unit) to grams. Defaults to GRAM.
         gramsPerPiece:
           type: number
           format: double

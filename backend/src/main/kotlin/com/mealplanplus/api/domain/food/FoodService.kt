@@ -2,6 +2,7 @@ package com.mealplanplus.api.domain.food
 
 import com.mealplanplus.api.generated.model.FoodDto
 import com.mealplanplus.api.generated.model.FoodPage
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.domain.sync.TombstoneService
 import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.cache.annotation.CacheEvict
@@ -63,6 +64,7 @@ class FoodService(
             proteinPer100  = dto.proteinPer100,
             carbsPer100    = dto.carbsPer100,
             fatPer100      = dto.fatPer100,
+            unit           = (dto.unit ?: FoodUnit.GRAM).value,
             gramsPerPiece  = dto.gramsPerPiece,
             gramsPerCup    = dto.gramsPerCup,
             gramsPerTbsp   = dto.gramsPerTbsp,
@@ -89,6 +91,7 @@ class FoodService(
             proteinPer100  = dto.proteinPer100,
             carbsPer100    = dto.carbsPer100,
             fatPer100      = dto.fatPer100,
+            unit           = (dto.unit ?: FoodUnit.GRAM).value,
             gramsPerPiece  = dto.gramsPerPiece,
             gramsPerCup    = dto.gramsPerCup,
             gramsPerTbsp   = dto.gramsPerTbsp,
@@ -183,6 +186,7 @@ class FoodService(
             proteinPer100  = dto.proteinPer100,
             carbsPer100    = dto.carbsPer100,
             fatPer100      = dto.fatPer100,
+            unit           = (dto.unit ?: FoodUnit.GRAM).value,
             gramsPerPiece  = dto.gramsPerPiece,
             gramsPerCup    = dto.gramsPerCup,
             gramsPerTbsp   = dto.gramsPerTbsp,
@@ -209,6 +213,7 @@ fun Food.toDto() = FoodDto(
     proteinPer100 = proteinPer100,
     carbsPer100   = carbsPer100,
     fatPer100     = fatPer100,
+    unit          = FoodUnit.forValue(unit),
     gramsPerPiece = gramsPerPiece,
     gramsPerCup   = gramsPerCup,
     gramsPerTbsp  = gramsPerTbsp,
