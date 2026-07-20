@@ -82,20 +82,28 @@ import com.mealplanplus.ui.components.MacroText
 import com.mealplanplus.ui.components.SegmentedControl
 import com.mealplanplus.ui.components.VerifiedBadge
 import com.mealplanplus.ui.theme.AppBg
+import com.mealplanplus.ui.theme.BorderCool
 import com.mealplanplus.ui.theme.CardBorder
+import com.mealplanplus.ui.theme.CarbsBg
+import com.mealplanplus.ui.theme.DeleteColor
+import com.mealplanplus.ui.theme.DisabledFill
+import com.mealplanplus.ui.theme.DisabledText
 import com.mealplanplus.ui.theme.DmMono
+import com.mealplanplus.ui.theme.FatBg
+import com.mealplanplus.ui.theme.FavoriteGold
 import com.mealplanplus.ui.theme.Ink
+import com.mealplanplus.ui.theme.Muted
+import com.mealplanplus.ui.theme.MutedDark
+import com.mealplanplus.ui.theme.MutedFaint
+import com.mealplanplus.ui.theme.OnAccent
+import com.mealplanplus.ui.theme.OnlineAdd
+import com.mealplanplus.ui.theme.ProteinBg
+import com.mealplanplus.ui.theme.Scrim
+import com.mealplanplus.ui.theme.SearchBg
 import com.mealplanplus.ui.theme.Success
+import com.mealplanplus.ui.theme.Surface
+import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
-
-private val Muted      = Color(0xFF9AA4AA)
-private val MutedDark  = Color(0xFF5B666E)
-private val MutedFaint = Color(0xFFA2ABB1)
-private val SearchBg   = Color(0xFFF2F4F5)
-private val VerifiedGreen = Success
-private val DeleteColor   = Color(0xFFC4CCD1)
-private val BorderChip    = Color(0xFFDFE6E8)
-private val OnlineAdd     = Color(0xFF5B8FA4)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,14 +117,14 @@ fun FoodsScreen(onBack: () -> Unit, viewModel: FoodViewModel = hiltViewModel()) 
             onDismissRequest = { viewModel.closeSheet() },
             sheetState       = sheetState,
             shape            = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-            containerColor   = Color.White,
+            containerColor   = Surface,
             dragHandle = {
                 Box(
                     Modifier
                         .padding(top = 12.dp, bottom = 8.dp)
                         .size(width = 36.dp, height = 4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(Color(0xFFDFE3E6))
+                        .background(BorderCool)
                 )
             }
         ) {
@@ -203,7 +211,7 @@ fun FoodsScreen(onBack: () -> Unit, viewModel: FoodViewModel = hiltViewModel()) 
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0x8CF7F9FA))
+                    .background(Scrim)
                     .clickable { viewModel.closeFan() }
             )
         }
@@ -291,7 +299,7 @@ fun FoodsToolbar(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, BorderChip, RoundedCornerShape(8.dp))
+                    .border(1.dp, BorderCool, RoundedCornerShape(8.dp))
                     .clickable(onClick = onSortClick)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
@@ -317,7 +325,7 @@ fun FoodsToolbar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, if (favOnly) Teal else BorderChip, RoundedCornerShape(8.dp))
+                .border(1.dp, if (favOnly) Teal else BorderCool, RoundedCornerShape(8.dp))
                 .background(if (favOnly) Teal.copy(alpha = 0.08f) else Color.Transparent)
                 .clickable(onClick = onFavToggle)
                 .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -339,7 +347,7 @@ fun FoodsToolbar(
             selectedIndex = modes.indexOfFirst { it.first == viewMode },
             onSelect = { onViewToggle(modes[it].first) },
         ) { i, selected ->
-            Text(modes[i].second, fontSize = 14.sp, color = if (selected) Color.White else Muted)
+            Text(modes[i].second, fontSize = 14.sp, color = if (selected) Surface else Muted)
         }
     }
 }
@@ -486,7 +494,7 @@ fun FoodCompactView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White)
+                    .background(Surface)
                     .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
             ) {
                 foods.forEachIndexed { index, food ->
@@ -535,7 +543,7 @@ fun FoodCompactRow(
                     overflow    = TextOverflow.Ellipsis,
                 )
                 val sub = listOfNotNull(food.brand, servingLabel(food.servingLabel)).joinToString(" · ")
-                Text(sub, fontSize = 9.5.sp, color = Color(0xFFA2ABB1))
+                Text(sub, fontSize = 9.5.sp, color = MutedFaint)
             }
             Spacer(Modifier.width(6.dp))
 
@@ -633,7 +641,7 @@ private fun servingLabel(raw: String?): String = when {
 fun EmptyFavouritesState() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("★", fontSize = 48.sp, color = Color(0xFFD4C060))
+            Text("★", fontSize = 48.sp, color = FavoriteGold)
             Spacer(Modifier.height(12.dp))
             Text("No favourites yet", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
             Spacer(Modifier.height(6.dp))
@@ -661,21 +669,21 @@ fun FoodsFab(
             FabOption(
                 label     = "Scan barcode",
                 iconText  = "▦",
-                bgColor   = Color(0xFFD6F0DE),
+                bgColor   = FatBg,
                 onClick   = onBarcode,
             )
             Spacer(Modifier.height(8.dp))
             FabOption(
                 label     = "Search online",
                 iconText  = "⌕",
-                bgColor   = Color(0xFFD6E4F7),
+                bgColor   = CarbsBg,
                 onClick   = onOnline,
             )
             Spacer(Modifier.height(8.dp))
             FabOption(
                 label     = "Enter manually",
                 iconText  = "✎",
-                bgColor   = Color(0xFFD6EEEE),
+                bgColor   = ProteinBg,
                 onClick   = onManual,
             )
             Spacer(Modifier.height(12.dp))
@@ -693,7 +701,7 @@ fun FoodsFab(
             Text(
                 "+",
                 fontSize   = 28.sp,
-                color      = Color.White,
+                color      = OnAccent,
                 fontWeight = FontWeight.Light,
                 modifier   = Modifier.rotate(rotation),
             )
@@ -716,7 +724,7 @@ private fun FabOption(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFFEEF2F4))
+                .background(SurfaceMuted)
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         ) {
             Text(label, fontSize = 12.sp, color = Ink, fontWeight = FontWeight.Medium)
@@ -754,7 +762,7 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
         )
         Spacer(Modifier.height(12.dp))
 
-        Text("Measured in", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF5A6B72))
+        Text("Measured in", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MutedDark)
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             com.mealplanplus.data.repository.FOOD_UNITS.forEach { u ->
@@ -762,11 +770,11 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
                 Text(
                     com.mealplanplus.data.repository.unitLabel(u),
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (on) Color.White else Color(0xFF5A6B72),
+                    color = if (on) OnAccent else MutedDark,
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
                         .background(if (on) Teal else Color.Transparent)
-                        .border(1.5.dp, if (on) Teal else Color(0xFFCDD8DB), RoundedCornerShape(20.dp))
+                        .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
                         .clickable { viewModel.setManualUnit(u) }
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
@@ -830,7 +838,7 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
             modifier = Modifier.fillMaxWidth(),
             colors   = ButtonDefaults.buttonColors(
                 containerColor         = Teal,
-                disabledContainerColor = Color(0xFFCDD8DB),
+                disabledContainerColor = DisabledFill,
             ),
             shape = RoundedCornerShape(12.dp),
         ) {
@@ -838,7 +846,7 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
                 "Save food",
                 fontSize   = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color      = if (state.isSaveManualEnabled) Color.White else Color(0xFF9AADB2),
+                color      = if (state.isSaveManualEnabled) OnAccent else DisabledText,
             )
         }
 
@@ -868,7 +876,7 @@ private fun SheetTextField(
             shape         = RoundedCornerShape(10.dp),
             colors        = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor   = Teal,
-                unfocusedBorderColor = BorderChip,
+                unfocusedBorderColor = BorderCool,
             ),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -902,7 +910,7 @@ fun OnlineSearchSheet(
             shape          = RoundedCornerShape(10.dp),
             colors         = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor   = Teal,
-                unfocusedBorderColor = BorderChip,
+                unfocusedBorderColor = BorderCool,
             ),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -935,7 +943,7 @@ private fun OnlineResultRow(dto: FoodDto, onAdd: () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
-            .background(Color.White)
+            .background(Surface)
             .padding(horizontal = 12.dp, vertical = 9.dp),
     ) {
         Column(Modifier.weight(1f)) {
@@ -949,7 +957,7 @@ private fun OnlineResultRow(dto: FoodDto, onAdd: () -> Unit) {
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, BorderChip, RoundedCornerShape(8.dp))
+                .border(1.dp, BorderCool, RoundedCornerShape(8.dp))
                 .clickable(onClick = onAdd)
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         ) {
@@ -976,7 +984,7 @@ fun BarcodeScanSheet(onDismiss: () -> Unit) {
                 .fillMaxWidth()
                 .height(180.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF14181B)),
+                .background(Ink),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Teal, modifier = Modifier.size(48.dp))

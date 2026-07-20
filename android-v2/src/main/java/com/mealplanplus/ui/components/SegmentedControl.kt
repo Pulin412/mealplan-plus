@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.mealplanplus.ui.theme.BorderCool
 import com.mealplanplus.ui.theme.Ink
+import com.mealplanplus.ui.theme.Surface
 
 /**
  * Segmented toggle (design: Foods list/compact view switch). A bordered white track with
@@ -48,7 +49,7 @@ fun SegmentedControl(
                 modifier = Modifier
                     .width(segmentWidth)
                     .height(segmentHeight)
-                    .background(if (selected) selectedColor else Color.White)
+                    .background(if (selected) selectedColor else Surface)
                     .clickable(interactionSource = interaction, indication = null) { onSelect(i) },
             ) {
                 option(i, selected)

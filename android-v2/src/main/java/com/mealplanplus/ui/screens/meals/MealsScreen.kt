@@ -87,13 +87,15 @@ import com.mealplanplus.ui.theme.MutedDark
 import com.mealplanplus.ui.theme.MutedFaint
 import com.mealplanplus.ui.theme.MutedLight
 import com.mealplanplus.ui.theme.BorderCool
+import com.mealplanplus.ui.theme.DashedStroke
+import com.mealplanplus.ui.theme.MealItemName
 import com.mealplanplus.ui.theme.Muted
+import com.mealplanplus.ui.theme.OnAccent
+import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
-
-private val MealItemName = Color(0xFF3F4A51)
 
 @Composable
 fun MealsScreen(
@@ -166,7 +168,7 @@ fun MealsScreen(
                     item {
                         Column(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)).background(Color.White),
+                                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)).background(Surface),
                         ) {
                             meals.forEachIndexed { i, m ->
                                 MealCompactRow(
@@ -190,7 +192,7 @@ fun MealsScreen(
             modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp)
                 .size(56.dp).clip(CircleShape).background(Teal).clickable(onClick = viewModel::openNewMeal),
         ) {
-            Icon(Icons.Default.Add, contentDescription = "New meal", tint = Color.White, modifier = Modifier.size(28.dp))
+            Icon(Icons.Default.Add, contentDescription = "New meal", tint = OnAccent, modifier = Modifier.size(28.dp))
         }
     }
 }
@@ -264,7 +266,7 @@ private fun MealsToolbar(
             selectedIndex = modes.indexOfFirst { it.first == viewMode },
             onSelect = { onViewToggle(modes[it].first) },
         ) { i, selected ->
-            Text(modes[i].second, fontSize = 14.sp, color = if (selected) Color.White else MutedLight)
+            Text(modes[i].second, fontSize = 14.sp, color = if (selected) Surface else MutedLight)
         }
     }
 }
@@ -408,7 +410,7 @@ private fun SlotFilterRow(slots: List<String>, selected: String?, onSelect: (Str
 @Composable
 private fun SlotFilterChip(label: String, on: Boolean, onClick: () -> Unit) {
     Text(
-        label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else MutedDark,
+        label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (on) OnAccent else MutedDark,
         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (on) Ink else SurfaceMuted)
             .clickable(onClick = onClick).padding(horizontal = 11.dp, vertical = 6.dp),
     )
@@ -497,7 +499,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                     MEAL_SLOTS.forEach { slot ->
                         val on = slot in slots
                         Text(slot, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                            color = if (on) Color.White else MutedDark,
+                            color = if (on) OnAccent else MutedDark,
                             modifier = Modifier.clip(RoundedCornerShape(20.dp))
                                 .background(if (on) Teal else Color.Transparent)
                                 .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
@@ -532,7 +534,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                 }
 
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                    .clip(RoundedCornerShape(12.dp)).dashedBorder().clickable { addMode = AddMode.SEARCH }
+                    .clip(RoundedCornerShape(12.dp)).dashedBorder(DashedStroke).clickable { addMode = AddMode.SEARCH }
                     .padding(vertical = 12.dp)) {
                     Text("＋ Add food item", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
                 }
@@ -549,7 +551,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                     viewModel.createMeal(name.trim(), slots.toList(),
                         items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) })
                 }.padding(vertical = 14.dp)) {
-                Text("Save meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) Color.White else MutedLight)
+                Text("Save meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) OnAccent else MutedLight)
             }
         } else {
             // ── Add-food panel ───────────────────────────────────────────────
@@ -649,7 +651,7 @@ private fun AddFoodPanel(
                         FOOD_UNITS.forEach { u ->
                             val on = u == unit
                             Text(unitLabel(u), fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                                color = if (on) Color.White else MutedDark,
+                                color = if (on) OnAccent else MutedDark,
                                 modifier = Modifier.clip(RoundedCornerShape(20.dp))
                                     .background(if (on) Teal else Color.Transparent)
                                     .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
@@ -688,7 +690,7 @@ private fun AddFoodPanel(
                             onDone()
                         }
                     }.padding(vertical = 14.dp)) {
-                    Text("Add to meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (ok) Color.White else MutedLight)
+                    Text("Add to meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (ok) OnAccent else MutedLight)
                 }
             }
             AddMode.NONE -> {}
@@ -788,18 +790,18 @@ private fun fmtQty(d: Double): String = if (d % 1.0 == 0.0) d.toInt().toString()
 
 @Composable private fun DoneButton(count: Int, onDone: () -> Unit) =
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).clip(RoundedCornerShape(12.dp)).background(Teal).clickable(onClick = onDone).padding(vertical = 13.dp)) {
-        Text("Done · $count added", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+        Text("Done · $count added", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = OnAccent)
     }
 
 @Composable private fun DashedBox(text: String) =
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).dashedBorder().padding(18.dp)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).dashedBorder(DashedStroke).padding(18.dp)) {
         Text(text, fontSize = 11.5.sp, color = MutedLight, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 
-private fun Modifier.dashedBorder(): Modifier = drawBehind {
+private fun Modifier.dashedBorder(color: Color): Modifier = drawBehind {
     val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx(),
         pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f))
-    drawRoundRect(color = Color(0xFFCDD7DA), style = stroke, cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()))
+    drawRoundRect(color = color, style = stroke, cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()))
 }
 
 private fun Double.r1(): String = if (this % 1.0 == 0.0) toInt().toString() else "%.1f".format(this)
