@@ -23,8 +23,8 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | MealsScreen + slots (Phase 2) | FoodsPage `/foods` (Phase 2) |
-| **Next task** | Per-food units + text-input quantities (see "⏭ NEXT UP" below) | MealsPage `/meals` (Phase 2) |
+| **Last completed** | Per-food units + text-input quantities (Phase 2) | FoodsPage `/foods` (Phase 2) |
+| **Next task** | DietsScreen (Phase 2) — or webapp-v2 Meals catch-up | MealsPage `/meals` (Phase 2) |
 | **Blocked on?** | — | — |
 
 **Suggested next session start:**
@@ -214,7 +214,13 @@ Status: ✅ Done · 🔄 In progress · ⬜ Not started
 
 ---
 
-#### ⏭ NEXT UP — Per-food units + text-input quantities (agreed 2026-07-20)
+#### ✅ DONE — Per-food units + text-input quantities (2026-07-20)
+
+Both shipped & device-verified. Food carries a `unit` (g/ml/pcs/cup/tbsp/tsp); count units
+capture a grams-per-unit factor at creation; meal calorie math is unit-aware; the meal builder
+uses numeric text fields instead of -/+ steppers. Backend `Food.unit` + Flyway **V22**; android
+Room **DB v6**. Verified: Egg (pcs, 50g/pcs, 155kcal) → 1 pcs = 78 kcal, 3 pcs = 233 kcal;
+synced to backend with `unit=PIECE`. Original notes below.
 
 Two refinements requested before moving to Diets. Approach is **decided** — build directly.
 
