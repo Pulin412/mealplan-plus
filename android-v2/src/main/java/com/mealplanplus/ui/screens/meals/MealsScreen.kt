@@ -346,8 +346,19 @@ private fun MealCompactRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(m.meal.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(m.meal.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false))
+                    m.meal.slots.firstOrNull()?.let { slot ->
+                        Spacer(Modifier.width(6.dp))
+                        SlotBadge(slot)
+                        if (m.meal.slots.size > 1) {
+                            Spacer(Modifier.width(4.dp))
+                            Text("+${m.meal.slots.size - 1}", fontSize = 9.sp, color = MutedFaint)
+                        }
+                    }
+                }
                 Text("${m.items.size} items", fontSize = 9.5.sp, color = MutedFaint)
             }
             Box(contentAlignment = Alignment.Center,
