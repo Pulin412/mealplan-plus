@@ -23,8 +23,8 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | FoodsScreen (Phase 2) | FoodsPage `/foods` (Phase 2) |
-| **Next task** | Phase 1 — Firebase Auth + Login/Register screens | Phase 1 — Auth guard + Bottom nav layout shell |
+| **Last completed** | MealsScreen + slots (Phase 2) | FoodsPage `/foods` (Phase 2) |
+| **Next task** | Per-food units + text-input quantities (see "⏭ NEXT UP" below) | MealsPage `/meals` (Phase 2) |
 | **Blocked on?** | — | — |
 
 **Suggested next session start:**
@@ -197,8 +197,8 @@ Status: ✅ Done · 🔄 In progress · ⬜ Not started
 #### android-v2
 - ✅ **FoodsScreen** — list/compact toggle, search, sort, favourites, FAB speed-dial (manual/online/barcode sheets)
 - ✅ FoodViewModel, FoodDao, FoodRepository, Food entity
-- ⬜ **MealsScreen** — same shell (sort/list/compact/fav); ＋ → new meal sheet: name + slot + add food items
-- ⬜ MealViewModel, MealDao, MealRepository, Meal entity (Room)
+- ✅ **MealsScreen** — same shell (sort/list/compact/fav); slot filter chips + badges; ＋ → New Meal builder (name + multi-select slots + add-food panel: search-your-foods / online / manual). Offline-first, one reusable meal tagged to many slots (no per-slot dupes).
+- ✅ MealViewModel, MealDao, MealRepository, Meal entity (Room, DB v5) + backend `slots` (V21) + `foodServerId` resolution
 - ⬜ **DietsScreen** — same shell; ＋ → new diet: name + build by adding meals/foods into slots
 - ⬜ DietViewModel, DietDao, DietRepository, Diet entity (Room)
 - ⬜ Wire Foods/Meals/Diets into NavGraph (accessible from Today FAB or menu)
@@ -213,6 +213,24 @@ Status: ✅ Done · 🔄 In progress · ⬜ Not started
 - ⬜ Reusable `CrudShell` component (search bar + sort + fav toggle + view toggle) — shared across Foods/Meals/Diets
 
 ---
+
+#### ⏭ NEXT UP — Per-food units + text-input quantities (agreed 2026-07-20)
+
+Two refinements requested before moving to Diets. Approach is **decided** — build directly.
+
+**1. Per-food measurement unit (g / ml / pieces / cup / tbsp / tsp).**
+Each food carries its own natural unit so eggs log in *pieces*, milk in *ml*, coffee in *g*.
+- **Model (decided):** add a direct **`unit` field on `Food`** (a `FoodUnit`) — NOT a "category" (category is indirect; unit is exactly what's needed). Keep macros **per 100 g** (comparable, label-style).
+- Infra already exists: `FoodUnit` enum (GRAM/ML/PIECE/CUP/TBSP/TSP), meal **items already carry a `unit`**, and `Food` already has `gramsPerPiece/Cup/Tbsp/Tsp` conversion factors. Only the food's **default `unit`** is missing.
+- **Create-food form:** add a unit picker. For piece/cup/tbsp/tsp, also capture **grams-per-unit** (e.g. 1 egg = 50 g) so calories still compute. For g/ml, factor ≈ 1.
+- **Calorie math:** a meal item's quantity is in the food's unit; convert to grams via the factor, then macros = per-100g × grams/100. Adding an egg defaults the item unit to *pieces*, milk to *ml*.
+- **Touches:** `docs/openapi.yaml` (FoodDto.unit), backend `Food`/`FoodDto` + small Flyway migration (V22), android-v2 `Food` entity (+ Room migration → DB v6) + create-food form + `Meal.resolve` calorie math, webapp-v2 later.
+
+**2. Text-input quantities instead of − / + steppers.**
+Replace the steppers with a numeric text field for quantity — both when adding a food item to a meal **and** in the add-food rows. User types any value in the food's unit.
+- **Touches:** android-v2 `MealsScreen.kt` (the `Stepper`/`PickRow` composables in `NewMealSheet`/`AddFoodPanel`).
+
+Reminder: Room migrations + Flyway migrations need explicit human approval before writing (per `android-v2/CLAUDE.md` + root `CLAUDE.md`). Backend runs locally on **H2** (never prod — V13–V21 unapplied on Neon).
 
 ### Phase 3 — Home / Today
 
