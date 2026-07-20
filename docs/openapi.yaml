@@ -2110,7 +2110,9 @@ components:
 
     MealDto:
       type: object
-      description: A named collection of foods. Slot assignment lives on DietMealDto, not here.
+      description: |
+        A named, reusable collection of foods. Can be tagged with one or more meal
+        slots (Breakfast, Evening, …) for filtering; diets reference a meal by id.
       properties:
         id:
           type: integer
@@ -2124,6 +2126,12 @@ components:
           readOnly: true
         name:
           type: string
+        slots:
+          type: array
+          description: Meal slots this meal is tagged with (e.g. "Breakfast", "Post-workout").
+          items:
+            type: string
+          default: []
         items:
           type: array
           items:

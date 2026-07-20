@@ -29,31 +29,37 @@ class MealService(
         return dto.foodId ?: 0L
     }
 
+    /** foodId → stable serverId, so meal items carry a UUID the clients can resolve. */
+    private fun foodServerIds(items: List<MealFoodItem>): Map<Long, UUID> =
+        foodRepo.findAllById(items.map { it.foodId }.toSet()).associate { it.id to it.serverId }
+
     fun list(firebaseUid: String, favoritesOnly: Boolean = false): List<MealDto> {
         val meals = mealRepo.findByFirebaseUid(firebaseUid)
             .let { if (favoritesOnly) it.filter { m -> m.isFavorite } else it }
         if (meals.isEmpty()) return emptyList()
         val itemsByMealId = itemRepo.findByMealIdIn(meals.map { it.id }).groupBy { it.mealId }
-        return meals.map { it.toDto(itemsByMealId[it.id] ?: emptyList()) }
+        val foodSids = foodServerIds(itemsByMealId.values.flatten())
+        return meals.map { it.toDto(itemsByMealId[it.id] ?: emptyList(), foodSids) }
     }
 
     fun get(id: Long, firebaseUid: String): MealDto {
         val meal = mealRepo.findById(id).orElseThrow()
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
-        return meal.toDto(itemRepo.findByMealId(meal.id))
+        itemRepo.findByMealId(meal.id).let { return meal.toDto(it, foodServerIds(it)) }
     }
 
     @Transactional
     fun create(dto: MealDto, firebaseUid: String): MealDto {
-        val meal = Meal(firebaseUid = firebaseUid, name = dto.name, isFavorite = dto.isFavorite ?: false)
+        val meal = Meal(firebaseUid = firebaseUid, name = dto.name, isFavorite = dto.isFavorite ?: false,
+            slots = dto.slots ?: emptyList())
             .also { if (dto.serverId != null) it.serverId = UUID.fromString(dto.serverId.toString()) }
         val saved = mealRepo.save(meal)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
                 quantity = item.quantity, unit = item.unit.value, notes = item.notes))
         }
-        return saved.toDto(items)
+        return saved.toDto(items, foodServerIds(items))
     }
 
     @Transactional
@@ -63,14 +69,14 @@ class MealService(
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByMealId(id)
         val updated = Meal(id = meal.id, firebaseUid = meal.firebaseUid,
-            name = dto.name, isFavorite = meal.isFavorite)
+            name = dto.name, isFavorite = meal.isFavorite, slots = dto.slots ?: meal.slots)
             .also { it.serverId = meal.serverId }
         val saved = mealRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
                 quantity = item.quantity, unit = item.unit.value, notes = item.notes))
         }
-        return saved.toDto(items)
+        return saved.toDto(items, foodServerIds(items))
     }
 
     @Transactional
@@ -79,7 +85,7 @@ class MealService(
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         meal.isFavorite = !meal.isFavorite
-        return mealRepo.save(meal).toDto(itemRepo.findByMealId(meal.id))
+        itemRepo.findByMealId(meal.id).let { return mealRepo.save(meal).toDto(it, foodServerIds(it)) }
     }
 
     @Transactional
@@ -96,7 +102,8 @@ class MealService(
         val meals = mealRepo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since)
         if (meals.isEmpty()) return emptyList()
         val itemsByMealId = itemRepo.findByMealIdIn(meals.map { it.id }).groupBy { it.mealId }
-        return meals.map { it.toDto(itemsByMealId[it.id] ?: emptyList()) }
+        val foodSids = foodServerIds(itemsByMealId.values.flatten())
+        return meals.map { it.toDto(itemsByMealId[it.id] ?: emptyList(), foodSids) }
     }
 
     @Transactional
@@ -107,35 +114,37 @@ class MealService(
         if (existing == null) return create(dto, firebaseUid)
         if (existingByServerId == null && dto.serverId != null) existing.serverId = UUID.fromString(dto.serverId.toString())
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt))
-            return existing.toDto(itemRepo.findByMealId(existing.id))
+            itemRepo.findByMealId(existing.id).let { return existing.toDto(it, foodServerIds(it)) }
         itemRepo.deleteByMealId(existing.id)
         val updated = Meal(id = existing.id, firebaseUid = existing.firebaseUid,
-            name = dto.name, isFavorite = existing.isFavorite)
+            name = dto.name, isFavorite = existing.isFavorite, slots = dto.slots ?: existing.slots)
             .also { it.serverId = existing.serverId }
         val saved = mealRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
             itemRepo.save(MealFoodItem(mealId = saved.id, foodId = resolveFoodId(item),
                 quantity = item.quantity, unit = item.unit.value, notes = item.notes))
         }
-        return saved.toDto(items)
+        return saved.toDto(items, foodServerIds(items))
     }
 }
 
-fun MealFoodItem.toDto() = MealFoodItemDto(
-    id          = id,
-    mealId      = mealId,
-    foodId      = foodId,
-    quantity    = quantity,
-    unit        = FoodUnit.forValue(unit),
-    notes       = notes
+fun MealFoodItem.toDto(foodServerIds: Map<Long, UUID>) = MealFoodItemDto(
+    id           = id,
+    mealId       = mealId,
+    foodId       = foodId,
+    foodServerId = foodServerIds[foodId],   // so clients can resolve the food by its stable UUID
+    quantity     = quantity,
+    unit         = FoodUnit.forValue(unit),
+    notes        = notes
 )
 
-fun Meal.toDto(items: List<MealFoodItem>) = MealDto(
+fun Meal.toDto(items: List<MealFoodItem>, foodServerIds: Map<Long, UUID>) = MealDto(
     id          = id,
     serverId    = serverId,
     firebaseUid = firebaseUid,
     name        = name,
-    items       = items.map { it.toDto() },
+    slots       = slots,
+    items       = items.map { it.toDto(foodServerIds) },
     isFavorite  = isFavorite,
     updatedAt   = updatedAt
 )
