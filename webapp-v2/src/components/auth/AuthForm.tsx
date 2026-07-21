@@ -32,7 +32,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setError(null);
     try {
       await fn();
-      router.replace("/foods");
+      router.replace("/today");
     } catch (e) {
       setError(e instanceof Error ? e.message.replace(/^Firebase:\s*/, "") : "Something went wrong");
     } finally {

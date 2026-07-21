@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 // Temporary nutrition sub-nav (Foods · Meals · Diets) until the real 4-tab bottom nav
 // (Today/Plan/Exercises/Health) lands in Phase 3. Fixed to the bottom of each screen.
 const TABS = [
+  { href: "/today", label: "Today", icon: "🏠" },
   { href: "/foods", label: "Foods", icon: "🍎" },
   { href: "/meals", label: "Meals", icon: "🍲" },
   { href: "/diets", label: "Diets", icon: "🥗" },
