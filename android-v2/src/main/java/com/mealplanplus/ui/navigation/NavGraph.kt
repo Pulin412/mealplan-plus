@@ -32,6 +32,7 @@ import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.meals.MealsScreen
 import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
+import com.mealplanplus.ui.screens.profile.ProfileScreen
 
 sealed class Screen(val route: String, val label: String) {
     object Today     : Screen("today",     "Today")
@@ -41,6 +42,7 @@ sealed class Screen(val route: String, val label: String) {
     object Foods     : Screen("foods",     "Foods")
     object Meals     : Screen("meals",     "Meals")
     object Diets     : Screen("diets",     "Diets")
+    object Profile   : Screen("profile",   "Profile")
 }
 
 private val bottomNavItems = listOf(
@@ -76,9 +78,8 @@ fun MealPlanNavHost() {
     val navBackStack  by navController.currentBackStackEntryAsState()
     val currentDest   = navBackStack?.destination
 
-    val showBottomBar = bottomNavItems.any { (screen, _) ->
-        currentDest?.hierarchy?.any { it.route == screen.route } == true
-    }
+    // Persistent bottom nav on every in-app screen (auth flow is a separate NavHost).
+    val showBottomBar = true
 
     Scaffold(
         bottomBar = {
@@ -108,7 +109,11 @@ fun MealPlanNavHost() {
             startDestination = Screen.Today.route,
             modifier         = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Today.route)     { HomeScreen(onMenu = { navController.navigate(Screen.Meals.route) }) }
+            composable(Screen.Today.route)     {
+                HomeScreen(onMenu = { navController.navigate(Screen.Meals.route) },
+                    onProfile = { navController.navigate(Screen.Profile.route) })
+            }
+            composable(Screen.Profile.route)   { ProfileScreen(onBack = { navController.navigate(Screen.Today.route) }) }
             composable(Screen.Plan.route)      { PlanScreen() }
             composable(Screen.Exercises.route) { ExercisesScreen() }
             composable(Screen.Health.route)    { HealthScreen() }

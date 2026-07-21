@@ -44,4 +44,7 @@ interface FoodDao {
     /** ids of locally-dirty rows — a pull must NOT clobber these (un-pushed edits win). */
     @Query("SELECT id FROM foods WHERE dirty = 1")
     suspend fun dirtyIds(): List<String>
+
+    @Query("DELETE FROM foods")
+    suspend fun deleteAll()
 }

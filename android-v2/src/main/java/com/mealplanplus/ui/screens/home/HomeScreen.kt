@@ -106,7 +106,7 @@ private sealed interface HomeSheet {
 }
 
 @Composable
-fun HomeScreen(onMenu: () -> Unit = {}) {
+fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {}) {
     val viewModel: HomeViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val isDark = LocalAppColors.current.isDark
@@ -115,7 +115,7 @@ fun HomeScreen(onMenu: () -> Unit = {}) {
 
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize()) {
-            HomeAppBar(state.dashboard, isDark, onMenu, onToggleTheme = { viewModel.toggleTheme(isDark) },
+            HomeAppBar(state.dashboard, isDark, onMenu, onProfile, onToggleTheme = { viewModel.toggleTheme(isDark) },
                 onDietClick = { if (state.dashboard?.dietName != null) sheet = HomeSheet.Diet })
             when {
                 state.loading && state.dashboard == null ->
@@ -159,7 +159,7 @@ fun HomeScreen(onMenu: () -> Unit = {}) {
 }
 
 @Composable
-private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, onToggleTheme: () -> Unit, onDietClick: () -> Unit) {
+private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, onProfile: () -> Unit, onToggleTheme: () -> Unit, onDietClick: () -> Unit) {
     val dateText = d?.date?.format(DateTimeFormatter.ofPattern("EEEE, d MMM")) ?: ""
     Column(Modifier.fillMaxWidth().padding(start = 6.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -169,7 +169,7 @@ private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, on
                 Text(if (isDark) "☀️" else "🌙", fontSize = 16.sp)
             }
             IconButton(onClick = {}) { Icon(Icons.Default.Notifications, "Notifications", tint = MutedDark, modifier = Modifier.size(20.dp)) }
-            Box(Modifier.size(34.dp).clip(CircleShape).background(Teal), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(34.dp).clip(CircleShape).background(Teal).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.Person, "Profile", tint = OnAccent, modifier = Modifier.size(18.dp))
             }
         }

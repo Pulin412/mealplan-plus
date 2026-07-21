@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -209,6 +210,7 @@ function DietSheet({ open, d, onClose }: { open: boolean; d: DashboardDto; onClo
 
 function TodayInner() {
   const t = useToday();
+  const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [dietOpen, setDietOpen] = useState(false);
   const d = t.dashboard;
@@ -221,7 +223,7 @@ function TodayInner() {
           <button style={{ fontSize: 22, color: C.ink, padding: "0 8px" }}>☰</button>
           <span style={{ flex: 1 }} />
           <button style={{ fontSize: 18, color: C.muted3, padding: "0 8px" }}>🔔</button>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>●</div>
+          <div onClick={() => router.push("/profile")} style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>●</div>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", paddingLeft: 10, marginTop: 2 }}>
           <span style={{ font: "700 19px system-ui", color: C.ink }}>

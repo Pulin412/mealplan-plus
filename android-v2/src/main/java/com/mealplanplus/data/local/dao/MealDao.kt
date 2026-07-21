@@ -30,4 +30,7 @@ interface MealDao {
 
     @Query("SELECT id FROM meals WHERE dirty = 1")
     suspend fun dirtyIds(): List<String>
+
+    @Query("DELETE FROM meals")
+    suspend fun deleteAll()
 }
