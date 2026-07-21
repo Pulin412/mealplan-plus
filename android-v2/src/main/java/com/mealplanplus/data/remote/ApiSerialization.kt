@@ -7,6 +7,7 @@ import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
 import java.time.Instant
+import java.time.LocalDate
 
 /**
  * Single source of truth for the Gson used by every Retrofit call.
@@ -21,7 +22,27 @@ import java.time.Instant
  */
 fun apiGson(): Gson = GsonBuilder()
     .registerTypeAdapter(Instant::class.java, InstantEpochMillisAdapter)
+    .registerTypeAdapter(LocalDate::class.java, LocalDateAdapter)
     .create()
+
+/** `LocalDate` — written as ISO "yyyy-MM-dd"; reads ISO strings or a [year,month,day] array. */
+object LocalDateAdapter : TypeAdapter<LocalDate>() {
+    override fun write(out: JsonWriter, value: LocalDate?) {
+        if (value == null) out.nullValue() else out.value(value.toString())
+    }
+
+    override fun read(reader: JsonReader): LocalDate? = when (reader.peek()) {
+        JsonToken.NULL -> { reader.nextNull(); null }
+        JsonToken.BEGIN_ARRAY -> {
+            reader.beginArray()
+            val y = reader.nextInt(); val m = reader.nextInt(); val d = reader.nextInt()
+            while (reader.peek() != JsonToken.END_ARRAY) reader.skipValue()
+            reader.endArray()
+            LocalDate.of(y, m, d)
+        }
+        else -> LocalDate.parse(reader.nextString())
+    }
+}
 
 /** `Instant` <-> epoch millis — matches the backend's timestamp serialization. */
 object InstantEpochMillisAdapter : TypeAdapter<Instant>() {

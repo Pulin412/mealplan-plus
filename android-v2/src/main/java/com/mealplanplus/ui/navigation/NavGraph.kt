@@ -104,11 +104,11 @@ fun MealPlanNavHost() {
     ) { innerPadding ->
         NavHost(
             navController    = navController,
-            // TEMP (no bottom nav yet): launch on Meals; back arrows cycle Meals → Diets → Foods → Meals.
-            startDestination = Screen.Meals.route,
+            // TEMP (no bottom nav yet): launch on Today; ☰/back cycle Today → Meals → Diets → Foods → Today.
+            startDestination = Screen.Today.route,
             modifier         = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Today.route)     { HomeScreen() }
+            composable(Screen.Today.route)     { HomeScreen(onMenu = { navController.navigate(Screen.Meals.route) }) }
             composable(Screen.Plan.route)      { PlanScreen() }
             composable(Screen.Exercises.route) { ExercisesScreen() }
             composable(Screen.Health.route)    { HealthScreen() }
@@ -119,7 +119,7 @@ fun MealPlanNavHost() {
                 DietsScreen(onBack = { navController.navigate(Screen.Foods.route) })
             }
             composable(Screen.Foods.route)     {
-                FoodsScreen(onBack = { navController.navigate(Screen.Meals.route) })
+                FoodsScreen(onBack = { navController.navigate(Screen.Today.route) })
             }
         }
     }
