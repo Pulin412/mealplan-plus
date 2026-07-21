@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 // (Today/Plan/Exercises/Health) lands in Phase 3. Fixed to the bottom of each screen.
 const TABS = [
   { href: "/today", label: "Today", icon: "🏠" },
+  { href: "/plan", label: "Plan", icon: "📅" },
   { href: "/foods", label: "Foods", icon: "🍎" },
   { href: "/meals", label: "Meals", icon: "🍲" },
   { href: "/diets", label: "Diets", icon: "🥗" },

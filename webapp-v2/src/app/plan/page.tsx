@@ -1,0 +1,182 @@
+"use client";
+
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { NutritionNav } from "@/components/layout/NutritionNav";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { usePlan } from "@/hooks/usePlan";
+import type { DayPlanDto } from "@/lib/api/plans";
+
+const C = {
+  ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e",
+  border: "#eaeef0", surface: "#ffffff", bg: "#f7f9fa", bgAlt: "#f2f4f5",
+  teal: "oklch(0.62 0.09 210)", green: "oklch(0.66 0.13 150)", danger: "#b23b3b",
+};
+const mono = "'DM Mono', monospace";
+const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function Dot({ color }: { color: string }) { return <span style={{ width: 4, height: 4, borderRadius: "50%", background: color }} />; }
+
+function Calendar({ p }: { p: ReturnType<typeof usePlan> }) {
+  const { year, month } = p.ym;
+  const firstDow = (new Date(year, month - 1, 1).getDay() + 6) % 7; // Mon=0..Sun=6
+  const days = new Date(year, month, 0).getDate();
+  const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+        <button onClick={p.prevMonth} style={{ width: 30, height: 30, borderRadius: "50%", background: C.bgAlt, border: "none", color: C.muted3 }}>‹</button>
+        <span style={{ flex: 1, textAlign: "center", font: "700 14px system-ui", color: C.ink }}>{MONTHS[month - 1]} {year}</span>
+        <button onClick={p.nextMonth} style={{ width: 30, height: 30, borderRadius: "50%", background: C.bgAlt, border: "none", color: C.muted3 }}>›</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)" }}>
+        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} style={{ textAlign: "center", font: "600 9.5px system-ui", color: C.muted2, paddingBottom: 4 }}>{d}</div>)}
+        {cells.map((day, i) => {
+          if (day == null) return <div key={i} />;
+          const dIso = iso(year, month, day);
+          const plan = p.plans[dIso];
+          const isToday = dIso === p.todayIso;
+          return (
+            <div key={i} style={{ aspectRatio: "1", display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <div onClick={() => p.setSelected(dIso)} style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", background: isToday ? C.teal : "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ font: `${isToday ? 700 : 500} 12px system-ui`, color: isToday ? "#fff" : C.ink }}>{day}</span>
+                <div style={{ display: "flex", gap: 2, marginTop: 1 }}>
+                  {plan?.dietId != null && <Dot color={isToday ? "#fff" : C.teal} />}
+                  {plan?.plannedWorkouts && plan.plannedWorkouts.length > 0 && <Dot color={isToday ? "#fff" : C.green} />}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function NextSeven({ p }: { p: ReturnType<typeof usePlan> }) {
+  const rows = Array.from({ length: 7 }, (_, off) => {
+    const d = new Date(p.today); d.setDate(p.today.getDate() + off);
+    const dIso = iso(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    const plan = p.plans[dIso];
+    const diet = plan?.dietId != null ? p.diets.find((x) => x.id === plan.dietId) : undefined;
+    const workouts = plan?.plannedWorkouts?.map((w) => w.activityName).filter(Boolean) ?? [];
+    return { off, d, dIso, diet, workouts };
+  });
+  return (
+    <>
+      <div style={{ font: "600 12.5px system-ui", color: C.ink, margin: "18px 0 8px 2px" }}>Next 7 days</div>
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+        {rows.map(({ off, d, dIso, diet, workouts }) => (
+          <div key={off} onClick={() => p.setSelected(dIso)} style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "11px 12px", borderBottom: off < 6 ? `1px solid ${C.bgAlt}` : "none" }}>
+            <div style={{ width: 52 }}>
+              <div style={{ font: "700 11.5px system-ui", color: C.ink }}>{off === 0 ? "Today" : WD[(d.getDay() + 6) % 7]}</div>
+              <div style={{ font: "400 9.5px system-ui", color: C.muted2 }}>{d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)}</div>
+            </div>
+            <div style={{ flex: 1, marginLeft: 10 }}>
+              {diet ? <div style={{ font: "600 11.5px system-ui", color: C.teal }}>{diet.name}</div> : <div style={{ font: "400 11px system-ui", color: C.muted2 }}>No diet</div>}
+              <div style={{ font: "400 10px system-ui", color: workouts.length ? C.green : C.muted2 }}>{workouts.length ? workouts.join(", ") : "No workout"}</div>
+            </div>
+            {diet && <span style={{ font: `600 10.5px ${mono}`, color: C.muted2 }}>{diet.kcal}</span>}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: string }) {
+  const plan: DayPlanDto | undefined = p.plans[dateIso];
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const workouts = plan?.plannedWorkouts ?? [];
+  const selectedDiet = plan?.dietId != null ? p.diets.find((di) => di.id === plan.dietId) : undefined;
+  return (
+    <BottomSheet open onClose={() => p.setSelected(null)} title="">
+      <div style={{ marginTop: -8 }}>
+        <div style={{ display: "flex", alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ font: "700 16px system-ui", color: C.ink }}>{dt.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}</div>
+            <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: 2 }}>Set the diet and workout for this day.</div>
+          </div>
+          {plan && <button onClick={() => p.clearDay(dateIso)} style={{ font: "600 12px system-ui", color: C.danger, background: "none", border: "none", cursor: "pointer" }}>Clear day</button>}
+        </div>
+
+        <div style={{ font: "600 11px system-ui", color: C.muted2, margin: "16px 0 4px" }}>Diet plan</div>
+        {p.diets.map((di) => <DietRadio key={di.id} name={di.name} kcal={`${di.kcal} kcal`} selected={plan?.dietId === di.id} onClick={() => p.setDiet(dateIso, di.id)} />)}
+        {selectedDiet && <DietDetail diet={selectedDiet} />}
+
+        <div style={{ font: "600 11px system-ui", color: C.muted2, margin: "16px 0 4px" }}>Exercises</div>
+        {workouts.length === 0 ? (
+          <div style={{ font: "400 11.5px system-ui", color: C.muted2, marginBottom: 8 }}>No workouts planned.</div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+            {workouts.map((w, i) => <span key={i} style={{ font: "600 11px system-ui", color: C.ink, background: C.bgAlt, borderRadius: 20, padding: "6px 10px" }}>{w.activityName} ✕</span>)}
+          </div>
+        )}
+        <button disabled style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.muted2 }}>＋ Add from library</button>
+        <button disabled style={{ width: "100%", borderRadius: 12, padding: "13px", marginTop: 8, background: C.bgAlt, border: "none", font: "600 13px system-ui", color: C.muted2 }}>▶ Start workout</button>
+        <div style={{ font: "400 9.5px system-ui", color: C.muted2, marginTop: 6, paddingBottom: 8 }}>Workouts coming soon — the Exercises &amp; Workouts screens are next.</div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+function SlotBadge({ slot }: { slot: string }) {
+  return <span style={{ font: `600 9px ${mono}`, letterSpacing: 0.5, color: C.teal, background: C.bgAlt, borderRadius: 6, padding: "3px 6px", textTransform: "uppercase" }}>{slot}</span>;
+}
+
+function DietDetail({ diet }: { diet: ReturnType<typeof usePlan>["diets"][number] }) {
+  if (diet.slots.length === 0) return <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: 8 }}>This diet has no meals yet.</div>;
+  return (
+    <div style={{ marginTop: 10, borderTop: `1px solid ${C.bgAlt}`, paddingTop: 10 }}>
+      {diet.slots.map((s) => (
+        <div key={s.slot} style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+            <SlotBadge slot={s.slot} />
+            <span style={{ flex: 1 }} />
+            <span style={{ font: `600 10px ${mono}`, color: C.muted2 }}>{s.kcal} kcal</span>
+          </div>
+          {s.lines.map((li, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "baseline", padding: "3px 0", paddingLeft: li.header ? 0 : 8 }}>
+              <span style={{ flex: 1, font: `${li.header ? 600 : 400} ${li.header ? 12 : 11.5}px system-ui`, color: li.header ? C.ink : C.muted3 }}>{li.name}</span>
+              <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{li.meta}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DietRadio({ name, kcal, selected, onClick }: { name: string; kcal?: string; selected: boolean; onClick: () => void }) {
+  return (
+    <div onClick={onClick} style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "10px 0" }}>
+      <span style={{ width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${selected ? C.teal : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+        {selected && <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.teal }} />}
+      </span>
+      <span style={{ flex: 1, font: `${selected ? 600 : 400} 13px system-ui`, color: C.ink, marginLeft: 10 }}>{name}</span>
+      {kcal && <span style={{ font: `400 10.5px ${mono}`, color: C.muted2 }}>{kcal}</span>}
+    </div>
+  );
+}
+
+function PlanInner() {
+  const p = usePlan();
+  return (
+    <div className="flex flex-col min-h-dvh" style={{ background: C.bg }}>
+      <div style={{ padding: "10px 16px 8px" }}><span style={{ font: "700 21px system-ui", color: C.ink }}>Plan</span></div>
+      <div className="flex-1 overflow-y-auto" style={{ padding: "0 16px", paddingBottom: 120 }}>
+        {p.error && <div style={{ textAlign: "center", padding: 24, font: "400 12px system-ui", color: C.danger }}>{p.error}</div>}
+        <Calendar p={p} />
+        <NextSeven p={p} />
+      </div>
+      {p.selected && <DaySheet p={p} dateIso={p.selected} />}
+      <NutritionNav />
+    </div>
+  );
+}
+
+export default function PlanPage() {
+  return <AuthGuard><PlanInner /></AuthGuard>;
+}
