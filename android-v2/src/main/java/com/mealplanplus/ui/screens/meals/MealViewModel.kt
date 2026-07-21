@@ -28,6 +28,7 @@ data class MealsUiState(
     val slotFilter: String? = null,
     val expandedIds: Set<String> = emptySet(),
     val newMealOpen: Boolean = false,
+    val editingMeal: Meal? = null,   // non-null = the New Meal sheet is editing this meal
     val error: String? = null,
 ) {
     /** Distinct slots across all meals, for the filter row. */
@@ -106,8 +107,9 @@ class MealViewModel @Inject constructor(
         }
     }
 
-    fun openNewMeal()  { _state.value = _state.value.copy(newMealOpen = true) }
-    fun closeNewMeal() { _state.value = _state.value.copy(newMealOpen = false) }
+    fun openNewMeal()  { _state.value = _state.value.copy(newMealOpen = true, editingMeal = null) }
+    fun openEditMeal(meal: Meal) { _state.value = _state.value.copy(newMealOpen = true, editingMeal = meal) }
+    fun closeNewMeal() { _state.value = _state.value.copy(newMealOpen = false, editingMeal = null) }
 
     // ── Add-food panel helpers (return the local food id to add into the meal) ───
     suspend fun searchOnline(q: String) =
@@ -123,9 +125,12 @@ class MealViewModel @Inject constructor(
 
     fun createMeal(name: String, slots: List<String>, items: List<MealItem>) {
         if (name.isBlank() || items.isEmpty()) return
+        val editing = _state.value.editingMeal
         viewModelScope.launch {
-            runCatching { repository.create(name, slots, items) }
-                .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            runCatching {
+                if (editing != null) repository.update(editing, name, slots, items)
+                else repository.create(name, slots, items)
+            }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             closeNewMeal()
             sync()
         }

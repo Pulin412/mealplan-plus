@@ -61,6 +61,11 @@ class FoodRepository @Inject constructor(
         return food.id
     }
 
+    /** Update an existing food (offline-first upsert-by-UUID); bumps updatedAt + marks dirty. */
+    suspend fun update(food: Food) {
+        dao.upsert(food.copy(updatedAt = System.currentTimeMillis(), dirty = true))
+    }
+
     suspend fun toggleFavorite(food: Food) {
         dao.upsert(
             food.copy(

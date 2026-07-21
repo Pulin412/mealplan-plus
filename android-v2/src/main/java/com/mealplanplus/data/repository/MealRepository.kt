@@ -29,6 +29,14 @@ class MealRepository @Inject constructor(
         mealDao.upsert(Meal(name = name.trim(), slots = slots, items = items, dirty = true))
     }
 
+    /** Overwrite an existing meal's name/slots/items (keeps id + favourite); marks dirty. */
+    suspend fun update(existing: Meal, name: String, slots: List<String>, items: List<MealItem>) {
+        mealDao.upsert(existing.copy(
+            name = name.trim(), slots = slots, items = items,
+            updatedAt = System.currentTimeMillis(), dirty = true,
+        ))
+    }
+
     suspend fun toggleFavorite(meal: Meal) {
         mealDao.upsert(
             meal.copy(isFavorite = !meal.isFavorite, updatedAt = System.currentTimeMillis(), dirty = true)

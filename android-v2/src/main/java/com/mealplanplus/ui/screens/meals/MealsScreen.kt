@@ -70,6 +70,7 @@ import com.mealplanplus.data.repository.FOOD_UNITS
 import com.mealplanplus.data.repository.MealItemUi
 import com.mealplanplus.data.repository.MealUi
 import com.mealplanplus.data.repository.defaultQtyFor
+import com.mealplanplus.data.repository.gramsFor
 import com.mealplanplus.data.repository.gramsPerUnit
 import com.mealplanplus.data.repository.isCountUnit
 import com.mealplanplus.data.repository.unitLabel
@@ -87,6 +88,7 @@ import com.mealplanplus.ui.theme.MutedDark
 import com.mealplanplus.ui.theme.MutedFaint
 import com.mealplanplus.ui.theme.MutedLight
 import com.mealplanplus.ui.theme.BorderCool
+import com.mealplanplus.ui.theme.Danger
 import com.mealplanplus.ui.theme.DashedStroke
 import com.mealplanplus.ui.theme.MealItemName
 import com.mealplanplus.ui.theme.Muted
@@ -158,6 +160,7 @@ fun MealsScreen(
                             onToggleExpand = { viewModel.toggleExpand(m.meal.id) },
                             onToggleFav = { viewModel.toggleFavorite(m.meal) },
                             onDelete = { viewModel.deleteMeal(m.meal) },
+                            onEdit = { viewModel.openEditMeal(m.meal) },
                         )
                         Spacer(Modifier.height(8.dp))
                     }
@@ -178,6 +181,7 @@ fun MealsScreen(
                                     onToggleExpand = { viewModel.toggleExpand(m.meal.id) },
                                     onToggleFav = { viewModel.toggleFavorite(m.meal) },
                                     onDelete = { viewModel.deleteMeal(m.meal) },
+                            onEdit = { viewModel.openEditMeal(m.meal) },
                                 )
                             }
                         }
@@ -275,10 +279,9 @@ private fun MealsToolbar(
 @Composable
 private fun MealListCard(
     m: MealUi, expanded: Boolean,
-    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onDelete: () -> Unit,
+    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
 ) {
-    val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
-    AppCard {
+    AppCard(modifier = Modifier.clickable(onClick = onToggleExpand)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -304,11 +307,6 @@ private fun MealListCard(
             }
             Spacer(Modifier.width(8.dp))
             CalorieValue(kcal = m.totalKcal)
-            Spacer(Modifier.width(10.dp))
-            Box(contentAlignment = Alignment.Center,
-                modifier = Modifier.size(24.dp).clip(CircleShape).background(SurfaceMuted).clickable(onClick = onToggleExpand)) {
-                Icon(Icons.Default.KeyboardArrowDown, "Expand", tint = MutedDark, modifier = Modifier.size(16.dp).rotate(rotation))
-            }
         }
         AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column(Modifier.fillMaxWidth().padding(top = 9.dp)) {
@@ -317,6 +315,7 @@ private fun MealListCard(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     MacroText(m.totalProtein, m.totalCarbs, m.totalFat, fontSize = 10.5.sp)
                     Spacer(Modifier.weight(1f))
+                    Text("✎ Edit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable(onClick = onEdit).padding(end = 14.dp))
                     Text("✕ Remove", fontSize = 12.sp, color = DeleteColor, modifier = Modifier.clickable(onClick = onDelete))
                 }
             }
@@ -339,7 +338,7 @@ private fun ExpandedItemRow(it: MealItemUi) {
 @Composable
 private fun MealCompactRow(
     m: MealUi, expanded: Boolean, isLast: Boolean,
-    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onDelete: () -> Unit,
+    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
 ) {
     Column(
         Modifier.fillMaxWidth().clickable(onClick = onToggleExpand)
@@ -376,6 +375,7 @@ private fun MealCompactRow(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 5.dp)) {
                     MacroText(m.totalProtein, m.totalCarbs, m.totalFat, fontSize = 9.5.sp)
                     Spacer(Modifier.weight(1f))
+                    Text("✎ Edit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable(onClick = onEdit).padding(end = 12.dp))
                     Text("✕ Remove", fontSize = 11.sp, color = DeleteColor, modifier = Modifier.clickable(onClick = onDelete))
                 }
             }
@@ -457,9 +457,18 @@ private fun NewMealSheet(viewModel: MealViewModel) {
     val state by viewModel.state.collectAsState()
     val scope = rememberCoroutineScope()
 
-    var name by remember { mutableStateOf("") }
-    val slots = remember { mutableStateListOf<String>() }
-    val items = remember { mutableStateListOf<BuildItem>() }
+    val editing = state.editingMeal
+    var name by remember(editing?.id) { mutableStateOf(editing?.name ?: "") }
+    val slots = remember(editing?.id) { mutableStateListOf<String>().apply { editing?.slots?.let { addAll(it) } } }
+    val items = remember(editing?.id) {
+        mutableStateListOf<BuildItem>().apply {
+            editing?.items?.forEach { mi ->
+                val food = state.foods.find { it.id == mi.foodServerId } ?: return@forEach
+                add(BuildItem(food.id, food.name, food.caloriesPer100, food.proteinPer100, food.carbsPer100,
+                    food.fatPer100, mi.unit, food.gramsFor(1.0, mi.unit), mi.quantity))
+            }
+        }
+    }
     var addMode by remember { mutableStateOf(AddMode.NONE) }
 
     val totalKcal = items.sumOf { (it.kcalPer100 * it.grams / 100.0) }.roundToInt()
@@ -481,7 +490,12 @@ private fun NewMealSheet(viewModel: MealViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
                 IconButton(onClick = viewModel::closeNewMeal) { Icon(Icons.Default.Close, "Close", tint = Ink) }
-                Text("New meal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                Text(if (editing != null) "Edit meal" else "New meal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                if (editing != null) {
+                    Spacer(Modifier.weight(1f))
+                    Text("Delete", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Danger,
+                        modifier = Modifier.clickable { viewModel.deleteMeal(editing); viewModel.closeNewMeal() })
+                }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 Label("Meal name")
@@ -551,7 +565,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                     viewModel.createMeal(name.trim(), slots.toList(),
                         items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) })
                 }.padding(vertical = 14.dp)) {
-                Text("Save meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) OnAccent else MutedLight)
+                Text(if (editing != null) "Save changes" else "Save meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) OnAccent else MutedLight)
             }
         } else {
             // ── Add-food panel ───────────────────────────────────────────────

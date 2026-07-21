@@ -85,6 +85,7 @@ import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderCool
 import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.CarbsBg
+import com.mealplanplus.ui.theme.Danger
 import com.mealplanplus.ui.theme.DeleteColor
 import com.mealplanplus.ui.theme.DisabledFill
 import com.mealplanplus.ui.theme.DisabledText
@@ -195,6 +196,7 @@ fun FoodsScreen(onBack: () -> Unit, viewModel: FoodViewModel = hiltViewModel()) 
                         onToggleExpand  = viewModel::toggleExpand,
                         onToggleFav     = viewModel::toggleFavorite,
                         onDelete        = viewModel::deleteFood,
+                        onEdit          = viewModel::openEditFood,
                     )
                     FoodViewMode.COMPACT -> FoodCompactView(
                         foods           = foods,
@@ -202,6 +204,7 @@ fun FoodsScreen(onBack: () -> Unit, viewModel: FoodViewModel = hiltViewModel()) 
                         onToggleExpand  = viewModel::toggleExpand,
                         onToggleFav     = viewModel::toggleFavorite,
                         onDelete        = viewModel::deleteFood,
+                        onEdit          = viewModel::openEditFood,
                     )
                 }
             }
@@ -368,6 +371,7 @@ fun FoodListView(
     onToggleExpand: (String) -> Unit,
     onToggleFav: (Food) -> Unit,
     onDelete: (Food) -> Unit,
+    onEdit: (Food) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(bottom = 88.dp),
@@ -380,6 +384,7 @@ fun FoodListView(
                 onToggleExpand = { onToggleExpand(food.id) },
                 onToggleFav   = { onToggleFav(food) },
                 onDelete      = { onDelete(food) },
+                onEdit        = { onEdit(food) },
             )
         }
     }
@@ -392,10 +397,9 @@ fun FoodListCard(
     onToggleExpand: () -> Unit,
     onToggleFav: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
 ) {
-    val chevronRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "chevron")
-
-    AppCard {
+    AppCard(modifier = Modifier.clickable(onClick = onToggleExpand)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
@@ -427,27 +431,6 @@ fun FoodListCard(
 
             Spacer(Modifier.width(10.dp))
 
-            // Expand
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(SearchBg)
-                    .clickable(onClick = onToggleExpand),
-            ) {
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Expand",
-                    tint     = MutedDark,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .rotate(chevronRotation),
-                )
-            }
-
-            Spacer(Modifier.width(8.dp))
-
             // Delete
             Box(
                 contentAlignment = Alignment.Center,
@@ -470,6 +453,8 @@ fun FoodListCard(
                     MacroText(food.proteinPer100, food.carbsPer100, food.fatPer100, fontSize = 10.5.sp)
                 }
                 Spacer(Modifier.width(8.dp))
+                Text("✎ Edit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                    modifier = Modifier.clickable(onClick = onEdit).padding(end = 10.dp))
                 VerifiedBadge(food.verified)
             }
         }
@@ -485,6 +470,7 @@ fun FoodCompactView(
     onToggleExpand: (String) -> Unit,
     onToggleFav: (Food) -> Unit,
     onDelete: (Food) -> Unit,
+    onEdit: (Food) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(bottom = 88.dp),
@@ -504,6 +490,7 @@ fun FoodCompactView(
                         onToggleExpand = { onToggleExpand(food.id) },
                         onToggleFav   = { onToggleFav(food) },
                         onDelete      = { onDelete(food) },
+                        onEdit        = { onEdit(food) },
                     )
                     if (index < foods.lastIndex) {
                         HorizontalDivider(color = SearchBg, thickness = 1.dp)
@@ -521,12 +508,12 @@ fun FoodCompactRow(
     onToggleExpand: () -> Unit,
     onToggleFav: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
 ) {
-    val chevronRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "chevron")
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onToggleExpand)
             .padding(horizontal = 11.dp, vertical = 7.dp),
     ) {
         Row(
@@ -570,27 +557,6 @@ fun FoodCompactRow(
                     modifier  = Modifier.padding(top = 1.dp, start = 1.dp),
                 )
             }
-
-            Spacer(Modifier.width(4.dp))
-
-            // Expand
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(SearchBg)
-                    .clickable(onClick = onToggleExpand),
-            ) {
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Expand",
-                    tint     = MutedDark,
-                    modifier = Modifier
-                        .size(11.dp)
-                        .rotate(chevronRotation),
-                )
-            }
         }
 
         AnimatedVisibility(
@@ -607,6 +573,9 @@ fun FoodCompactRow(
                 Box(Modifier.weight(1f)) {
                     MacroText(food.proteinPer100, food.carbsPer100, food.fatPer100, fontSize = 10.sp)
                 }
+                Spacer(Modifier.width(8.dp))
+                Text("✎ Edit", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                    modifier = Modifier.clickable(onClick = onEdit))
                 Spacer(Modifier.width(8.dp))
                 VerifiedBadge(food.verified)
                 Spacer(Modifier.width(8.dp))
@@ -752,7 +721,18 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
-        Text("New food", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+        val isEditing = state.editingFoodId != null
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(if (isEditing) "Edit food" else "New food", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            if (isEditing) {
+                Text("Delete", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Danger,
+                    modifier = Modifier.clickable {
+                        state.foods.find { it.id == state.editingFoodId }?.let { viewModel.deleteFood(it) }
+                        viewModel.closeSheet()
+                    })
+            }
+        }
         Spacer(Modifier.height(16.dp))
 
         SheetTextField(

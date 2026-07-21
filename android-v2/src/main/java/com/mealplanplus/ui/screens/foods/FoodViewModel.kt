@@ -35,6 +35,7 @@ data class FoodsUiState(
     val manualFat: String = "",
     val manualUnit: String = "GRAM",
     val manualGramsPerUnit: String = "",
+    val editingFoodId: String? = null,   // null = creating; non-null = editing that food
     val onlineQuery: String = "",
     val onlineResults: List<FoodDto> = emptyList(),
     val onlineLoading: Boolean = false,
@@ -157,8 +158,30 @@ class FoodViewModel @Inject constructor(
             manualFat = "",
             manualUnit = "GRAM",
             manualGramsPerUnit = "",
+            editingFoodId = null,
             onlineQuery = "",
             onlineResults = emptyList(),
+        )
+    }
+
+    /** Open the manual sheet pre-filled to edit an existing food. */
+    fun openEditFood(food: Food) {
+        val gpu = when (food.unit) {
+            "PIECE" -> food.gramsPerPiece; "CUP" -> food.gramsPerCup
+            "TBSP"  -> food.gramsPerTbsp;  "TSP" -> food.gramsPerTsp; else -> null
+        }
+        _state.value = _state.value.copy(
+            activeSheet = FoodSheet.MANUAL,
+            fanOpen = false,
+            editingFoodId = food.id,
+            manualName = food.name,
+            manualServing = food.servingLabel ?: "",
+            manualKcal = food.caloriesPer100.numStr(),
+            manualProtein = food.proteinPer100.numStr(),
+            manualCarbs = food.carbsPer100.numStr(),
+            manualFat = food.fatPer100.numStr(),
+            manualUnit = food.unit,
+            manualGramsPerUnit = gpu?.numStr() ?: "",
         )
     }
 
@@ -174,26 +197,42 @@ class FoodViewModel @Inject constructor(
     fun saveManual() {
         val s = _state.value
         if (!s.isSaveManualEnabled) return
+        val gpu = if (com.mealplanplus.data.repository.isCountUnit(s.manualUnit))
+            s.manualGramsPerUnit.toDoubleOrNull() else null
+        val kcal = s.manualKcal.toDoubleOrNull() ?: 0.0
+        val protein = s.manualProtein.toDoubleOrNull() ?: 0.0
+        val carbs = s.manualCarbs.toDoubleOrNull() ?: 0.0
+        val fat = s.manualFat.toDoubleOrNull() ?: 0.0
+        val editing = s.editingFoodId?.let { id -> s.foods.find { it.id == id } }
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             runCatching {
-                repository.createManual(
-                    name           = s.manualName.trim(),
-                    caloriesPer100 = s.manualKcal.toDoubleOrNull() ?: 0.0,
-                    proteinPer100  = s.manualProtein.toDoubleOrNull() ?: 0.0,
-                    carbsPer100    = s.manualCarbs.toDoubleOrNull() ?: 0.0,
-                    fatPer100      = s.manualFat.toDoubleOrNull() ?: 0.0,
-                    servingLabel   = s.manualServing.ifBlank { null },
-                    unit           = s.manualUnit,
-                    gramsPerUnit   = if (com.mealplanplus.data.repository.isCountUnit(s.manualUnit))
-                        s.manualGramsPerUnit.toDoubleOrNull() else null,
-                )
+                if (editing != null) {
+                    repository.update(editing.copy(
+                        name           = s.manualName.trim(),
+                        servingLabel   = s.manualServing.ifBlank { null },
+                        caloriesPer100 = kcal, proteinPer100 = protein, carbsPer100 = carbs, fatPer100 = fat,
+                        unit           = s.manualUnit,
+                        gramsPerPiece  = if (s.manualUnit == "PIECE") gpu else null,
+                        gramsPerCup    = if (s.manualUnit == "CUP")   gpu else null,
+                        gramsPerTbsp   = if (s.manualUnit == "TBSP")  gpu else null,
+                        gramsPerTsp    = if (s.manualUnit == "TSP")   gpu else null,
+                    ))
+                } else {
+                    repository.createManual(
+                        name = s.manualName.trim(), caloriesPer100 = kcal, proteinPer100 = protein,
+                        carbsPer100 = carbs, fatPer100 = fat, servingLabel = s.manualServing.ifBlank { null },
+                        unit = s.manualUnit, gramsPerUnit = gpu,
+                    )
+                }
             }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             _state.value = _state.value.copy(isLoading = false)
             closeSheet()
             sync()
         }
     }
+
+    private fun Double.numStr(): String = if (this % 1.0 == 0.0) toInt().toString() else toString()
 
     fun setOnlineQuery(q: String) {
         _state.value = _state.value.copy(onlineQuery = q)
