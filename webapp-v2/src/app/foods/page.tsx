@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useFoods } from "@/hooks/useFoods";
 import { BottomSheet, SheetField } from "@/components/ui/BottomSheet";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { NutritionNav } from "@/components/layout/NutritionNav";
 import type { FoodDto } from "@/lib/api/foods";
 import type { FoodSort } from "@/types/food";
 
@@ -54,7 +55,7 @@ function FoodListCard({ food, expanded, onToggleExpand, onToggleFav, onDelete }:
   onToggleExpand: () => void; onToggleFav: (e: React.MouseEvent) => void; onDelete: (e: React.MouseEvent) => void;
 }) {
   return (
-    <div className="rounded-[12px] mb-[7px] px-3 py-[9px]"
+    <div onClick={onToggleExpand} className="cursor-pointer rounded-[12px] mb-[7px] px-3 py-[9px]"
       style={{ background: C.surface, border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-[10px]">
         <div className="flex-1 min-w-0">
@@ -67,11 +68,6 @@ function FoodListCard({ food, expanded, onToggleExpand, onToggleFav, onDelete }:
         <span className="flex-none text-[11.5px] font-semibold tabular-nums" style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }}>
           {food.caloriesPer100}
         </span>
-        <button onClick={onToggleExpand}
-          className="flex-none w-6 h-6 rounded-[7px] flex items-center justify-center text-[12px]"
-          style={{ background: C.bgAlt, color: "#6b757b" }}>
-          {expanded ? "▲" : "▼"}
-        </button>
         <button onClick={onDelete} className="flex-none text-[14px] leading-none" style={{ color: "#c4ccd1" }}>✕</button>
       </div>
       {expanded && (
@@ -135,7 +131,7 @@ function FoodsFab({ open, onToggle, onManual, onOnline, onBarcode }: {
         <div className="fixed inset-0 z-30" style={{ background: "rgba(247,249,250,.55)" }}
           onClick={onToggle} />
       )}
-      <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-3 items-end">
+      <div className="fixed bottom-[68px] right-4 z-40 flex flex-col gap-3 items-end">
         {open && options.map((opt) => (
           <button key={opt.label} onClick={opt.action}
             className="flex items-center gap-[10px] cursor-pointer">
@@ -362,7 +358,7 @@ function FoodsPageInner() {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-[14px] pt-3" style={{ paddingBottom: 96 }}>
+      <div className="flex-1 overflow-y-auto px-[14px] pt-3" style={{ paddingBottom: 120 }}>
         {loading && (
           <div className="text-center py-12 text-[12px]" style={{ color: C.muted }}>Loading…</div>
         )}
@@ -416,6 +412,8 @@ function FoodsPageInner() {
         onQuery={setOnlineQuery} onSearch={runOnlineSearch}
         onAdd={addOnlineFood} onClose={closeSheet} />
       <BarcodeSheet open={activeSheet === "barcode"} onClose={closeSheet} />
+
+      <NutritionNav />
     </div>
   );
 }

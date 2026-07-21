@@ -1030,6 +1030,12 @@ export interface components {
             carbsPer100: number;
             /** Format: double */
             fatPer100: number;
+            /**
+             * @description The food's natural measurement unit. Macros stay per-100g; for
+             *     PIECE/CUP/TBSP/TSP the matching gramsPer* factor converts a quantity
+             *     (in this unit) to grams. Defaults to GRAM.
+             */
+            unit?: components["schemas"]["FoodUnit"];
             /** Format: double */
             gramsPerPiece?: number | null;
             /** Format: double */
@@ -1078,7 +1084,10 @@ export interface components {
             unit: components["schemas"]["FoodUnit"];
             notes?: string | null;
         };
-        /** @description A named collection of foods. Slot assignment lives on DietMealDto, not here. */
+        /**
+         * @description A named, reusable collection of foods. Can be tagged with one or more meal
+         *     slots (Breakfast, Evening, …) for filtering; diets reference a meal by id.
+         */
         MealDto: {
             /** Format: int64 */
             id?: number;
@@ -1086,6 +1095,11 @@ export interface components {
             serverId?: string | null;
             readonly firebaseUid?: string;
             name: string;
+            /**
+             * @description Meal slots this meal is tagged with (e.g. "Breakfast", "Post-workout").
+             * @default []
+             */
+            slots: string[];
             /** @default [] */
             items: components["schemas"]["MealFoodItemDto"][];
             /** @default false */
@@ -1101,6 +1115,11 @@ export interface components {
             dietId?: number;
             /** Format: int64 */
             mealId: number;
+            /**
+             * Format: uuid
+             * @description Stable UUID of the referenced meal, so offline clients can resolve it.
+             */
+            mealServerId?: string | null;
             /** @description 1 = Monday … 7 = Sunday; 0 = applies to any day */
             dayOfWeek: number;
             /** @description Meal slot name (e.g. "Breakfast", "Lunch", "Dinner", "Pre-workout") */
@@ -1115,6 +1134,11 @@ export interface components {
             dietId?: number;
             /** Format: int64 */
             foodId: number;
+            /**
+             * Format: uuid
+             * @description Stable UUID of the referenced food, so offline clients can resolve it.
+             */
+            foodServerId?: string | null;
             /** @description Meal slot name */
             slot: string;
             /**
@@ -1477,6 +1501,11 @@ export interface components {
             dayPlans: components["schemas"]["DayPlanDto"][];
             /** @default [] */
             loggedMealSlots: components["schemas"]["LoggedMealSlotDto"][];
+            /**
+             * @description Local deletions to propagate — server deletes each matching `(entityType, serverId)`.
+             * @default []
+             */
+            tombstones: components["schemas"]["TombstoneDto"][];
         };
         /**
          * @description Server returns each saved record with its server-assigned `id` and `updatedAt`
