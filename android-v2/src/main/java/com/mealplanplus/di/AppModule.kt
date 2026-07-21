@@ -3,6 +3,7 @@ package com.mealplanplus.di
 import com.mealplanplus.data.generated.api.DashboardApi
 import com.mealplanplus.data.generated.api.FoodsApi
 import com.mealplanplus.data.generated.api.SyncApi
+import com.mealplanplus.data.generated.api.TagsApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,6 +29,11 @@ object AppModule {
     @Provides @Singleton
     fun provideSyncApi(retrofit: Retrofit): SyncApi =
         retrofit.create(SyncApi::class.java)
+
+    /** Tag directory (online-only): list/create tags for diets. */
+    @Provides @Singleton
+    fun provideTagsApi(retrofit: Retrofit): TagsApi =
+        retrofit.create(TagsApi::class.java)
 
     // FoodRepository, SyncManager, SyncCursorStore use @Inject constructors — Hilt provides them.
 }

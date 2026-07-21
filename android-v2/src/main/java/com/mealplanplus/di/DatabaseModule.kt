@@ -3,6 +3,7 @@ package com.mealplanplus.di
 import android.content.Context
 import androidx.room.Room
 import com.mealplanplus.data.local.AppDatabase
+import com.mealplanplus.data.local.dao.DietDao
 import com.mealplanplus.data.local.dao.FoodDao
 import com.mealplanplus.data.local.dao.MealDao
 import dagger.Module
@@ -29,4 +30,7 @@ object DatabaseModule {
 
     @Provides @Singleton
     fun provideMealDao(db: AppDatabase): MealDao = db.mealDao()
+
+    @Provides @Singleton
+    fun provideDietDao(db: AppDatabase): DietDao = db.dietDao()
 }

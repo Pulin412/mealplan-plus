@@ -3,6 +3,7 @@ package com.mealplanplus.data.sync
 import com.mealplanplus.data.generated.api.SyncApi
 import com.mealplanplus.data.generated.model.SyncPushRequest
 import com.mealplanplus.data.generated.model.TombstoneDto
+import com.mealplanplus.data.local.dao.DietDao
 import com.mealplanplus.data.local.dao.FoodDao
 import com.mealplanplus.data.local.dao.MealDao
 import com.mealplanplus.data.repository.toDto
@@ -22,6 +23,7 @@ class SyncManager @Inject constructor(
     private val syncApi: SyncApi,
     private val foodDao: FoodDao,
     private val mealDao: MealDao,
+    private val dietDao: DietDao,
     private val cursor: SyncCursorStore,
 ) {
     /** Push dirty rows, then pull changes since the cursor. Best-effort; safe to call often. */
@@ -33,19 +35,23 @@ class SyncManager @Inject constructor(
     private suspend fun push() {
         val dirtyFoods = foodDao.getDirty()
         val dirtyMeals = mealDao.getDirty()
-        if (dirtyFoods.isEmpty() && dirtyMeals.isEmpty()) return
+        val dirtyDiets = dietDao.getDirty()
+        if (dirtyFoods.isEmpty() && dirtyMeals.isEmpty() && dirtyDiets.isEmpty()) return
 
         val (delFoods, liveFoods) = dirtyFoods.partition { it.deletedAt != null }
         val (delMeals, liveMeals) = dirtyMeals.partition { it.deletedAt != null }
+        val (delDiets, liveDiets) = dirtyDiets.partition { it.deletedAt != null }
 
         val tombstones =
             delFoods.map { TombstoneDto("food", UUID.fromString(it.id), Instant.ofEpochMilli(it.deletedAt!!)) } +
-            delMeals.map { TombstoneDto("meal", UUID.fromString(it.id), Instant.ofEpochMilli(it.deletedAt!!)) }
+            delMeals.map { TombstoneDto("meal", UUID.fromString(it.id), Instant.ofEpochMilli(it.deletedAt!!)) } +
+            delDiets.map { TombstoneDto("diet", UUID.fromString(it.id), Instant.ofEpochMilli(it.deletedAt!!)) }
 
         val resp = syncApi.syncPush(
             SyncPushRequest(
                 foods = liveFoods.map { it.toDto() },
                 meals = liveMeals.map { it.toDto() },
+                diets = liveDiets.map { it.toDto() },
                 tombstones = tombstones,
             )
         )
@@ -53,6 +59,7 @@ class SyncManager @Inject constructor(
 
         foodDao.clearDirty(liveFoods.map { it.id }); foodDao.hardDelete(delFoods.map { it.id })
         mealDao.clearDirty(liveMeals.map { it.id }); mealDao.hardDelete(delMeals.map { it.id })
+        dietDao.clearDirty(liveDiets.map { it.id }); dietDao.hardDelete(delDiets.map { it.id })
     }
 
     private suspend fun pull() {
@@ -67,11 +74,17 @@ class SyncManager @Inject constructor(
         val meals = resp.meals.filter { it.serverId?.toString() !in dirtyMealIds }.map { it.toEntity() }
         if (meals.isNotEmpty()) mealDao.upsertAll(meals)
 
+        val dirtyDietIds = dietDao.dirtyIds().toSet()
+        val diets = resp.diets.filter { it.serverId?.toString() !in dirtyDietIds }.map { it.toEntity() }
+        if (diets.isNotEmpty()) dietDao.upsertAll(diets)
+
         // Apply server-side deletes.
         resp.tombstones.filter { it.entityType == "food" }.map { it.serverId.toString() }
             .takeIf { it.isNotEmpty() }?.let { foodDao.hardDelete(it) }
         resp.tombstones.filter { it.entityType == "meal" }.map { it.serverId.toString() }
             .takeIf { it.isNotEmpty() }?.let { mealDao.hardDelete(it) }
+        resp.tombstones.filter { it.entityType == "diet" }.map { it.serverId.toString() }
+            .takeIf { it.isNotEmpty() }?.let { dietDao.hardDelete(it) }
 
         cursor.set(resp.serverTime)
     }

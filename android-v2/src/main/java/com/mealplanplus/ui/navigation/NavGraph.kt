@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import com.mealplanplus.ui.screens.auth.AuthViewModel
 import com.mealplanplus.ui.screens.auth.LoginScreen
 import com.mealplanplus.ui.screens.auth.RegisterScreen
+import com.mealplanplus.ui.screens.diets.DietsScreen
 import com.mealplanplus.ui.screens.exercises.ExercisesScreen
 import com.mealplanplus.ui.screens.foods.FoodsScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
@@ -39,6 +40,7 @@ sealed class Screen(val route: String, val label: String) {
     object Health    : Screen("health",    "Health")
     object Foods     : Screen("foods",     "Foods")
     object Meals     : Screen("meals",     "Meals")
+    object Diets     : Screen("diets",     "Diets")
 }
 
 private val bottomNavItems = listOf(
@@ -102,7 +104,7 @@ fun MealPlanNavHost() {
     ) { innerPadding ->
         NavHost(
             navController    = navController,
-            // TEMP (no bottom nav yet): launch on Meals; back arrows toggle Foods <-> Meals.
+            // TEMP (no bottom nav yet): launch on Meals; back arrows cycle Meals → Diets → Foods → Meals.
             startDestination = Screen.Meals.route,
             modifier         = Modifier.padding(innerPadding)
         ) {
@@ -111,7 +113,10 @@ fun MealPlanNavHost() {
             composable(Screen.Exercises.route) { ExercisesScreen() }
             composable(Screen.Health.route)    { HealthScreen() }
             composable(Screen.Meals.route)     {
-                MealsScreen(onBack = { navController.navigate(Screen.Foods.route) })
+                MealsScreen(onBack = { navController.navigate(Screen.Diets.route) })
+            }
+            composable(Screen.Diets.route)     {
+                DietsScreen(onBack = { navController.navigate(Screen.Foods.route) })
             }
             composable(Screen.Foods.route)     {
                 FoodsScreen(onBack = { navController.navigate(Screen.Meals.route) })
