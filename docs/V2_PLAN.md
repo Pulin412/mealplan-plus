@@ -23,8 +23,8 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | Per-food units + text-input quantities (Phase 2) | FoodsPage `/foods` (Phase 2) |
-| **Next task** | DietsScreen (Phase 2) — or webapp-v2 Meals catch-up | MealsPage `/meals` (Phase 2) |
+| **Last completed** | Diets + tags + edit(all 3) (Phase 2) | FoodsPage `/foods` (Phase 2) |
+| **Next task** | Phase 3 Home/Today — or webapp-v2 Meals/Diets catch-up | MealsPage `/meals` (Phase 2) |
 | **Blocked on?** | — | — |
 
 **Suggested next session start:**
@@ -199,9 +199,10 @@ Status: ✅ Done · 🔄 In progress · ⬜ Not started
 - ✅ FoodViewModel, FoodDao, FoodRepository, Food entity
 - ✅ **MealsScreen** — same shell (sort/list/compact/fav); slot filter chips + badges; ＋ → New Meal builder (name + multi-select slots + add-food panel: search-your-foods / online / manual). Offline-first, one reusable meal tagged to many slots (no per-slot dupes).
 - ✅ MealViewModel, MealDao, MealRepository, Meal entity (Room, DB v5) + backend `slots` (V21) + `foodServerId` resolution
-- ⬜ **DietsScreen** — same shell; ＋ → new diet: name + build by adding meals/foods into slots
-- ⬜ DietViewModel, DietDao, DietRepository, Diet entity (Room)
-- ⬜ Wire Foods/Meals/Diets into NavGraph (accessible from Today FAB or menu)
+- ✅ **DietsScreen** — slot-grouped New Diet builder; **tags** (normalized Tag/EntityTag: assign + filter row + tag-aware search); offline-first (DB v7/v8).
+- ✅ DietViewModel, DietDao, DietRepository, DietMappers, Diet entity + TagRepository (online tags via TagsApi, Hilt-provided).
+- ✅ **Edit for Foods/Meals/Diets** — in-card ✎ Edit reopens the builder pre-filled + Delete + Save-as-update (offline-first `update()`); row-tap expands (chevrons dropped).
+- ⬜ Real bottom-nav wiring (temp: back-arrow cycles Meals→Diets→Foods; bottom nav is Phase 3)
 
 #### webapp-v2
 - ✅ **FoodsPage** `/foods` — list/compact, search, sort, favourites, FAB speed-dial, manual/online/barcode sheets
