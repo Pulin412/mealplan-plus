@@ -60,7 +60,8 @@ class Tag(
 
 data class EntityTagId(
     val tagId: Long = 0,
-    val entityType: String = "",
+    // Must match the entity's @Id type (TagEntityType) — a String here breaks the IdClass mapping.
+    val entityType: TagEntityType = TagEntityType.DIET,
     val entityId: Long = 0
 ) : Serializable
 
