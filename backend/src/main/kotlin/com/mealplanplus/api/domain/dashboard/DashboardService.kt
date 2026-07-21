@@ -141,20 +141,21 @@ class DashboardService(
 
         return dietMeals.map { dm ->
             val meal  = mealsById[dm.mealId]
-            val items = (itemsByMealId[dm.mealId] ?: emptyList()).mapNotNull { item ->
+            val rawItems = itemsByMealId[dm.mealId] ?: emptyList()
+            val items = rawItems.mapNotNull { item ->
                 val food = foodsById[item.foodId] ?: return@mapNotNull null
                 TodayMealItemDto(foodId = food.id, foodName = food.name,
                     quantity = item.quantity, unit = FoodUnit.forValue(item.unit),
                     caloriesPer100 = food.caloriesPer100, proteinPer100 = food.proteinPer100,
                     carbsPer100 = food.carbsPer100, fatPer100 = food.fatPer100, notes = item.notes)
             }
-            val slotNutrition = items.fold(NutritionTotals()) { acc, i ->
-                val g = if (i.unit == FoodUnit.GRAM) i.quantity else i.quantity * 100.0
-                val f = g / 100.0
-                acc.copy(kcal = acc.kcal + i.caloriesPer100 * f,
-                    protein = acc.protein + i.proteinPer100 * f,
-                    carbs   = acc.carbs   + i.carbsPer100   * f,
-                    fat     = acc.fat     + i.fatPer100     * f)
+            val slotNutrition = rawItems.fold(NutritionTotals()) { acc, item ->
+                val food = foodsById[item.foodId] ?: return@fold acc
+                val f = gramsFor(food, item.quantity, item.unit) / 100.0
+                acc.copy(kcal = acc.kcal + food.caloriesPer100 * f,
+                    protein = acc.protein + food.proteinPer100 * f,
+                    carbs   = acc.carbs   + food.carbsPer100   * f,
+                    fat     = acc.fat     + food.fatPer100     * f)
             }
             SlotStatusDto(
                 slot     = dm.slot,
@@ -204,8 +205,7 @@ class DashboardService(
     private fun computeNutrition(loggedFoods: List<LoggedFood>, foodsById: Map<Long, Food>): NutritionTotals =
         loggedFoods.fold(NutritionTotals()) { acc, lf ->
             val food = foodsById[lf.foodId] ?: return@fold acc
-            val g = if (lf.unit == "GRAM") lf.quantity else lf.quantity * 100.0
-            val f = g / 100.0
+            val f = gramsFor(food, lf.quantity, lf.unit) / 100.0
             acc.copy(kcal = acc.kcal + food.caloriesPer100 * f,
                 protein = acc.protein + food.proteinPer100 * f,
                 carbs   = acc.carbs   + food.carbsPer100   * f,
@@ -213,4 +213,13 @@ class DashboardService(
         }
 
     private fun round1(v: Double) = Math.round(v * 10) / 10.0
+
+    /** Grams for a quantity in the food's unit; count units use the food's gramsPer* factor. */
+    private fun gramsFor(food: Food, quantity: Double, unit: String): Double = when (unit) {
+        "PIECE" -> quantity * (food.gramsPerPiece ?: 1.0)
+        "CUP"   -> quantity * (food.gramsPerCup ?: 1.0)
+        "TBSP"  -> quantity * (food.gramsPerTbsp ?: 1.0)
+        "TSP"   -> quantity * (food.gramsPerTsp ?: 1.0)
+        else    -> quantity   // GRAM, ML (density ~1)
+    }
 }
