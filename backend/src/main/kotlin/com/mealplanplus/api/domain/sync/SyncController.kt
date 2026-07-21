@@ -50,6 +50,8 @@ class SyncController(
         (syncPushRequest.tombstones ?: emptyList()).forEach { t ->
             when (t.entityType) {
                 "food" -> foodService.deleteByServerId(t.serverId, uid)
+                "meal" -> mealService.deleteByServerId(t.serverId, uid)
+                "diet" -> dietService.deleteByServerId(t.serverId, uid)
                 // other entity types wired in as their screens adopt sync
             }
         }

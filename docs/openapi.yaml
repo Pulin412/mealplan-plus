@@ -2168,6 +2168,11 @@ components:
         mealId:
           type: integer
           format: int64
+        mealServerId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Stable UUID of the referenced meal, so offline clients can resolve it.
         dayOfWeek:
           type: integer
           minimum: 0
@@ -2194,6 +2199,11 @@ components:
         foodId:
           type: integer
           format: int64
+        foodServerId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Stable UUID of the referenced food, so offline clients can resolve it.
         slot:
           type: string
           description: Meal slot name

@@ -5,6 +5,8 @@ import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.DietFoodItemDto
 import com.mealplanplus.api.generated.model.DietMealDto
 import com.mealplanplus.api.generated.model.TagDto
+import com.mealplanplus.api.domain.food.FoodRepository
+import com.mealplanplus.api.domain.meal.MealRepository
 import com.mealplanplus.api.domain.sync.TombstoneService
 import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
@@ -21,8 +23,34 @@ class DietService(
     private val dietFoodItemRepo: DietFoodItemRepository,
     private val tagRepo: TagRepository,
     private val entityTagRepo: EntityTagRepository,
+    private val mealRepo: MealRepository,
+    private val foodRepo: FoodRepository,
     private val tombstones: TombstoneService
 ) {
+    // ── serverId ↔ id resolution so offline clients (UUID identity) work ─────────
+    /** UUID a client sent → local meal id (falls back to the numeric mealId). */
+    private fun resolveMealId(dto: DietMealDto): Long {
+        if (dto.mealServerId != null) {
+            val meal = runCatching { mealRepo.findByServerId(UUID.fromString(dto.mealServerId.toString())) }.getOrNull()
+            if (meal != null) return meal.id
+        }
+        return dto.mealId ?: 0L
+    }
+
+    private fun resolveFoodId(dto: DietFoodItemDto): Long {
+        if (dto.foodServerId != null) {
+            val food = runCatching { foodRepo.findByServerId(UUID.fromString(dto.foodServerId.toString())) }.getOrNull()
+            if (food != null) return food.id
+        }
+        return dto.foodId ?: 0L
+    }
+
+    private fun mealServerIds(meals: List<DietMeal>): Map<Long, UUID> =
+        mealRepo.findAllById(meals.map { it.mealId }.toSet()).associate { it.id to it.serverId }
+
+    private fun foodServerIds(items: List<DietFoodItem>): Map<Long, UUID> =
+        foodRepo.findAllById(items.map { it.foodId }.toSet()).associate { it.id to it.serverId }
+
     private fun tagsForDiet(dietId: Long): List<Tag> {
         val tagIds = entityTagRepo
             .findByEntityTypeAndEntityId(TagEntityType.DIET, dietId)
@@ -30,11 +58,11 @@ class DietService(
         return if (tagIds.isEmpty()) emptyList() else tagRepo.findAllById(tagIds).toList()
     }
 
-    private fun Diet.toFullDto(): DietDto = toDto(
-        meals     = dietMealRepo.findByDietId(id),
-        foodItems = dietFoodItemRepo.findByDietId(id),
-        tags      = tagsForDiet(id)
-    )
+    private fun Diet.toFullDto(): DietDto {
+        val meals = dietMealRepo.findByDietId(id)
+        val foods = dietFoodItemRepo.findByDietId(id)
+        return toDto(meals, foods, tagsForDiet(id), mealServerIds(meals), foodServerIds(foods))
+    }
 
     private fun batchToDtos(diets: List<Diet>): List<DietDto> {
         if (diets.isEmpty()) return emptyList()
@@ -46,21 +74,25 @@ class DietService(
         val tagsById         = if (tagIds.isEmpty()) emptyMap()
                                else tagRepo.findAllById(tagIds).associateBy { it.id }
         val entityTagsByDiet = entityTags.groupBy { it.entityId }
+        val mealSids = mealServerIds(mealsByDietId.values.flatten())
+        val foodSids = foodServerIds(foodsByDietId.values.flatten())
         return diets.map { diet ->
             val tags = (entityTagsByDiet[diet.id] ?: emptyList()).mapNotNull { tagsById[it.tagId] }
             diet.toDto(meals     = mealsByDietId[diet.id] ?: emptyList(),
                        foodItems = foodsByDietId[diet.id] ?: emptyList(),
-                       tags      = tags)
+                       tags      = tags,
+                       mealServerIds = mealSids,
+                       foodServerIds = foodSids)
         }
     }
 
     private fun saveMealsAndItems(dietId: Long, dto: DietDto) {
         (dto.meals ?: emptyList()).forEach { m ->
-            dietMealRepo.save(DietMeal(dietId = dietId, mealId = m.mealId ?: 0L,
+            dietMealRepo.save(DietMeal(dietId = dietId, mealId = resolveMealId(m),
                 dayOfWeek = m.dayOfWeek ?: 0, slot = m.slot ?: "", instructions = m.instructions))
         }
         (dto.foodItems ?: emptyList()).forEach { f ->
-            dietFoodItemRepo.save(DietFoodItem(dietId = dietId, foodId = f.foodId ?: 0L,
+            dietFoodItemRepo.save(DietFoodItem(dietId = dietId, foodId = resolveFoodId(f),
                 slot = f.slot ?: "", quantity = f.quantity ?: 1.0, unit = f.unit.value))
         }
         (dto.tagIds ?: emptyList()).forEach { tagId ->
@@ -137,6 +169,16 @@ class DietService(
         if (diet.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         clearDietChildren(id)
+        dietRepo.delete(diet)
+        tombstones.record(firebaseUid, "diet", diet.serverId)
+    }
+
+    /** Sync-push delete: remove by stable serverId and record a tombstone. No-op if absent/foreign. */
+    @Transactional
+    fun deleteByServerId(serverId: UUID, firebaseUid: String) {
+        val diet = dietRepo.findByServerId(serverId) ?: return
+        if (diet.firebaseUid != firebaseUid) return
+        clearDietChildren(diet.id)
         dietRepo.delete(diet)
         tombstones.record(firebaseUid, "diet", diet.serverId)
     }
@@ -234,13 +276,16 @@ fun Tag.toDto() = TagDto(
     entityType = com.mealplanplus.api.generated.model.TagEntityType.valueOf(entityType.name)
 )
 
-fun DietMeal.toDto() = DietMealDto(id = id, dietId = dietId, mealId = mealId,
-    dayOfWeek = dayOfWeek, slot = slot, instructions = instructions)
+fun DietMeal.toDto(mealServerIds: Map<Long, UUID>) = DietMealDto(id = id, dietId = dietId, mealId = mealId,
+    mealServerId = mealServerIds[mealId], dayOfWeek = dayOfWeek, slot = slot, instructions = instructions)
 
-fun DietFoodItem.toDto() = DietFoodItemDto(id = id, dietId = dietId, foodId = foodId,
-    slot = slot, quantity = quantity, unit = FoodUnit.forValue(unit))
+fun DietFoodItem.toDto(foodServerIds: Map<Long, UUID>) = DietFoodItemDto(id = id, dietId = dietId, foodId = foodId,
+    foodServerId = foodServerIds[foodId], slot = slot, quantity = quantity, unit = FoodUnit.forValue(unit))
 
-fun Diet.toDto(meals: List<DietMeal>, foodItems: List<DietFoodItem>, tags: List<Tag>) = DietDto(
+fun Diet.toDto(
+    meals: List<DietMeal>, foodItems: List<DietFoodItem>, tags: List<Tag>,
+    mealServerIds: Map<Long, UUID>, foodServerIds: Map<Long, UUID>,
+) = DietDto(
     id             = id,
     serverId       = serverId,
     firebaseUid    = firebaseUid,
@@ -250,8 +295,8 @@ fun Diet.toDto(meals: List<DietMeal>, foodItems: List<DietFoodItem>, tags: List<
     targetProtein  = targetProtein,
     targetCarbs    = targetCarbs,
     targetFat      = targetFat,
-    meals          = meals.map { it.toDto() },
-    foodItems      = foodItems.map { it.toDto() },
+    meals          = meals.map { it.toDto(mealServerIds) },
+    foodItems      = foodItems.map { it.toDto(foodServerIds) },
     tagIds         = tags.map { it.id },
     tags           = tags.map { it.toDto() },
     isFavorite     = isFavorite,

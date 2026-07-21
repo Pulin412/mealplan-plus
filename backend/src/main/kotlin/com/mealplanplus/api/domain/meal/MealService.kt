@@ -98,6 +98,16 @@ class MealService(
         tombstones.record(firebaseUid, "meal", meal.serverId)
     }
 
+    /** Sync-push delete: remove by stable serverId and record a tombstone. No-op if absent/foreign. */
+    @Transactional
+    fun deleteByServerId(serverId: UUID, firebaseUid: String) {
+        val meal = mealRepo.findByServerId(serverId) ?: return
+        if (meal.firebaseUid != firebaseUid) return
+        itemRepo.deleteByMealId(meal.id)
+        mealRepo.delete(meal)
+        tombstones.record(firebaseUid, "meal", meal.serverId)
+    }
+
     fun since(firebaseUid: String, since: Instant): List<MealDto> {
         val meals = mealRepo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since)
         if (meals.isEmpty()) return emptyList()
