@@ -2,7 +2,10 @@ spring:
   application:
     name: mealplan-api
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:mealplandb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    # Local default is H2 (prod overrides DB_URL with Neon Postgres). The INIT clause teaches
+    # H2 the Postgres-only enum type `tag_entity_type` (used by the tags/entity_tags tables)
+    # so ddl-auto can create them locally; on prod the real Postgres enum is used.
+    url: ${DB_URL:jdbc:h2:mem:mealplandb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;INIT=CREATE DOMAIN IF NOT EXISTS tag_entity_type AS varchar(32)}
     username: ${DB_USER:sa}
     password: ${DB_PASSWORD:}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
