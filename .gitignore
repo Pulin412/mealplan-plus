@@ -38,3 +38,7 @@ design_v2/
 
 # Local-only dev H2 seeder (run manually when testing) — never commit
 scripts/dev-seed-h2.py
+
+# Python bytecode cache (from running local scripts)
+__pycache__/
+*.pyc
