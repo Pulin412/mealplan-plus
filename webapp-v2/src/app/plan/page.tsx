@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -102,9 +103,19 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
           {plan && <button onClick={() => p.clearDay(dateIso)} style={{ font: "600 12px system-ui", color: C.danger, background: "none", border: "none", cursor: "pointer" }}>Clear day</button>}
         </div>
 
-        <div style={{ font: "600 11px system-ui", color: C.muted2, margin: "16px 0 4px" }}>Diet plan</div>
-        {p.diets.map((di) => <DietRadio key={di.id} name={di.name} kcal={`${di.kcal} kcal`} selected={plan?.dietId === di.id} onClick={() => p.setDiet(dateIso, di.id)} />)}
-        {selectedDiet && <DietDetail diet={selectedDiet} />}
+        <div style={{ display: "flex", alignItems: "center", margin: "16px 0 4px" }}>
+          <span style={{ font: "600 11px system-ui", color: C.muted2 }}>Diet plan</span>
+          <span style={{ flex: 1 }} />
+          {selectedDiet && <button onClick={p.openPicker} style={{ font: "600 12px system-ui", color: C.teal, background: "none", border: "none", cursor: "pointer" }}>Change diet</button>}
+        </div>
+        {selectedDiet ? (
+          <>
+            <div style={{ font: "700 14px system-ui", color: C.ink, marginTop: 2 }}>{selectedDiet.name}</div>
+            <DietDetail diet={selectedDiet} />
+          </>
+        ) : (
+          <button onClick={p.openPicker} style={{ width: "100%", borderRadius: 12, padding: "13px", marginTop: 2, background: C.teal, border: "none", font: "600 13px system-ui", color: "#fff", cursor: "pointer" }}>＋ Pick a diet</button>
+        )}
 
         <div style={{ font: "600 11px system-ui", color: C.muted2, margin: "16px 0 4px" }}>Exercises</div>
         {workouts.length === 0 ? (
@@ -149,15 +160,78 @@ function DietDetail({ diet }: { diet: ReturnType<typeof usePlan>["diets"][number
   );
 }
 
-function DietRadio({ name, kcal, selected, onClick }: { name: string; kcal?: string; selected: boolean; onClick: () => void }) {
+// ── Diet picker (the Diets screen as a chooser: search + tag filter + expand) ────
+function DietPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: string }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const plan = p.plans[dateIso];
   return (
-    <div onClick={onClick} style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "10px 0" }}>
-      <span style={{ width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${selected ? C.teal : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-        {selected && <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.teal }} />}
-      </span>
-      <span style={{ flex: 1, font: `${selected ? 600 : 400} 13px system-ui`, color: C.ink, marginLeft: 10 }}>{name}</span>
-      {kcal && <span style={{ font: `400 10.5px ${mono}`, color: C.muted2 }}>{kcal}</span>}
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, background: C.bg, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", padding: "10px 12px 8px" }}>
+        <button onClick={p.closePicker} style={{ font: "400 24px system-ui", color: C.ink, background: "none", border: "none", cursor: "pointer", width: 36 }}>‹</button>
+        <span style={{ font: "600 17px system-ui", color: C.ink }}>Choose a diet</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ font: "400 12px system-ui", color: C.muted2, paddingRight: 8 }}>{p.diets.length} saved</span>
+      </div>
+      <div style={{ padding: "4px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", background: C.bgAlt, borderRadius: 12, padding: "11px 14px" }}>
+          <span style={{ fontSize: 13 }}>🔍</span>
+          <input value={p.pickerSearch} onChange={(e) => p.setPickerSearch(e.target.value)} placeholder="Search your diets…"
+            style={{ flex: 1, marginLeft: 10, border: "none", outline: "none", background: "transparent", font: "400 14px system-ui", color: C.ink }} />
+        </div>
+      </div>
+      {p.allTags.length > 0 && (
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 16px" }}>
+          <TagChip label="All" on={p.pickerTag == null} onClick={() => p.setPickerTag(null)} />
+          {p.allTags.map((t) => <TagChip key={t} label={t} on={p.pickerTag === t} onClick={() => p.setPickerTag(p.pickerTag === t ? null : t)} />)}
+        </div>
+      )}
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 14px 24px" }}>
+        {p.filteredDiets.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <div style={{ fontSize: 40 }}>🥗</div>
+            <div style={{ font: "600 14px system-ui", color: C.muted3, marginTop: 8 }}>No diets match</div>
+          </div>
+        ) : p.filteredDiets.map((di) => {
+          const selected = plan?.dietId === di.id;
+          const expanded = expandedId === di.id;
+          return (
+            <div key={di.id} onClick={() => setExpandedId(expanded ? null : di.id)}
+              style={{ cursor: "pointer", background: C.surface, border: `1px solid ${selected ? C.teal : C.border}`, borderRadius: 14, padding: 14, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ font: "700 13px system-ui", color: C.ink }}>{di.name}</div>
+                  {di.tags.length > 0 && (
+                    <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
+                      {di.tags.slice(0, 3).map((t) => <span key={t} style={{ font: "600 8.5px system-ui", color: C.teal, background: "rgba(45,140,150,0.12)", borderRadius: 5, padding: "2px 6px" }}>{t}</span>)}
+                      {di.tags.length > 3 && <span style={{ font: "400 8.5px system-ui", color: C.muted2 }}>+{di.tags.length - 3}</span>}
+                    </div>
+                  )}
+                </div>
+                <span style={{ font: `700 13px ${mono}`, color: C.ink }}>{di.kcal}</span>
+                <span style={{ font: "400 9px system-ui", color: C.muted2 }}>&nbsp;kcal</span>
+              </div>
+              {expanded ? (
+                <>
+                  <DietDetail diet={di} />
+                  <button disabled={selected} onClick={(e) => { e.stopPropagation(); p.chooseDiet(dateIso, di.id); }}
+                    style={{ width: "100%", marginTop: 12, borderRadius: 11, padding: "11px", border: "none", cursor: selected ? "default" : "pointer", background: selected ? C.bgAlt : C.teal, font: "600 12.5px system-ui", color: selected ? C.muted3 : "#fff" }}>
+                    {selected ? "✓ Selected" : "Choose this diet"}
+                  </button>
+                </>
+              ) : (
+                <div style={{ font: "400 10px system-ui", color: selected ? C.teal : C.muted2, marginTop: 6 }}>{selected ? "✓ Selected · tap to view" : "Tap to view meals"}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
+  );
+}
+
+function TagChip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ flex: "none", cursor: "pointer", border: "none", borderRadius: 20, padding: "6px 12px", font: "600 11.5px system-ui", color: on ? "#fff" : C.muted3, background: on ? C.ink : C.bgAlt }}>{label}</button>
   );
 }
 
@@ -171,7 +245,8 @@ function PlanInner() {
         <Calendar p={p} />
         <NextSeven p={p} />
       </div>
-      {p.selected && <DaySheet p={p} dateIso={p.selected} />}
+      {p.selected && !p.pickerOpen && <DaySheet p={p} dateIso={p.selected} />}
+      {p.selected && p.pickerOpen && <DietPicker p={p} dateIso={p.selected} />}
       <NutritionNav />
     </div>
   );

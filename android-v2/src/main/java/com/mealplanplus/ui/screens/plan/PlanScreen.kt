@@ -26,9 +26,19 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle as ComposeTextStyle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,7 +83,14 @@ fun PlanScreen() {
     }
 
     state.selectedDate?.let { date ->
-        DayPlanSheet(date, state, onSetDiet = { viewModel.setDiet(date, it) }, onClear = { viewModel.clearDay(date) }, onClose = { viewModel.selectDay(null) })
+        if (state.pickerOpen) {
+            DietPicker(date, state, viewModel)
+        } else {
+            DayPlanSheet(date, state,
+                onPick = viewModel::openPicker,
+                onClear = { viewModel.clearDay(date) },
+                onClose = { viewModel.selectDay(null) })
+        }
     }
 }
 
@@ -164,9 +181,10 @@ private fun NextSeven(state: PlanUiState, onDay: (LocalDate) -> Unit) {
 // ── Day plan sheet ──────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onSetDiet: (Long?) -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
+private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
     val plan: DayPlanDto? = state.plansByDate[date]
     val workouts = plan?.plannedWorkouts.orEmpty()
+    val selectedDiet = plan?.dietId?.let { id -> state.diets.firstOrNull { it.id == id } }
     ModalBottomSheet(onDismissRequest = onClose, containerColor = Surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -177,10 +195,20 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onSetDiet: (Long?)
                 if (plan != null) Text("Clear day", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Danger, modifier = Modifier.clickable(onClick = onClear))
             }
 
-            SectionLabel("Diet plan")
-            state.diets.forEach { d -> DietRadio(d.name, "${d.kcal} kcal", plan?.dietId == d.id) { onSetDiet(d.id) } }
-            val selectedDiet = plan?.dietId?.let { id -> state.diets.firstOrNull { it.id == id } }
-            selectedDiet?.let { DietSlots(it) }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp)) {
+                Text("Diet plan", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                Spacer(Modifier.weight(1f))
+                if (selectedDiet != null) Text("Change diet", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable(onClick = onPick))
+            }
+            if (selectedDiet != null) {
+                Text(selectedDiet.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.padding(top = 2.dp))
+                DietSlots(selectedDiet)
+            } else {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                    .clip(RoundedCornerShape(12.dp)).background(Teal).clickable(onClick = onPick).padding(vertical = 13.dp)) {
+                    Text("＋ Pick a diet", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnAccent)
+                }
+            }
 
             SectionLabel("Exercises")
             if (workouts.isEmpty()) {
@@ -244,14 +272,106 @@ private fun SlotBadge(slot: String) =
 private fun SectionLabel(text: String) =
     Text(text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
 
+// ── Diet picker (the Diets screen as a chooser: search + tag filter + expand) ────
 @Composable
-private fun DietRadio(name: String, kcal: String?, selected: Boolean, onClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp)) {
-        Box(Modifier.size(18.dp).clip(CircleShape).border(1.5.dp, if (selected) Teal else CardBorder, CircleShape), Alignment.Center) {
-            if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(Teal))
+private fun DietPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewModel) {
+    val diets = state.filteredDiets
+    var expandedId by remember { mutableStateOf<Long?>(null) }
+    val plan = state.plansByDate[date]
+    Column(Modifier.fillMaxSize().background(AppBg)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+            Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = viewModel::closePicker), Alignment.Center) {
+                Text("‹", fontSize = 24.sp, color = Ink)
+            }
+            Text("Choose a diet", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            Text("${state.diets.size} saved", fontSize = 12.sp, color = MutedLight)
         }
+        PickerSearchBar(state.pickerSearch, viewModel::setPickerSearch)
+        if (state.allTags.isNotEmpty()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                item { PickerTagChip("All", state.pickerTag == null) { viewModel.setPickerTag(null) } }
+                items(state.allTags) { t -> PickerTagChip(t, state.pickerTag == t) { viewModel.setPickerTag(if (state.pickerTag == t) null else t) } }
+            }
+        }
+        if (diets.isEmpty()) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("🥗", fontSize = 40.sp)
+                Text("No diets match", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(top = 8.dp))
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+                items(diets, key = { it.id }) { d ->
+                    PickerDietCard(
+                        diet = d,
+                        selected = plan?.dietId == d.id,
+                        expanded = expandedId == d.id,
+                        onToggleExpand = { expandedId = if (expandedId == d.id) null else d.id },
+                        onChoose = { viewModel.chooseDiet(date, d.id) },
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PickerSearchBar(query: String, onChange: (String) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp)).background(SurfaceMuted).padding(horizontal = 14.dp, vertical = 12.dp)) {
+        Text("🔍", fontSize = 13.sp)
         Spacer(Modifier.width(10.dp))
-        Text(name, fontSize = 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = Ink, modifier = Modifier.weight(1f))
-        kcal?.let { Text(it, fontFamily = DmMono, fontSize = 10.5.sp, color = MutedFaint) }
+        Box(Modifier.weight(1f)) {
+            if (query.isEmpty()) Text("Search your diets…", fontSize = 14.sp, color = MutedLight)
+            BasicTextField(query, onChange,
+                textStyle = ComposeTextStyle(fontSize = 14.sp, color = Ink), singleLine = true,
+                cursorBrush = SolidColor(Teal), modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun PickerTagChip(text: String, on: Boolean, onClick: () -> Unit) =
+    Text(text, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) Surface else MutedDark,
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Ink else SurfaceMuted)
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp))
+
+@Composable
+private fun PickerDietCard(diet: DietSummary, selected: Boolean, expanded: Boolean, onToggleExpand: () -> Unit, onChoose: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Surface)
+        .border(1.dp, if (selected) Teal else CardBorder, RoundedCornerShape(14.dp))
+        .clickable(onClick = onToggleExpand).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(diet.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+                if (diet.tags.isNotEmpty()) {
+                    Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        diet.tags.take(3).forEach { tag ->
+                            Text(tag, fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                                modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f)).padding(horizontal = 6.dp, vertical = 2.dp))
+                        }
+                        if (diet.tags.size > 3) Text("+${diet.tags.size - 3}", fontSize = 8.5.sp, color = MutedFaint)
+                    }
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("${diet.kcal}", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Ink)
+            Text(" kcal", fontSize = 9.sp, color = MutedFaint)
+        }
+        if (expanded) {
+            DietSlots(diet)
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                .clip(RoundedCornerShape(11.dp)).background(if (selected) SurfaceMuted else Teal)
+                .clickable(enabled = !selected, onClick = onChoose).padding(vertical = 11.dp)) {
+                Text(if (selected) "✓ Selected" else "Choose this diet", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = if (selected) MutedDark else OnAccent)
+            }
+        } else {
+            Text(if (selected) "✓ Selected · tap to view" else "Tap to view meals", fontSize = 10.sp, color = if (selected) Teal else MutedFaint, modifier = Modifier.padding(top = 6.dp))
+        }
     }
 }

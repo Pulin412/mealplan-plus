@@ -22,7 +22,13 @@ import kotlin.math.roundToInt
 
 data class DietLine(val name: String, val meta: String, val header: Boolean)
 data class DietSlotView(val slot: String, val kcal: Int, val lines: List<DietLine>)
-data class DietSummary(val id: Long, val name: String, val kcal: Int, val slots: List<DietSlotView> = emptyList())
+data class DietSummary(
+    val id: Long,
+    val name: String,
+    val kcal: Int,
+    val slots: List<DietSlotView> = emptyList(),
+    val tags: List<String> = emptyList(),
+)
 
 private val SLOT_ORDER = listOf("BREAKFAST", "LUNCH", "DINNER", "SNACK")
 
@@ -34,7 +40,16 @@ data class PlanUiState(
     val today: LocalDate = LocalDate.now(),
     val selectedDate: LocalDate? = null,
     val error: String? = null,
-)
+    val pickerOpen: Boolean = false,
+    val pickerSearch: String = "",
+    val pickerTag: String? = null,
+) {
+    val allTags: List<String> get() = diets.flatMap { it.tags }.distinct().sorted()
+    val filteredDiets: List<DietSummary> get() = diets.filter { d ->
+        (pickerSearch.isBlank() || d.name.contains(pickerSearch, ignoreCase = true)) &&
+            (pickerTag == null || d.tags.contains(pickerTag))
+    }
+}
 
 @HiltViewModel
 class PlanViewModel @Inject constructor(
@@ -78,7 +93,14 @@ class PlanViewModel @Inject constructor(
 
     fun prevMonth() { _state.value = _state.value.copy(month = _state.value.month.minusMonths(1)); loadPlans() }
     fun nextMonth() { _state.value = _state.value.copy(month = _state.value.month.plusMonths(1)); loadPlans() }
-    fun selectDay(date: LocalDate?) { _state.value = _state.value.copy(selectedDate = date) }
+    fun selectDay(date: LocalDate?) { _state.value = _state.value.copy(selectedDate = date, pickerOpen = false) }
+
+    fun openPicker() { _state.value = _state.value.copy(pickerOpen = true, pickerSearch = "", pickerTag = null) }
+    fun closePicker() { _state.value = _state.value.copy(pickerOpen = false) }
+    fun setPickerSearch(q: String) { _state.value = _state.value.copy(pickerSearch = q) }
+    fun setPickerTag(t: String?) { _state.value = _state.value.copy(pickerTag = t) }
+
+    fun chooseDiet(date: LocalDate, dietId: Long) { setDiet(date, dietId); closePicker() }
 
     fun setDiet(date: LocalDate, dietId: Long?) {
         val existing = _state.value.plansByDate[date]
@@ -124,7 +146,7 @@ class PlanViewModel @Inject constructor(
 
         val order = SLOT_ORDER.filter { lines.containsKey(it) } + lines.keys.filter { it !in SLOT_ORDER }
         val slots = order.map { slot -> DietSlotView(slot, (slotKcal[slot] ?: 0.0).roundToInt(), lines[slot].orEmpty()) }
-        return DietSummary(id, d.name, total.roundToInt(), slots)
+        return DietSummary(id, d.name, total.roundToInt(), slots, (d.tags ?: emptyList()).map { it.name })
     }
 
     private fun trimNum(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else "%.1f".format(v)

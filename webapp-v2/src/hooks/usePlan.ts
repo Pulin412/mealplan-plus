@@ -9,7 +9,7 @@ import { foodMacros, unitLabel, MEAL_SLOTS, num } from "@/lib/nutrition";
 
 export interface DietLine { name: string; meta: string; header: boolean }
 export interface DietSlotView { slot: string; kcal: number; lines: DietLine[] }
-export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[] }
+export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[]; tags: string[] }
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
@@ -45,7 +45,8 @@ function resolveDiet(d: DietDto, mealsById: Map<number, MealDto>, foodsById: Map
   const allSlots = Array.from(bySlot.keys());
   const order = [...MEAL_SLOTS.filter((s) => bySlot.has(s)), ...allSlots.filter((s) => !MEAL_SLOTS.includes(s))];
   const slots = order.map((slot) => ({ slot, kcal: Math.round(slotKcal.get(slot) ?? 0), lines: bySlot.get(slot)! }));
-  return { id: d.id!, name: d.name, kcal: Math.round(total), slots };
+  const tags = (d.tags ?? []).map((t) => t.name);
+  return { id: d.id!, name: d.name, kcal: Math.round(total), slots, tags };
 }
 
 export function usePlan() {
@@ -56,6 +57,15 @@ export function usePlan() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerTag, setPickerTag] = useState<string | null>(null);
+
+  const allTags = useMemo(() => Array.from(new Set(diets.flatMap((d) => d.tags))).sort(), [diets]);
+  const filteredDiets = useMemo(() => diets.filter((d) =>
+    (pickerSearch.trim() === "" || d.name.toLowerCase().includes(pickerSearch.toLowerCase())) &&
+    (pickerTag == null || d.tags.includes(pickerTag))
+  ), [diets, pickerSearch, pickerTag]);
 
   const todayIso = iso(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
@@ -96,10 +106,19 @@ export function usePlan() {
     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
   }, [plans, ym, loadPlans]);
 
+  const openPicker = useCallback(() => { setPickerSearch(""); setPickerTag(null); setPickerOpen(true); }, []);
+  const closePicker = useCallback(() => setPickerOpen(false), []);
+  const chooseDiet = useCallback(async (dateIso: string, dietId: number) => { await setDiet(dateIso, dietId); setPickerOpen(false); }, [setDiet]);
+
   const clearDay = useCallback(async (dateIso: string) => {
     try { await deletePlan(dateIso); setSelected(null); await loadPlans(ym.year, ym.month); }
     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
   }, [ym, loadPlans]);
 
-  return { ym, setYm, plans, diets, loading, error, todayIso, today, selected, setSelected, prevMonth, nextMonth, setDiet, clearDay };
+  return {
+    ym, setYm, plans, diets, loading, error, todayIso, today, selected, setSelected,
+    prevMonth, nextMonth, setDiet, clearDay,
+    pickerOpen, pickerSearch, setPickerSearch, pickerTag, setPickerTag, allTags, filteredDiets,
+    openPicker, closePicker, chooseDiet,
+  };
 }
