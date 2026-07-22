@@ -11,6 +11,7 @@ const TABS = [
   { href: "/foods", label: "Foods", icon: "🍎" },
   { href: "/meals", label: "Meals", icon: "🍲" },
   { href: "/diets", label: "Diets", icon: "🥗" },
+  { href: "/exercises", label: "Train", icon: "🏋️" },
 ];
 
 const teal = "oklch(0.62 0.09 210)";

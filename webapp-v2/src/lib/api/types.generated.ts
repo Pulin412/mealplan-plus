@@ -1193,6 +1193,8 @@ export interface components {
             /** Format: uuid */
             serverId?: string | null;
             name: string;
+            /** @description Optional free-text notes / how-to for the exercise. */
+            description?: string | null;
             /**
              * @description true = bundled system exercise visible to all users
              * @default false
@@ -1208,7 +1210,7 @@ export interface components {
             /** Format: date-time */
             readonly updatedAt?: string;
         };
-        /** @description An exercise within a workout template with target sets × reps. */
+        /** @description An exercise within a workout template with its ordered per-set targets. */
         TemplateExerciseDto: {
             /** Format: int64 */
             id?: number;
@@ -1218,14 +1220,28 @@ export interface components {
             exerciseId: number;
             /** @default 0 */
             orderIndex: number;
-            /** @default 3 */
-            targetSets: number;
-            targetReps?: number | null;
-            /** Format: double */
-            targetWeightKg?: number | null;
+            /**
+             * @description Ordered per-set targets (reps + optional weight). Total sets = sets.length.
+             * @default []
+             */
+            sets: components["schemas"]["TemplateSetDto"][];
             notes?: string | null;
             /** @description Denormalized exercise name for display convenience */
             readonly exerciseName?: string;
+        };
+        /** @description One target set within a template exercise (mirrors WorkoutSetDto for sessions). */
+        TemplateSetDto: {
+            /**
+             * @description 0-indexed set order within the exercise
+             * @default 0
+             */
+            setNumber: number;
+            reps?: number | null;
+            /**
+             * Format: double
+             * @description Target weight in kg (canonical); clients display in the user's unit.
+             */
+            weightKg?: number | null;
         };
         WorkoutTemplateDto: {
             /** Format: int64 */
