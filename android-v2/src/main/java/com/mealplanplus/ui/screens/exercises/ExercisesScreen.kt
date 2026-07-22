@@ -72,6 +72,7 @@ fun ExercisesScreen(viewModel: ExercisesViewModel = hiltViewModel()) {
         if (b.pickerOpen) ExercisePickerScreen(state, viewModel) else WorkoutBuilderScreen(state, viewModel)
         return
     }
+    state.openLog?.let { LogDetailScreen(state, viewModel); return }
 
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize()) {
@@ -82,11 +83,11 @@ fun ExercisesScreen(viewModel: ExercisesViewModel = hiltViewModel()) {
                 Text("Exercises", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink)
                 Spacer(Modifier.weight(1f))
                 val count = when (state.tab) {
-                    LibTab.EXERCISES -> "${state.exercises.size}"
-                    LibTab.WORKOUTS -> "${state.workouts.size}"
-                    LibTab.LOGS -> ""
+                    LibTab.EXERCISES -> "${state.exercises.size} saved"
+                    LibTab.WORKOUTS -> "${state.workouts.size} saved"
+                    LibTab.LOGS -> if (state.logs.isEmpty()) "" else "${state.logs.size} logged"
                 }
-                if (count.isNotEmpty()) Text("$count saved", fontSize = 13.sp, color = MutedLight)
+                if (count.isNotEmpty()) Text(count, fontSize = 13.sp, color = MutedLight)
             }
 
             LibTabBar(state.tab, viewModel::setTab)
@@ -94,7 +95,7 @@ fun ExercisesScreen(viewModel: ExercisesViewModel = hiltViewModel()) {
             when (state.tab) {
                 LibTab.EXERCISES -> ExercisesTab(state, viewModel)
                 LibTab.WORKOUTS -> WorkoutsTab(state, viewModel)
-                LibTab.LOGS -> LogsTab()
+                LibTab.LOGS -> LogsTab(state, viewModel)
             }
         }
 
@@ -209,10 +210,92 @@ private fun WorkoutCard(w: WorkoutTemplateDto, onClick: () -> Unit) {
     }
 }
 
-// ── Logs tab (empty until the Session Runner exists) ───────────────────────────
+// ── Logs tab (read-only workout history) ───────────────────────────────────────
 @Composable
-private fun LogsTab() =
-    EmptyState("📆", "No workout logs yet", "Complete a workout from Plan to see your sessions here.")
+private fun LogsTab(state: ExercisesUiState, vm: ExercisesViewModel) {
+    when {
+        state.loading -> LoadingOrEmpty("Loading…")
+        state.logs.isEmpty() -> EmptyState("📆", "No workout logs yet", "Completed workouts show up here as read-only history.")
+        else -> LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+            items(state.logs, key = { it.id ?: it.name.hashCode().toLong() }) { s ->
+                LogCard(s) { vm.openLog(s) }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogCard(s: com.mealplanplus.data.generated.model.WorkoutSessionDto, onClick: () -> Unit) {
+    val sets = s.sets ?: emptyList()
+    val exerciseCount = sets.map { it.exerciseId }.distinct().size
+    AppCard(modifier = Modifier.clickable(onClick = onClick)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(s.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (s.isCompleted == true) {
+                        Spacer(Modifier.width(6.dp))
+                        Text("✓", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = com.mealplanplus.ui.theme.Success)
+                    }
+                }
+                Text(logMeta(s, exerciseCount, sets.size), fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+            }
+            Text("›", fontSize = 20.sp, color = MutedLight)
+        }
+    }
+}
+
+private fun logMeta(s: com.mealplanplus.data.generated.model.WorkoutSessionDto, exerciseCount: Int, setCount: Int): String {
+    val parts = mutableListOf<String>()
+    s.date?.let { parts.add(it.format(java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM"))) }
+    parts.add("$exerciseCount exercise${if (exerciseCount == 1) "" else "s"} · $setCount sets")
+    s.durationMinutes?.let { parts.add("${it} min") }
+    return parts.joinToString(" · ")
+}
+
+// ── Log detail (full-screen, read-only) ────────────────────────────────────────
+@Composable
+private fun LogDetailScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
+    val s = state.openLog ?: return
+    val exName = state.exerciseName
+    // Group sets by exercise, preserving first-seen order.
+    val grouped = (s.sets ?: emptyList()).groupBy { it.exerciseId }
+    Column(Modifier.fillMaxSize().background(AppBg)) {
+        EditorHeader(s.name, onBack = vm::closeLog)
+        LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+            item {
+                Text(logMeta(s, grouped.size, (s.sets ?: emptyList()).size), fontSize = 11.sp, color = MutedLight,
+                    modifier = Modifier.padding(bottom = 6.dp))
+                s.notes?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, fontSize = 12.sp, color = MutedDark, modifier = Modifier.padding(bottom = 6.dp))
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+            items(grouped.entries.toList(), key = { it.key }) { (exId, sets) ->
+                AppCard {
+                    Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
+                        Text("Set", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(48.dp))
+                        Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
+                        Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                    }
+                    sets.sortedBy { it.setNumber }.forEachIndexed { i, set ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                            Text("${i + 1}", fontSize = 11.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(48.dp))
+                            Text(set.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
+                            Text(set.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+private fun fmtKg(v: Double): String = (if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()) + " kg"
 
 // ── Exercise editor (full-screen) ──────────────────────────────────────────────
 @Composable

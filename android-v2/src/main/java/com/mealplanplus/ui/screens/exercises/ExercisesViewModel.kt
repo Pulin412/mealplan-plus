@@ -6,9 +6,11 @@ import com.mealplanplus.data.generated.model.ExerciseDto
 import com.mealplanplus.data.generated.model.TagDto
 import com.mealplanplus.data.generated.model.TemplateExerciseDto
 import com.mealplanplus.data.generated.model.TemplateSetDto
+import com.mealplanplus.data.generated.model.WorkoutSessionDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.data.repository.ExerciseRepository
 import com.mealplanplus.data.repository.WorkoutRepository
+import com.mealplanplus.data.repository.WorkoutSessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,19 +56,23 @@ data class ExercisesUiState(
     val tab: LibTab = LibTab.EXERCISES,
     val exercises: List<ExerciseDto> = emptyList(),
     val workouts: List<WorkoutTemplateDto> = emptyList(),
+    val logs: List<WorkoutSessionDto> = emptyList(),
     val tags: List<TagDto> = emptyList(),
     val loading: Boolean = true,
     val error: String? = null,
     val editor: ExerciseEditor? = null,
     val builder: WorkoutBuilder? = null,
+    val openLog: WorkoutSessionDto? = null,
 ) {
     val tagName: Map<Long, String> get() = tags.associate { it.id to it.name }
+    val exerciseName: Map<Long, String> get() = exercises.associate { (it.id ?: -1L) to it.name }
 }
 
 @HiltViewModel
 class ExercisesViewModel @Inject constructor(
     private val exerciseRepo: ExerciseRepository,
     private val workoutRepo: WorkoutRepository,
+    private val sessionRepo: WorkoutSessionRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExercisesUiState())
@@ -79,17 +85,23 @@ class ExercisesViewModel @Inject constructor(
             _state.value = _state.value.copy(loading = true, error = null)
             val exercises = async { exerciseRepo.list() }
             val workouts = async { workoutRepo.list() }
+            val logs = async { sessionRepo.list() }
             val tags = async { exerciseRepo.listTags() }
             _state.value = _state.value.copy(
                 loading = false,
                 exercises = exercises.await(),
                 workouts = workouts.await(),
+                logs = logs.await(),
                 tags = tags.await(),
             )
         }
     }
 
     fun setTab(tab: LibTab) { _state.value = _state.value.copy(tab = tab) }
+
+    // ── Logs (read-only) ──────────────────────────────────────────────────────────
+    fun openLog(session: WorkoutSessionDto) { _state.value = _state.value.copy(openLog = session) }
+    fun closeLog() { _state.value = _state.value.copy(openLog = null) }
 
     // ── Exercise editor ──────────────────────────────────────────────────────────
     fun openNewExercise() { _state.value = _state.value.copy(editor = ExerciseEditor()) }

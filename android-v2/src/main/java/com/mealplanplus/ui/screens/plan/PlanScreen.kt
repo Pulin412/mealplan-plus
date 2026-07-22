@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.generated.model.DayPlanDto
+import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.Danger
@@ -83,11 +84,16 @@ fun PlanScreen() {
     }
 
     state.selectedDate?.let { date ->
-        if (state.pickerOpen) {
-            DietPicker(date, state, viewModel)
-        } else {
-            DayPlanSheet(date, state,
+        val openWorkout = state.openWorkout
+        when {
+            openWorkout != null -> WorkoutDetail(openWorkout, onBack = viewModel::closeWorkoutDetail)
+            state.workoutPickerOpen -> WorkoutPicker(date, state, viewModel)
+            state.pickerOpen -> DietPicker(date, state, viewModel)
+            else -> DayPlanSheet(date, state,
                 onPick = viewModel::openPicker,
+                onAddWorkout = viewModel::openWorkoutPicker,
+                onOpenWorkout = viewModel::openWorkoutDetail,
+                onRemoveWorkout = { id -> viewModel.removePlannedWorkout(date, id) },
                 onClear = { viewModel.clearDay(date) },
                 onClose = { viewModel.selectDay(null) })
         }
@@ -181,7 +187,7 @@ private fun NextSeven(state: PlanUiState, onDay: (LocalDate) -> Unit) {
 // ── Day plan sheet ──────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
+private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit, onAddWorkout: () -> Unit, onOpenWorkout: (Long?) -> Unit, onRemoveWorkout: (Long) -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
     val plan: DayPlanDto? = state.plansByDate[date]
     val workouts = plan?.plannedWorkouts.orEmpty()
     val selectedDiet = plan?.dietId?.let { id -> state.diets.firstOrNull { it.id == id } }
@@ -217,24 +223,118 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     workouts.forEach { w ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(SurfaceMuted).padding(start = 11.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)) {
-                            Text(w.activityName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                            Text("  ×", fontSize = 12.sp, color = MutedFaint)
+                            Text(w.activityName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                                modifier = Modifier.clickable { onOpenWorkout(w.workoutTemplateId) })
+                            val wid = w.id
+                            Text("  ×", fontSize = 13.sp, color = MutedFaint,
+                                modifier = if (wid != null) Modifier.clickable { onRemoveWorkout(wid) } else Modifier)
                         }
                     }
                 }
             }
-            // Workouts library + Start are mocked for now — the Exercises/Workouts screens land next.
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(enabled = false) {}.padding(vertical = 11.dp)) {
-                Text("＋ Add from library", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MutedLight)
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddWorkout).padding(vertical = 11.dp)) {
+                Text("＋ Add from library", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
             }
-            Spacer(Modifier.height(8.dp))
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(SurfaceMuted).clickable(enabled = false) {}.padding(vertical = 13.dp)) {
-                Text("▶  Start workout", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MutedLight)
-            }
-            Text("Workouts coming soon — the Exercises & Workouts screens are next.", fontSize = 9.5.sp, color = MutedFaint, modifier = Modifier.padding(top = 6.dp))
+            Text("Log a session from the Exercises → Logs tab to see it in your history.", fontSize = 9.5.sp, color = MutedFaint, modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
+
+// ── Workout picker (choose a template from the library to plan for the day) ──────
+@Composable
+private fun WorkoutPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewModel) {
+    val plannedIds = state.plansByDate[date]?.plannedWorkouts.orEmpty().mapNotNull { it.workoutTemplateId }.toSet()
+    Column(Modifier.fillMaxSize().background(AppBg)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+            Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = viewModel::closeWorkoutPicker), Alignment.Center) {
+                Text("‹", fontSize = 24.sp, color = Ink)
+            }
+            Text("Add workout", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            Text("${state.workouts.size} saved", fontSize = 12.sp, color = MutedLight)
+        }
+        if (state.workouts.isEmpty()) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("📋", fontSize = 40.sp)
+                Text("No workouts yet", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(top = 8.dp))
+                Text("Build one in Exercises → Workouts first.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(top = 4.dp))
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+                items(state.workouts, key = { it.id ?: it.name.hashCode().toLong() }) { w ->
+                    WorkoutPickerCard(w, added = w.id != null && w.id in plannedIds) { viewModel.addPlannedWorkout(date, w) }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkoutPickerCard(w: WorkoutTemplateDto, added: Boolean, onAdd: () -> Unit) {
+    val items = w.exercises.orEmpty()
+    val totalSets = items.sumOf { it.sets?.size ?: 0 }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Surface)
+        .border(1.dp, if (added) Success else CardBorder, RoundedCornerShape(14.dp))
+        .clickable(enabled = !added, onClick = onAdd).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(w.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+                Text("${items.size} exercise${if (items.size == 1) "" else "s"} · $totalSets sets",
+                    fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+                if (items.isNotEmpty()) {
+                    Text(items.joinToString(", ") { it.exerciseName ?: "Exercise" },
+                        fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 3.dp))
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(if (added) "✓ Added" else "+ Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                color = if (added) Success else Teal)
+        }
+    }
+}
+
+// ── Planned workout detail (read-only: exercises + per-set targets) ──────────────
+@Composable
+private fun WorkoutDetail(w: WorkoutTemplateDto, onBack: () -> Unit) {
+    val items = w.exercises.orEmpty().sortedBy { it.orderIndex }
+    val totalSets = items.sumOf { it.sets?.size ?: 0 }
+    Column(Modifier.fillMaxSize().background(AppBg)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+            Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onBack), Alignment.Center) {
+                Text("‹", fontSize = 24.sp, color = Ink)
+            }
+            Text(w.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+        }
+        LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+            item {
+                Text("${items.size} exercise${if (items.size == 1) "" else "s"} · $totalSets sets",
+                    fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            items(items, key = { it.exerciseId }) { te ->
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Surface)
+                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                    Text(te.exerciseName ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
+                        Text("Set", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(48.dp))
+                        Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
+                        Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                    }
+                    te.sets.orEmpty().sortedBy { it.setNumber }.forEachIndexed { i, s ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                            Text("${i + 1}", fontSize = 11.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(48.dp))
+                            Text(s.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
+                            Text(s.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+private fun fmtKg(v: Double): String = (if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()) + " kg"
 
 // ── Selected diet detail (slots + foods, like the Home diet view) ────────────────
 @Composable
