@@ -23,8 +23,8 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | Diets + tags + edit(all 3) (Phase 2) | FoodsPage `/foods` (Phase 2) |
-| **Next task** | Phase 3 Home/Today — or webapp-v2 Meals/Diets catch-up | MealsPage `/meals` (Phase 2) |
+| **Last completed** | Phase 5: Session Runner + Home workout card + ad-hoc exercise logging | Exercises/Workouts/Logs + Plan planned-workouts (Phase 4–5) |
+| **Next task** | Health (Phase 6) | Port Home workout card + Session Runner + ad-hoc exercise from android |
 | **Blocked on?** | — | — |
 
 **Suggested next session start:**
@@ -275,8 +275,9 @@ Reminder: Room migrations + Flyway migrations need explicit human approval befor
 - ✅ **Workouts tab**: list (name + count + total sets + preview); ＋ → builder (searchable exercise picker;
   **per-set targets**: reps stepper + optional weight (kg) per set; **copy-set** icon per row; scrollable full view)
 - ✅ WorkoutRepository (server REST). ~~Workout entity (Room)~~ → not used (server-backed).
-- ⬜ **Logs tab**: currently an empty state — full calendar + 30-day sessions + detail sheet comes with the
-  Session Runner (Phase 5, since logs are created there).
+- ✅ **Logs tab**: read-only session list (name · date · N exercises · M sets · duration · ✓) → tap → full-screen
+  detail grouping sets by exercise (Set/Reps/Weight). WorkoutSessionRepository (server REST). Backed by real
+  sessions created by the Session Runner (Phase 5).
 
 **Spec change (contract-first, done):** `ExerciseDto.description`; `TemplateExerciseDto` now holds
 `sets: [TemplateSetDto{setNumber, reps, weightKg}]` (replaced single targetSets/targetReps/targetWeightKg) —
@@ -284,35 +285,40 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
 (docker/prod). Seed script (`scripts/dev-seed-h2.py`) extended: 10 exercise tags + 10 exercises + 3 workouts.
 **Follow-ups:** weight shown/entered in kg only (not yet converted to Profile unit); webapp still to do (below).
 
-#### webapp-v2 — ⬜ TODO NEXT (same contract; regen types via `npm run gen:api`)
-- ⬜ **ExercisesPage** `/exercises` — 3-tab segmented control: Exercises · Workouts · Logs
-- ⬜ Exercises tab: list + add/edit sheet (name + tag toggles using tag palette)
-- ⬜ Workouts tab: list + builder sheet (name + exercise picker with stepper for sets×reps)
-- ⬜ Logs tab: mini calendar + 30-day sessions list + detail sheet
-- ⬜ `useExercises`, `useWorkouts`, `useLogs` hooks + `lib/api/exercises.ts`, `lib/api/workouts.ts`
-- ⬜ Tag chip component (uses exercise tag palette — 10 fixed colours, 12% alpha bg)
-- ⬜ Segmented tab control component
+#### webapp-v2 — ✅ Exercises + Workouts + Logs done (same contract; types via `npm run gen:api`)
+- ✅ **ExercisesPage** `/exercises` — 3-tab segmented control: Exercises · Workouts · Logs
+- ✅ Exercises tab: list + full-screen editor (name + description + tag toggles using tag palette)
+- ✅ Workouts tab: list + builder (searchable exercise picker; per-set reps stepper + optional weight kg; copy-set)
+- ✅ Logs tab: read-only session list + full-screen detail (sets grouped by exercise)
+- ✅ `useExercises` hook + `lib/api/exercises.ts`, `lib/api/workouts.ts`, `lib/api/sessions.ts`, `lib/exerciseTags.ts`
+- ✅ Tag chip + selectable tag toggle (exercise tag palette via `color-mix`)
+- ⬜ Home "Today's workout" card + Session Runner + ad-hoc single-exercise logging — NOT yet ported (android done)
 
 ---
 
 ### Phase 5 — Plan → Session Runner → Workout Logs
 
-#### android-v2
-- ⬜ **PlanScreen** (Plan tab) — month calendar (teal dot = diet, green dot = workout, today filled); ‹ › month nav; next-7-days summary list; tap any day → day-plan sheet
-- ⬜ Day-plan bottom sheet: pick diet (radio list), add/remove workouts (chips + library); ▶ Start Workout button; Clear day
-- ⬜ PlanViewModel, DayPlanDao, DayPlanRepository (Room)
-- ⬜ **Session Runner** (full-screen overlay, 3 phases):
-  - Ready: template (sets×reps) + last-time history per exercise + Start button
-  - Active: per-exercise set rows (reps stepper), Copy last, Add/remove set, Finish button
-  - Done/Logged: read-only set/reps table; writes WorkoutLog (upsert); re-open → read-only + Edit action
-- ⬜ SessionViewModel, WorkoutLogDao, WorkoutLogRepository (Room)
+> **Note:** the whole training domain is **server-backed REST** (no Room) — DayPlan/Session/WorkoutLog
+> aren't in the sync contract. Endpoints already in openapi; no contract change needed for the runner.
 
-#### webapp-v2
-- ⬜ **PlanPage** `/plan` — month calendar + next-7 list + day-plan sheet
-- ⬜ Day-plan bottom sheet (diet picker + workout chips + Start Workout)
-- ⬜ Session Runner page/overlay `/session` (3 phases: Ready → Active → Done)
-- ⬜ `usePlan` hook + `lib/api/plans.ts`
-- ⬜ `useSession` hook + `lib/api/workout-sessions.ts`
+#### android-v2 — ✅ done
+- ✅ **PlanScreen** — month calendar (teal dot = diet, green dot = workout, today filled) + next-7 list + day-plan sheet
+- ✅ Day-plan sheet: pick diet; **add workout from library** (template picker) + remove chip; tap chip → **read-only workout detail**; Clear day
+- ✅ PlanViewModel (server REST via PlansApi `/workouts` add/remove; WorkoutTemplatesApi)
+- ✅ **Session Runner** (`runner?templateId=…` / `?exerciseId=…`, full-screen, bottom nav hidden), 3 phases:
+  - Ready: template sets×reps + "Last time" per exercise + Start button
+  - Active: per-exercise set rows (reps stepper + weight kg), Copy last, Add/remove set, **auto-save (PUT) → resume**, Finish
+  - Done: read-only set table; `POST /finish` writes the day's log (upsert); re-open → read-only Done + **Edit**
+  - Exercise **description** shown under each exercise name (from ExerciseDto, mapped by id)
+- ✅ SessionRunnerViewModel + WorkoutSessionRepository (`start`/`create`/`update`/`finish`/`listForDate`/`lastForExercise`)
+- ✅ **Home "Today's workout" card** — planned + ad-hoc sessions with status (Planned/In progress/✓ Done), tap → runner,
+  reload on resume; empty → **Add sheet with Workouts | Exercises tabs** (workout → plan; exercise → ad-hoc runner, no-template mode)
+- ⚠️ **StateFlow gotcha:** multi-loader VMs use `_state.update{}` not `_state.value=copy()` (lost-update race → stuck loading)
+
+#### webapp-v2 — 🔄 partial
+- ✅ **PlanPage** `/plan` — calendar + next-7 + day sheet; add workout from library + remove; tap → read-only workout detail
+- ✅ `usePlan` extended (`addPlannedWorkout`/`removePlannedWorkout`), `lib/api/plans.ts` + `lib/api/sessions.ts`
+- ⬜ Home "Today's workout" card + Session Runner overlay + ad-hoc single-exercise logging (android done — port next)
 - ⬜ Calendar grid component (reusable across Plan + Exercise Logs)
 - ⬜ Stepper component (− / value / +)
 
