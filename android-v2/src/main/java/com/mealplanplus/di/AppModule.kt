@@ -4,6 +4,7 @@ import com.mealplanplus.data.generated.api.DashboardApi
 import com.mealplanplus.data.generated.api.DietsApi
 import com.mealplanplus.data.generated.api.ExercisesApi
 import com.mealplanplus.data.generated.api.FoodsApi
+import com.mealplanplus.data.generated.api.HealthMetricsApi
 import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
 import com.mealplanplus.data.generated.api.WorkoutSessionsApi
 import com.mealplanplus.data.generated.api.LoggingApi
@@ -77,6 +78,11 @@ object AppModule {
     @Provides @Singleton
     fun provideWorkoutSessionsApi(retrofit: Retrofit): WorkoutSessionsApi =
         retrofit.create(WorkoutSessionsApi::class.java)
+
+    /** Health metrics (server-backed; glucose / weight / blood pressure). */
+    @Provides @Singleton
+    fun provideHealthMetricsApi(retrofit: Retrofit): HealthMetricsApi =
+        retrofit.create(HealthMetricsApi::class.java)
 
     // FoodRepository, SyncManager, SyncCursorStore use @Inject constructors — Hilt provides them.
 }
