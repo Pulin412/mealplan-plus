@@ -23,8 +23,8 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | Phase 5: Session Runner + Home workout card + ad-hoc exercise logging | Exercises/Workouts/Logs + Plan planned-workouts (Phase 4–5) |
-| **Next task** | Health (Phase 6) | Port Home workout card + Session Runner + ad-hoc exercise from android |
+| **Last completed** | Phase 5: Session Runner + Home workout card + ad-hoc exercise logging | Phase 5: Home workout card + Session Runner + ad-hoc exercise logging |
+| **Next task** | Health (Phase 6) | Health (Phase 6) — then parity: offline store, component lib, dark mode |
 | **Blocked on?** | — | — |
 
 **Suggested next session start:**
@@ -315,10 +315,14 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
   reload on resume; empty → **Add sheet with Workouts | Exercises tabs** (workout → plan; exercise → ad-hoc runner, no-template mode)
 - ⚠️ **StateFlow gotcha:** multi-loader VMs use `_state.update{}` not `_state.value=copy()` (lost-update race → stuck loading)
 
-#### webapp-v2 — 🔄 partial
+#### webapp-v2 — ✅ done (parity with android)
 - ✅ **PlanPage** `/plan` — calendar + next-7 + day sheet; add workout from library + remove; tap → read-only workout detail
-- ✅ `usePlan` extended (`addPlannedWorkout`/`removePlannedWorkout`), `lib/api/plans.ts` + `lib/api/sessions.ts`
-- ⬜ Home "Today's workout" card + Session Runner overlay + ad-hoc single-exercise logging (android done — port next)
+- ✅ `usePlan` extended (`addPlannedWorkout`/`removePlannedWorkout`), `lib/api/plans.ts` (+`getPlan`) + `lib/api/sessions.ts`
+- ✅ **Home "Today's workout" card** (`useTodayWorkouts`) — planned + ad-hoc sessions with status, tap → `/session`;
+  empty → Add sheet with **Workouts | Exercises** tabs (workout → plan; exercise → ad-hoc runner)
+- ✅ **Session Runner** route `/session?templateId=…`/`?exerciseId=…` (`useSession`) — Ready→Active→Done, per-set
+  logging + auto-save/resume (nav unmounts the page so Home reloads on return), Copy last/Last time, Finish, Edit,
+  exercise descriptions; no-template ad-hoc mode. `lib/api/sessions.ts` (`start`/`create`/`update`/`finish`/`lastForExercise`), `lib/api/workouts.ts` (+`getWorkout`)
 - ⬜ Calendar grid component (reusable across Plan + Exercise Logs)
 - ⬜ Stepper component (− / value / +)
 
