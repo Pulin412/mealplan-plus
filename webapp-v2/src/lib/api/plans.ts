@@ -2,6 +2,7 @@ import { apiFetch } from "./client";
 import type { components } from "@/lib/api/types.generated";
 
 export type DayPlanDto = components["schemas"]["DayPlanDto"];
+export type PlannedWorkoutDto = components["schemas"]["PlannedWorkoutDto"];
 
 /** DayPlan `date` arrives as a [y,m,d] array (Jackson) — normalise to ISO. */
 export function isoOf(d: unknown): string {
@@ -22,4 +23,17 @@ export function upsertPlan(date: string, dietId: number | null, plannedWorkouts:
 
 export function deletePlan(date: string): Promise<void> {
   return apiFetch<void>(`/api/v1/plans/${date}`, { method: "DELETE" });
+}
+
+/** Add a planned workout (template-linked) to a day. */
+export function addPlannedWorkout(date: string, workoutTemplateId: number, activityName: string): Promise<DayPlanDto> {
+  return apiFetch<DayPlanDto>(`/api/v1/plans/${date}/workouts`, {
+    method: "POST",
+    body: JSON.stringify({ workoutTemplateId, activityName }),
+  });
+}
+
+/** Remove a planned workout from a day by its planned-workout id. */
+export function removePlannedWorkout(date: string, workoutId: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/plans/${date}/workouts/${workoutId}`, { method: "DELETE" });
 }

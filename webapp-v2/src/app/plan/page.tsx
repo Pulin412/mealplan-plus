@@ -6,6 +6,7 @@ import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { usePlan } from "@/hooks/usePlan";
 import type { DayPlanDto } from "@/lib/api/plans";
+import type { WorkoutTemplateDto } from "@/lib/api/workouts";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e",
@@ -122,12 +123,16 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
           <div style={{ font: "400 11.5px system-ui", color: C.muted2, marginBottom: 8 }}>No workouts planned.</div>
         ) : (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-            {workouts.map((w, i) => <span key={i} style={{ font: "600 11px system-ui", color: C.ink, background: C.bgAlt, borderRadius: 20, padding: "6px 10px" }}>{w.activityName} ✕</span>)}
+            {workouts.map((w, i) => (
+              <span key={w.id ?? i} style={{ display: "inline-flex", alignItems: "center", font: "600 11px system-ui", color: C.ink, background: C.bgAlt, borderRadius: 20, padding: "6px 6px 6px 11px" }}>
+                <span onClick={() => p.openWorkoutDetail(w.workoutTemplateId)} style={{ cursor: "pointer" }}>{w.activityName}</span>
+                {w.id != null && <span onClick={() => p.removeWorkout(dateIso, w.id!)} style={{ cursor: "pointer", color: C.muted2, padding: "0 4px", fontSize: 13 }}>✕</span>}
+              </span>
+            ))}
           </div>
         )}
-        <button disabled style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.muted2 }}>＋ Add from library</button>
-        <button disabled style={{ width: "100%", borderRadius: 12, padding: "13px", marginTop: 8, background: C.bgAlt, border: "none", font: "600 13px system-ui", color: C.muted2 }}>▶ Start workout</button>
-        <div style={{ font: "400 9.5px system-ui", color: C.muted2, marginTop: 6, paddingBottom: 8 }}>Workouts coming soon — the Exercises &amp; Workouts screens are next.</div>
+        <button onClick={p.openWorkoutPicker} style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.teal, cursor: "pointer" }}>＋ Add from library</button>
+        <div style={{ font: "400 9.5px system-ui", color: C.muted2, marginTop: 8, paddingBottom: 8 }}>Log a session from the Exercises → Logs tab to see it in your history.</div>
       </div>
     </BottomSheet>
   );
@@ -229,6 +234,80 @@ function DietPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: st
   );
 }
 
+// ── Workout picker (choose a template from the library to plan for the day) ──────
+function WorkoutPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: string }) {
+  const plannedIds = new Set((p.plans[dateIso]?.plannedWorkouts ?? []).map((w) => w.workoutTemplateId).filter((x): x is number => x != null));
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, background: C.bg, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", padding: "10px 12px 8px" }}>
+        <button onClick={p.closeWorkoutPicker} style={{ font: "400 24px system-ui", color: C.ink, background: "none", border: "none", cursor: "pointer", width: 36 }}>‹</button>
+        <span style={{ font: "600 17px system-ui", color: C.ink }}>Add workout</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ font: "400 12px system-ui", color: C.muted2, paddingRight: 8 }}>{p.workouts.length} saved</span>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 14px 24px" }}>
+        {p.workouts.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <div style={{ fontSize: 40 }}>📋</div>
+            <div style={{ font: "600 14px system-ui", color: C.muted3, marginTop: 8 }}>No workouts yet</div>
+            <div style={{ font: "400 11.5px system-ui", color: C.muted2, marginTop: 4 }}>Build one in Exercises → Workouts first.</div>
+          </div>
+        ) : p.workouts.map((w) => {
+          const items = w.exercises ?? [];
+          const totalSets = items.reduce((s, it) => s + (it.sets?.length ?? 0), 0);
+          const added = w.id != null && plannedIds.has(w.id);
+          return (
+            <div key={w.id} onClick={() => !added && p.addWorkout(dateIso, w)}
+              style={{ cursor: added ? "default" : "pointer", background: C.surface, border: `1px solid ${added ? C.green : C.border}`, borderRadius: 14, padding: 14, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: "700 13px system-ui", color: C.ink }}>{w.name}</div>
+                  <div style={{ font: "400 10.5px system-ui", color: C.muted2, marginTop: 2 }}>{items.length} exercise{items.length === 1 ? "" : "s"} · {totalSets} sets</div>
+                  {items.length > 0 && <div style={{ font: "400 10px system-ui", color: C.muted, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{items.map((it) => it.exerciseName ?? "Exercise").join(", ")}</div>}
+                </div>
+                <span style={{ font: "600 12px system-ui", color: added ? C.green : C.teal, marginLeft: 8, flex: "none" }}>{added ? "✓ Added" : "+ Add"}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Planned workout detail (read-only: exercises + per-set targets) ──────────────
+function WorkoutDetail({ w, onBack }: { w: WorkoutTemplateDto; onBack: () => void }) {
+  const items = [...(w.exercises ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+  const totalSets = items.reduce((s, it) => s + (it.sets?.length ?? 0), 0);
+  const fmtKg = (v: number) => `${v} kg`;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 55, background: C.bg, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", padding: "10px 12px 8px" }}>
+        <button onClick={onBack} style={{ font: "400 24px system-ui", color: C.ink, background: "none", border: "none", cursor: "pointer", width: 36 }}>‹</button>
+        <span style={{ font: "600 17px system-ui", color: C.ink }}>{w.name}</span>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px 24px" }}>
+        <div style={{ font: "400 11px system-ui", color: C.muted2, marginBottom: 8 }}>{items.length} exercise{items.length === 1 ? "" : "s"} · {totalSets} sets</div>
+        {items.map((te) => (
+          <div key={te.exerciseId} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, marginBottom: 8 }}>
+            <div style={{ font: "700 12.5px system-ui", color: C.ink }}>{te.exerciseName ?? "Exercise"}</div>
+            <div style={{ display: "flex", margin: "8px 0 2px", font: `600 9.5px system-ui`, color: C.muted2 }}>
+              <span style={{ width: 48 }}>Set</span><span style={{ width: 64 }}>Reps</span><span>Weight</span>
+            </div>
+            {[...(te.sets ?? [])].sort((a, b) => a.setNumber - b.setNumber).map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", padding: "3px 0", font: `400 12px ${mono}`, color: C.ink }}>
+                <span style={{ width: 48, color: C.muted3 }}>{i + 1}</span>
+                <span style={{ width: 64 }}>{s.reps ?? "–"}</span>
+                <span>{s.weightKg != null ? fmtKg(s.weightKg) : "–"}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TagChip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{ flex: "none", cursor: "pointer", border: "none", borderRadius: 20, padding: "6px 12px", font: "600 11.5px system-ui", color: on ? "#fff" : C.muted3, background: on ? C.ink : C.bgAlt }}>{label}</button>
@@ -245,8 +324,10 @@ function PlanInner() {
         <Calendar p={p} />
         <NextSeven p={p} />
       </div>
-      {p.selected && !p.pickerOpen && <DaySheet p={p} dateIso={p.selected} />}
+      {p.selected && !p.pickerOpen && !p.workoutPickerOpen && !p.openWorkout && <DaySheet p={p} dateIso={p.selected} />}
       {p.selected && p.pickerOpen && <DietPicker p={p} dateIso={p.selected} />}
+      {p.selected && p.workoutPickerOpen && !p.openWorkout && <WorkoutPicker p={p} dateIso={p.selected} />}
+      {p.openWorkout && <WorkoutDetail w={p.openWorkout} onBack={p.closeWorkoutDetail} />}
       <NutritionNav />
     </div>
   );

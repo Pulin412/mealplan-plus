@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { listPlans, upsertPlan, deletePlan, isoOf, type DayPlanDto } from "@/lib/api/plans";
+import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, isoOf, type DayPlanDto } from "@/lib/api/plans";
 import { listDiets, type DietDto } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
+import { listWorkouts, type WorkoutTemplateDto } from "@/lib/api/workouts";
 import { foodMacros, unitLabel, MEAL_SLOTS, num } from "@/lib/nutrition";
 
 export interface DietLine { name: string; meta: string; header: boolean }
@@ -60,6 +61,9 @@ export function usePlan() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerTag, setPickerTag] = useState<string | null>(null);
+  const [workouts, setWorkouts] = useState<WorkoutTemplateDto[]>([]);
+  const [workoutPickerOpen, setWorkoutPickerOpen] = useState(false);
+  const [openWorkout, setOpenWorkout] = useState<WorkoutTemplateDto | null>(null);
 
   const allTags = useMemo(() => Array.from(new Set(diets.flatMap((d) => d.tags))).sort(), [diets]);
   const filteredDiets = useMemo(() => diets.filter((d) =>
@@ -93,6 +97,7 @@ export function usePlan() {
       const foodsById = new Map<number, FoodDto>(); fs.forEach((f) => f.id != null && foodsById.set(f.id, f));
       setDiets(ds.filter((d) => d.id != null).map((d) => resolveDiet(d, mealsById, foodsById)));
     }).catch(() => {});
+    listWorkouts().then(setWorkouts).catch(() => {});
   }, []);
 
   useEffect(() => { setLoading(true); loadPlans(ym.year, ym.month); }, [ym, loadPlans]);
@@ -115,10 +120,34 @@ export function usePlan() {
     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
   }, [ym, loadPlans]);
 
+  // ── Planned workouts ──────────────────────────────────────────────────────────
+  const openWorkoutPicker = useCallback(() => setWorkoutPickerOpen(true), []);
+  const closeWorkoutPicker = useCallback(() => setWorkoutPickerOpen(false), []);
+
+  const addWorkout = useCallback(async (dateIso: string, template: WorkoutTemplateDto) => {
+    if (template.id == null) return;
+    try { await addPlannedWorkout(dateIso, template.id, template.name); setWorkoutPickerOpen(false); await loadPlans(ym.year, ym.month); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+  }, [ym, loadPlans]);
+
+  const removeWorkout = useCallback(async (dateIso: string, workoutId: number) => {
+    try { await removePlannedWorkout(dateIso, workoutId); await loadPlans(ym.year, ym.month); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+  }, [ym, loadPlans]);
+
+  /** Open the read-only detail of a planned workout by its template id (no-op if not a template). */
+  const openWorkoutDetail = useCallback((templateId: number | null | undefined) => {
+    const t = workouts.find((w) => w.id === templateId);
+    if (t) setOpenWorkout(t);
+  }, [workouts]);
+  const closeWorkoutDetail = useCallback(() => setOpenWorkout(null), []);
+
   return {
     ym, setYm, plans, diets, loading, error, todayIso, today, selected, setSelected,
     prevMonth, nextMonth, setDiet, clearDay,
     pickerOpen, pickerSearch, setPickerSearch, pickerTag, setPickerTag, allTags, filteredDiets,
     openPicker, closePicker, chooseDiet,
+    workouts, workoutPickerOpen, openWorkoutPicker, closeWorkoutPicker,
+    addWorkout, removeWorkout, openWorkout, openWorkoutDetail, closeWorkoutDetail,
   };
 }
