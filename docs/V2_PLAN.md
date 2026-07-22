@@ -23,14 +23,17 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | Phase 5: Session Runner + Home workout card + ad-hoc exercise logging | Phase 5: Home workout card + Session Runner + ad-hoc exercise logging |
-| **Next task** | Health (Phase 6) | Health (Phase 6) — then parity: offline store, component lib, dark mode |
+| **Last completed** | Phase 6: Health (Glucose/Weight/BP) + binned trend chart + Logs-tab month calendar | Phase 6: Health at parity + Logs-tab month calendar |
+| **Next task** | **Groceries / shopping-list screen** | **Groceries / shopping-list screen** |
 | **Blocked on?** | — | — |
 
-**Suggested next session start:**
-- **android-v2**: Add Firebase Auth dep to `build.gradle.kts`, wire token injection in `NetworkModule`, then build Login + Register screens (prototype 6a).
-- **webapp-v2**: Create `(app)/layout.tsx` auth guard + `components/layout/BottomNav.tsx` (4 tabs: Today · Plan · Exercises · Health), wire root redirect.
+**Suggested next session start — Groceries screen (both clients):**
+- Backend is ready: `GroceryListsApi` (server REST) + `GroceryListDto` in the openapi; grocery lists ARE in the offline sync contract (`SyncPushRequest.groceryLists`).
+- Design: shopping list derived from a diet's foods (spec §"smart shopping lists"). Check `design_v2/MealPlan+ Build Spec.dc.html` for the grocery/shopping section before building.
+- Decide data layer (server REST like Health/Exercises, vs Room offline) — Health went **server-backed REST** (see below); follow that unless offline is required.
 - Do android-v2 and webapp-v2 in parallel — they don't depend on each other.
+
+> **Known API-contract issue (open):** the backend serializes `HealthMetricDto.recordedAt` (and likely all `date-time` fields) as **epoch millis**, though `openapi.yaml` declares an ISO `date-time` string. Webapp must parse with `new Date(millis)` (done in Health). Proper fix = backend Jackson `WRITE_DATES_AS_TIMESTAMPS=false`, but that changes the API contract → needs sign-off.
 
 ---
 
@@ -275,9 +278,9 @@ Reminder: Room migrations + Flyway migrations need explicit human approval befor
 - ✅ **Workouts tab**: list (name + count + total sets + preview); ＋ → builder (searchable exercise picker;
   **per-set targets**: reps stepper + optional weight (kg) per set; **copy-set** icon per row; scrollable full view)
 - ✅ WorkoutRepository (server REST). ~~Workout entity (Room)~~ → not used (server-backed).
-- ✅ **Logs tab**: read-only session list (name · date · N exercises · M sets · duration · ✓) → tap → full-screen
-  detail grouping sets by exercise (Set/Reps/Weight). WorkoutSessionRepository (server REST). Backed by real
-  sessions created by the Session Runner (Phase 5).
+- ✅ **Logs tab**: **month calendar** (logged days filled green, tap a day → session detail) + recent-sessions list
+  **capped to last 7 days**; read-only detail grouping sets by exercise (Set/Reps/Weight). WorkoutSessionRepository
+  (server REST). Backed by real sessions created by the Session Runner (Phase 5).
 
 **Spec change (contract-first, done):** `ExerciseDto.description`; `TemplateExerciseDto` now holds
 `sets: [TemplateSetDto{setNumber, reps, weightKg}]` (replaced single targetSets/targetReps/targetWeightKg) —
@@ -289,7 +292,7 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
 - ✅ **ExercisesPage** `/exercises` — 3-tab segmented control: Exercises · Workouts · Logs
 - ✅ Exercises tab: list + full-screen editor (name + description + tag toggles using tag palette)
 - ✅ Workouts tab: list + builder (searchable exercise picker; per-set reps stepper + optional weight kg; copy-set)
-- ✅ Logs tab: read-only session list + full-screen detail (sets grouped by exercise)
+- ✅ Logs tab: **month calendar** (logged days green, tap → detail) + recent list (last 7 days) + full-screen detail (sets grouped by exercise)
 - ✅ `useExercises` hook + `lib/api/exercises.ts`, `lib/api/workouts.ts`, `lib/api/sessions.ts`, `lib/exerciseTags.ts`
 - ✅ Tag chip + selectable tag toggle (exercise tag palette via `color-mix`)
 - ⬜ Home "Today's workout" card + Session Runner + ad-hoc single-exercise logging — NOT yet ported (android done)
@@ -328,21 +331,30 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
 
 ---
 
-### Phase 6 — Health
+### Phase 6 — Health ✅ (both clients, server-backed REST)
 
-#### android-v2
-- ⬜ **HealthScreen** (Health tab) — 3 tabs: Glucose · Weight · BP
-- ⬜ Each tab: latest reading + unit + delta vs range start (green when improving), trend graph (7D/30D/90D toggle), streak (current + best), **readings-in-range count**, recent readings list, FAB → log sheet
-- ⬜ Trend graph composable (single line + point dots for glucose/weight; dual systolic + diastolic lines for BP)
-- ⬜ Log sheet: one numeric field (glucose/weight) or two (sys/dia for BP)
-- ⬜ HealthViewModel, HealthReadingDao, HealthReadingRepository (Room)
+> **Data-layer decision:** Health is **server-backed REST** (`HealthMetricsApi`), NOT Room — no migration.
+> Metrics also live in the sync contract, but REST kept it consistent with Exercises/Plan and avoided a
+> Room migration. Built-in types: WEIGHT (kg), GLUCOSE (mg/dL), BLOOD_PRESSURE (value=systolic, secondaryValue=diastolic).
 
-#### webapp-v2
-- ⬜ **HealthPage** `/health` — 3-tab segmented control: Glucose · Weight · BP
-- ⬜ Each tab: latest reading + delta, streak (current + best), **readings-in-range count**, recent list
-- ⬜ Trend chart component (line + point dots, 7/30/90D range toggle; dual systolic+diastolic lines for BP)
-- ⬜ Log sheet (bottom sheet — 1 numeric field for glucose/weight, 2 fields sys/dia for BP)
-- ⬜ `useHealth` hook + `lib/api/health.ts`
+#### android-v2 — ✅ done
+- ✅ **HealthScreen** — 3 metric tabs (Glucose · Weight · BP); latest value + delta vs range start (green when
+  improving/lower), 7D/30D/90D toggle, streak (current + best), readings-logged count, recent readings, FAB → log sheet
+- ✅ **Trend chart** (Canvas): single line + dots (glucose/weight), dual systolic+diastolic (BP, diastolic = violet `#c7a4dd`)
+- ✅ **Range-aware binning** so long ranges don't over-populate: 7D raw · 30D daily-avg · **90D weekly-avg (no dots)**
+  → caps 90D at ≤13 points. **Tap a point** → guide line + value bubble (TextMeasurer).
+- ✅ HealthViewModel (multi-loader → uses `_state.update{}`), HealthRepository (`HealthMetricsApi`), AppModule provider
+- Log sheet: one field (glucose/weight) or two (sys/dia for BP)
+
+#### webapp-v2 — ✅ done (parity)
+- ✅ **HealthPage** `/health` — same layout; SVG trend chart with the same binning + tap tooltip; dual BP lines
+- ✅ `useHealth` hook + `lib/api/health.ts`; added ❤️ Health tab to the temp `NutritionNav`
+- ⚠️ **`recordedAt` is epoch millis on the wire** (not the ISO string the type claims) → parsed with `new Date(millis)`
+  in `dateOf`/sort. Calling string methods on it silently emptied the screen (fixed). See known-issue note above.
+- Local seeder (`scripts/dev-seed-h2.py`, gitignored) extended with ~52 readings (glucose/weight/BP) for demo/QA.
+
+**Follow-ups (deferred):** "readings-in-range" tile shows total readings logged (no target ranges defined in spec —
+its own "try next" suggests adding them); app-bar avatar is decorative (Profile = Phase 7).
 
 ---
 
