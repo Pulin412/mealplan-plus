@@ -59,6 +59,12 @@ export function useExercises() {
   const [builder, setBuilder] = useState<WorkoutBuilder | null>(null);
   const [openLog, setOpenLog] = useState<WorkoutSessionDto | null>(null);
 
+  // Logs-tab calendar month (1-based), defaulting to the current month.
+  const [logsMonth, setLogsMonth] = useState<{ year: number; month: number }>(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  });
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -242,11 +248,31 @@ export function useExercises() {
   // ── Logs (read-only) ──────────────────────────────────────────────────────────
   const openLogDetail = useCallback((s: WorkoutSessionDto) => setOpenLog(s), []);
   const closeLogDetail = useCallback(() => setOpenLog(null), []);
+  const prevLogsMonth = useCallback(() => setLogsMonth((m) => (m.month === 1 ? { year: m.year - 1, month: 12 } : { ...m, month: m.month - 1 })), []);
+  const nextLogsMonth = useCallback(() => setLogsMonth((m) => (m.month === 12 ? { year: m.year + 1, month: 1 } : { ...m, month: m.month + 1 })), []);
+
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  /** Sessions grouped by their logged ISO date. */
+  const logsByDate = useMemo(() => {
+    const m = new Map<string, WorkoutSessionDto[]>();
+    for (const s of logs) {
+      if (s.date == null) continue;
+      const k = isoOf(s.date);
+      const arr = m.get(k);
+      if (arr) arr.push(s); else m.set(k, [s]);
+    }
+    return m;
+  }, [logs]);
 
   return {
     tab, setTab,
     exercises, workouts, logs, tags, tagName, exerciseName, loading, error,
     openLog, openLogDetail, closeLogDetail,
+    logsMonth, prevLogsMonth, nextLogsMonth, todayIso, logsByDate,
     // exercise editor
     editor, openNewExercise, openEditExercise, closeEditor,
     setEditorName, setEditorDescription, toggleEditorTag, saveExercise, removeExercise,

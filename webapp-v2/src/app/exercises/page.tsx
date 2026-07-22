@@ -26,6 +26,10 @@ const C = {
   teal:    "oklch(0.62 0.09 210)",
 };
 
+const GREEN = "oklch(0.66 0.13 150)"; // workout-logged green
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const isoYMD = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
 const TAB_LABELS: Record<LibTab, string> = { exercises: "Exercises", workouts: "Workouts", logs: "Logs" };
 const TABS: LibTab[] = ["exercises", "workouts", "logs"];
 
@@ -424,6 +428,73 @@ function LogDetailOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
   );
 }
 
+// ─── Logs month calendar (logged days filled green, tap → detail) ──────────────
+function LogsCalendar({ ex }: { ex: ReturnType<typeof useExercises> }) {
+  const { year, month } = ex.logsMonth;
+  const firstDow = (new Date(year, month - 1, 1).getDay() + 6) % 7; // Mon=0..Sun=6
+  const days = new Date(year, month, 0).getDate();
+  const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  return (
+    <div className="rounded-[16px] p-[14px] mb-[18px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div className="flex items-center mb-3">
+        <button onClick={ex.prevLogsMonth} className="w-7 h-7 rounded-[8px] flex items-center justify-center text-[16px]" style={{ background: C.bgAlt, color: C.muted3 }}>‹</button>
+        <span className="flex-1 text-center text-[13.5px] font-semibold" style={{ color: C.ink }}>{MONTHS[month - 1]} {year}</span>
+        <button onClick={ex.nextLogsMonth} className="w-7 h-7 rounded-[8px] flex items-center justify-center text-[16px]" style={{ background: C.bgAlt, color: C.muted3 }}>›</button>
+      </div>
+      <div className="grid grid-cols-7">
+        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+          <div key={i} className="text-center text-[9.5px] font-semibold pb-1" style={{ color: C.faint }}>{d}</div>
+        ))}
+        {cells.map((day, i) => {
+          if (day == null) return <div key={i} />;
+          const dIso = isoYMD(year, month, day);
+          const logged = ex.logsByDate.has(dIso);
+          const isToday = dIso === ex.todayIso;
+          return (
+            <div key={i} className="flex justify-center items-center" style={{ height: 36, padding: 1 }}>
+              <div
+                onClick={logged ? () => ex.openLogDetail(ex.logsByDate.get(dIso)![0]) : undefined}
+                className="w-full h-full rounded-[9px] flex items-center justify-center"
+                style={{
+                  cursor: logged ? "pointer" : "default",
+                  background: logged ? GREEN : "transparent",
+                  border: isToday && !logged ? `1.5px solid ${C.borderCool}` : "1.5px solid transparent",
+                }}
+              >
+                <span className="text-[11.5px]" style={{ fontWeight: logged || isToday ? 600 : 400, color: logged ? "#fff" : C.ink }}>{day}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-center gap-1.5 mt-2.5 pt-2.5" style={{ borderTop: `1px solid ${C.bgAlt}` }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: GREEN }} />
+        <span className="text-[10px]" style={{ color: C.muted }}>Workout logged · tap a day for details</span>
+      </div>
+    </div>
+  );
+}
+
+function LogsTab({ ex }: { ex: ReturnType<typeof useExercises> }) {
+  // Recent sessions capped to the last 7 days (ISO strings sort lexicographically).
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+  const cutoffIso = isoYMD(cutoff.getFullYear(), cutoff.getMonth() + 1, cutoff.getDate());
+  const recent = ex.logs.filter((s) => (s.date == null ? true : isoOf(s.date) >= cutoffIso));
+  return (
+    <>
+      <LogsCalendar ex={ex} />
+      <div className="flex items-end mb-2.5 px-0.5">
+        <span className="text-[13px] font-semibold" style={{ color: C.ink }}>Recent sessions</span>
+        <span className="text-[10.5px] ml-1.5" style={{ color: C.faint }}>· last 7 days</span>
+      </div>
+      {recent.length === 0
+        ? <div className="text-center py-6 text-[12px]" style={{ color: C.muted2 }}>No sessions in the last 7 days.</div>
+        : recent.map((s) => <LogCard key={s.id} s={s} onClick={() => ex.openLogDetail(s)} />)}
+    </>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 function ExercisesPageInner() {
   const ex = useExercises();
@@ -462,9 +533,7 @@ function ExercisesPageInner() {
             ? <EmptyState glyph="📋" title="No workouts yet" sub="Tap + to build a workout from your exercises." />
             : ex.workouts.map((w) => <WorkoutCard key={w.id} w={w} onClick={() => ex.openEditWorkout(w)} />)
         ) : (
-          ex.logs.length === 0
-            ? <EmptyState glyph="📆" title="No workout logs yet" sub="Completed workouts show up here as read-only history." />
-            : ex.logs.map((s) => <LogCard key={s.id} s={s} onClick={() => ex.openLogDetail(s)} />)
+          <LogsTab ex={ex} />
         )}
       </div>
 
