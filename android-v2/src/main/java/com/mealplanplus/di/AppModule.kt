@@ -2,7 +2,9 @@ package com.mealplanplus.di
 
 import com.mealplanplus.data.generated.api.DashboardApi
 import com.mealplanplus.data.generated.api.DietsApi
+import com.mealplanplus.data.generated.api.ExercisesApi
 import com.mealplanplus.data.generated.api.FoodsApi
+import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
 import com.mealplanplus.data.generated.api.LoggingApi
 import com.mealplanplus.data.generated.api.MealsApi
 import com.mealplanplus.data.generated.api.PlansApi
@@ -60,6 +62,15 @@ object AppModule {
 
     @Provides @Singleton
     fun provideMealsApi(retrofit: Retrofit): MealsApi = retrofit.create(MealsApi::class.java)
+
+    /** Exercise library (server-backed CRUD). */
+    @Provides @Singleton
+    fun provideExercisesApi(retrofit: Retrofit): ExercisesApi = retrofit.create(ExercisesApi::class.java)
+
+    /** Workout templates (server-backed CRUD; not in the offline sync contract). */
+    @Provides @Singleton
+    fun provideWorkoutTemplatesApi(retrofit: Retrofit): WorkoutTemplatesApi =
+        retrofit.create(WorkoutTemplatesApi::class.java)
 
     // FoodRepository, SyncManager, SyncCursorStore use @Inject constructors — Hilt provides them.
 }
