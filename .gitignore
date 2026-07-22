@@ -35,3 +35,6 @@ CLAUDE.md.bak
 
 # Design handoff bundle (reference only — not part of the build)
 design_v2/
+
+# Local-only dev H2 seeder (run manually when testing) — never commit
+scripts/dev-seed-h2.py
