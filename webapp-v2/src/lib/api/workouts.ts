@@ -15,6 +15,10 @@ export function listWorkouts(): Promise<WorkoutTemplateDto[]> {
   return apiFetch<WorkoutTemplateDto[]>("/api/v1/workout-templates");
 }
 
+export function getWorkout(id: number): Promise<WorkoutTemplateDto> {
+  return apiFetch<WorkoutTemplateDto>(`/api/v1/workout-templates/${id}`);
+}
+
 export function createWorkout(name: string, exercises: TemplateExerciseDto[]): Promise<WorkoutTemplateDto> {
   return apiFetch<WorkoutTemplateDto>("/api/v1/workout-templates", {
     method: "POST",

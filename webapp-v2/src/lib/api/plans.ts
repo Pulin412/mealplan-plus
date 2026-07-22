@@ -17,6 +17,11 @@ export function listPlans(from: string, to: string): Promise<DayPlanDto[]> {
   return apiFetch<DayPlanDto[]>(`/api/v1/plans?from=${from}&to=${to}`);
 }
 
+/** The plan for a single date, or null if none exists yet. */
+export function getPlan(date: string): Promise<DayPlanDto | null> {
+  return apiFetch<DayPlanDto>(`/api/v1/plans/${date}`).catch(() => null);
+}
+
 export function upsertPlan(date: string, dietId: number | null, plannedWorkouts: DayPlanDto["plannedWorkouts"] = []): Promise<DayPlanDto> {
   return apiFetch<DayPlanDto>(`/api/v1/plans/${date}`, { method: "PUT", body: JSON.stringify({ date, dietId, plannedWorkouts }) });
 }

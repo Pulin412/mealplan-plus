@@ -6,13 +6,16 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useToday } from "@/hooks/useToday";
+import { useTodayWorkouts, type HomeWorkout, type WorkoutStatus } from "@/hooks/useTodayWorkouts";
 import type { DashboardDto, SlotStatusDto } from "@/lib/api/dashboard";
+import type { WorkoutTemplateDto } from "@/lib/api/workouts";
+import type { ExerciseDto } from "@/lib/api/exercises";
 import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, type FoodDto, type FoodUnit } from "@/lib/nutrition";
 
 const C = {
-  ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e",
-  border: "#eaeef0", surface: "#ffffff", bg: "#f7f9fa", bgAlt: "#f2f4f5",
-  teal: "oklch(0.62 0.09 210)", danger: "#b23b3b",
+  ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
+  border: "#eaeef0", borderCool: "#dfe6e8", surface: "#ffffff", bg: "#f7f9fa", bgAlt: "#f2f4f5",
+  teal: "oklch(0.62 0.09 210)", green: "oklch(0.66 0.13 150)", danger: "#b23b3b",
   cardDark: "#14181b", cardText: "#edf1f2", cardMuted: "#8a949b",
   protein: "oklch(0.60 0.10 200)", carbs: "oklch(0.60 0.11 255)", fat: "oklch(0.62 0.11 150)",
   streak: "oklch(0.7 0.18 45)", over: "#d98a4a",
@@ -208,12 +211,102 @@ function DietSheet({ open, d, onClose }: { open: boolean; d: DashboardDto; onClo
   );
 }
 
+// ── Today's workout ────────────────────────────────────────────────────────────
+function WorkoutStatusLabel({ status }: { status: WorkoutStatus }) {
+  const [text, color] = status === "planned" ? ["Planned · tap to start", C.muted2]
+    : status === "in_progress" ? ["In progress · tap to continue", C.teal]
+    : ["✓ Done", C.green];
+  return <div style={{ font: `${status === "done" ? 600 : 400} 10.5px system-ui`, color, marginTop: 1 }}>{text}</div>;
+}
+
+function WorkoutSection({ workouts, onOpen, onAdd }: { workouts: HomeWorkout[]; onOpen: (w: HomeWorkout) => void; onAdd: () => void }) {
+  return (
+    <>
+      <div style={{ font: "600 12.5px system-ui", color: C.ink, margin: "16px 0 8px 2px" }}>Today&apos;s workout</div>
+      {workouts.length === 0 ? (
+        <div onClick={onAdd} style={{ cursor: "pointer", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px", textAlign: "center", font: "600 12.5px system-ui", color: C.teal }}>
+          ＋ Add a workout or exercise
+        </div>
+      ) : (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+          {workouts.map((w, i) => (
+            <div key={`${w.name}-${i}`} onClick={() => onOpen(w)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10, padding: "12px", borderBottom: `1px solid ${C.bgAlt}` }}>
+              <span style={{ fontSize: 15 }}>🏋️</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{w.name}</div>
+                <WorkoutStatusLabel status={w.status} />
+              </div>
+              <span style={{ fontSize: 20, color: C.muted2 }}>›</span>
+            </div>
+          ))}
+          <div onClick={onAdd} style={{ cursor: "pointer", textAlign: "center", padding: "11px", font: "600 11.5px system-ui", color: C.teal }}>＋ Add workout or exercise</div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function AddWorkoutSheet({ open, templates, exercises, onPickWorkout, onPickExercise, onClose }: {
+  open: boolean; templates: WorkoutTemplateDto[]; exercises: ExerciseDto[];
+  onPickWorkout: (w: WorkoutTemplateDto) => void; onPickExercise: (e: ExerciseDto) => void; onClose: () => void;
+}) {
+  const [tab, setTab] = useState<0 | 1>(0);
+  return (
+    <BottomSheet open={open} onClose={onClose} title="Add to today">
+      <div style={{ font: "400 11px system-ui", color: C.muted, marginTop: -8, marginBottom: 12 }}>
+        {tab === 0 ? "Pick a workout to plan for today" : "Pick a single exercise to log now"}
+      </div>
+      <div style={{ display: "flex", borderRadius: 9, overflow: "hidden", border: `1px solid ${C.borderCool}`, marginBottom: 10 }}>
+        {(["Workouts", "Exercises"] as const).map((label, i) => (
+          <button key={label} onClick={() => setTab(i as 0 | 1)} style={{ flex: 1, height: 34, font: `${tab === i ? 600 : 400} 12px system-ui`, background: tab === i ? C.ink : C.surface, color: tab === i ? "#fff" : C.muted3 }}>{label}</button>
+        ))}
+      </div>
+      <div style={{ maxHeight: 360, overflowY: "auto" }}>
+        {tab === 0 ? (
+          templates.length === 0 ? <Empty text="No workouts yet — build one in the Train tab." /> :
+          templates.map((w) => {
+            const items = w.exercises ?? [];
+            const sets = items.reduce((s, it) => s + (it.sets?.length ?? 0), 0);
+            return <PickerRow key={w.id} title={w.name} sub={`${items.length} exercise${items.length === 1 ? "" : "s"} · ${sets} sets`} action="+ Add" onClick={() => onPickWorkout(w)} />;
+          })
+        ) : (
+          exercises.length === 0 ? <Empty text="No exercises yet — add some in the Train tab." /> :
+          exercises.map((ex) => <PickerRow key={ex.id} title={ex.name} sub={ex.description?.trim() || "Tap to log now"} action="▶ Log" onClick={() => onPickExercise(ex)} />)
+        )}
+      </div>
+    </BottomSheet>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return <div style={{ textAlign: "center", padding: "24px 0", font: "400 12px system-ui", color: C.muted2 }}>{text}</div>;
+}
+
+function PickerRow({ title, sub, action, onClick }: { title: string; sub: string; action: string; onClick: () => void }) {
+  return (
+    <div onClick={onClick} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: "11px 0", borderBottom: `1px solid ${C.bgAlt}` }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{title}</div>
+        <div style={{ font: "400 10.5px system-ui", color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</div>
+      </div>
+      <span style={{ flex: "none", font: "600 11.5px system-ui", color: C.teal, border: `1.5px solid ${C.borderCool}`, borderRadius: 9, padding: "7px 12px" }}>{action}</span>
+    </div>
+  );
+}
+
 function TodayInner() {
   const t = useToday();
+  const tw = useTodayWorkouts();
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [dietOpen, setDietOpen] = useState(false);
+  const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
   const d = t.dashboard;
+
+  const openWorkout = (w: HomeWorkout) => {
+    if (w.templateId != null) router.push(`/session?templateId=${w.templateId}&name=${encodeURIComponent(w.name)}`);
+    else if (w.exerciseId != null) router.push(`/session?exerciseId=${w.exerciseId}&name=${encodeURIComponent(w.name)}`);
+  };
 
   return (
     <div className="flex flex-col min-h-dvh" style={{ background: C.bg }}>
@@ -277,6 +370,8 @@ function TodayInner() {
               </>
             )}
 
+            <WorkoutSection workouts={tw.workouts} onOpen={openWorkout} onAdd={() => setAddWorkoutOpen(true)} />
+
             <div style={{ marginTop: 16 }}><StreakCard d={d} /></div>
           </>
         )}
@@ -288,6 +383,10 @@ function TodayInner() {
       )}
       {d && <AddToTodaySheet open={addOpen} foods={t.foods} plannedSlots={d.slots.map((s) => s.slot)} onAdd={t.addFood} onClose={() => setAddOpen(false)} />}
       {d && <DietSheet open={dietOpen} d={d} onClose={() => setDietOpen(false)} />}
+      <AddWorkoutSheet open={addWorkoutOpen} templates={tw.templates} exercises={tw.exercises}
+        onPickWorkout={(w) => { setAddWorkoutOpen(false); void tw.addWorkout(w); }}
+        onPickExercise={(e) => { setAddWorkoutOpen(false); if (e.id != null) router.push(`/session?exerciseId=${e.id}&name=${encodeURIComponent(e.name)}`); }}
+        onClose={() => setAddWorkoutOpen(false)} />
       <NutritionNav />
     </div>
   );
