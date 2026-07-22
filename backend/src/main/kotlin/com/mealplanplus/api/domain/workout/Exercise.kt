@@ -13,5 +13,6 @@ class Exercise(
     val firebaseUid: String? = null,
 
     val name: String = "",
+    val description: String? = null,
     val isSystem: Boolean = false
 ) : SyncableEntity()

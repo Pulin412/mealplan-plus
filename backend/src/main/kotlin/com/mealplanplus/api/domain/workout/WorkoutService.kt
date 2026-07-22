@@ -4,6 +4,7 @@ import com.mealplanplus.api.generated.model.ExerciseDto
 import com.mealplanplus.api.generated.model.LastSetsDto
 import com.mealplanplus.api.generated.model.TagDto
 import com.mealplanplus.api.generated.model.TemplateExerciseDto
+import com.mealplanplus.api.generated.model.TemplateSetDto
 import com.mealplanplus.api.generated.model.WorkoutSessionDto
 import com.mealplanplus.api.generated.model.WorkoutSetDto
 import com.mealplanplus.api.generated.model.WorkoutTemplateDto
@@ -29,6 +30,7 @@ class WorkoutService(
     private val setRepo: WorkoutSetRepository,
     private val templateRepo: WorkoutTemplateRepository,
     private val templateExerciseRepo: TemplateExerciseRepository,
+    private val templateSetRepo: TemplateExerciseSetRepository,
     private val entityTagRepo: EntityTagRepository,
     private val tagRepo: TagRepository,
     private val tombstones: TombstoneService
@@ -86,7 +88,7 @@ class WorkoutService(
 
     @Transactional
     fun createExercise(dto: ExerciseDto, firebaseUid: String): ExerciseDto {
-        val exercise = Exercise(firebaseUid = firebaseUid, name = dto.name)
+        val exercise = Exercise(firebaseUid = firebaseUid, name = dto.name, description = dto.description)
             .also { if (dto.serverId != null) it.serverId = UUID.fromString(dto.serverId.toString()) }
         val saved = exerciseRepo.save(exercise)
         saveExerciseTags(saved.id, dto.tagIds ?: emptyList())
@@ -99,7 +101,7 @@ class WorkoutService(
         if (exercise.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         val updated = Exercise(id = exercise.id, firebaseUid = exercise.firebaseUid,
-            name = dto.name, isSystem = exercise.isSystem)
+            name = dto.name, description = dto.description, isSystem = exercise.isSystem)
             .also { it.serverId = exercise.serverId }
         val saved = exerciseRepo.save(updated)
         saveExerciseTags(saved.id, dto.tagIds ?: emptyList())
@@ -129,7 +131,7 @@ class WorkoutService(
         if (existing == null) return createExercise(dto, firebaseUid)
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDtoWithTags()
         val updated = Exercise(id = existing.id, firebaseUid = existing.firebaseUid,
-            name = dto.name, isSystem = existing.isSystem)
+            name = dto.name, description = dto.description, isSystem = existing.isSystem)
             .also { it.serverId = existing.serverId }
         val saved = exerciseRepo.save(updated)
         saveExerciseTags(saved.id, dto.tagIds ?: emptyList())
@@ -138,24 +140,49 @@ class WorkoutService(
 
     // ── Workout Templates ─────────────────────────────────────────────────────
 
+    /** Sets grouped by template-exercise id for the given membership rows. */
+    private fun setsByTemplateExerciseId(texs: List<TemplateExercise>): Map<Long, List<TemplateExerciseSet>> =
+        if (texs.isEmpty()) emptyMap()
+        else templateSetRepo.findByTemplateExerciseIdIn(texs.map { it.id }).groupBy { it.templateExerciseId }
+
+    /** Persist a template's exercises and their per-set targets (order = list position). */
+    private fun saveTemplateExercises(templateId: Long, dtos: List<TemplateExerciseDto>) {
+        dtos.forEachIndexed { idx, te ->
+            val savedTe = templateExerciseRepo.save(TemplateExercise(
+                templateId = templateId, exerciseId = te.exerciseId ?: 0L, orderIndex = idx, notes = te.notes))
+            (te.sets ?: emptyList()).forEachIndexed { setIdx, s ->
+                templateSetRepo.save(TemplateExerciseSet(
+                    templateExerciseId = savedTe.id, setNumber = setIdx, reps = s.reps, weightKg = s.weightKg))
+            }
+        }
+    }
+
+    /** Remove a template's exercises and their sets (used before re-saving or on delete). */
+    private fun deleteTemplateExercises(templateId: Long) {
+        val teIds = templateExerciseRepo.findByTemplateIdOrderByOrderIndex(templateId).map { it.id }
+        if (teIds.isNotEmpty()) templateSetRepo.deleteByTemplateExerciseIdIn(teIds)
+        templateExerciseRepo.deleteByTemplateId(templateId)
+    }
+
     private fun WorkoutTemplate.toFullDto(): WorkoutTemplateDto {
         val texs = templateExerciseRepo.findByTemplateIdOrderByOrderIndex(id)
-        val exerciseIds = texs.map { it.exerciseId }.toSet()
-        val exercisesById = exerciseRepo.findAllById(exerciseIds).associateBy { it.id }
-        return toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId]) })
+        val exercisesById = exerciseRepo.findAllById(texs.map { it.exerciseId }.toSet()).associateBy { it.id }
+        val setsByTeId = setsByTemplateExerciseId(texs)
+        return toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId], setsByTeId[te.id] ?: emptyList()) })
     }
 
     fun listTemplates(firebaseUid: String): List<WorkoutTemplateDto> {
         val templates = templateRepo.findByFirebaseUid(firebaseUid)
         if (templates.isEmpty()) return emptyList()
-        val texsByTemplateId = templateExerciseRepo.findByTemplateIdIn(templates.map { it.id })
-            .groupBy { it.templateId }
-        val exerciseIds = texsByTemplateId.values.flatten().map { it.exerciseId }.toSet()
+        val allTexs = templateExerciseRepo.findByTemplateIdIn(templates.map { it.id })
+        val texsByTemplateId = allTexs.groupBy { it.templateId }
+        val exerciseIds = allTexs.map { it.exerciseId }.toSet()
         val exercisesById = if (exerciseIds.isEmpty()) emptyMap()
                             else exerciseRepo.findAllById(exerciseIds).associateBy { it.id }
+        val setsByTeId = setsByTemplateExerciseId(allTexs)
         return templates.map { template ->
             val texs = (texsByTemplateId[template.id] ?: emptyList()).sortedBy { it.orderIndex }
-            template.toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId]) })
+            template.toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId], setsByTeId[te.id] ?: emptyList()) })
         }
     }
 
@@ -166,12 +193,7 @@ class WorkoutService(
     fun createTemplate(dto: WorkoutTemplateDto, firebaseUid: String): WorkoutTemplateDto {
         val template = WorkoutTemplate(firebaseUid = firebaseUid, name = dto.name, notes = dto.notes)
         val saved = templateRepo.save(template)
-        (dto.exercises ?: emptyList()).forEachIndexed { idx, te ->
-            templateExerciseRepo.save(TemplateExercise(templateId = saved.id,
-                exerciseId = te.exerciseId ?: 0L, orderIndex = idx,
-                targetSets = te.targetSets ?: 3, targetReps = te.targetReps,
-                targetWeightKg = te.targetWeightKg, notes = te.notes))
-        }
+        saveTemplateExercises(saved.id, dto.exercises ?: emptyList())
         return saved.toFullDto()
     }
 
@@ -184,13 +206,8 @@ class WorkoutService(
             name = dto.name, notes = dto.notes)
             .also { it.serverId = existing.serverId }
         val saved = templateRepo.save(updated)
-        templateExerciseRepo.deleteByTemplateId(id)
-        (dto.exercises ?: emptyList()).forEachIndexed { idx, te ->
-            templateExerciseRepo.save(TemplateExercise(templateId = saved.id,
-                exerciseId = te.exerciseId ?: 0L, orderIndex = idx,
-                targetSets = te.targetSets ?: 3, targetReps = te.targetReps,
-                targetWeightKg = te.targetWeightKg, notes = te.notes))
-        }
+        deleteTemplateExercises(id)
+        saveTemplateExercises(saved.id, dto.exercises ?: emptyList())
         return saved.toFullDto()
     }
 
@@ -199,7 +216,7 @@ class WorkoutService(
         val template = templateRepo.findById(id).orElseThrow()
         if (template.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
-        templateExerciseRepo.deleteByTemplateId(id)
+        deleteTemplateExercises(id)
         templateRepo.delete(template)
     }
 
@@ -210,11 +227,12 @@ class WorkoutService(
             date = LocalDate.now(), isCompleted = false)
         val saved = sessionRepo.save(session)
         val texs = templateExerciseRepo.findByTemplateIdOrderByOrderIndex(templateId)
+        val setsByTeId = setsByTemplateExerciseId(texs)
         val sets = mutableListOf<WorkoutSet>()
         texs.forEach { te ->
-            repeat(te.targetSets) { setIdx ->
+            (setsByTeId[te.id] ?: emptyList()).sortedBy { it.setNumber }.forEachIndexed { setIdx, ts ->
                 sets.add(setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = te.exerciseId,
-                    setNumber = setIdx, reps = te.targetReps, weightKg = te.targetWeightKg)))
+                    setNumber = setIdx, reps = ts.reps, weightKg = ts.weightKg)))
             }
         }
         return saved.toDto(sets)
@@ -351,16 +369,20 @@ fun WorkoutSession.toDto(sets: List<WorkoutSet>) = WorkoutSessionDto(
     updatedAt       = updatedAt
 )
 
-fun TemplateExercise.toDto(exercise: Exercise?) = TemplateExerciseDto(
-    id             = id,
-    templateId     = templateId,
-    exerciseId     = exerciseId,
-    orderIndex     = orderIndex,
-    targetSets     = targetSets,
-    targetReps     = targetReps,
-    targetWeightKg = targetWeightKg,
-    notes          = notes,
-    exerciseName   = exercise?.name ?: ""
+fun TemplateExerciseSet.toDto() = TemplateSetDto(
+    setNumber = setNumber,
+    reps      = reps,
+    weightKg  = weightKg
+)
+
+fun TemplateExercise.toDto(exercise: Exercise?, sets: List<TemplateExerciseSet>) = TemplateExerciseDto(
+    id           = id,
+    templateId   = templateId,
+    exerciseId   = exerciseId,
+    orderIndex   = orderIndex,
+    sets         = sets.sortedBy { it.setNumber }.map { it.toDto() },
+    notes        = notes,
+    exerciseName = exercise?.name ?: ""
 )
 
 fun WorkoutTemplate.toDto(exercises: List<TemplateExerciseDto>) = WorkoutTemplateDto(
@@ -372,11 +394,12 @@ fun WorkoutTemplate.toDto(exercises: List<TemplateExerciseDto>) = WorkoutTemplat
 )
 
 fun Exercise.toDto(tags: List<TagDto> = emptyList()) = ExerciseDto(
-    id        = id,
-    serverId  = serverId,
-    name      = name,
-    isSystem  = isSystem,
-    tagIds    = tags.map { it.id },
-    tags      = tags,
-    updatedAt = updatedAt
+    id          = id,
+    serverId    = serverId,
+    name        = name,
+    description = description,
+    isSystem    = isSystem,
+    tagIds      = tags.map { it.id },
+    tags        = tags,
+    updatedAt   = updatedAt
 )

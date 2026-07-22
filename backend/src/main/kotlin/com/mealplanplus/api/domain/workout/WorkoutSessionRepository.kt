@@ -42,3 +42,9 @@ interface TemplateExerciseRepository : JpaRepository<TemplateExercise, Long> {
     fun findByTemplateIdIn(templateIds: Collection<Long>): List<TemplateExercise>
     fun deleteByTemplateId(templateId: Long)
 }
+
+interface TemplateExerciseSetRepository : JpaRepository<TemplateExerciseSet, Long> {
+    fun findByTemplateExerciseIdOrderBySetNumber(templateExerciseId: Long): List<TemplateExerciseSet>
+    fun findByTemplateExerciseIdIn(templateExerciseIds: Collection<Long>): List<TemplateExerciseSet>
+    fun deleteByTemplateExerciseIdIn(templateExerciseIds: Collection<Long>)
+}
