@@ -63,9 +63,15 @@ data class ExercisesUiState(
     val editor: ExerciseEditor? = null,
     val builder: WorkoutBuilder? = null,
     val openLog: WorkoutSessionDto? = null,
+    val today: java.time.LocalDate = java.time.LocalDate.now(),
+    val logsMonth: java.time.YearMonth = java.time.YearMonth.now(),
 ) {
     val tagName: Map<Long, String> get() = tags.associate { it.id to it.name }
     val exerciseName: Map<Long, String> get() = exercises.associate { (it.id ?: -1L) to it.name }
+
+    /** Sessions grouped by their logged date, most recent set-count first within a day. */
+    val logsByDate: Map<java.time.LocalDate, List<WorkoutSessionDto>>
+        get() = logs.filter { it.date != null }.groupBy { it.date!! }
 }
 
 @HiltViewModel
@@ -102,6 +108,8 @@ class ExercisesViewModel @Inject constructor(
     // ── Logs (read-only) ──────────────────────────────────────────────────────────
     fun openLog(session: WorkoutSessionDto) { _state.value = _state.value.copy(openLog = session) }
     fun closeLog() { _state.value = _state.value.copy(openLog = null) }
+    fun prevLogsMonth() { _state.value = _state.value.copy(logsMonth = _state.value.logsMonth.minusMonths(1)) }
+    fun nextLogsMonth() { _state.value = _state.value.copy(logsMonth = _state.value.logsMonth.plusMonths(1)) }
 
     // ── Exercise editor ──────────────────────────────────────────────────────────
     fun openNewExercise() { _state.value = _state.value.copy(editor = ExerciseEditor()) }

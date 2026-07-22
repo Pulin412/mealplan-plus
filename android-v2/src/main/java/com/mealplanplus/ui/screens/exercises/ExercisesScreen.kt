@@ -210,18 +210,95 @@ private fun WorkoutCard(w: WorkoutTemplateDto, onClick: () -> Unit) {
     }
 }
 
-// ── Logs tab (read-only workout history) ───────────────────────────────────────
+// ── Logs tab (month calendar + read-only recent-session history) ────────────────
 @Composable
 private fun LogsTab(state: ExercisesUiState, vm: ExercisesViewModel) {
-    when {
-        state.loading -> LoadingOrEmpty("Loading…")
-        state.logs.isEmpty() -> EmptyState("📆", "No workout logs yet", "Completed workouts show up here as read-only history.")
-        else -> LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
-            items(state.logs, key = { it.id ?: it.name.hashCode().toLong() }) { s ->
+    if (state.loading) { LoadingOrEmpty("Loading…"); return }
+    // Recent sessions capped to the last 7 days.
+    val recent = state.logs.filter { s -> s.date?.let { !it.isBefore(state.today.minusDays(7)) } ?: true }
+    LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+        item {
+            LogsCalendar(state, onPrev = vm::prevLogsMonth, onNext = vm::nextLogsMonth,
+                onDay = { day -> state.logsByDate[day]?.firstOrNull()?.let(vm::openLog) })
+            Spacer(Modifier.height(18.dp))
+            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 10.dp)) {
+                Text("Recent sessions", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                Spacer(Modifier.width(6.dp))
+                Text("· last 7 days", fontSize = 10.5.sp, color = MutedFaint)
+            }
+        }
+        if (recent.isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), Alignment.Center) {
+                    Text("No sessions in the last 7 days.", fontSize = 12.sp, color = MutedLight)
+                }
+            }
+        } else {
+            items(recent, key = { it.id ?: it.name.hashCode().toLong() }) { s ->
                 LogCard(s) { vm.openLog(s) }
                 Spacer(Modifier.height(8.dp))
             }
         }
+    }
+}
+
+// ── Logs month calendar (logged days filled green, tap → detail) ────────────────
+@Composable
+private fun LogsCalendar(state: ExercisesUiState, onPrev: () -> Unit, onNext: () -> Unit, onDay: (java.time.LocalDate) -> Unit) {
+    val month = state.logsMonth
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(16.dp)).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            Box(Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).background(SurfaceMuted).clickable(onClick = onPrev), Alignment.Center) {
+                Text("‹", fontSize = 16.sp, color = MutedDark)
+            }
+            Spacer(Modifier.weight(1f))
+            Text("${month.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())} ${month.year}",
+                fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).background(SurfaceMuted).clickable(onClick = onNext), Alignment.Center) {
+                Text("›", fontSize = 16.sp, color = MutedDark)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+            listOf("M", "T", "W", "T", "F", "S", "S").forEach {
+                Box(Modifier.weight(1f), Alignment.Center) { Text(it, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint) }
+            }
+        }
+        val firstDow = month.atDay(1).dayOfWeek.value // Mon=1..Sun=7
+        val cells = List(firstDow - 1) { null } + (1..month.lengthOfMonth()).map { month.atDay(it) }
+        cells.chunked(7).forEach { week ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                (0 until 7).forEach { i ->
+                    val date = week.getOrNull(i)
+                    Box(Modifier.weight(1f).height(36.dp).padding(1.dp), Alignment.Center) {
+                        if (date != null) LogsDayCell(date, state, onDay)
+                    }
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(com.mealplanplus.ui.theme.Success))
+            Spacer(Modifier.width(6.dp))
+            Text("Workout logged · tap a day for details", fontSize = 10.sp, color = MutedLight)
+        }
+    }
+}
+
+@Composable
+private fun LogsDayCell(date: java.time.LocalDate, state: ExercisesUiState, onDay: (java.time.LocalDate) -> Unit) {
+    val logged = state.logsByDate.containsKey(date)
+    val isToday = date == state.today
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(9.dp))
+            .background(if (logged) com.mealplanplus.ui.theme.Success else androidx.compose.ui.graphics.Color.Transparent)
+            .then(if (isToday && !logged) Modifier.border(1.5.dp, BorderCool, RoundedCornerShape(9.dp)) else Modifier)
+            .then(if (logged) Modifier.clickable { onDay(date) } else Modifier),
+    ) {
+        Text("${date.dayOfMonth}", fontSize = 11.5.sp,
+            fontWeight = if (logged || isToday) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (logged) OnAccent else Ink)
     }
 }
 
