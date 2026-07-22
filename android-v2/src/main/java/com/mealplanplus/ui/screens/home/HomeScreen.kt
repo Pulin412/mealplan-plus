@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -38,11 +39,15 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,12 +64,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.generated.model.DashboardDto
+import com.mealplanplus.data.generated.model.ExerciseDto
 import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.generated.model.FoodUnit
 import com.mealplanplus.data.generated.model.LoggedFoodResponseDto
 import com.mealplanplus.data.generated.model.SlotStatusDto
 import com.mealplanplus.data.generated.model.StreakDto
 import com.mealplanplus.data.generated.model.TodayMealItemDto
+import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import com.mealplanplus.ui.theme.Success
 import com.mealplanplus.data.repository.defaultQtyFor
 import com.mealplanplus.data.repository.unitLabel
 import com.mealplanplus.ui.theme.AppBg
@@ -103,15 +111,26 @@ private sealed interface HomeSheet {
     data object None : HomeSheet
     data object Diet : HomeSheet
     data object AddToday : HomeSheet
+    data object AddWorkout : HomeSheet
 }
 
 @Composable
-fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {}) {
+fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
+               onOpenRunner: (Long, String) -> Unit = { _, _ -> },
+               onOpenExerciseRunner: (Long, String) -> Unit = { _, _ -> }) {
     val viewModel: HomeViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val isDark = LocalAppColors.current.isDark
     var sheet by remember { mutableStateOf<HomeSheet>(HomeSheet.None) }
     var expandedSlots by remember { mutableStateOf(setOf<String>()) }
+
+    // Reload today's workout status when returning to Home (e.g. after finishing the runner).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.loadWorkouts() }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
 
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize()) {
@@ -136,6 +155,15 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {}) {
                             AddedTodaySection(d.additionalFoods, state.foods, viewModel::removeFood)
                         }
                         Spacer(Modifier.height(16.dp))
+                        WorkoutSection(state.workouts,
+                            onOpen = { w ->
+                                when {
+                                    w.templateId != null -> onOpenRunner(w.templateId, w.name)
+                                    w.exerciseId != null -> onOpenExerciseRunner(w.exerciseId, w.name)
+                                }
+                            },
+                            onAdd = { sheet = HomeSheet.AddWorkout })
+                        Spacer(Modifier.height(16.dp))
                         StreakCard(d.streak, d)
                         Spacer(Modifier.height(96.dp))
                     }
@@ -154,8 +182,123 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {}) {
         is HomeSheet.Diet -> state.dashboard?.let { DietDetailSheet(it) { sheet = HomeSheet.None } }
         is HomeSheet.AddToday -> AddToTodaySheet(state.foods, state.dashboard?.slots.orEmpty().map { it.slot },
             onAdd = { foodId, slot, qty, unit -> viewModel.addFood(foodId, slot, qty, unit); sheet = HomeSheet.None }) { sheet = HomeSheet.None }
+        is HomeSheet.AddWorkout -> AddWorkoutSheet(state.workoutTemplates, state.exercises,
+            onPickWorkout = { viewModel.addWorkout(it); sheet = HomeSheet.None },
+            onPickExercise = { ex -> sheet = HomeSheet.None; ex.id?.let { onOpenExerciseRunner(it, ex.name) } },
+            onClose = { sheet = HomeSheet.None })
         HomeSheet.None -> {}
     }
+}
+
+// ── Today's workout ──────────────────────────────────────────────────────────────
+@Composable
+private fun WorkoutSection(workouts: List<HomeWorkout>, onOpen: (HomeWorkout) -> Unit, onAdd: () -> Unit) {
+    Text("Today's workout", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+    if (workouts.isEmpty()) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            .clickable(onClick = onAdd).padding(vertical = 20.dp), Alignment.Center) {
+            Text("＋ Add a workout or exercise", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+        }
+        return
+    }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))) {
+        workouts.forEachIndexed { i, w ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onOpen(w) }.padding(horizontal = 12.dp, vertical = 12.dp)) {
+                Text("🏋️", fontSize = 15.sp)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(w.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    WorkoutStatusLabel(w.status)
+                }
+                Text("›", fontSize = 20.sp, color = MutedLight)
+            }
+            if (i < workouts.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+        Box(Modifier.fillMaxWidth().clickable(onClick = onAdd).padding(vertical = 11.dp), Alignment.Center) {
+            Text("＋ Add workout or exercise", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+        }
+    }
+}
+
+@Composable
+private fun WorkoutStatusLabel(status: WorkoutStatus) {
+    val (text, color) = when (status) {
+        WorkoutStatus.PLANNED -> "Planned · tap to start" to MutedLight
+        WorkoutStatus.IN_PROGRESS -> "In progress · tap to continue" to Teal
+        WorkoutStatus.DONE -> "✓ Done" to Success
+    }
+    Text(text, fontSize = 10.5.sp, fontWeight = if (status == WorkoutStatus.DONE) FontWeight.SemiBold else FontWeight.Normal, color = color, modifier = Modifier.padding(top = 1.dp))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddWorkoutSheet(
+    templates: List<WorkoutTemplateDto>,
+    exercises: List<ExerciseDto>,
+    onPickWorkout: (WorkoutTemplateDto) -> Unit,
+    onPickExercise: (ExerciseDto) -> Unit,
+    onClose: () -> Unit,
+) {
+    var tab by remember { mutableStateOf(0) } // 0 = Workouts, 1 = Exercises
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = Surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+            Text("Add to today", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text(if (tab == 0) "Pick a workout to plan for today" else "Pick a single exercise to log now",
+                fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp, bottom = 12.dp))
+            // Segmented Workouts | Exercises
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).border(1.dp, BorderCool, RoundedCornerShape(9.dp))) {
+                listOf("Workouts", "Exercises").forEachIndexed { i, label ->
+                    val on = i == tab
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f).height(34.dp)
+                        .background(if (on) Ink else Surface).clickable { tab = i }) {
+                        Text(label, fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (on) Surface else MutedDark)
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            if (tab == 0) {
+                if (templates.isEmpty()) {
+                    EmptyPicker("No workouts yet — build one in Exercises → Workouts.")
+                } else LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                    items(templates, key = { it.id ?: it.name.hashCode().toLong() }) { w ->
+                        val items = w.exercises ?: emptyList()
+                        val totalSets = items.sumOf { it.sets?.size ?: 0 }
+                        PickerRow(w.name, "${items.size} exercise${if (items.size == 1) "" else "s"} · $totalSets sets", "+ Add") { onPickWorkout(w) }
+                    }
+                }
+            } else {
+                if (exercises.isEmpty()) {
+                    EmptyPicker("No exercises yet — add some in Exercises.")
+                } else LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                    items(exercises, key = { it.id ?: it.name.hashCode().toLong() }) { ex ->
+                        PickerRow(ex.name, ex.description?.takeIf { it.isNotBlank() } ?: "Tap to log now", "▶ Log") { onPickExercise(ex) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyPicker(text: String) {
+    Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), Alignment.Center) {
+        Text(text, fontSize = 12.sp, color = MutedLight)
+    }
+}
+
+@Composable
+private fun PickerRow(title: String, sub: String, action: String, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 11.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Text(sub, fontSize = 10.5.sp, color = MutedLight, maxLines = 1)
+        }
+        Text(action, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+            modifier = Modifier.clip(RoundedCornerShape(9.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(9.dp)).padding(horizontal = 12.dp, vertical = 7.dp))
+    }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
 }
 
 @Composable

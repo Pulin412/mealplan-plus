@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -33,6 +35,8 @@ import com.mealplanplus.ui.screens.meals.MealsScreen
 import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
+import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
+import java.net.URLEncoder
 
 sealed class Screen(val route: String, val label: String) {
     object Today     : Screen("today",     "Today")
@@ -78,8 +82,8 @@ fun MealPlanNavHost() {
     val navBackStack  by navController.currentBackStackEntryAsState()
     val currentDest   = navBackStack?.destination
 
-    // Persistent bottom nav on every in-app screen (auth flow is a separate NavHost).
-    val showBottomBar = true
+    // Persistent bottom nav on every in-app screen, except the full-screen Session Runner.
+    val showBottomBar = currentDest?.route?.startsWith("runner") != true
 
     Scaffold(
         bottomBar = {
@@ -111,7 +115,23 @@ fun MealPlanNavHost() {
         ) {
             composable(Screen.Today.route)     {
                 HomeScreen(onMenu = { navController.navigate(Screen.Meals.route) },
-                    onProfile = { navController.navigate(Screen.Profile.route) })
+                    onProfile = { navController.navigate(Screen.Profile.route) },
+                    onOpenRunner = { templateId, name ->
+                        navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
+                    },
+                    onOpenExerciseRunner = { exerciseId, name ->
+                        navController.navigate("runner?exerciseId=$exerciseId&name=${URLEncoder.encode(name, "UTF-8")}")
+                    })
+            }
+            composable(
+                route = "runner?templateId={templateId}&exerciseId={exerciseId}&name={name}",
+                arguments = listOf(
+                    navArgument("templateId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("exerciseId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("name") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) {
+                SessionRunnerScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Profile.route)   { ProfileScreen(onBack = { navController.navigate(Screen.Today.route) }) }
             composable(Screen.Plan.route)      { PlanScreen() }

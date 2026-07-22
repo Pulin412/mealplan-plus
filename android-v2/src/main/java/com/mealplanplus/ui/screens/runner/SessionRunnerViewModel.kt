@@ -1,0 +1,215 @@
+package com.mealplanplus.ui.screens.runner
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
+import com.mealplanplus.data.generated.model.WorkoutSessionDto
+import com.mealplanplus.data.generated.model.WorkoutSetDto
+import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import com.mealplanplus.data.repository.ExerciseRepository
+import com.mealplanplus.data.repository.WorkoutSessionRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import javax.inject.Inject
+
+enum class RunPhase { LOADING, READY, ACTIVE, DONE }
+
+/** One target/logged set: reps + optional weight (kg). */
+data class RunSet(val reps: Int?, val weightKg: Double?)
+
+/** One exercise in the runner with its editable sets, template targets, and last-session sets. */
+data class RunExercise(
+    val exerciseId: Long,
+    val name: String,
+    val sets: List<RunSet>,
+    val description: String? = null,
+    val templateSets: List<RunSet> = emptyList(),
+    val lastTime: List<RunSet> = emptyList(),
+)
+
+data class RunnerUiState(
+    val phase: RunPhase = RunPhase.LOADING,
+    val workoutName: String = "",
+    val sessionId: Long? = null,
+    val exercises: List<RunExercise> = emptyList(),
+    val error: String? = null,
+    val busy: Boolean = false,
+)
+
+/**
+ * Runs a planned workout: Ready (template + "Last time") → Active (log set-by-set, auto-saved so it
+ * resumes after navigating away) → Done (read-only log). Backed by [WorkoutSessionRepository] —
+ * start pre-populates from the template, each edit PUTs the session, finish marks it complete.
+ */
+@HiltViewModel
+class SessionRunnerViewModel @Inject constructor(
+    private val workoutsApi: WorkoutTemplatesApi,
+    private val sessionRepo: WorkoutSessionRepository,
+    private val exerciseRepo: ExerciseRepository,
+    savedState: SavedStateHandle,
+) : ViewModel() {
+
+    private val templateId: Long = savedState.get<String>("templateId")?.toLongOrNull() ?: 0L
+    private val exerciseId: Long = savedState.get<String>("exerciseId")?.toLongOrNull() ?: 0L
+    private val activityName: String = savedState.get<String>("name")?.let { java.net.URLDecoder.decode(it, "UTF-8") } ?: "Workout"
+
+    private var template: WorkoutTemplateDto? = null
+    private var descById: Map<Long, String?> = emptyMap()
+    private var libNames: Map<Long, String> = emptyMap()
+    private val today = LocalDate.now()
+
+    private val _state = MutableStateFlow(RunnerUiState(workoutName = activityName))
+    val state: StateFlow<RunnerUiState> = _state
+
+    init { load() }
+
+    private fun exerciseNames(): Map<Long, String> =
+        libNames + (template?.exercises ?: emptyList()).associate { it.exerciseId to (it.exerciseName ?: libNames[it.exerciseId] ?: "Exercise") }
+
+    private fun load() {
+        viewModelScope.launch {
+            template = if (templateId > 0) runCatching { workoutsApi.getWorkoutTemplate(templateId).body() }.getOrNull() else null
+            val lib = exerciseRepo.list()
+            descById = lib.associate { (it.id ?: -1L) to it.description }
+            libNames = lib.associate { (it.id ?: -1L) to it.name }
+            val existing = sessionRepo.listForDate(today).firstOrNull { it.name == activityName }
+            if (existing != null) {
+                val exercises = exercisesFromSession(existing)
+                val active = existing.isCompleted != true
+                _state.update {
+                    it.copy(
+                        phase = if (active) RunPhase.ACTIVE else RunPhase.DONE,
+                        sessionId = existing.id,
+                        exercises = exercises,
+                    )
+                }
+                if (active) loadLastTimes()
+            } else {
+                val ready = if (template != null) exercisesFromTemplate() else exerciseReadyList()
+                _state.update { it.copy(phase = RunPhase.READY, exercises = ready) }
+                loadLastTimes()
+            }
+        }
+    }
+
+    /** Build the Ready-phase view from template targets. */
+    private fun exercisesFromTemplate(): List<RunExercise> =
+        (template?.exercises ?: emptyList()).sortedBy { it.orderIndex }.map { te ->
+            val sets = (te.sets ?: emptyList()).sortedBy { it.setNumber }.map { RunSet(it.reps, it.weightKg) }
+            RunExercise(te.exerciseId, te.exerciseName ?: "Exercise", sets = sets, description = descById[te.exerciseId], templateSets = sets)
+        }
+
+    /** Ready view for an ad-hoc single exercise (no template): default 3 × 10. */
+    private fun exerciseReadyList(): List<RunExercise> {
+        if (exerciseId <= 0) return emptyList()
+        val sets = List(3) { RunSet(10, null) }
+        return listOf(RunExercise(exerciseId, libNames[exerciseId] ?: activityName, sets = sets,
+            description = descById[exerciseId], templateSets = sets))
+    }
+
+    /** Rebuild exercises from a live session's logged sets (grouped by exercise, template order). */
+    private fun exercisesFromSession(session: WorkoutSessionDto): List<RunExercise> {
+        val names = exerciseNames()
+        val order = (template?.exercises ?: emptyList()).sortedBy { it.orderIndex }.map { it.exerciseId }
+        val grouped = (session.sets ?: emptyList()).groupBy { it.exerciseId }
+        val ids = (order + grouped.keys).distinct()
+        return ids.mapNotNull { id ->
+            val sets = grouped[id]?.sortedBy { it.setNumber }?.map { RunSet(it.reps, it.weightKg) } ?: return@mapNotNull null
+            RunExercise(id, names[id] ?: "Exercise", sets = sets, description = descById[id])
+        }
+    }
+
+    /** Fetch each exercise's most-recent prior session sets (for "Last time" + Copy last). */
+    private fun loadLastTimes() {
+        viewModelScope.launch {
+            val ex = _state.value.exercises
+            val last = ex.map { e -> async { e.exerciseId to sessionRepo.lastForExercise(e.exerciseId).map { RunSet(it.reps, it.weightKg) } } }
+                .map { it.await() }.toMap()
+            _state.update { s -> s.copy(exercises = s.exercises.map { it.copy(lastTime = last[it.exerciseId] ?: it.lastTime) }) }
+        }
+    }
+
+    // ── Ready → Active ─────────────────────────────────────────────────────────────
+    fun start() {
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true, error = null) }
+            // Template workouts start server-side (sets from targets); an ad-hoc exercise creates a session from the Ready sets.
+            val result = if (template != null) sessionRepo.start(templateId)
+                         else sessionRepo.create(activityName, today, currentSets())
+            result
+                .onSuccess { session ->
+                    val exercises = mergeLastTimes(exercisesFromSession(session))
+                    _state.update { it.copy(busy = false, phase = RunPhase.ACTIVE, sessionId = session.id, exercises = exercises) }
+                }
+                .onFailure { e -> _state.update { it.copy(busy = false, error = e.message) } }
+        }
+    }
+
+    /** Preserve any lastTime we already loaded when swapping the exercise list. */
+    private fun mergeLastTimes(fresh: List<RunExercise>): List<RunExercise> {
+        val prev = _state.value.exercises.associate { it.exerciseId to it.lastTime }
+        return fresh.map { it.copy(lastTime = prev[it.exerciseId] ?: it.lastTime) }
+    }
+
+    // ── Active editing (each change is persisted) ───────────────────────────────────
+    fun setReps(exId: Long, index: Int, reps: Int?) =
+        editSet(exId, index) { it.copy(reps = reps?.coerceIn(0, 100)) }
+    fun setWeight(exId: Long, index: Int, weightKg: Double?) =
+        editSet(exId, index) { it.copy(weightKg = weightKg?.coerceAtLeast(0.0)) }
+
+    fun addSet(exId: Long) = editExercise(exId) {
+        val last = it.sets.lastOrNull() ?: RunSet(10, null)
+        it.copy(sets = it.sets + last.copy())
+    }
+    fun removeSet(exId: Long, index: Int) = editExercise(exId) {
+        if (it.sets.size <= 1) it else it.copy(sets = it.sets.filterIndexed { i, _ -> i != index })
+    }
+    /** Fill this exercise's sets from the last logged session. */
+    fun copyLast(exId: Long) = editExercise(exId) {
+        if (it.lastTime.isEmpty()) it else it.copy(sets = it.lastTime.map { s -> s.copy() })
+    }
+
+    private fun editSet(exId: Long, index: Int, f: (RunSet) -> RunSet) = editExercise(exId) {
+        it.copy(sets = it.sets.mapIndexed { i, s -> if (i == index) f(s) else s })
+    }
+    private fun editExercise(exId: Long, f: (RunExercise) -> RunExercise) {
+        _state.update { s -> s.copy(exercises = s.exercises.map { if (it.exerciseId == exId) f(it) else it }) }
+        persist()
+    }
+
+    private fun currentSets(): List<WorkoutSetDto> =
+        _state.value.exercises.flatMap { ex ->
+            ex.sets.mapIndexed { i, s -> WorkoutSetDto(exerciseId = ex.exerciseId, setNumber = i, reps = s.reps, weightKg = s.weightKg) }
+        }
+
+    /** Save current sets to the in-progress session so we can resume after leaving the screen. */
+    private fun persist() {
+        val id = _state.value.sessionId ?: return
+        viewModelScope.launch {
+            sessionRepo.update(WorkoutSessionDto(id = id, name = _state.value.workoutName, date = today,
+                isCompleted = false, sets = currentSets()))
+        }
+    }
+
+    // ── Finish / re-edit ────────────────────────────────────────────────────────────
+    fun finish() {
+        val id = _state.value.sessionId ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true, error = null) }
+            sessionRepo.update(WorkoutSessionDto(id = id, name = _state.value.workoutName, date = today,
+                isCompleted = false, sets = currentSets()))
+            sessionRepo.finish(id)
+                .onSuccess { _state.update { it.copy(busy = false, phase = RunPhase.DONE) } }
+                .onFailure { e -> _state.update { it.copy(busy = false, error = e.message) } }
+        }
+    }
+
+    /** Re-open a completed log for editing (Done → Active); re-finishing upserts the same day's log. */
+    fun edit() { _state.update { it.copy(phase = RunPhase.ACTIVE) } }
+}
