@@ -8,6 +8,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.userProfileChangeRequest
 import com.mealplanplus.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
@@ -40,8 +41,18 @@ class AuthRepository @Inject constructor(
         auth.signInWithEmailAndPassword(email.trim(), password).await()
     }
 
-    suspend fun register(email: String, password: String) {
-        auth.createUserWithEmailAndPassword(email.trim(), password).await()
+    /** Create the account, then set the Firebase display name if a [name] was provided. */
+    suspend fun register(email: String, password: String, name: String = "") {
+        val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+        val trimmed = name.trim()
+        if (trimmed.isNotEmpty()) {
+            result.user?.updateProfile(userProfileChangeRequest { displayName = trimmed })?.await()
+        }
+    }
+
+    /** Send a Firebase password-reset email. Succeeds silently even if the address is unknown. */
+    suspend fun sendPasswordReset(email: String) {
+        auth.sendPasswordResetEmail(email.trim()).await()
     }
 
     /**

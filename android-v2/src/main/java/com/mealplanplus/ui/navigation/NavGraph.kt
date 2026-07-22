@@ -22,9 +22,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.mealplanplus.ui.screens.auth.AuthScreen
 import com.mealplanplus.ui.screens.auth.AuthViewModel
-import com.mealplanplus.ui.screens.auth.LoginScreen
-import com.mealplanplus.ui.screens.auth.RegisterScreen
+import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
 import com.mealplanplus.ui.screens.diets.DietsScreen
 import com.mealplanplus.ui.screens.exercises.ExercisesScreen
 import com.mealplanplus.ui.screens.foods.FoodsScreen
@@ -66,9 +66,9 @@ fun AppRoot() {
 @Composable
 private fun AuthNavHost(vm: AuthViewModel) {
     val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = "login") {
-        composable("login")    { LoginScreen(vm, onNavigateRegister = { nav.navigate("register") }) }
-        composable("register") { RegisterScreen(vm, onNavigateLogin = { nav.popBackStack() }) }
+    NavHost(navController = nav, startDestination = "auth") {
+        composable("auth")   { AuthScreen(vm, onForgotPassword = { nav.navigate("forgot") }) }
+        composable("forgot") { ForgotPasswordScreen(vm, onBack = { nav.popBackStack() }) }
     }
 }
 
