@@ -263,15 +263,28 @@ Reminder: Room migrations + Flyway migrations need explicit human approval befor
 
 ### Phase 4 — Exercises → Workouts (library + templates)
 
-#### android-v2
-- ⬜ **ExercisesScreen** (Exercises tab) — 3 tabs: Exercises · Workouts · Logs
-- ⬜ **Exercises tab**: list (name + tag chips); ＋ → new/edit form (name + tag toggles); delete cascades to workouts
-- ⬜ ExerciseViewModel, ExerciseDao, ExerciseRepository, Exercise entity (Room)
-- ⬜ **Workouts tab**: list (name + count + sets preview); ＋ → builder (name + searchable exercise picker + sets×reps steppers per exercise)
-- ⬜ WorkoutViewModel, WorkoutDao, WorkoutRepository, Workout entity (Room)
-- ⬜ **Logs tab**: month calendar (green logged days) + recent sessions list (last 30 days); detail sheet (per-exercise per-set rows)
+> **Data-layer note:** the exercise/workout domain is NOT in the offline sync contract
+> (`SyncPushRequest` has exercises + workoutSessions but not workout *templates*). Decision:
+> android-v2 exercises/workouts/logs are **server-backed REST** (ExercisesApi, WorkoutTemplatesApi,
+> WorkoutSessionsApi), like the Plan screen — **no Room entities**. Needs a backend up.
 
-#### webapp-v2
+#### android-v2 — ✅ Exercises + Workouts done (server-backed); Logs = empty state (needs Session Runner)
+- ✅ **ExercisesScreen** (Exercises tab) — 3-tab segmented control: Exercises · Workouts · Logs
+- ✅ **Exercises tab**: list (name + tag chips); ＋ → new/edit editor (name + **description** + tag toggles); delete
+- ✅ ExercisesViewModel + ExerciseRepository (server REST) + ExerciseTags palette (10 fixed oklch colours)
+- ✅ **Workouts tab**: list (name + count + total sets + preview); ＋ → builder (searchable exercise picker;
+  **per-set targets**: reps stepper + optional weight (kg) per set; **copy-set** icon per row; scrollable full view)
+- ✅ WorkoutRepository (server REST). ~~Workout entity (Room)~~ → not used (server-backed).
+- ⬜ **Logs tab**: currently an empty state — full calendar + 30-day sessions + detail sheet comes with the
+  Session Runner (Phase 5, since logs are created there).
+
+**Spec change (contract-first, done):** `ExerciseDto.description`; `TemplateExerciseDto` now holds
+`sets: [TemplateSetDto{setNumber, reps, weightKg}]` (replaced single targetSets/targetReps/targetWeightKg) —
+mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, WorkoutService mapping, **Flyway V23**
+(docker/prod). Seed script (`scripts/dev-seed-h2.py`) extended: 10 exercise tags + 10 exercises + 3 workouts.
+**Follow-ups:** weight shown/entered in kg only (not yet converted to Profile unit); webapp still to do (below).
+
+#### webapp-v2 — ⬜ TODO NEXT (same contract; regen types via `npm run gen:api`)
 - ⬜ **ExercisesPage** `/exercises` — 3-tab segmented control: Exercises · Workouts · Logs
 - ⬜ Exercises tab: list + add/edit sheet (name + tag toggles using tag palette)
 - ⬜ Workouts tab: list + builder sheet (name + exercise picker with stepper for sets×reps)
