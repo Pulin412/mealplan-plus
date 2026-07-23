@@ -49,8 +49,8 @@ export function useHealth() {
       const [glu, wgt, bp] = await Promise.all(
         HEALTH_TABS.map((t) => listHealthMetrics(t.id)),
       );
-      // `recordedAt` arrives as epoch millis (number) despite the string type — sort by time.
-      const t = (m: HealthMetricDto) => new Date(m.recordedAt as unknown as number | string).getTime();
+      // `recordedAt` is an ISO-8601 string (per the spec) — sort by time.
+      const t = (m: HealthMetricDto) => new Date(m.recordedAt).getTime();
       const sort = (xs: HealthMetricDto[]) => [...xs].sort((a, b) => t(a) - t(b));
       setReadings({ GLUCOSE: sort(glu), WEIGHT: sort(wgt), BLOOD_PRESSURE: sort(bp) });
     } catch (e) {

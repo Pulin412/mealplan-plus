@@ -18,10 +18,9 @@ const DIASTOLIC = "#c7a4dd";
 const mono = "'DM Mono', monospace";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-// `recordedAt` comes off the wire as epoch millis (number), though the generated
-// type declares a string — accept either and normalise to a local YYYY-MM-DD.
+// `recordedAt` is an ISO-8601 string (per the spec) — normalise to a local YYYY-MM-DD.
 const dateOf = (m: HealthMetricDto) => {
-  const d = new Date(m.recordedAt as unknown as number | string);
+  const d = new Date(m.recordedAt);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 const fmtLabel = (iso: string) => {

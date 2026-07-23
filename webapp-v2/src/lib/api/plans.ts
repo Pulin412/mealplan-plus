@@ -4,13 +4,9 @@ import type { components } from "@/lib/api/types.generated";
 export type DayPlanDto = components["schemas"]["DayPlanDto"];
 export type PlannedWorkoutDto = components["schemas"]["PlannedWorkoutDto"];
 
-/** DayPlan `date` arrives as a [y,m,d] array (Jackson) — normalise to ISO. */
+/** DayPlan `date` is an ISO "yyyy-mm-dd" string (per the spec). */
 export function isoOf(d: unknown): string {
-  if (Array.isArray(d)) {
-    const [y, m, day] = d as number[];
-    return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-  return String(d);
+  return d == null ? "" : String(d);
 }
 
 export function listPlans(from: string, to: string): Promise<DayPlanDto[]> {

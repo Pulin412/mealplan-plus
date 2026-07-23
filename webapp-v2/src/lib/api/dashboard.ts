@@ -6,13 +6,9 @@ export type DashboardDto = components["schemas"]["DashboardDto"];
 export type SlotStatusDto = components["schemas"]["SlotStatusDto"];
 export type LoggedFoodDto = components["schemas"]["LoggedFoodResponseDto"];
 
-/** The dashboard `date` comes over the wire as a [y,m,d] array (Jackson) — normalise to ISO. */
+/** The dashboard `date` is an ISO "yyyy-mm-dd" string (per the spec). */
 export function isoDate(d: unknown): string {
-  if (Array.isArray(d)) {
-    const [y, m, day] = d as number[];
-    return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-  return String(d);
+  return d == null ? "" : String(d);
 }
 
 export function getDashboard(): Promise<DashboardDto> {

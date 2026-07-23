@@ -120,8 +120,8 @@ function ItemTick({ name, meta }: { name: string; meta: string }) {
 
 function StreakCard({ d }: { d: DashboardDto }) {
   const s = d.streak;
-  const iso = Array.isArray(d.date) ? (d.date as number[]) : null;
-  const base = iso ? new Date(iso[0], iso[1] - 1, iso[2]) : new Date();
+  const [y, m, day] = isoOf(d.date).split("-").map(Number);
+  const base = new Date(y, m - 1, day);
   const initials = ["S", "M", "T", "W", "T", "F", "S"];
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
@@ -392,9 +392,9 @@ function TodayInner() {
   );
 }
 
+/** DTO `date` is an ISO "yyyy-mm-dd" string (per the spec). */
 function isoOf(date: unknown): string {
-  if (Array.isArray(date)) { const [y, m, day] = date as number[]; return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`; }
-  return String(date);
+  return date == null ? "" : String(date);
 }
 
 export default function TodayPage() {
