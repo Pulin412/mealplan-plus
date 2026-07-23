@@ -12,16 +12,17 @@ import java.time.LocalDate
 /**
  * Single source of truth for the Gson used by every Retrofit call.
  *
- * The generated API models use java.time types, but the backend's JSON wire
- * format (Jackson, `write-dates-as-timestamps`) doesn't match Gson's defaults —
- * Gson has no built-in adapter for `java.time.*`. Register every such adapter
- * here so all API traffic shares one consistent, correct configuration.
+ * The generated API models use java.time types, but Gson has no built-in
+ * adapter for `java.time.*`. The backend serializes dates as ISO-8601 strings
+ * (Jackson `write-dates-as-timestamps: false`, matching docs/openapi.yaml).
+ * Register every such adapter here so all API traffic shares one consistent,
+ * correct configuration.
  *
  * As new screens add DTOs with other wire types (e.g. `LocalDate`, enums),
  * add their adapters here rather than in NetworkModule.
  */
 fun apiGson(): Gson = GsonBuilder()
-    .registerTypeAdapter(Instant::class.java, InstantEpochMillisAdapter)
+    .registerTypeAdapter(Instant::class.java, InstantIso8601Adapter)
     .registerTypeAdapter(LocalDate::class.java, LocalDateAdapter)
     .create()
 
@@ -44,10 +45,10 @@ object LocalDateAdapter : TypeAdapter<LocalDate>() {
     }
 }
 
-/** `Instant` <-> epoch millis — matches the backend's timestamp serialization. */
-object InstantEpochMillisAdapter : TypeAdapter<Instant>() {
+/** `Instant` <-> ISO-8601 string — matches the backend's `write-dates-as-timestamps: false`. */
+object InstantIso8601Adapter : TypeAdapter<Instant>() {
     override fun write(out: JsonWriter, value: Instant?) {
-        if (value == null) out.nullValue() else out.value(value.toEpochMilli())
+        if (value == null) out.nullValue() else out.value(value.toString())
     }
 
     override fun read(reader: JsonReader): Instant? {
@@ -55,6 +56,6 @@ object InstantEpochMillisAdapter : TypeAdapter<Instant>() {
             reader.nextNull()
             return null
         }
-        return Instant.ofEpochMilli(reader.nextLong())
+        return Instant.parse(reader.nextString())
     }
 }
