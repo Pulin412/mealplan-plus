@@ -30,6 +30,7 @@ import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
 import com.mealplanplus.ui.screens.diets.DietsScreen
 import com.mealplanplus.ui.screens.exercises.ExercisesScreen
 import com.mealplanplus.ui.screens.foods.FoodsScreen
+import com.mealplanplus.ui.screens.groceries.GroceryScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.meals.MealsScreen
 import com.mealplanplus.ui.screens.home.HomeScreen
@@ -46,6 +47,7 @@ sealed class Screen(val route: String, val label: String) {
     object Foods     : Screen("foods",     "Foods")
     object Meals     : Screen("meals",     "Meals")
     object Diets     : Screen("diets",     "Diets")
+    object Groceries : Screen("groceries", "Groceries")
     object Profile   : Screen("profile",   "Profile")
 }
 
@@ -144,7 +146,13 @@ fun MealPlanNavHost() {
                 DietsScreen(onBack = { navController.navigate(Screen.Foods.route) })
             }
             composable(Screen.Foods.route)     {
-                FoodsScreen(onBack = { navController.navigate(Screen.Today.route) })
+                FoodsScreen(onBack = { navController.navigate(Screen.Groceries.route) })
+            }
+            composable(Screen.Groceries.route) {
+                GroceryScreen(
+                    onMenu = { navController.navigate(Screen.Today.route) },
+                    onProfile = { navController.navigate(Screen.Profile.route) },
+                )
             }
         }
     }
