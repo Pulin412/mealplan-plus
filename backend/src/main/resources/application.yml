@@ -23,8 +23,8 @@ spring:
     enabled: false
   jackson:
     serialization:
-      write-dates-as-timestamps: true
-      write-date-timestamps-as-nanoseconds: false
+      # ISO-8601 strings on the wire — matches the `date-time` / `date` types declared in docs/openapi.yaml.
+      write-dates-as-timestamps: false
   ai:
     anthropic:
       api-key: ${ANTHROPIC_API_KEY:}
