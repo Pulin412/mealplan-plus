@@ -11,10 +11,17 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class FoodController(private val service: FoodService) : FoodsApi {
+class FoodController(
+    private val service: FoodService,
+    private val openFoodFacts: OpenFoodFactsClient,
+) : FoodsApi {
 
     override fun listFoods(favorites: Boolean): ResponseEntity<List<FoodDto>> =
         ResponseEntity.ok(service.list(currentUid(), favoritesOnly = favorites))
+
+    /** Server-side Open Food Facts proxy (browser clients can't call OFF search directly — CORS). */
+    override fun searchFoodsOnline(q: String): ResponseEntity<List<FoodDto>> =
+        ResponseEntity.ok(openFoodFacts.search(q))
 
     override fun searchFoods(q: String, page: Int, size: Int): ResponseEntity<FoodPage> {
         val p = service.search(q, currentUid(), PageRequest.of(page, size.coerceIn(1, 100), Sort.by("name")))

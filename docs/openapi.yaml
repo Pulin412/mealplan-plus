@@ -216,6 +216,35 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/v1/foods/search-online:
+    get:
+      tags: [Foods]
+      summary: Search Open Food Facts (server-side proxy)
+      description: |
+        Proxied text search against Open Food Facts. Done server-side so browser clients avoid CORS
+        (the reliable OFF search host sends no CORS header). Returns lightweight FoodDto results with
+        no `id` — the client creates the chosen one via `POST /foods`. Android calls Open Food Facts
+        directly and does not use this endpoint.
+      operationId: searchFoodsOnline
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (product name or brand)
+      responses:
+        '200':
+          description: Matching products from Open Food Facts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FoodDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/foods/{id}:
     get:
       tags: [Foods]
