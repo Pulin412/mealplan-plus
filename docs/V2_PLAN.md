@@ -23,9 +23,11 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | Settings: Export CSV ✅ + **Notifications** ✅ (built+installed, awaiting user smoke-test) | Settings: Export CSV ✅. Notifications **removed** (deferred — see iOS Web Push memo) |
-| **Next task** | Settings — Health Connect or Backup & restore | Health Connect or Backup (Notifications deferred) |
-| **Blocked on?** | Android notifications: user to smoke-test + OK to commit | — |
+| **Last completed** | **Settings wired: Export ✅ · Notifications ✅ · Health Connect ✅ (+Home activity card).** Backup **dropped**. | Settings: Export ✅. Notifications deferred (Web Push memo); Backup **dropped**; Health Connect is Android-only. |
+| **Next task** | Settings section complete → pick next (Profile polish / Phase 8 PWA / cross-cutting) | Same |
+| **Blocked on?** | Android notifications + Health Connect: user on-device smoke-test pending | — |
+
+**✅ Settings functionality is essentially complete.** Export (both) · Notifications (android; webapp deferred to Web Push) · Health Connect (android; N/A on web) · Backup **dropped as redundant with sync**.
 
 **Settings wiring — Export CSV (android-v2, DONE, device-verified 2026-07-24):**
 - Single sectioned `.csv` (one file, 4 labelled sections): **Meals** + **Diets** (all, from Room) · **Workouts** (completed sessions, **last 7 days**, one row per set, 1-based set# grouped per exercise) · **Health** (all built-in types, **last 90 days**). Numbers `Locale.US`, RFC-4180 escaping, ISO dates.
@@ -36,13 +38,24 @@
 - **✅ android-v2 DONE** (built + installed; **awaiting user on-device smoke-test before commit**). All 5 types (Meal/Water/Workout/Weigh-in/Glucose) + quiet hours. **Fixed configurable times**, on-device **AlarmManager** (inexact `setAndAllowWhileIdle` — dodges the exact-alarm Play gate), no backend. Files: `data/notifications/{NotificationType,NotificationStore,NotificationHelper,NotificationScheduler}.kt`, `receiver/{NotificationReceiver,BootReceiver}.kt`, `res/drawable/ic_notification.xml`, manifest receivers, `MealPlanApplication` (channel), `MainActivity` (reschedule on launch), `SettingsViewModel` + `SettingsScreen` (toggles + `POST_NOTIFICATIONS` prompt). Prefs = SharedPreferences (`notifications`). Test `NotificationSettingsTest` (4, quiet-hours wrap-around). Verified: 17 alarms scheduled (4 enabled types; weigh-in off by default). Defaults: Meal 8/13/19h · Water 8–20h/2h · Workout 18h · Weigh-in Sun 8h · Glucose ×6. Follow-ups: per-time editor UI; "skip if already logged" guard.
 - **⏸ webapp/PWA DEFERRED — removed from UI.** iOS has **no on-device scheduler** → reminders must be **server-sent Web Push** (iOS 16.4+, installed PWA only, VAPID). Full design memo (architecture, 2 new tables, 5 endpoints, Cloud Scheduler cost options, sign-off gates): **[iOS Web Push design memo](https://claude.ai/code/artifact/dc89e1d8-cdf3-4f63-a360-505125ab948b)** (2026-07-24). Needs: Flyway migration + API-contract change + Cloud Scheduler — all sign-off gates. The webapp Settings **Notifications section was removed** (a no-op toggle is misleading); see the code comment in `app/settings/page.tsx`. Revisit alongside Phase 8 (PWA hardening).
 
+**Settings wiring — Health Connect (android-v2, DONE 2026-07-24, committed; user smoke-test pending):**
+- Read-only (steps, calories burned, latest weight) — **free, no cloud cost**. Settings card = connect flow (grant → "Connected" + today summary; toggle off → `revokeAll()`). **Home Activity card** shows steps + kcal burned when connected (compact, no icons; refreshes on resume). Files: `data/healthconnect/HealthConnectManager.kt` (safe SDK wrapper), `SettingsViewModel`/`SettingsScreen` (card + permission launcher), `Home{ViewModel,Screen}` (activity card). Manifest gained the HC rationale + `VIEW_PERMISSION_USAGE`/`HEALTH_PERMISSIONS` intents (SDK dep + read perms were already present). Verified on emulator: 3 perms `granted=true`, read path runs (reads 0 — no fitness source on emulator; real data needs a device). **N/A on webapp** (HC is an Android API). Follow-up: pipe HC weight into the Health screen (would create server records — separate design).
+
+**Settings wiring — Backup & restore: DROPPED (2026-07-24).**
+- **Removed from both clients' Settings** (redundant with backend sync). Rationale: all data lives in **Neon Postgres keyed to the Firebase UID** (server-backed REST domains + Room domains that sync via `/sync/push,pull`), so a reinstall/new device **re-syncs** — that IS the restore. Only the grocery working list is local-only, and it's **regenerable** (Refresh recomputes from the plan), so not worth backing up. Portability is already covered by **Export CSV**. Point-in-time undo, if ever wanted, is better solved by **soft-delete/trash** than a backup blob. Server-side backup would've needed Flyway + API-contract + Cloud Scheduler sign-offs for little gain.
+
+**Barcode scanner — Foods → ＋ → Scan barcode (BOTH clients, 2026-07-24; android device-verified via manual-entry path, webapp compiles):**
+- Scan → **Open Food Facts** lookup (free, no key, called directly from the client) → product card (name, brand, per-100g macros) → **Add to my foods** (reuses the online-add/create path; android saves to Room + syncs, webapp POSTs `/foods` keeping brand+barcode). **Manual-entry fallback** on both (damaged barcodes + emulator/testing). Open-questions #1/#2/#3 resolved.
+- **Android:** ML Kit `barcode-scanning` (bundled, on-device) + CameraX preview/analysis; CAMERA permission + runtime prompt. Files: `data/remote/OpenFoodFactsApi.kt`, `data/repository/BarcodeRepository.kt`, `ui/screens/foods/BarcodeScanSheet.kt` (scanner + phases), FoodViewModel/FoodsScreen wiring, NetworkModule OFF provider (separate Retrofit, no auth header). Verified on emulator: Nutella `3017620422003` → 539/6.3/57.5/30.9 → added (foods 25→26).
+- **Webapp:** `@zxing/browser` (works on **iOS Safari**; native `BarcodeDetector` does not). `lib/api/barcode.ts` (lookup + `createScannedFood`), `useFoods.addScannedFood`, `app/foods/page.tsx` `BarcodeSheet` (live `<video>` scan, dynamic-imported). Needs HTTPS/localhost for the camera. tsc+lint clean.
+
 **Done since Health:**
 - **Dates**: backend now serializes `date-time`/`date` as ISO-8601 (`WRITE_DATES_AS_TIMESTAMPS=false`, regression test `JsonDateSerializationTest`). Android Gson adapter + webapp both consume ISO directly; the old epoch-millis/`[y,m,d]` workarounds are gone. ⚠ **Do NOT deploy backend to `main`** until the old prod Android app is retired — `android/SyncRepository.kt` still expects epoch millis and would break.
 - **Groceries** (both clients): shopping list generated from the plan's diets over a picked date range, grouped by aisle. **Server-REST source** (reuses Plans/Diets/Meals/Foods APIs like Plan; NOT offline/Room, NOT the grocery sync contract). Live working state = **independent rows** persisted locally (android SharedPreferences `GroceryStore`, webapp `localStorage`). The list is a **stable snapshot** — only **Refresh** (or a day change) recomputes it; a plan edit does NOT auto-reflect. Refresh reconciles: checked (bought) rows kept (capped to need), each ingredient's to-buy row = new total − bought, and a checked item that grows spawns a **separate to-buy row** for the delta.
-- **Settings screen (UI only, both)**: Backup & restore, Health Connect, Export data, collapsible Notifications (5 per-alert toggles + quiet hours). Toggles/collapse are local; buttons + dropdowns + Health Connect are placeholders. Design = prototype frame **13a** in the newer `design_v2/*.zip` (extract it — the checked-in `MealPlan Home.dc.html` is older and lacks Groceries/Settings).
+- **Settings screen (both)** — design = prototype frame **13a** in the newer `design_v2/*.zip`. Started as UI-only (Backup & restore, Health Connect, Export data, Notifications); now **wired** (see the Settings-wiring notes at the top): Export ✅, Notifications ✅ (android), Health Connect ✅ (android). **Backup & restore removed** (redundant with sync). Webapp: Export ✅; Notifications + Backup removed; Health Connect is Android-only.
 - **Navigation restructure (both)**: bottom nav = Today · Plan · Exercises · Health · **More**. The **More** tab (android `MiscScreen`, webapp `/misc`) lists Foods/Meals/Diets/Groceries. Home/Today's top-left is a **Settings gear**; the avatar → Profile. **Profile + Settings are reachable only from Home.** (Removed the old ☰ page-cycle, Groceries' profile avatar, Profile's gear.)
 
-**Next — Settings functionality** (do one section at a time, both clients): Backup & restore → Health Connect → Export → Notifications. Backend endpoints for these do **not** exist yet — decide the contract per section (and remember any backend/contract change needs sign-off). Start from the android `SettingsScreen.kt` / webapp `app/settings/page.tsx` placeholders.
+**Settings functionality — DONE** (see the per-section wiring notes at the top). Export ✅ · Notifications ✅ (android; webapp → Web Push memo, deferred) · Health Connect ✅ (android; N/A web) · Backup **dropped** (redundant with sync). No backend endpoints were needed — all of it is client-side. Next up is a fresh screen/phase (Profile polish, Phase 8 PWA hardening, or the cross-cutting tasks).
 
 ---
 
@@ -414,9 +427,9 @@ These are from spec §10 and project-specific gaps. Answer before implementing t
 
 | # | Question | Affects | Decision |
 |---|----------|---------|----------|
-| 1 | Which food/nutrition API for "Search online"? (Open Food Facts is free + no key; USDA needs key; Nutritionix paid) | Phase 2 foods search | — |
-| 2 | Barcode scanning library for android-v2? (ML Kit is free; ZXing is open source) | Phase 2 barcode sheet | — |
-| 3 | Barcode scanning for webapp-v2? (browser `BarcodeDetector` API or QuaggaJS) | Phase 2 barcode sheet | — |
+| 1 | Which food/nutrition API for "Search online"? (Open Food Facts is free + no key; USDA needs key; Nutritionix paid) | Phase 2 foods search | ✅ **Open Food Facts** (free, no key) for barcode lookup — client calls it directly. |
+| 2 | Barcode scanning library for android-v2? (ML Kit is free; ZXing is open source) | Phase 2 barcode sheet | ✅ **ML Kit barcode-scanning (bundled) + CameraX** (2026-07-24). |
+| 3 | Barcode scanning for webapp-v2? (browser `BarcodeDetector` API or QuaggaJS) | Phase 2 barcode sheet | ✅ **`@zxing/browser`** (native BarcodeDetector isn't on iOS Safari) (2026-07-24). |
 | 4 | Should Plan's "workouts" be hard-linked to Workout entities (recommended) or free-text strings? | Phase 5 day-plan sheet | Recommend: hard-link |
 | 5 | Add **weight per set** to Session Runner, or reps-only for now? (spec logs reps per set only) | Phase 5 session runner | — |
 | 6 | Timezone / day-rollover for streaks: use device local midnight or UTC? | Phase 3 + Phase 6 streaks | — |
