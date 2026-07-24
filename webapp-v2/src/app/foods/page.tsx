@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useFoods } from "@/hooks/useFoods";
 import { BottomSheet, SheetField } from "@/components/ui/BottomSheet";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
+import { lookupBarcode, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodDto } from "@/lib/api/foods";
 import type { FoodSort } from "@/types/food";
 
@@ -236,18 +238,144 @@ function OnlineSheet({ open, query, results, loading, onQuery, onSearch, onAdd, 
   );
 }
 
-// ─── Barcode stub ─────────────────────────────────────────────────────────────
-function BarcodeSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+// ─── Barcode scanner ──────────────────────────────────────────────────────────
+// Live scan via @zxing/browser (works on iOS Safari, unlike the native BarcodeDetector) → Open Food
+// Facts lookup → product card → create in the user's foods. Manual entry as a fallback.
+type ScanPhase = "scanning" | "looking_up" | "result" | "not_found";
+
+function BarcodeSheet({ open, onClose, onAdd, saving }: {
+  open: boolean; onClose: () => void; onAdd: (p: ScannedProduct) => void; saving: boolean;
+}) {
+  const [phase, setPhase] = useState<ScanPhase>("scanning");
+  const [product, setProduct] = useState<ScannedProduct | null>(null);
+  const [message, setMessage] = useState("");
+  const [camError, setCamError] = useState(false);
+  const [manual, setManual] = useState(false);
+  const [code, setCode] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (open) { setPhase("scanning"); setProduct(null); setMessage(""); setCamError(false); setManual(false); setCode(""); }
+  }, [open]);
+
+  const lookUp = useCallback(async (raw: string) => {
+    setPhase("looking_up");
+    try {
+      const p = await lookupBarcode(raw);
+      if (p) { setProduct(p); setPhase("result"); }
+      else { setMessage(`No product found for ${raw}`); setPhase("not_found"); }
+    } catch {
+      setMessage("Lookup failed — check your connection."); setPhase("not_found");
+    }
+  }, []);
+
+  // ML-free browser barcode decode via ZXing (dynamic import keeps it out of SSR).
+  useEffect(() => {
+    if (!open || phase !== "scanning") return;
+    let controls: { stop: () => void } | undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        const reader = new BrowserMultiFormatReader();
+        controls = await reader.decodeFromVideoDevice(undefined, videoRef.current ?? undefined, (result, _err, ctrls) => {
+          if (result && !cancelled) { ctrls.stop(); lookUp(result.getText()); }
+        });
+        if (cancelled) controls?.stop();
+      } catch {
+        setCamError(true);
+      }
+    })();
+    return () => { cancelled = true; controls?.stop(); };
+  }, [open, phase, lookUp]);
+
+  const restart = () => { setProduct(null); setManual(false); setCode(""); setMessage(""); setPhase("scanning"); };
+
   return (
     <BottomSheet open={open} onClose={onClose} title="Scan barcode">
-      <div className="rounded-[14px] flex items-center justify-center mb-4"
-        style={{ height: 180, background: "#14181b" }}>
-        <span className="text-[13px]" style={{ color: "rgba(255,255,255,.5)" }}>Camera coming soon</span>
-      </div>
-      <button onClick={onClose} className="w-full rounded-[12px] py-[13px] text-[12.5px] font-semibold"
-        style={{ background: C.bgAlt, color: C.muted3, border: "none" }}>
-        Close
-      </button>
+      {phase === "scanning" && (
+        <>
+          <div className="rounded-[14px] overflow-hidden mb-3 relative" style={{ height: 260, background: "#14181b" }}>
+            {!camError ? (
+              <>
+                <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[10px]"
+                  style={{ width: "72%", height: 92, border: `2px solid ${C.teal}` }} />
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 px-6 text-center">
+                <span className="text-[13px]" style={{ color: "rgba(255,255,255,.65)" }}>Camera unavailable</span>
+                <span className="text-[11px]" style={{ color: "rgba(255,255,255,.4)" }}>Allow camera access, or enter the code below.</span>
+              </div>
+            )}
+          </div>
+          <p className="text-[12px] text-center mb-2" style={{ color: C.muted }}>
+            {camError ? "Enter the barcode number" : "Point the camera at a product barcode"}
+          </p>
+          {!manual ? (
+            <button onClick={() => setManual(true)} className="w-full text-[13px] font-semibold py-2"
+              style={{ color: C.teal, background: "none", border: "none" }}>
+              Enter barcode manually
+            </button>
+          ) : (
+            <div className="flex gap-2 items-center">
+              <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                inputMode="numeric" placeholder="Barcode number"
+                className="flex-1 rounded-[10px] px-3 py-2 text-[13px]"
+                style={{ border: `1px solid ${C.border}`, background: C.surface, color: C.ink }} />
+              <button onClick={() => code && lookUp(code)} disabled={!code}
+                className="text-[13px] font-semibold px-3 py-2"
+                style={{ color: C.teal, background: "none", border: "none", opacity: code ? 1 : 0.4 }}>
+                Look up
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {phase === "looking_up" && (
+        <div className="flex items-center justify-center" style={{ height: 200 }}>
+          <span className="text-[13px]" style={{ color: C.muted }}>Looking up product…</span>
+        </div>
+      )}
+
+      {phase === "result" && product && (
+        <>
+          <div className="rounded-[12px] p-4 mb-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <div className="text-[15px] font-semibold" style={{ color: C.ink }}>{product.name}</div>
+            {product.brand && <div className="text-[12px] mb-3" style={{ color: C.muted2 }}>{product.brand}</div>}
+            <div className="text-[10.5px] font-bold mb-1.5" style={{ color: C.muted2 }}>PER 100 G</div>
+            <div className="flex gap-5">
+              {([["kcal", product.kcal], ["P", product.protein], ["C", product.carbs], ["F", product.fat]] as const).map(([l, v]) => (
+                <div key={l} className="flex flex-col items-center">
+                  <span className="text-[15px] font-semibold" style={{ color: C.ink }}>{v % 1 === 0 ? v : v.toFixed(1)}</span>
+                  <span className="text-[10.5px]" style={{ color: C.muted2 }}>{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button onClick={() => onAdd(product)} disabled={saving}
+            className="w-full rounded-[12px] py-[13px] text-[14px] font-semibold mb-2"
+            style={{ background: C.teal, color: "#fff", border: "none", opacity: saving ? 0.6 : 1 }}>
+            {saving ? "Adding…" : "Add to my foods"}
+          </button>
+          <button onClick={restart} className="w-full text-[13px] font-semibold py-1"
+            style={{ color: C.teal, background: "none", border: "none" }}>
+            Scan another
+          </button>
+        </>
+      )}
+
+      {phase === "not_found" && (
+        <div className="flex flex-col items-center gap-2 py-6 text-center">
+          <span className="text-[13.5px]" style={{ color: C.ink }}>{message}</span>
+          <span className="text-[12px]" style={{ color: C.muted2 }}>Try again, or add it manually from the ＋ menu.</span>
+          <button onClick={restart} className="text-[13px] font-semibold mt-2"
+            style={{ color: C.teal, background: "none", border: "none" }}>
+            Scan again
+          </button>
+        </div>
+      )}
     </BottomSheet>
   );
 }
@@ -296,6 +424,7 @@ function FoodsPageInner() {
     fanOpen, setFanOpen, activeSheet, openSheet, closeSheet,
     form, updateForm, isSaveEnabled, saving, saveManual,
     onlineQuery, setOnlineQuery, onlineResults, onlineLoading, runOnlineSearch, addOnlineFood,
+    addScannedFood,
   } = useFoods();
 
   const showFavEmpty = favOnly && foods.length === 0 && !loading;
@@ -411,7 +540,7 @@ function FoodsPageInner() {
         results={onlineResults} loading={onlineLoading}
         onQuery={setOnlineQuery} onSearch={runOnlineSearch}
         onAdd={addOnlineFood} onClose={closeSheet} />
-      <BarcodeSheet open={activeSheet === "barcode"} onClose={closeSheet} />
+      <BarcodeSheet open={activeSheet === "barcode"} onClose={closeSheet} onAdd={addScannedFood} saving={saving} />
 
       <NutritionNav />
     </div>

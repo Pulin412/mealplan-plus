@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { listFoods, createFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
+import { createScannedFood, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
 
 const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "" };
@@ -140,6 +141,20 @@ export function useFoods() {
     setFoods((prev) => [food, ...prev]);
   }, [foods]);
 
+  /** Persist a scanned Open Food Facts product as a new food (it doesn't exist server-side yet). */
+  const addScannedFood = useCallback(async (product: ScannedProduct) => {
+    setSaving(true);
+    try {
+      const created = await createScannedFood(product);
+      setFoods((prev) => [created, ...prev]);
+      closeSheet();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to add food");
+    } finally {
+      setSaving(false);
+    }
+  }, [closeSheet]);
+
   return {
     foods: filtered, totalCount: foods.length, favCount,
     loading, error,
@@ -153,5 +168,6 @@ export function useFoods() {
     activeSheet, openSheet, closeSheet,
     form, updateForm, isSaveEnabled, saving, saveManual,
     onlineQuery, setOnlineQuery, onlineResults, onlineLoading, runOnlineSearch, addOnlineFood,
+    addScannedFood,
   };
 }
