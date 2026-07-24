@@ -12,13 +12,8 @@ const C = {
   teal: "oklch(0.62 0.09 210)", success: "#4da876",
 };
 
-const NOTIF_DEFS = [
-  { key: "meals", label: "Meal reminders", hint: "At each planned slot", icon: "🍽️", bg: "#f6ebe0" },
-  { key: "water", label: "Water", hint: "Every 2 hours, 8am–8pm", icon: "💧", bg: "#dfeaf6" },
-  { key: "workout", label: "Workout", hint: "On scheduled days", icon: "🏋️", bg: "#dff2e7" },
-  { key: "weighin", label: "Weigh-in", hint: "Weekly, Sunday 8am", icon: "⚖️", bg: "#ebe7f3" },
-  { key: "glucose", label: "Glucose check", hint: "Before & after meals", icon: "🩸", bg: "#f6e4e2" },
-];
+// Notifications intentionally omitted on web/PWA — iOS reminders require server-sent Web Push
+// (no on-device scheduler). Design + rollout plan: docs/V2_PLAN.md → "iOS Web Push (deferred)".
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -47,9 +42,6 @@ function SettingsInner() {
   const router = useRouter();
   const [autoBackup, setAutoBackup] = useState(true);
   const [connected, setConnected] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(true);
-  const [notif, setNotif] = useState<Record<string, boolean>>({ meals: true, water: true, workout: true, weighin: false, glucose: true });
-  const onCount = Object.values(notif).filter(Boolean).length;
   const [exporting, setExporting] = useState(false);
 
   async function handleExport() {
@@ -120,32 +112,6 @@ function SettingsInner() {
             <button onClick={handleExport} disabled={exporting} style={{ width: "100%", border: "none", borderRadius: 11, padding: "12px 0", background: C.bgAlt, color: C.muted3, font: "600 13px system-ui", cursor: exporting ? "default" : "pointer", opacity: exporting ? 0.6 : 1 }}>{exporting ? "Exporting…" : "⬇ Export  CSV"}</button>
           </div>
         </div>
-
-        {/* Notifications */}
-        <div onClick={() => setNotifOpen((v) => !v)} style={{ display: "flex", alignItems: "center", cursor: "pointer", margin: "22px 4px 8px" }}>
-          <span style={{ font: "700 10.5px system-ui", letterSpacing: 0.6, textTransform: "uppercase", color: C.faint }}>Notifications</span>
-          <span style={{ marginLeft: 8, font: "400 10px system-ui", color: C.faint }}>{onCount} of {NOTIF_DEFS.length} on</span>
-          <span style={{ marginLeft: "auto", color: C.faint, fontSize: 14 }}>{notifOpen ? "⌄" : "›"}</span>
-        </div>
-        {notifOpen && (
-          <div style={cardStyle}>
-            {NOTIF_DEFS.map((n, i) => (
-              <div key={n.key}>
-                <div style={{ display: "flex", alignItems: "center", padding: "10px 15px" }}>
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: n.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{n.icon}</div>
-                  <div style={{ marginLeft: 11, flex: 1 }}>
-                    <div style={{ font: "600 14px system-ui", color: C.ink }}>{n.label}</div>
-                    <div style={{ font: "400 11.5px system-ui", color: C.muted2 }}>{n.hint}</div>
-                  </div>
-                  <Toggle on={!!notif[n.key]} onToggle={() => setNotif((p) => ({ ...p, [n.key]: !p[n.key] }))} />
-                </div>
-                {i < NOTIF_DEFS.length - 1 && <Divider />}
-              </div>
-            ))}
-            <Divider />
-            <ValueRow label="Quiet hours" value="10 PM – 7 AM" labelColor={C.muted3} />
-          </div>
-        )}
       </div>
     </div>
   );
