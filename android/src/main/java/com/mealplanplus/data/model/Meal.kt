@@ -1,137 +1,30 @@
 package com.mealplanplus.data.model
 
-import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 /**
- * A meal template — a named collection of food items.
- *
- * [userId] scopes the meal to a specific user.
- * NULL means a system/built-in meal visible to every user.
- * User-created meals always have a non-null userId.
- *
- * The slot a meal fills (BREAKFAST, LUNCH, etc.) is determined by
- * [DietMeal] when building a diet template, or by [PlannedSlot] when
- * planning a specific day. Meals themselves are slot-agnostic.
+ * A named collection of foods. Same offline-first shape as [Food]: client-generated UUID
+ * identity, dirty flag, and soft-delete tombstone. Its food entries are embedded as JSON
+ * ([items]) so a meal is one syncable record.
  */
-@Entity(
-    tableName = "meals",
-    foreignKeys = [
-        ForeignKey(
-            entity = User::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("userId")]
-)
+@Entity(tableName = "meals")
 data class Meal(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val description: String? = null,
-    val isSystem: Boolean = false,
-    /** NULL = system meal visible to all; non-null = owned by this user. */
-    @ColumnInfo(defaultValue = "NULL")
-    val userId: Long? = null,
-    val serverId: String? = null,
-    val createdAt: Long = System.currentTimeMillis(),
+    val slots: List<String> = emptyList(),
+    val items: List<MealItem> = emptyList(),
+    val isFavorite: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis(),
-    val syncedAt: Long? = null
+    val dirty: Boolean = false,
+    val deletedAt: Long? = null,
 )
 
-/**
- * Junction table: Meal contains multiple food items with quantities.
- */
-@Entity(
-    tableName = "meal_food_items",
-    primaryKeys = ["mealId", "foodId"],
-    foreignKeys = [
-        ForeignKey(
-            entity = Meal::class,
-            parentColumns = ["id"],
-            childColumns = ["mealId"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = FoodItem::class,
-            parentColumns = ["id"],
-            childColumns = ["foodId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("mealId"), Index("foodId")]
-)
-data class MealFoodItem(
-    val mealId: Long,
-    val foodId: Long,
+/** One food entry in a meal — references a [Food] by its UUID (`Food.id`). */
+data class MealItem(
+    val foodServerId: String,
     val quantity: Double,
-    val unit: FoodUnit = FoodUnit.GRAM,
-    val notes: String? = null
+    val unit: String = "GRAM",
+    val notes: String? = null,
 )
-
-/**
- * Meal with its food items — for display.
- */
-data class MealWithFoods(
-    val meal: Meal,
-    val items: List<MealFoodItemWithDetails>
-) {
-    val totalCalories: Double
-        get() = items.sumOf { it.calculatedCalories }
-    val totalProtein: Double
-        get() = items.sumOf { it.calculatedProtein }
-    val totalCarbs: Double
-        get() = items.sumOf { it.calculatedCarbs }
-    val totalFat: Double
-        get() = items.sumOf { it.calculatedFat }
-
-    /**
-     * Total Glycemic Load for this meal. Only sums items that have a GI value set.
-     * Returns null when no food in the meal has GI data.
-     */
-    val totalGlycemicLoad: Double?
-        get() {
-            val loads = items.mapNotNull { it.calculatedGlycemicLoad }
-            return if (loads.isEmpty()) null else loads.sum()
-        }
-}
-
-/**
- * Food item in meal with calculated macros.
- */
-data class MealFoodItemWithDetails(
-    val mealFoodItem: MealFoodItem,
-    val food: FoodItem
-) {
-    val quantityInGrams: Double
-        get() = food.toGrams(mealFoodItem.quantity, mealFoodItem.unit)
-
-    val calculatedCalories: Double
-        get() = food.calculateCalories(mealFoodItem.quantity, mealFoodItem.unit)
-
-    val calculatedProtein: Double
-        get() = food.calculateProtein(mealFoodItem.quantity, mealFoodItem.unit)
-
-    val calculatedCarbs: Double
-        get() = food.calculateCarbs(mealFoodItem.quantity, mealFoodItem.unit)
-
-    val calculatedFat: Double
-        get() = food.calculateFat(mealFoodItem.quantity, mealFoodItem.unit)
-
-    /**
-     * Glycemic Load contribution for this food item at its served quantity.
-     * GL = (GI × carbs_in_serving_grams) / 100
-     * Returns null if this food has no GI data.
-     */
-    val calculatedGlycemicLoad: Double?
-        get() {
-            val gi = food.glycemicIndex ?: return null
-            val carbs = calculatedCarbs
-            return (gi * carbs) / 100.0
-        }
-}

@@ -12,7 +12,7 @@ The only thing shared across tiers is the **API contract**: `docs/openapi.yaml`.
                  docs/openapi.yaml          ← the ONE contract (neutral, repo root)
                         │  generate
      ┌──────────────────┼───────────────────────┐
- backend/            android-v2               webapp-v2
+ backend/            android               webapp
  (the BRAIN)         (native client)          (PWA client)
  Spring interfaces   Retrofit client + DTOs   TS types
  + model DTOs        (generated)              (generated)
@@ -27,7 +27,7 @@ The only thing shared across tiers is the **API contract**: `docs/openapi.yaml`.
 - **backend/** implements the contract and owns everything that can be centralised:
   persistence, auth, sync/merge rules, validation, and server-only compute
   (AI agent, pgvector search, the shared food database).
-- **android-v2** and **webapp-v2** each **generate their own** typed HTTP client + DTO
+- **android** and **webapp** each **generate their own** typed HTTP client + DTO
   models from the same spec, then write a thin platform-specific layer on top.
 
 The backend is the **de-duplication engine**, not a source of duplication: anything on
@@ -53,16 +53,16 @@ A small mapper (`DtoDto.toEntity()`) bridges them. Fighting this costs more than
 | Tier | 🔧 Generated (never hand-edit) | ✍️ You write |
 |------|-------------------------------|--------------|
 | **backend** | `*Api` interfaces, DTO models (`build/generated/…`) | Controller (`: FoodsApi`), Service, JPA entity + entity→DTO mapping |
-| **android-v2** | Retrofit `*Api`, DTO models (`build/generated/…`) | Room entity + DAO, Repository (DTO↔entity + cache/sync), ViewModel, Compose UI |
-| **webapp-v2** | `types.generated.ts` (DTO types) | `lib/api/*.ts` typed calls, hooks, React UI |
+| **android** | Retrofit `*Api`, DTO models (`build/generated/…`) | Room entity + DAO, Repository (DTO↔entity + cache/sync), ViewModel, Compose UI |
+| **webapp** | `types.generated.ts` (DTO types) | `lib/api/*.ts` typed calls, hooks, React UI |
 
 Regeneration commands:
 
 | Tier | Command |
 |------|---------|
 | backend | `cd backend && ./gradlew openApiGenerate` (runs as part of `build`) |
-| android-v2 | `./gradlew :android-v2:openApiGenerate` (runs as part of build) |
-| webapp-v2 | `cd webapp-v2 && npm run gen:api` |
+| android | `./gradlew :android:openApiGenerate` (runs as part of build) |
+| webapp | `cd webapp && npm run gen:api` |
 
 All three read `docs/openapi.yaml`. Editing the contract → regenerate all three → the
 compiler/tsc flags any tier that has drifted.
@@ -157,7 +157,7 @@ UI-only types (`FoodSort`, `FoodViewMode`, `ManualFoodForm`) are hand-written, i
 > offline) — that's the wrong strategy and will be refactored. **Foods is the reference
 > implementation** for this pattern; every later screen follows it.
 >
-> Applies to **android-v2**. The **webapp-v2 PWA stays online-first** for now (reads Neon
+> Applies to **android**. The **webapp PWA stays online-first** for now (reads Neon
 > live, no local store) — it still sees Android's changes because they land on the server.
 > Aligned with Android's official guidance:
 > <https://developer.android.com/topic/architecture/data-layer/offline-first>
@@ -256,7 +256,7 @@ One **WorkManager** worker for **all** entity types (not per-screen, not a manua
 
 The generated models use `java.time` types; the backend's JSON wire format doesn't match
 Gson's defaults, so Retrofit needs adapters. Centralised in
-`android-v2/.../data/remote/ApiSerialization.kt` (`apiGson()`):
+`android/.../data/remote/ApiSerialization.kt` (`apiGson()`):
 
 - ✅ `Instant` ⇄ epoch millis (done — was causing every Foods response to fail to deserialize).
 - ⬜ `LocalDate` (backend serializes as a JSON array `[y,m,d]`) and enum types — add when

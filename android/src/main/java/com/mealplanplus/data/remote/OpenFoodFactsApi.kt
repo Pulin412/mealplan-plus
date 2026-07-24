@@ -1,62 +1,63 @@
 package com.mealplanplus.data.remote
 
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+/**
+ * Open Food Facts — free, no-key, ~3M-product barcode database. Called directly from the app (its
+ * own Retrofit, no auth header) to resolve a scanned barcode into nutrition. Public API v2:
+ * `https://world.openfoodfacts.org/api/v2/product/{barcode}.json`.
+ */
 interface OpenFoodFactsApi {
-    @GET("api/v0/product/{barcode}.json")
-    suspend fun getProductByBarcode(@Path("barcode") barcode: String): OpenFoodFactsResponse
+    @GET("api/v2/product/{barcode}.json")
+    suspend fun getProduct(
+        @Path("barcode") barcode: String,
+        @Query("fields") fields: String = "code,product_name,brands,nutriments",
+    ): Response<OffProductResponse>
 
-    @GET("cgi/search.pl")
-    suspend fun searchProducts(
-        @Query("search_terms") query: String,
-        @Query("search_simple") simple: Int = 1,
-        @Query("action") action: String = "process",
-        @Query("json") json: Int = 1,
-        @Query("page_size") pageSize: Int = 20
-    ): OpenFoodFactsSearchResponse
+    /**
+     * Text search via the Search-a-licious host (absolute URL — different host than the product API,
+     * and the only reliable OFF search endpoint). Native HTTP has no CORS constraint, so Android calls
+     * it directly; the webapp goes through a backend proxy instead.
+     */
+    @GET("https://search.openfoodfacts.org/search")
+    suspend fun search(
+        @Query("q") query: String,
+        @Query("page_size") pageSize: Int = 30,
+        @Query("fields") fields: String = "code,product_name,brands,nutriments",
+    ): Response<OffSearchResponse>
 }
 
-data class OpenFoodFactsResponse(
-    val status: Int,
-    val status_verbose: String?,
-    val product: OpenFoodFactsProduct?
+data class OffSearchResponse(
+    val hits: List<OffSearchHit>? = null,
 )
 
-data class OpenFoodFactsSearchResponse(
-    val count: Int,
-    val page: Int,
-    val page_size: Int,
-    val products: List<OpenFoodFactsProduct>
+/** A search hit. Note `brands` is an **array** here (vs. a comma-string in the product API). */
+data class OffSearchHit(
+    val code: String? = null,
+    @SerializedName("product_name") val productName: String? = null,
+    val brands: List<String>? = null,
+    val nutriments: OffNutriments? = null,
 )
 
-data class OpenFoodFactsProduct(
-    val code: String?,
-    val product_name: String?,
-    val brands: String?,
-    val serving_size: String?,
-    val nutriments: Nutriments?
+data class OffProductResponse(
+    val status: Int? = null,        // 1 = found, 0 = not found
+    val product: OffProduct? = null,
 )
 
-data class Nutriments(
-    // OpenFoodFacts uses a hyphen in the JSON key ("energy-kcal_100g") which
-    // is not a valid Kotlin/Java identifier, so @SerializedName is required.
-    @SerializedName("energy-kcal_100g")
-    val energy_kcal_100g: Double?,
-    // kJ fallback — some products only report energy in kJ, not kcal
-    @SerializedName("energy_100g")
-    val energy_kj_100g: Double? = null,
-    val proteins_100g: Double?,
-    val carbohydrates_100g: Double?,
-    val fat_100g: Double?,
-    val fiber_100g: Double?,
-    val sugars_100g: Double?
-) {
-    /** Calories per 100 g/ml — prefers kcal field, falls back to kJ ÷ 4.184. */
-    val caloriesPer100g: Double
-        get() = energy_kcal_100g
-            ?: energy_kj_100g?.div(4.184)
-            ?: 0.0
-}
+data class OffProduct(
+    @SerializedName("product_name") val productName: String? = null,
+    val brands: String? = null,
+    val nutriments: OffNutriments? = null,
+)
+
+/** Per-100g values (grams / kcal). Any field may be absent when a product lacks that datum. */
+data class OffNutriments(
+    @SerializedName("energy-kcal_100g") val energyKcal100g: Double? = null,
+    @SerializedName("proteins_100g") val proteins100g: Double? = null,
+    @SerializedName("carbohydrates_100g") val carbohydrates100g: Double? = null,
+    @SerializedName("fat_100g") val fat100g: Double? = null,
+)

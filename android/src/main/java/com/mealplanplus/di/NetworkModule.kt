@@ -1,7 +1,10 @@
 package com.mealplanplus.di
 
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.auth.FirebaseAuth
+import com.mealplanplus.BuildConfig
 import com.mealplanplus.data.remote.OpenFoodFactsApi
-import com.mealplanplus.data.remote.UsdaFoodApi
+import com.mealplanplus.data.remote.apiGson
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -10,106 +13,63 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
-import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val OPEN_FOOD_FACTS_URL = "https://world.openfoodfacts.org/"
-    private const val USDA_API_URL = "https://api.nal.usda.gov/"
-    private const val MEAL_PLAN_API_URL = "https://mealplan-api-rfo22lhanq-ez.a.run.app/"
-
-    @Provides
-    @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-        return OkHttpClient.Builder()
-            .addInterceptor(logging)
+    @Provides @Singleton
+    fun provideOkHttpClient(auth: FirebaseAuth): OkHttpClient =
+        OkHttpClient.Builder()
             .addInterceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .header("User-Agent", "MealPlanPlus/1.0 Android")
-                    .build()
+                // Await the token — `.result` throws when the Task isn't already resolved
+                // (e.g. sync firing on app start), which silently dropped the auth header.
+                // Blocking is fine here: interceptors run on OkHttp's background threads.
+                val token = runCatching {
+                    auth.currentUser?.let { Tasks.await(it.getIdToken(false)) }?.token
+                }.getOrNull()
+                val request = if (token != null)
+                    chain.request().newBuilder()
+                        .addHeader("Authorization", "Bearer $token")
+                        .build()
+                else chain.request()
                 chain.proceed(request)
             }
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                        else HttpLoggingInterceptor.Level.NONE
+            })
             .build()
-    }
 
-    @Provides
-    @Singleton
-    @Named("OpenFoodFacts")
-    fun provideOpenFoodFactsRetrofit(client: OkHttpClient): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(OPEN_FOOD_FACTS_URL)
+    @Provides @Singleton
+    fun provideRetrofit(client: OkHttpClient): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(BuildConfig.API_BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(apiGson()))
             .build()
-    }
 
-    @Provides
-    @Singleton
-    @Named("USDA")
-    fun provideUsdaRetrofit(client: OkHttpClient): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(USDA_API_URL)
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
+    @Provides @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
 
-    @Provides
-    @Singleton
-    fun provideOpenFoodFactsApi(@Named("OpenFoodFacts") retrofit: Retrofit): OpenFoodFactsApi {
-        return retrofit.create(OpenFoodFactsApi::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideUsdaFoodApi(@Named("USDA") retrofit: Retrofit): UsdaFoodApi {
-        return retrofit.create(UsdaFoodApi::class.java)
-    }
-
-    @Provides
-    @Singleton
-    @Named("MealPlan")
-    fun provideMealPlanRetrofit(): Retrofit {
+    /** Open Food Facts client — its own Retrofit (public API, NO Firebase auth header leaked to them). */
+    @Provides @Singleton
+    fun provideOpenFoodFactsApi(): OpenFoodFactsApi {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
-                // Blocking token fetch is acceptable — OkHttp runs on background thread
-                val idToken = try {
-                    com.google.android.gms.tasks.Tasks.await(
-                        com.google.firebase.auth.FirebaseAuth.getInstance()
-                            .currentUser?.getIdToken(false)
-                            ?: com.google.android.gms.tasks.Tasks.forResult(null)
-                    )?.token
-                } catch (e: Exception) { null }
-
-                val req = chain.request().newBuilder()
-                    .apply { if (idToken != null) header("Authorization", "Bearer $idToken") }
-                    .header("User-Agent", "MealPlanPlus/1.0 Android")
-                    .build()
-                chain.proceed(req)
+                // OFF asks callers to identify themselves via User-Agent.
+                chain.proceed(chain.request().newBuilder().header("User-Agent", "MealPlanPlus/2.0 (Android)").build())
             }
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(120, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
+            })
             .build()
-
         return Retrofit.Builder()
-            .baseUrl(MEAL_PLAN_API_URL)
+            .baseUrl("https://world.openfoodfacts.org/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+            .create(OpenFoodFactsApi::class.java)
     }
-
-    @Provides
-    @Singleton
-    fun provideMealPlanApi(@Named("MealPlan") retrofit: Retrofit): com.mealplanplus.data.remote.MealPlanApi =
-        retrofit.create(com.mealplanplus.data.remote.MealPlanApi::class.java)
 }

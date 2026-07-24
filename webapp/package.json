@@ -7,27 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "gen:api": "openapi-typescript ../docs/openapi.yaml -o lib/api/types.generated.ts"
+    "gen:api": "openapi-typescript ../docs/openapi.yaml -o src/lib/api/types.generated.ts"
   },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
-    "@radix-ui/react-label": "^2.1.8",
-    "@radix-ui/react-separator": "^1.1.8",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@serwist/next": "^9.5.7",
+    "@radix-ui/react-slot": "^1.3.0",
+    "@zxing/browser": "^0.1.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "firebase": "^12.12.0",
-    "lucide-react": "^1.8.0",
+    "firebase": "^12.16.0",
+    "lucide-react": "^1.25.0",
     "next": "14.2.35",
     "openapi-typescript": "^7.13.0",
     "react": "^18",
     "react-dom": "^18",
-    "recharts": "^3.8.1",
-    "serwist": "^9.5.7",
-    "tailwind-merge": "^3.5.0"
+    "recharts": "^3.9.2",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^20",

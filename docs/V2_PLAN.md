@@ -13,7 +13,7 @@
 3. **Mark tasks done** by changing `⬜` → `✅` as you complete them and update "Resume here".
 4. **Run the build command** for the affected module before reporting a task done.
 5. **Ask the user** before any commit, push, Room migration, or API contract change.
-6. **Never touch** `android/` or `webapp/` — those are the old apps, read-only.
+6. `android/` and `webapp/` are the **current** clients (the old pre-redesign apps were removed; the modules were renamed from `android-v2`/`webapp-v2`).
 
 ---
 
@@ -21,7 +21,7 @@
 
 > Update this block every time a task completes.
 
-| | android-v2 | webapp-v2 |
+| | android | webapp |
 |--|------------|-----------|
 | **Last completed** | **Settings wired: Export ✅ · Notifications ✅ · Health Connect ✅ (+Home activity card).** Backup **dropped**. | Settings: Export ✅. Notifications deferred (Web Push memo); Backup **dropped**; Health Connect is Android-only. |
 | **Next task** | Settings section complete → pick next (Profile polish / Phase 8 PWA / cross-cutting) | Same |
@@ -29,16 +29,16 @@
 
 **✅ Settings functionality is essentially complete.** Export (both) · Notifications (android; webapp deferred to Web Push) · Health Connect (android; N/A on web) · Backup **dropped as redundant with sync**.
 
-**Settings wiring — Export CSV (android-v2, DONE, device-verified 2026-07-24):**
+**Settings wiring — Export CSV (android, DONE, device-verified 2026-07-24):**
 - Single sectioned `.csv` (one file, 4 labelled sections): **Meals** + **Diets** (all, from Room) · **Workouts** (completed sessions, **last 7 days**, one row per set, 1-based set# grouped per exercise) · **Health** (all built-in types, **last 90 days**). Numbers `Locale.US`, RFC-4180 escaping, ISO dates.
 - Files: `data/export/{ExportData,CsvExporter,ExportRepository}.kt`, `ui/screens/settings/SettingsViewModel.kt` (one-shot Share event), `SettingsScreen.kt` wired (Export button → FileProvider share sheet), `AndroidManifest.xml` + `res/xml/file_paths.xml` (FileProvider, cacheDir/exports). Unit test `CsvExporterTest` (7 tests).
 - **✅ Webapp DONE (browser-verified, parity):** `lib/export/{exportData,csvExporter,collectExport}.ts` + `app/settings/page.tsx` Export button. Reuses `foodMacros` resolver; Blob download; same single-sectioned format. Health section byte-identical to android; workouts 1-based. (Webapp has no test runner — format logic covered by android `CsvExporterTest`.)
 
 **Settings wiring — Notifications (2026-07-24):**
-- **✅ android-v2 DONE** (built + installed; **awaiting user on-device smoke-test before commit**). All 5 types (Meal/Water/Workout/Weigh-in/Glucose) + quiet hours. **Fixed configurable times**, on-device **AlarmManager** (inexact `setAndAllowWhileIdle` — dodges the exact-alarm Play gate), no backend. Files: `data/notifications/{NotificationType,NotificationStore,NotificationHelper,NotificationScheduler}.kt`, `receiver/{NotificationReceiver,BootReceiver}.kt`, `res/drawable/ic_notification.xml`, manifest receivers, `MealPlanApplication` (channel), `MainActivity` (reschedule on launch), `SettingsViewModel` + `SettingsScreen` (toggles + `POST_NOTIFICATIONS` prompt). Prefs = SharedPreferences (`notifications`). Test `NotificationSettingsTest` (4, quiet-hours wrap-around). Verified: 17 alarms scheduled (4 enabled types; weigh-in off by default). Defaults: Meal 8/13/19h · Water 8–20h/2h · Workout 18h · Weigh-in Sun 8h · Glucose ×6. Follow-ups: per-time editor UI; "skip if already logged" guard.
+- **✅ android DONE** (built + installed; **awaiting user on-device smoke-test before commit**). All 5 types (Meal/Water/Workout/Weigh-in/Glucose) + quiet hours. **Fixed configurable times**, on-device **AlarmManager** (inexact `setAndAllowWhileIdle` — dodges the exact-alarm Play gate), no backend. Files: `data/notifications/{NotificationType,NotificationStore,NotificationHelper,NotificationScheduler}.kt`, `receiver/{NotificationReceiver,BootReceiver}.kt`, `res/drawable/ic_notification.xml`, manifest receivers, `MealPlanApplication` (channel), `MainActivity` (reschedule on launch), `SettingsViewModel` + `SettingsScreen` (toggles + `POST_NOTIFICATIONS` prompt). Prefs = SharedPreferences (`notifications`). Test `NotificationSettingsTest` (4, quiet-hours wrap-around). Verified: 17 alarms scheduled (4 enabled types; weigh-in off by default). Defaults: Meal 8/13/19h · Water 8–20h/2h · Workout 18h · Weigh-in Sun 8h · Glucose ×6. Follow-ups: per-time editor UI; "skip if already logged" guard.
 - **⏸ webapp/PWA DEFERRED — removed from UI.** iOS has **no on-device scheduler** → reminders must be **server-sent Web Push** (iOS 16.4+, installed PWA only, VAPID). Full design memo (architecture, 2 new tables, 5 endpoints, Cloud Scheduler cost options, sign-off gates): **[iOS Web Push design memo](https://claude.ai/code/artifact/dc89e1d8-cdf3-4f63-a360-505125ab948b)** (2026-07-24). Needs: Flyway migration + API-contract change + Cloud Scheduler — all sign-off gates. The webapp Settings **Notifications section was removed** (a no-op toggle is misleading); see the code comment in `app/settings/page.tsx`. Revisit alongside Phase 8 (PWA hardening).
 
-**Settings wiring — Health Connect (android-v2, DONE 2026-07-24, committed; user smoke-test pending):**
+**Settings wiring — Health Connect (android, DONE 2026-07-24, committed; user smoke-test pending):**
 - Read-only (steps, calories burned, latest weight) — **free, no cloud cost**. Settings card = connect flow (grant → "Connected" + today summary; toggle off → `revokeAll()`). **Home Activity card** shows steps + kcal burned when connected (compact, no icons; refreshes on resume). Files: `data/healthconnect/HealthConnectManager.kt` (safe SDK wrapper), `SettingsViewModel`/`SettingsScreen` (card + permission launcher), `Home{ViewModel,Screen}` (activity card). Manifest gained the HC rationale + `VIEW_PERMISSION_USAGE`/`HEALTH_PERMISSIONS` intents (SDK dep + read perms were already present). Verified on emulator: 3 perms `granted=true`, read path runs (reads 0 — no fitness source on emulator; real data needs a device). **N/A on webapp** (HC is an Android API). Follow-up: pipe HC weight into the Health screen (would create server records — separate design).
 
 **Settings wiring — Backup & restore: DROPPED (2026-07-24).**
@@ -69,10 +69,10 @@
 | Module | Role | Status |
 |--------|------|--------|
 | `backend/` | Spring Boot REST API — **shared by both clients** | ✅ Done |
-| `android-v2/` | Fresh Kotlin/Compose redesign (`com.mealplanplus.v2`) | 🔄 In progress |
-| `webapp-v2/` | Fresh Next.js 14 redesign PWA | 🔄 In progress |
+| `android/` | Fresh Kotlin/Compose redesign (`com.mealplanplus.v2`) | 🔄 In progress |
+| `webapp/` | Fresh Next.js 14 redesign PWA | 🔄 In progress |
 
-> `android/` and `webapp/` are the old apps — **read-only, do not modify**.
+> `android/` and `webapp/` are the **current** clients (renamed from `android-v2`/`webapp-v2`; the old pre-redesign apps were removed).
 
 ---
 
@@ -103,7 +103,7 @@ All DB migrations (V13–V20), all API domains, sync controller complete.
 
 > Verify a file exists with `ls` before creating it. Never recreate something that's already done.
 
-### android-v2 (`android-v2/src/main/java/com/mealplanplus/`)
+### android (`android/src/main/java/com/mealplanplus/`)
 
 | File | What it is |
 |------|-----------|
@@ -130,7 +130,7 @@ All DB migrations (V13–V20), all API domains, sync controller complete.
 | `build/generated/openapi/…/api/*.kt` | Retrofit interfaces generated from openapi.yaml |
 | `build/generated/openapi/…/model/*.kt` | Generated DTOs |
 
-### webapp-v2 (`webapp-v2/src/`)
+### webapp (`webapp/src/`)
 
 | File | What it is |
 |------|-----------|
@@ -151,7 +151,7 @@ All DB migrations (V13–V20), all API domains, sync controller complete.
 
 ## Design system tokens (complete reference)
 
-> Implement these in `android-v2` theme files and `webapp-v2/globals.css`. Do not deviate.
+> Implement these in `android` theme files and `webapp/globals.css`. Do not deviate.
 
 | Token | Value |
 |-------|-------|
@@ -192,14 +192,14 @@ All DB migrations (V13–V20), all API domains, sync controller complete.
 
 ## Build phases — spec §11 order
 
-Each phase lists tasks for **android-v2** and **webapp-v2**.
+Each phase lists tasks for **android** and **webapp**.
 Status: ✅ Done · 🔄 In progress · ⬜ Not started
 
 ---
 
 ### Phase 1 — Auth + account + sync skeleton
 
-#### android-v2
+#### android
 - ⬜ Firebase Auth integration (GoogleSignIn, email/password)
 - ⬜ Login screen (email/password + Google button) — spec §6 / prototype 6a
 - ⬜ Register screen
@@ -209,7 +209,7 @@ Status: ✅ Done · 🔄 In progress · ⬜ Not started
 - ⬜ SyncWorker (Room ↔ backend delta sync, queues writes when offline)
 - ⬜ Offline banner (shown in top bar when no network)
 
-#### webapp-v2
+#### webapp
 - ⬜ Login page `/login` (email + Google) — prototype 6a; logo = "macro plate" conic ring with check centre; footer "© Pulin 2026"
 - ⬜ Register page `/register`
 - ⬜ Forgot-password page + "Check your inbox" confirmation state → back to login
@@ -224,7 +224,7 @@ Status: ✅ Done · 🔄 In progress · ⬜ Not started
 
 ### Phase 2 — Foods → Meals → Diets (nutrition core)
 
-#### android-v2
+#### android
 - ✅ **FoodsScreen** — list/compact toggle, search, sort, favourites, FAB speed-dial (manual/online/barcode sheets)
 - ✅ FoodViewModel, FoodDao, FoodRepository, Food entity
 - ✅ **MealsScreen** — same shell (sort/list/compact/fav); slot filter chips + badges; ＋ → New Meal builder (name + multi-select slots + add-food panel: search-your-foods / online / manual). Offline-first, one reusable meal tagged to many slots (no per-slot dupes).
@@ -234,7 +234,7 @@ Status: ✅ Done · 🔄 In progress · ⬜ Not started
 - ✅ **Edit for Foods/Meals/Diets** — in-card ✎ Edit reopens the builder pre-filled + Delete + Save-as-update (offline-first `update()`); row-tap expands (chevrons dropped).
 - ⬜ Real bottom-nav wiring (temp: back-arrow cycles Meals→Diets→Foods; bottom nav is Phase 3)
 
-#### webapp-v2
+#### webapp
 - ✅ **FoodsPage** `/foods` — list/compact, search, sort, favourites, FAB speed-dial, manual/online/barcode sheets
 - ✅ `useFoods` hook, `lib/api/foods.ts`, `types/food.ts`
 - ⬜ **MealsPage** `/meals` — same shell; add-meal sheet (name + slot + food picker)
@@ -261,17 +261,17 @@ Each food carries its own natural unit so eggs log in *pieces*, milk in *ml*, co
 - Infra already exists: `FoodUnit` enum (GRAM/ML/PIECE/CUP/TBSP/TSP), meal **items already carry a `unit`**, and `Food` already has `gramsPerPiece/Cup/Tbsp/Tsp` conversion factors. Only the food's **default `unit`** is missing.
 - **Create-food form:** add a unit picker. For piece/cup/tbsp/tsp, also capture **grams-per-unit** (e.g. 1 egg = 50 g) so calories still compute. For g/ml, factor ≈ 1.
 - **Calorie math:** a meal item's quantity is in the food's unit; convert to grams via the factor, then macros = per-100g × grams/100. Adding an egg defaults the item unit to *pieces*, milk to *ml*.
-- **Touches:** `docs/openapi.yaml` (FoodDto.unit), backend `Food`/`FoodDto` + small Flyway migration (V22), android-v2 `Food` entity (+ Room migration → DB v6) + create-food form + `Meal.resolve` calorie math, webapp-v2 later.
+- **Touches:** `docs/openapi.yaml` (FoodDto.unit), backend `Food`/`FoodDto` + small Flyway migration (V22), android `Food` entity (+ Room migration → DB v6) + create-food form + `Meal.resolve` calorie math, webapp later.
 
 **2. Text-input quantities instead of − / + steppers.**
 Replace the steppers with a numeric text field for quantity — both when adding a food item to a meal **and** in the add-food rows. User types any value in the food's unit.
-- **Touches:** android-v2 `MealsScreen.kt` (the `Stepper`/`PickRow` composables in `NewMealSheet`/`AddFoodPanel`).
+- **Touches:** android `MealsScreen.kt` (the `Stepper`/`PickRow` composables in `NewMealSheet`/`AddFoodPanel`).
 
-Reminder: Room migrations + Flyway migrations need explicit human approval before writing (per `android-v2/CLAUDE.md` + root `CLAUDE.md`). Backend runs locally on **H2** (never prod — V13–V21 unapplied on Neon).
+Reminder: Room migrations + Flyway migrations need explicit human approval before writing (per `android/CLAUDE.md` + root `CLAUDE.md`). Backend runs locally on **H2** (never prod — V13–V21 unapplied on Neon).
 
 ### Phase 3 — Home / Today
 
-#### android-v2
+#### android
 - ⬜ **HomeScreen** (Today tab) — app bar (☰ + bell + avatar), date + current diet name, calorie ring card, meals checklist, streak card, FAB → "Add to today" sheet
 - ⬜ Calorie ring composable (arc draws consumed/remaining; macro chips P/C/F)
 - ⬜ Meals checklist composable (check toggle → logs/unlogs the slot → ring + macros update live)
@@ -280,7 +280,7 @@ Reminder: Room migrations + Flyway migrations need explicit human approval befor
 - ⬜ "Add to today" sheet (search planned meals, ＋ new food / ＋ new recipe)
 - ⬜ HomeViewModel (loads DayPlan for today, logged slots, calorie ring data from Dashboard API)
 
-#### webapp-v2
+#### webapp
 - ⬜ **TodayPage** `/today` — same layout as android spec (calorie ring, meals checklist, streak card, FAB)
 - ⬜ Calorie ring component (CSS/SVG arc)
 - ⬜ Meals checklist component (check toggle, live ring update)
@@ -295,10 +295,10 @@ Reminder: Room migrations + Flyway migrations need explicit human approval befor
 
 > **Data-layer note:** the exercise/workout domain is NOT in the offline sync contract
 > (`SyncPushRequest` has exercises + workoutSessions but not workout *templates*). Decision:
-> android-v2 exercises/workouts/logs are **server-backed REST** (ExercisesApi, WorkoutTemplatesApi,
+> android exercises/workouts/logs are **server-backed REST** (ExercisesApi, WorkoutTemplatesApi,
 > WorkoutSessionsApi), like the Plan screen — **no Room entities**. Needs a backend up.
 
-#### android-v2 — ✅ Exercises + Workouts done (server-backed); Logs = empty state (needs Session Runner)
+#### android — ✅ Exercises + Workouts done (server-backed); Logs = empty state (needs Session Runner)
 - ✅ **ExercisesScreen** (Exercises tab) — 3-tab segmented control: Exercises · Workouts · Logs
 - ✅ **Exercises tab**: list (name + tag chips); ＋ → new/edit editor (name + **description** + tag toggles); delete
 - ✅ ExercisesViewModel + ExerciseRepository (server REST) + ExerciseTags palette (10 fixed oklch colours)
@@ -315,7 +315,7 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
 (docker/prod). Seed script (`scripts/dev-seed-h2.py`) extended: 10 exercise tags + 10 exercises + 3 workouts.
 **Follow-ups:** weight shown/entered in kg only (not yet converted to Profile unit); webapp still to do (below).
 
-#### webapp-v2 — ✅ Exercises + Workouts + Logs done (same contract; types via `npm run gen:api`)
+#### webapp — ✅ Exercises + Workouts + Logs done (same contract; types via `npm run gen:api`)
 - ✅ **ExercisesPage** `/exercises` — 3-tab segmented control: Exercises · Workouts · Logs
 - ✅ Exercises tab: list + full-screen editor (name + description + tag toggles using tag palette)
 - ✅ Workouts tab: list + builder (searchable exercise picker; per-set reps stepper + optional weight kg; copy-set)
@@ -331,7 +331,7 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
 > **Note:** the whole training domain is **server-backed REST** (no Room) — DayPlan/Session/WorkoutLog
 > aren't in the sync contract. Endpoints already in openapi; no contract change needed for the runner.
 
-#### android-v2 — ✅ done
+#### android — ✅ done
 - ✅ **PlanScreen** — month calendar (teal dot = diet, green dot = workout, today filled) + next-7 list + day-plan sheet
 - ✅ Day-plan sheet: pick diet; **add workout from library** (template picker) + remove chip; tap chip → **read-only workout detail**; Clear day
 - ✅ PlanViewModel (server REST via PlansApi `/workouts` add/remove; WorkoutTemplatesApi)
@@ -345,7 +345,7 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
   reload on resume; empty → **Add sheet with Workouts | Exercises tabs** (workout → plan; exercise → ad-hoc runner, no-template mode)
 - ⚠️ **StateFlow gotcha:** multi-loader VMs use `_state.update{}` not `_state.value=copy()` (lost-update race → stuck loading)
 
-#### webapp-v2 — ✅ done (parity with android)
+#### webapp — ✅ done (parity with android)
 - ✅ **PlanPage** `/plan` — calendar + next-7 + day sheet; add workout from library + remove; tap → read-only workout detail
 - ✅ `usePlan` extended (`addPlannedWorkout`/`removePlannedWorkout`), `lib/api/plans.ts` (+`getPlan`) + `lib/api/sessions.ts`
 - ✅ **Home "Today's workout" card** (`useTodayWorkouts`) — planned + ad-hoc sessions with status, tap → `/session`;
@@ -364,7 +364,7 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
 > Metrics also live in the sync contract, but REST kept it consistent with Exercises/Plan and avoided a
 > Room migration. Built-in types: WEIGHT (kg), GLUCOSE (mg/dL), BLOOD_PRESSURE (value=systolic, secondaryValue=diastolic).
 
-#### android-v2 — ✅ done
+#### android — ✅ done
 - ✅ **HealthScreen** — 3 metric tabs (Glucose · Weight · BP); latest value + delta vs range start (green when
   improving/lower), 7D/30D/90D toggle, streak (current + best), readings-logged count, recent readings, FAB → log sheet
 - ✅ **Trend chart** (Canvas): single line + dots (glucose/weight), dual systolic+diastolic (BP, diastolic = violet `#c7a4dd`)
@@ -373,7 +373,7 @@ mirrors `WorkoutSetDto`. Backend: new `template_exercise_sets` table/entity, Wor
 - ✅ HealthViewModel (multi-loader → uses `_state.update{}`), HealthRepository (`HealthMetricsApi`), AppModule provider
 - Log sheet: one field (glucose/weight) or two (sys/dia for BP)
 
-#### webapp-v2 — ✅ done (parity)
+#### webapp — ✅ done (parity)
 - ✅ **HealthPage** `/health` — same layout; SVG trend chart with the same binning + tap tooltip; dual BP lines
 - ✅ `useHealth` hook + `lib/api/health.ts`; added ❤️ Health tab to the temp `NutritionNav`
 - ⚠️ **`recordedAt` is epoch millis on the wire** (not the ISO string the type claims) → parsed with `new Date(millis)`
@@ -387,14 +387,14 @@ its own "try next" suggests adding them); app-bar avatar is decorative (Profile 
 
 ### Phase 7 — Profile
 
-#### android-v2
+#### android
 - ⬜ **ProfileScreen** — identity header; collapsible sections: Body, Goal & targets, Energy (BMR/TDEE), Preferences (Metric/Imperial toggle), Account (log out, Clear all data)
 - ⬜ BMR/TDEE formula implementation (Mifflin–St Jeor)
 - ⬜ Metric/Imperial live toggle (store metric, convert at display)
 - ⬜ Clear all data (purge Room DB + trigger server-side deletion)
 - ⬜ ProfileViewModel
 
-#### webapp-v2
+#### webapp
 - ⬜ **ProfilePage** `/profile` — same sections as spec
 - ⬜ BMR/TDEE computed display
 - ⬜ Metric/Imperial toggle (live conversion)
@@ -403,7 +403,7 @@ its own "try next" suggests adding them); app-bar avatar is decorative (Profile 
 
 ---
 
-### Phase 8 — PWA hardening (webapp-v2 only)
+### Phase 8 — PWA hardening (webapp only)
 
 - ⬜ Verify serwist service worker caches all routes + API responses
 - ⬜ Offline shell: show app with cached data + offline banner when network unavailable
@@ -433,14 +433,14 @@ These are from spec §10 and project-specific gaps. Answer before implementing t
 | # | Question | Affects | Decision |
 |---|----------|---------|----------|
 | 1 | Which food/nutrition API for "Search online"? (Open Food Facts is free + no key; USDA needs key; Nutritionix paid) | Phase 2 foods search | ✅ **Open Food Facts** (free, no key) — barcode lookup + Foods "Search online". Android calls OFF directly; **webapp via a backend proxy** `/foods/search-online` (OFF search host has no CORS). Foods sheet only — Meal builder keeps the DB search. |
-| 2 | Barcode scanning library for android-v2? (ML Kit is free; ZXing is open source) | Phase 2 barcode sheet | ✅ **ML Kit barcode-scanning (bundled) + CameraX** (2026-07-24). |
-| 3 | Barcode scanning for webapp-v2? (browser `BarcodeDetector` API or QuaggaJS) | Phase 2 barcode sheet | ✅ **`@zxing/browser`** (native BarcodeDetector isn't on iOS Safari) (2026-07-24). |
+| 2 | Barcode scanning library for android? (ML Kit is free; ZXing is open source) | Phase 2 barcode sheet | ✅ **ML Kit barcode-scanning (bundled) + CameraX** (2026-07-24). |
+| 3 | Barcode scanning for webapp? (browser `BarcodeDetector` API or QuaggaJS) | Phase 2 barcode sheet | ✅ **`@zxing/browser`** (native BarcodeDetector isn't on iOS Safari) (2026-07-24). |
 | 4 | Should Plan's "workouts" be hard-linked to Workout entities (recommended) or free-text strings? | Phase 5 day-plan sheet | Recommend: hard-link |
 | 5 | Add **weight per set** to Session Runner, or reps-only for now? (spec logs reps per set only) | Phase 5 session runner | — |
 | 6 | Timezone / day-rollover for streaks: use device local midnight or UTC? | Phase 3 + Phase 6 streaks | — |
 | 7 | Meal slot enum — spec lists 11 fixed slots + user custom. Should custom slots be supported in v2 or deferred? | Phase 2 meals, Phase 3 home | — |
-| 8 | Google OAuth for webapp-v2 — is `NEXT_PUBLIC_GOOGLE_CLIENT_ID` configured in `.env.local`? | Phase 1 auth | — |
-| 9 | Notifications for android-v2 — carry over AlarmManager from `android/` or redesign? | Phase 8 | ✅ Fresh AlarmManager impl, fixed configurable times, all 5 types (2026-07-24). Webapp deferred → iOS Web Push memo. |
+| 8 | Google OAuth for webapp — is `NEXT_PUBLIC_GOOGLE_CLIENT_ID` configured in `.env.local`? | Phase 1 auth | — |
+| 9 | Notifications for android — carry over AlarmManager from `android/` or redesign? | Phase 8 | ✅ Fresh AlarmManager impl, fixed configurable times, all 5 types (2026-07-24). Webapp deferred → iOS Web Push memo. |
 
 ---
 
@@ -474,11 +474,11 @@ lb           = kg × 2.20462  (display only, store metric)
 ## Build commands
 
 ```bash
-# android-v2
-./gradlew :android-v2:assembleDebug
-./gradlew :android-v2:testDebugUnitTest
+# android
+./gradlew :android:assembleDebug
+./gradlew :android:testDebugUnitTest
 
-# webapp-v2
-cd webapp-v2 && npm run build && npm run lint
-cd webapp-v2 && npm run gen:api          # regen types from openapi.yaml
+# webapp
+cd webapp && npm run build && npm run lint
+cd webapp && npm run gen:api          # regen types from openapi.yaml
 ```

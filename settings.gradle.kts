@@ -15,7 +15,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "MealPlanPlus"
+// Old pre-redesign :android + :shared (KMP) modules removed; the redesign is now the canonical :android.
 include(":android")
-include(":android-v2")
-// :shared (KMP) intentionally removed — Android is fully self-contained on Room/Hilt
 include(":backend")
