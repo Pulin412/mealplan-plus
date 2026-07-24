@@ -1,5 +1,8 @@
 package com.mealplanplus.ui.screens.settings
 
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +35,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,9 +46,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
+import java.io.File
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderMuted
 import com.mealplanplus.ui.theme.CardBorder
@@ -60,7 +69,17 @@ import com.mealplanplus.ui.theme.Teal
 /** UI-only Settings screen (matches design 13a). Toggles/collapse flip locally; buttons + dropdowns
  *  are placeholders — functionality (backup, Health Connect, export, notifications) comes next. */
 @Composable
-fun SettingsScreen(onBack: () -> Unit = {}) {
+fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
+    val context = LocalContext.current
+    val exporting by viewModel.exporting.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { ev ->
+            when (ev) {
+                is ExportEvent.Share -> shareCsv(context, ev.fileName, ev.csv)
+                is ExportEvent.Error -> Toast.makeText(context, ev.message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Row(
@@ -120,13 +139,13 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                     }
                     Box(
                         Modifier.fillMaxWidth().padding(14.dp).clip(RoundedCornerShape(11.dp)).background(SurfaceMuted)
-                            .clickable { }.padding(vertical = 12.dp),
+                            .clickable(enabled = !exporting) { viewModel.exportCsv() }.padding(vertical = 12.dp),
                         Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.FileDownload, null, tint = MutedDark, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Export  CSV", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MutedDark)
+                            Text(if (exporting) "Exporting…" else "Export  CSV", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MutedDark)
                         }
                     }
                 }
@@ -137,6 +156,20 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
             }
         }
     }
+}
+
+/** Writes the CSV to cacheDir/exports and opens the system share sheet via FileProvider. */
+private fun shareCsv(context: Context, fileName: String, csv: String) {
+    val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+    val file = File(dir, fileName).apply { writeText(csv) }
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/csv"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, fileName)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(send, "Export data"))
 }
 
 private data class NotifDef(val key: String, val label: String, val hint: String, val icon: String, val bg: Long)
