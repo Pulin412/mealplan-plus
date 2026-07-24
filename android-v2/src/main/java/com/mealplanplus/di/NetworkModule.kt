@@ -3,6 +3,7 @@ package com.mealplanplus.di
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.BuildConfig
+import com.mealplanplus.data.remote.OpenFoodFactsApi
 import com.mealplanplus.data.remote.apiGson
 import dagger.Module
 import dagger.Provides
@@ -51,4 +52,24 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    /** Open Food Facts client — its own Retrofit (public API, NO Firebase auth header leaked to them). */
+    @Provides @Singleton
+    fun provideOpenFoodFactsApi(): OpenFoodFactsApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                // OFF asks callers to identify themselves via User-Agent.
+                chain.proceed(chain.request().newBuilder().header("User-Agent", "MealPlanPlus/2.0 (Android)").build())
+            }
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
+            })
+            .build()
+        return Retrofit.Builder()
+            .baseUrl("https://world.openfoodfacts.org/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(OpenFoodFactsApi::class.java)
+    }
 }

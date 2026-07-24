@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.model.Food
+import com.mealplanplus.data.repository.BarcodeRepository
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,9 @@ import javax.inject.Inject
 enum class FoodSort { RECENT, NAME, CALORIES, PROTEIN }
 enum class FoodViewMode { LIST, COMPACT }
 enum class FoodSheet { MANUAL, ONLINE, BARCODE }
+
+/** Barcode sheet phases: live camera → looking up → show product → not found. */
+enum class BarcodePhase { SCANNING, LOOKING_UP, RESULT, NOT_FOUND }
 
 data class FoodsUiState(
     val foods: List<Food> = emptyList(),
@@ -39,6 +43,9 @@ data class FoodsUiState(
     val onlineQuery: String = "",
     val onlineResults: List<FoodDto> = emptyList(),
     val onlineLoading: Boolean = false,
+    val barcodePhase: BarcodePhase = BarcodePhase.SCANNING,
+    val barcodeResult: FoodDto? = null,
+    val barcodeMessage: String? = null,
 ) {
     val filteredFoods: List<Food>
         get() {
@@ -73,6 +80,7 @@ data class FoodsUiState(
 @HiltViewModel
 class FoodViewModel @Inject constructor(
     private val repository: FoodRepository,
+    private val barcodeRepository: BarcodeRepository,
     private val syncManager: SyncManager,
 ) : ViewModel() {
 
@@ -144,7 +152,10 @@ class FoodViewModel @Inject constructor(
     }
 
     fun openSheet(sheet: FoodSheet) {
-        _state.value = _state.value.copy(activeSheet = sheet, fanOpen = false)
+        _state.value = _state.value.copy(
+            activeSheet = sheet, fanOpen = false,
+            barcodePhase = BarcodePhase.SCANNING, barcodeResult = null, barcodeMessage = null,
+        )
     }
 
     fun closeSheet() {
@@ -161,7 +172,40 @@ class FoodViewModel @Inject constructor(
             editingFoodId = null,
             onlineQuery = "",
             onlineResults = emptyList(),
+            barcodePhase = BarcodePhase.SCANNING,
+            barcodeResult = null,
+            barcodeMessage = null,
         )
+    }
+
+    // ── Barcode scanning ────────────────────────────────────────────────────────
+    /** A barcode was detected (or entered) — look the product up on Open Food Facts. */
+    fun onBarcodeScanned(code: String) {
+        if (_state.value.barcodePhase != BarcodePhase.SCANNING) return  // ignore extra hits after the first
+        _state.value = _state.value.copy(barcodePhase = BarcodePhase.LOOKING_UP)
+        viewModelScope.launch {
+            val dto = runCatching { barcodeRepository.lookup(code) }.getOrNull()
+            _state.value = if (dto != null)
+                _state.value.copy(barcodePhase = BarcodePhase.RESULT, barcodeResult = dto)
+            else
+                _state.value.copy(barcodePhase = BarcodePhase.NOT_FOUND, barcodeMessage = "No product found for $code")
+        }
+    }
+
+    /** Back to the live camera to try again. */
+    fun rescanBarcode() {
+        _state.value = _state.value.copy(barcodePhase = BarcodePhase.SCANNING, barcodeResult = null, barcodeMessage = null)
+    }
+
+    /** Save the scanned product into the user's foods (same path as an online result). */
+    fun addScannedFood() {
+        val dto = _state.value.barcodeResult ?: return
+        viewModelScope.launch {
+            runCatching { repository.addOnline(dto) }
+                .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            closeSheet()
+            sync()
+        }
     }
 
     /** Open the manual sheet pre-filled to edit an existing food. */

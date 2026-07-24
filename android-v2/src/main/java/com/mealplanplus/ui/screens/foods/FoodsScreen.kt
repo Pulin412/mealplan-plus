@@ -132,7 +132,7 @@ fun FoodsScreen(onBack: () -> Unit, viewModel: FoodViewModel = hiltViewModel()) 
             when (state.activeSheet) {
                 FoodSheet.MANUAL  -> ManualEntrySheet(state = state, viewModel = viewModel)
                 FoodSheet.ONLINE  -> OnlineSearchSheet(state = state, viewModel = viewModel)
-                FoodSheet.BARCODE -> BarcodeScanSheet(onDismiss = { viewModel.closeSheet() })
+                FoodSheet.BARCODE -> BarcodeScanSheet(state = state, viewModel = viewModel)
                 null -> Unit
             }
         }
@@ -946,37 +946,4 @@ private fun OnlineResultRow(dto: FoodDto, onAdd: () -> Unit) {
     }
 }
 
-// ── Barcode scan sheet ──────────────────────────────────────────────────────
-
-@Composable
-fun BarcodeScanSheet(onDismiss: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-    ) {
-        Text("Scan barcode", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-        Spacer(Modifier.height(16.dp))
-
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Ink),
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Teal, modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(8.dp))
-                Text("Camera coming soon", fontSize = 13.sp, color = Muted)
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-            Text("Close", color = Teal)
-        }
-        Spacer(Modifier.height(16.dp))
-    }
-}
+// Barcode scan sheet lives in BarcodeScanSheet.kt (CameraX + ML Kit → Open Food Facts).
