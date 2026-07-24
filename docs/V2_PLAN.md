@@ -23,17 +23,17 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | Phase 6: Health (Glucose/Weight/BP) + binned trend chart + Logs-tab month calendar | Phase 6: Health at parity + Logs-tab month calendar |
-| **Next task** | **Groceries / shopping-list screen** | **Groceries / shopping-list screen** |
+| **Last completed** | ISO dates + **Groceries** (rows-based refresh) + **Settings UI** + nav restructure (More tab) | Same, at parity |
+| **Next task** | **Settings — wire functionality** (one section at a time) | **Settings — wire functionality** |
 | **Blocked on?** | — | — |
 
-**Suggested next session start — Groceries screen (both clients):**
-- Backend is ready: `GroceryListsApi` (server REST) + `GroceryListDto` in the openapi; grocery lists ARE in the offline sync contract (`SyncPushRequest.groceryLists`).
-- Design: shopping list derived from a diet's foods (spec §"smart shopping lists"). Check `design_v2/MealPlan+ Build Spec.dc.html` for the grocery/shopping section before building.
-- Decide data layer (server REST like Health/Exercises, vs Room offline) — Health went **server-backed REST** (see below); follow that unless offline is required.
-- Do android-v2 and webapp-v2 in parallel — they don't depend on each other.
+**Done since Health:**
+- **Dates**: backend now serializes `date-time`/`date` as ISO-8601 (`WRITE_DATES_AS_TIMESTAMPS=false`, regression test `JsonDateSerializationTest`). Android Gson adapter + webapp both consume ISO directly; the old epoch-millis/`[y,m,d]` workarounds are gone. ⚠ **Do NOT deploy backend to `main`** until the old prod Android app is retired — `android/SyncRepository.kt` still expects epoch millis and would break.
+- **Groceries** (both clients): shopping list generated from the plan's diets over a picked date range, grouped by aisle. **Server-REST source** (reuses Plans/Diets/Meals/Foods APIs like Plan; NOT offline/Room, NOT the grocery sync contract). Live working state = **independent rows** persisted locally (android SharedPreferences `GroceryStore`, webapp `localStorage`). The list is a **stable snapshot** — only **Refresh** (or a day change) recomputes it; a plan edit does NOT auto-reflect. Refresh reconciles: checked (bought) rows kept (capped to need), each ingredient's to-buy row = new total − bought, and a checked item that grows spawns a **separate to-buy row** for the delta.
+- **Settings screen (UI only, both)**: Backup & restore, Health Connect, Export data, collapsible Notifications (5 per-alert toggles + quiet hours). Toggles/collapse are local; buttons + dropdowns + Health Connect are placeholders. Design = prototype frame **13a** in the newer `design_v2/*.zip` (extract it — the checked-in `MealPlan Home.dc.html` is older and lacks Groceries/Settings).
+- **Navigation restructure (both)**: bottom nav = Today · Plan · Exercises · Health · **More**. The **More** tab (android `MiscScreen`, webapp `/misc`) lists Foods/Meals/Diets/Groceries. Home/Today's top-left is a **Settings gear**; the avatar → Profile. **Profile + Settings are reachable only from Home.** (Removed the old ☰ page-cycle, Groceries' profile avatar, Profile's gear.)
 
-> **Known API-contract issue (open):** the backend serializes `HealthMetricDto.recordedAt` (and likely all `date-time` fields) as **epoch millis**, though `openapi.yaml` declares an ISO `date-time` string. Webapp must parse with `new Date(millis)` (done in Health). Proper fix = backend Jackson `WRITE_DATES_AS_TIMESTAMPS=false`, but that changes the API contract → needs sign-off.
+**Next — Settings functionality** (do one section at a time, both clients): Backup & restore → Health Connect → Export → Notifications. Backend endpoints for these do **not** exist yet — decide the contract per section (and remember any backend/contract change needs sign-off). Start from the android `SettingsScreen.kt` / webapp `app/settings/page.tsx` placeholders.
 
 ---
 
