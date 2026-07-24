@@ -91,6 +91,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/foods/search-online": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Open Food Facts (server-side proxy)
+         * @description Proxied text search against Open Food Facts. Done server-side so browser clients avoid CORS
+         *     (the reliable OFF search host sends no CORS header). Returns lightweight FoodDto results with
+         *     no `id` — the client creates the chosen one via `POST /foods`. Android calls Open Food Facts
+         *     directly and does not use this endpoint.
+         */
+        get: operations["searchFoodsOnline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/foods/{id}": {
         parameters: {
             query?: never;
@@ -1738,6 +1761,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FoodPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    searchFoodsOnline: {
+        parameters: {
+            query: {
+                /** @description Search query (product name or brand) */
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching products from Open Food Facts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodDto"][];
                 };
             };
             401: components["responses"]["Unauthorized"];

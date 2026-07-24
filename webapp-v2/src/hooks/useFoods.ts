@@ -127,8 +127,8 @@ export function useFoods() {
     if (!onlineQuery.trim()) return;
     setOnlineLoading(true);
     try {
-      const page = await searchFoodsOnline(onlineQuery);
-      setOnlineResults(page.content);
+      const results = await searchFoodsOnline(onlineQuery);
+      setOnlineResults(results);
     } catch {
       setOnlineResults([]);
     } finally {
@@ -136,10 +136,27 @@ export function useFoods() {
     }
   }, [onlineQuery]);
 
+  // Online results now come from Open Food Facts (via the backend proxy) and have no id, so adding
+  // one creates it in the user's foods.
   const addOnlineFood = useCallback(async (food: FoodDto) => {
-    if (foods.some((f) => f.id === food.id)) return;
-    setFoods((prev) => [food, ...prev]);
-  }, [foods]);
+    setSaving(true);
+    try {
+      const created = await createScannedFood({
+        name: food.name,
+        brand: food.brand ?? null,
+        barcode: food.barcode ?? "",
+        kcal: food.caloriesPer100,
+        protein: food.proteinPer100,
+        carbs: food.carbsPer100,
+        fat: food.fatPer100,
+      });
+      setFoods((prev) => [created, ...prev]);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to add food");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   /** Persist a scanned Open Food Facts product as a new food (it doesn't exist server-side yet). */
   const addScannedFood = useCallback(async (product: ScannedProduct) => {

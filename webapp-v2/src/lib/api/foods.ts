@@ -11,9 +11,14 @@ export async function listFoods(favoritesOnly = false): Promise<FoodDto[]> {
   return apiFetch<FoodDto[]>(`/api/v1/foods?favorites=${favoritesOnly}`);
 }
 
-export async function searchFoodsOnline(q: string, page = 0, size = 30): Promise<FoodPage> {
-  const params = new URLSearchParams({ q, page: String(page), size: String(size) });
-  return apiFetch<FoodPage>(`/api/v1/foods/search?${params}`);
+/**
+ * "Search online" → Open Food Facts via our backend proxy (the reliable OFF search host sends no
+ * CORS header, so the browser can't call it directly). Returns lightweight FoodDto results with no
+ * id; the chosen one is created via createFood/createScannedFood. (The old `/foods/search` — our own
+ * DB — is still used by other callers like the meal builder.)
+ */
+export async function searchFoodsOnline(q: string): Promise<FoodDto[]> {
+  return apiFetch<FoodDto[]>(`/api/v1/foods/search-online?q=${encodeURIComponent(q)}`);
 }
 
 export async function createFood(form: ManualFoodForm): Promise<FoodDto> {
