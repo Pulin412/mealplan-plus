@@ -40,7 +40,6 @@ function ValueRow({ label, value, labelColor = C.ink }: { label: string; value: 
 
 function SettingsInner() {
   const router = useRouter();
-  const [autoBackup, setAutoBackup] = useState(true);
   const [connected, setConnected] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -65,28 +64,8 @@ function SettingsInner() {
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ padding: "0 16px 40px" }}>
-        {/* Backup & restore */}
-        <SectionLabel text="Backup & restore" />
-        <div style={cardStyle}>
-          <div style={{ display: "flex", alignItems: "center", padding: 14 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ font: "600 14.5px system-ui", color: C.ink }}>Auto-backup</div>
-              <div style={{ font: "400 11.5px system-ui", color: C.muted2 }}>Encrypted, to your account</div>
-            </div>
-            <Toggle on={autoBackup} onToggle={() => setAutoBackup((v) => !v)} />
-          </div>
-          <Divider />
-          <ValueRow label="Frequency" value="Daily" />
-          <Divider />
-          <div style={{ display: "flex", alignItems: "center", padding: "11px 14px" }}>
-            <span style={{ color: C.success, fontSize: 14 }}>✓</span>
-            <span style={{ marginLeft: 8, font: "400 12px system-ui", color: C.muted3 }}>Last backup: Today, 8:04 AM</span>
-          </div>
-          <div style={{ display: "flex", gap: 10, padding: "2px 14px 14px" }}>
-            <button style={{ flex: 1, border: "none", borderRadius: 11, padding: "12px 0", background: C.teal, color: "#fff", font: "600 13px system-ui", cursor: "pointer" }}>Back up now</button>
-            <button style={{ flex: 1, borderRadius: 11, padding: "12px 0", background: "none", border: `1.5px solid ${C.borderMuted}`, color: C.teal, font: "600 13px system-ui", cursor: "pointer" }}>Restore</button>
-          </div>
-        </div>
+        {/* Backup & restore intentionally omitted — redundant with backend sync (data lives in
+            Postgres keyed to the Firebase UID; a reinstall re-syncs). See docs/V2_PLAN.md. */}
 
         {/* Health Connect */}
         <SectionLabel text="Health Connect" />

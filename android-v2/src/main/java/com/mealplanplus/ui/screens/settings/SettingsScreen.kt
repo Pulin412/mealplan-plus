@@ -10,7 +10,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -29,7 +28,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -67,8 +65,6 @@ import com.mealplanplus.ui.theme.Ink
 import com.mealplanplus.ui.theme.MutedDark
 import com.mealplanplus.ui.theme.MutedFaint
 import com.mealplanplus.ui.theme.MutedLight
-import com.mealplanplus.ui.theme.OnAccent
-import com.mealplanplus.ui.theme.Success
 import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
@@ -111,24 +107,8 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
             }
 
             Column(Modifier.padding(horizontal = 16.dp)) {
-                // ── Backup & restore ──────────────────────────────────────────────
-                SectionLabel("Backup & restore")
-                Card {
-                    var autoBackup by remember { mutableStateOf(true) }
-                    ToggleRow("Auto-backup", "Encrypted, to your account", autoBackup) { autoBackup = it }
-                    Divider()
-                    ValueRow("Frequency", "Daily")
-                    Divider()
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
-                        Icon(Icons.Default.Check, null, tint = Success, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Last backup: Today, 8:04 AM", fontSize = 12.sp, color = MutedDark)
-                    }
-                    Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 14.dp, top = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FilledBtn("Back up now", Modifier.weight(1f))
-                        OutlineBtn("Restore", Modifier.weight(1f))
-                    }
-                }
+                // Backup & restore intentionally omitted — redundant with backend sync (all data lives
+                // in Postgres keyed to the Firebase UID; a reinstall re-syncs). See docs/V2_PLAN.md.
 
                 // ── Health Connect ────────────────────────────────────────────────
                 SectionLabel("Health Connect")
@@ -300,37 +280,12 @@ private fun Card(content: @Composable ColumnScope.() -> Unit) {
 private fun Divider() = Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(CardBorder))
 
 @Composable
-private fun ToggleRow(title: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-            Text(hint, fontSize = 11.5.sp, color = MutedLight)
-        }
-        AppSwitch(checked, onChange)
-    }
-}
-
-@Composable
 private fun ValueRow(label: String, value: String, labelColor: Color = Ink) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { }.padding(horizontal = 14.dp, vertical = 13.dp)) {
         Text(label, fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = labelColor)
         Spacer(Modifier.weight(1f))
         Text(value, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MutedFaint, modifier = Modifier.size(18.dp).padding(start = 4.dp))
-    }
-}
-
-@Composable
-private fun FilledBtn(text: String, modifier: Modifier = Modifier) {
-    Box(modifier.clip(RoundedCornerShape(11.dp)).background(Teal).clickable { }.padding(vertical = 12.dp), Alignment.Center) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnAccent)
-    }
-}
-
-@Composable
-private fun OutlineBtn(text: String, modifier: Modifier = Modifier) {
-    Box(modifier.clip(RoundedCornerShape(11.dp)).border(1.5.dp, BorderMuted, RoundedCornerShape(11.dp)).clickable { }.padding(vertical = 12.dp), Alignment.Center) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Teal)
     }
 }
 
