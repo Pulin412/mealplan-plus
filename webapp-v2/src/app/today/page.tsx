@@ -313,7 +313,7 @@ function TodayInner() {
       {/* app bar */}
       <div style={{ display: "flex", flexDirection: "column", padding: "8px 12px 6px 6px" }}>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <button style={{ fontSize: 22, color: C.ink, padding: "0 8px" }}>☰</button>
+          <button onClick={() => router.push("/settings")} title="Settings" style={{ fontSize: 20, color: C.ink, padding: "0 8px", cursor: "pointer" }}>⚙</button>
           <span style={{ flex: 1 }} />
           <button style={{ fontSize: 18, color: C.muted3, padding: "0 8px" }}>🔔</button>
           <div onClick={() => router.push("/profile")} style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>●</div>

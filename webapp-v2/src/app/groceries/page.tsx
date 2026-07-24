@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -38,7 +37,6 @@ function GroceriesInner() {
             🔖
             {g.savedLists.length > 0 && <span style={{ position: "absolute", top: 2, right: 2, width: 7, height: 7, borderRadius: "50%", background: C.teal }} />}
           </button>
-          <Link href="/profile" style={{ width: 34, height: 34, borderRadius: "50%", background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>👤</Link>
         </div>
       </div>
 
