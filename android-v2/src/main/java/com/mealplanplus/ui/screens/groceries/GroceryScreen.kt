@@ -24,7 +24,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -70,13 +70,13 @@ import kotlin.math.roundToInt
 private val CAT_ORDER = GroceryCat.entries
 
 @Composable
-fun GroceryScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {}) {
+fun GroceryScreen(onMenu: () -> Unit = {}) {
     val vm: GroceryViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
 
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            GroceryAppBar(state.savedLists.size, onMenu, onProfile, vm::openSaved)
+            GroceryAppBar(state.savedLists.size, onMenu, vm::openSaved)
 
             Column(Modifier.padding(horizontal = 16.dp)) {
                 DateCard(state, vm)
@@ -105,12 +105,12 @@ fun GroceryScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {}) {
 
 // ── App bar ──────────────────────────────────────────────────────────────────
 @Composable
-private fun GroceryAppBar(savedCount: Int, onMenu: () -> Unit, onProfile: () -> Unit, onSaved: () -> Unit) {
+private fun GroceryAppBar(savedCount: Int, onMenu: () -> Unit, onSaved: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(start = 6.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onMenu) { Icon(Icons.Default.Menu, "Menu", tint = Ink) }
+        IconButton(onClick = onMenu) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Ink) }
         Text("Groceries", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Ink)
         Spacer(Modifier.weight(1f))
         Box(contentAlignment = Alignment.TopEnd) {
@@ -118,10 +118,6 @@ private fun GroceryAppBar(savedCount: Int, onMenu: () -> Unit, onProfile: () -> 
             if (savedCount > 0) {
                 Box(Modifier.padding(top = 8.dp, end = 8.dp).size(7.dp).clip(CircleShape).background(Teal))
             }
-        }
-        Spacer(Modifier.width(2.dp))
-        Box(Modifier.size(34.dp).clip(CircleShape).background(Teal).clickable(onClick = onProfile), Alignment.Center) {
-            Icon(Icons.Default.Person, "Profile", tint = OnAccent, modifier = Modifier.size(19.dp))
         }
     }
 }

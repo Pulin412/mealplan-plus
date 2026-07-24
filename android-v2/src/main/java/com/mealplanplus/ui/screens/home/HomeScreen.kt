@@ -29,7 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -306,7 +306,7 @@ private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, on
     val dateText = d?.date?.format(DateTimeFormatter.ofPattern("EEEE, d MMM")) ?: ""
     Column(Modifier.fillMaxWidth().padding(start = 6.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            IconButton(onClick = onMenu) { Icon(Icons.Default.Menu, "Menu", tint = Ink) }
+            IconButton(onClick = onMenu) { Icon(Icons.Default.Settings, "Settings", tint = Ink) }
             Spacer(Modifier.weight(1f))
             Box(Modifier.size(34.dp).clip(CircleShape).clickable(onClick = onToggleTheme), contentAlignment = Alignment.Center) {
                 Text(if (isDark) "☀️" else "🌙", fontSize = 16.sp)

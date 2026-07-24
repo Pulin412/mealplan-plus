@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material3.Icon
@@ -33,10 +34,12 @@ import com.mealplanplus.ui.screens.foods.FoodsScreen
 import com.mealplanplus.ui.screens.groceries.GroceryScreen
 import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.meals.MealsScreen
+import com.mealplanplus.ui.screens.misc.MiscScreen
 import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
+import com.mealplanplus.ui.screens.settings.SettingsScreen
 import java.net.URLEncoder
 
 sealed class Screen(val route: String, val label: String) {
@@ -48,7 +51,9 @@ sealed class Screen(val route: String, val label: String) {
     object Meals     : Screen("meals",     "Meals")
     object Diets     : Screen("diets",     "Diets")
     object Groceries : Screen("groceries", "Groceries")
+    object Misc      : Screen("misc",      "More")
     object Profile   : Screen("profile",   "Profile")
+    object Settings  : Screen("settings",  "Settings")
 }
 
 private val bottomNavItems = listOf(
@@ -56,6 +61,7 @@ private val bottomNavItems = listOf(
     Screen.Plan      to Icons.Default.CalendarMonth,
     Screen.Exercises to Icons.Default.FitnessCenter,
     Screen.Health    to Icons.Default.MonitorHeart,
+    Screen.Misc      to Icons.Default.GridView,
 )
 
 /**
@@ -116,7 +122,7 @@ fun MealPlanNavHost() {
             modifier         = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Today.route)     {
-                HomeScreen(onMenu = { navController.navigate(Screen.Meals.route) },
+                HomeScreen(onMenu = { navController.navigate(Screen.Settings.route) },
                     onProfile = { navController.navigate(Screen.Profile.route) },
                     onOpenRunner = { templateId, name ->
                         navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
@@ -135,24 +141,32 @@ fun MealPlanNavHost() {
             ) {
                 SessionRunnerScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.Profile.route)   { ProfileScreen(onBack = { navController.navigate(Screen.Today.route) }) }
+            composable(Screen.Profile.route)   {
+                ProfileScreen(onBack = { navController.navigate(Screen.Today.route) })
+            }
+            composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.navigate(Screen.Profile.route) }) }
             composable(Screen.Plan.route)      { PlanScreen() }
             composable(Screen.Exercises.route) { ExercisesScreen() }
             composable(Screen.Health.route)    { HealthScreen() }
+            composable(Screen.Misc.route)      {
+                MiscScreen(
+                    onFoods = { navController.navigate(Screen.Foods.route) },
+                    onMeals = { navController.navigate(Screen.Meals.route) },
+                    onDiets = { navController.navigate(Screen.Diets.route) },
+                    onGroceries = { navController.navigate(Screen.Groceries.route) },
+                )
+            }
             composable(Screen.Meals.route)     {
-                MealsScreen(onBack = { navController.navigate(Screen.Diets.route) })
+                MealsScreen(onBack = { navController.navigate(Screen.Misc.route) })
             }
             composable(Screen.Diets.route)     {
-                DietsScreen(onBack = { navController.navigate(Screen.Foods.route) })
+                DietsScreen(onBack = { navController.navigate(Screen.Misc.route) })
             }
             composable(Screen.Foods.route)     {
-                FoodsScreen(onBack = { navController.navigate(Screen.Groceries.route) })
+                FoodsScreen(onBack = { navController.navigate(Screen.Misc.route) })
             }
             composable(Screen.Groceries.route) {
-                GroceryScreen(
-                    onMenu = { navController.navigate(Screen.Today.route) },
-                    onProfile = { navController.navigate(Screen.Profile.route) },
-                )
+                GroceryScreen(onMenu = { navController.navigate(Screen.Misc.route) })
             }
         }
     }
