@@ -32,4 +32,25 @@ class BarcodeRepository @Inject constructor(
             unit = FoodUnit.GRAM,
         )
     }
+
+    /** Text search on Open Food Facts. Keeps only hits with a name and known calories (drops junk). */
+    suspend fun search(query: String): List<FoodDto> {
+        val response = runCatching { api.search(query) }.getOrNull() ?: return emptyList()
+        val hits = response.body()?.hits ?: return emptyList()
+        return hits.mapNotNull { h ->
+            val name = h.productName?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val n = h.nutriments ?: return@mapNotNull null
+            val kcal = n.energyKcal100g ?: return@mapNotNull null
+            FoodDto(
+                name = name,
+                caloriesPer100 = kcal,
+                proteinPer100 = n.proteins100g ?: 0.0,
+                carbsPer100 = n.carbohydrates100g ?: 0.0,
+                fatPer100 = n.fat100g ?: 0.0,
+                brand = h.brands?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() },
+                barcode = h.code,
+                unit = FoodUnit.GRAM,
+            )
+        }
+    }
 }

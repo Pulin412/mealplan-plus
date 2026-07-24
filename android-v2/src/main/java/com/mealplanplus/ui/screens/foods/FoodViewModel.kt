@@ -287,7 +287,8 @@ class FoodViewModel @Inject constructor(
         if (q.isBlank()) return
         viewModelScope.launch {
             _state.value = _state.value.copy(onlineLoading = true, onlineResults = emptyList())
-            runCatching { repository.searchOnline(q) }
+            // Foods "Search online" uses Open Food Facts (the Meal builder keeps the backend search).
+            runCatching { barcodeRepository.search(q) }
                 .onSuccess { results -> _state.value = _state.value.copy(onlineResults = results) }
                 .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             _state.value = _state.value.copy(onlineLoading = false)
