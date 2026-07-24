@@ -11,8 +11,10 @@ import com.mealplanplus.data.generated.model.DietDto
 import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.generated.model.MealDto
 import com.mealplanplus.data.local.GroceryStore
+import com.mealplanplus.data.local.GroceryWork
 import com.mealplanplus.data.local.SavedGroceryItem
 import com.mealplanplus.data.local.SavedGroceryList
+import com.mealplanplus.data.local.WorkRow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,13 +42,18 @@ enum class GroceryCat(val label: String, val colorArgb: Long, val match: List<St
     }
 }
 
-/** A combined shopping-list line: one ingredient with its summed quantity. */
-data class GroceryItem(
+/**
+ * One shopping-list line — an independent, individually-checkable row. A single ingredient can
+ * appear as two rows: a checked (bought) one and an unchecked (to-buy) one, e.g. after a refresh
+ * adds more of something you'd already ticked. [key] = name|unit groups the two.
+ */
+data class GroceryRow(
+    val id: String,
     val key: String,
     val name: String,
     val unit: String,
-    val total: Double,
-    val count: Int,
+    val qty: Double,
+    val checked: Boolean,
     val category: GroceryCat,
 )
 
@@ -54,16 +61,15 @@ enum class GroceryView { ALL, TO_BUY, BOUGHT }
 
 data class GroceryUiState(
     val loading: Boolean = true,
+    val refreshing: Boolean = false,
     val month: YearMonth = YearMonth.now(),
     val today: LocalDate = LocalDate.now(),
     val selectedDates: Set<LocalDate> = emptySet(),
     val plannedDates: Set<LocalDate> = emptySet(),
     val calOpen: Boolean = false,
     val view: GroceryView = GroceryView.ALL,
-    /** Generated (live) or snapshot (saved) shopping-list items. */
-    val items: List<GroceryItem> = emptyList(),
-    /** key -> bought. For a live list this is [liveChecked]; for a saved list, its own map. */
-    val checked: Map<String, Boolean> = emptyMap(),
+    /** Rows of the current list (live or the active saved snapshot). */
+    val rows: List<GroceryRow> = emptyList(),
     val savedLists: List<SavedGroceryList> = emptyList(),
     val activeId: String? = null,
     val sheetSaved: Boolean = false,
@@ -75,8 +81,10 @@ data class GroceryUiState(
     val dateKeys: List<String>
         get() = if (isSaved) savedLists.firstOrNull { it.id == activeId }?.dateKeys.orEmpty()
         else selectedDates.map { it.toString() }.sorted()
-    val boughtCount: Int get() = items.count { checked[it.key] == true }
-    val total: Int get() = items.size
+    val toBuy: List<GroceryRow> get() = rows.filter { !it.checked }
+    val bought: List<GroceryRow> get() = rows.filter { it.checked }
+    val boughtCount: Int get() = bought.size
+    val total: Int get() = rows.size
 }
 
 @HiltViewModel
@@ -96,100 +104,161 @@ class GroceryViewModel @Inject constructor(
     private var mealsById: Map<Long?, MealDto> = emptyMap()
     private var foodsById: Map<Long?, FoodDto> = emptyMap()
     private var plansByDate: Map<LocalDate, DayPlanDto> = emptyMap()
-    private var liveChecked: Map<String, Boolean> = emptyMap()
+    /** The live list's rows (checked + unchecked). Survives navigation; only a refresh or a day
+     *  change reconciles it against the plan. */
+    private var liveRows: List<GroceryRow> = emptyList()
 
     init {
-        _state.update { it.copy(savedLists = store.load()) }
-        preset(7)          // next 7 days auto-selected
-        loadData()
-        loadPlans()
+        val work = store.loadWork()
+        if (work != null) {
+            liveRows = work.rows.map { GroceryRow(it.id, it.key, it.name, it.unit, it.qty, it.checked, GroceryCat.of(it.name)) }
+            _state.update {
+                it.copy(
+                    savedLists = store.load(),
+                    activeId = work.activeId,
+                    selectedDates = work.selected.mapNotNull { k -> runCatching { LocalDate.parse(k) }.getOrNull() }.toSet(),
+                    rows = if (work.activeId == null) liveRows.sortedBy { r -> r.name.lowercase() } else it.rows,
+                )
+            }
+            if (work.activeId != null) showRows()
+            // Reconcile only if the live list is empty; otherwise keep it until refresh / day change.
+            fetchAll(forceRegen = liveRows.isEmpty() && work.activeId == null)
+        } else {
+            _state.update { it.copy(savedLists = store.load()) }
+            preset(7)      // next 7 days auto-selected on first ever open
+            fetchAll(forceRegen = true)
+        }
+    }
+
+    /** Save the live working state so rows + selection survive navigating away and back. */
+    private fun persistWork() {
+        val s = _state.value
+        store.saveWork(
+            GroceryWork(
+                selected = s.selectedDates.map { it.toString() },
+                activeId = s.activeId,
+                rows = liveRows.map { WorkRow(it.id, it.key, it.name, it.unit, it.qty, it.checked) },
+            ),
+        )
     }
 
     // ── Loading ──────────────────────────────────────────────────────────────────
-    private fun loadData() {
+    /** Fetch library + plans. The list reconciles only when [forceRegen] (refresh / first load);
+     *  a routine load just refreshes the calendar dots, leaving the list alone so plan edits
+     *  elsewhere don't silently reshuffle it. */
+    private fun fetchAll(forceRegen: Boolean) {
         viewModelScope.launch {
             runCatching {
                 val diets = dietsApi.listDiets(false).body().orEmpty()
                 foodsById = foodsApi.listFoods(false).body().orEmpty().associateBy { it.id }
                 mealsById = mealsApi.listMeals(false).body().orEmpty().associateBy { it.id }
                 dietsById = diets.mapNotNull { d -> d.id?.let { it to d } }.toMap()
+                fetchPlanWindow()
             }.onFailure { e -> _state.update { it.copy(error = e.message) } }
-            regenerate()
+            if (forceRegen) regenerate() else showRows()
+            _state.update { it.copy(loading = false, refreshing = false) }
         }
     }
 
-    private fun loadPlans() {
-        viewModelScope.launch {
-            val m = _state.value.month
-            val today = _state.value.today
-            val from = minOf(m.atDay(1), today)
-            val to = maxOf(m.atEndOfMonth(), today.plusDays(13))
-            runCatching { plansApi.listPlans(from, to).body().orEmpty() }
-                .onSuccess { plans ->
-                    plansByDate = plans.associateBy { it.date }
-                    _state.update {
-                        it.copy(
-                            loading = false,
-                            plannedDates = plans.filter { p -> p.dietId != null }.map { p -> p.date }.toSet(),
-                        )
-                    }
-                    regenerate()
-                }
-                .onFailure { e -> _state.update { it.copy(loading = false, error = e.message) } }
-        }
+    private suspend fun fetchPlanWindow() {
+        val m = _state.value.month
+        val today = _state.value.today
+        val from = minOf(m.atDay(1), today)
+        val to = maxOf(m.atEndOfMonth(), today.plusDays(13))
+        val plans = plansApi.listPlans(from, to).body().orEmpty()
+        plansByDate = plansByDate + plans.associateBy { it.date }
+        _state.update { it.copy(plannedDates = plansByDate.filterValues { p -> p.dietId != null }.keys) }
     }
 
-    // ── Generation: selected days -> combined, categorised ingredients ─────────────
-    private fun combine(dates: List<LocalDate>): List<GroceryItem> {
-        data class Acc(val name: String, val unit: String, var total: Double, var count: Int)
-        val map = LinkedHashMap<String, Acc>()
+    /** Re-pull plan + library and reconcile the list: checked (bought) rows are kept, and each
+     *  ingredient's to-buy row is set to (new total − already bought). The ONLY thing that
+     *  reflects plan edits. */
+    fun refresh() {
+        if (_state.value.isSaved) return
+        _state.update { it.copy(refreshing = true) }
+        fetchAll(forceRegen = true)
+    }
+
+    // ── Generation: selected days -> combined ingredient totals ────────────────────
+    private data class FoodTotal(val name: String, val unit: String, val total: Double)
+
+    private fun combine(dates: List<LocalDate>): Map<String, FoodTotal> {
+        val map = LinkedHashMap<String, FoodTotal>()
         fun add(name: String?, qty: Double, unit: String) {
             val nm = (name ?: "Food").trim()
             val key = nm.lowercase() + "|" + unit
-            val acc = map.getOrPut(key) { Acc(nm, unit, 0.0, 0) }
-            acc.total += qty; acc.count += 1
+            val cur = map[key]
+            map[key] = FoodTotal(nm, unit, (cur?.total ?: 0.0) + qty)
         }
         dates.forEach { date ->
             val dietId = plansByDate[date]?.dietId ?: return@forEach
             val diet = dietsById[dietId] ?: return@forEach
             (diet.meals ?: emptyList()).forEach { dm ->
                 val meal = mealsById[dm.mealId]
-                (meal?.items ?: emptyList()).forEach { it ->
-                    add(foodsById[it.foodId]?.name, it.quantity, it.unit.value)
-                }
+                (meal?.items ?: emptyList()).forEach { add(foodsById[it.foodId]?.name, it.quantity, it.unit.value) }
             }
-            (diet.foodItems ?: emptyList()).forEach { fi ->
-                add(foodsById[fi.foodId]?.name, fi.quantity, fi.unit.value)
-            }
+            (diet.foodItems ?: emptyList()).forEach { fi -> add(foodsById[fi.foodId]?.name, fi.quantity, fi.unit.value) }
         }
-        return map.values.map {
-            GroceryItem(
-                key = it.name.lowercase() + "|" + it.unit,
-                name = it.name, unit = it.unit, total = it.total, count = it.count,
-                category = GroceryCat.of(it.name),
-            )
-        }.sortedBy { it.name.lowercase() }
+        return map
     }
 
-    /** Rebuild [GroceryUiState.items] + [checked] from the active saved list or the live selection. */
+    /**
+     * Reconcile [liveRows] against fresh ingredient totals: keep every checked (bought) row, and for
+     * each ingredient set a single to-buy row to (total − already-bought). New ingredients get a
+     * to-buy row; ingredients dropped from the plan keep only their bought rows.
+     */
+    private fun reconcile(fresh: Map<String, FoodTotal>) {
+        val byKey = liveRows.groupBy { it.key }
+        val out = mutableListOf<GroceryRow>()
+        fresh.forEach { (key, ft) ->
+            val existing = byKey[key].orEmpty()
+            // Bought can't exceed what the plan now needs (capped when a day is removed).
+            val boughtQty = existing.filter { it.checked }.sumOf { it.qty }.coerceAtMost(ft.total)
+            val remaining = (ft.total - boughtQty).coerceAtLeast(0.0)
+            val cat = GroceryCat.of(ft.name)
+            if (boughtQty > 0.0) out += GroceryRow("$key#b", key, ft.name, ft.unit, boughtQty, true, cat)
+            if (remaining > 0.0) out += GroceryRow("$key#t", key, ft.name, ft.unit, remaining, false, cat)
+        }
+        byKey.forEach { (key, existing) ->
+            if (!fresh.containsKey(key)) {
+                val boughtQty = existing.filter { it.checked }.sumOf { it.qty }
+                val f = existing.first()
+                if (boughtQty > 0.0) out += GroceryRow("$key#b", key, f.name, f.unit, boughtQty, true, GroceryCat.of(f.name))
+            }
+        }
+        liveRows = out.sortedBy { it.name.lowercase() }
+    }
+
+    /** Rebuild rows: reconcile the live list against the current selection, or show the active saved
+     *  snapshot. Called on a day change, refresh, or first load — NOT on routine navigation. */
     private fun regenerate() {
         val s = _state.value
+        if (s.activeId == null) reconcile(combine(s.selectedDates.toList().sorted()))
+        showRows()
+    }
+
+    /** Push the current rows (live or the active saved list) into UI state + persist the live work. */
+    private fun showRows() {
+        val s = _state.value
         val active = s.savedLists.firstOrNull { it.id == s.activeId }
-        if (active != null) {
-            val items = active.items.map {
-                GroceryItem(it.key, it.name, it.unit, it.total, it.count, GroceryCat.of(it.name))
-            }.sortedBy { it.name.lowercase() }
-            _state.update { it.copy(items = items, checked = active.checked) }
+        val rows = if (active != null) {
+            active.items.map { GroceryRow(it.key, it.key, it.name, it.unit, it.total, active.checked[it.key] == true, GroceryCat.of(it.name)) }
         } else {
-            val items = combine(s.selectedDates.toList().sorted())
-            _state.update { it.copy(items = items, checked = liveChecked) }
-        }
+            liveRows
+        }.sortedBy { it.name.lowercase() }
+        _state.update { it.copy(rows = rows) }
+        persistWork()
     }
 
     // ── Date picking ───────────────────────────────────────────────────────────────
     fun toggleCal() { _state.update { it.copy(calOpen = !it.calOpen) } }
-    fun prevMonth() { _state.update { it.copy(month = it.month.minusMonths(1)) }; loadPlans() }
-    fun nextMonth() { _state.update { it.copy(month = it.month.plusMonths(1)) }; loadPlans() }
+    fun prevMonth() { _state.update { it.copy(month = it.month.minusMonths(1)) }; loadDotsForMonth() }
+    fun nextMonth() { _state.update { it.copy(month = it.month.plusMonths(1)) }; loadDotsForMonth() }
+
+    /** Refresh the calendar's diet-dots for the visible month without rebuilding the list. */
+    private fun loadDotsForMonth() {
+        viewModelScope.launch { runCatching { fetchPlanWindow() } }
+    }
 
     fun toggleDay(date: LocalDate) {
         _state.update { st ->
@@ -211,30 +280,50 @@ class GroceryViewModel @Inject constructor(
     // ── Views + checking ─────────────────────────────────────────────────────────
     fun setView(v: GroceryView) { _state.update { it.copy(view = v) } }
 
-    fun toggleItem(key: String) {
+    /** Toggle one row bought / to-buy. For the live list, the ingredient's rows are consolidated
+     *  into at most one bought + one to-buy row. */
+    fun toggleRow(id: String) {
         val s = _state.value
-        if (s.activeId != null) {
+        val active = s.savedLists.firstOrNull { it.id == s.activeId }
+        if (active != null) {
+            val row = s.rows.firstOrNull { it.id == id } ?: return
             val lists = s.savedLists.map { l ->
-                if (l.id != s.activeId) l
-                else l.copy(checked = l.checked.toMutableMap().apply { this[key] = !(this[key] ?: false) })
+                if (l.id != active.id) l
+                else l.copy(checked = l.checked.toMutableMap().apply { this[row.key] = !(this[row.key] ?: false) })
             }
             persist(lists)
             _state.update { it.copy(savedLists = lists) }
+            showRows()
         } else {
-            liveChecked = liveChecked.toMutableMap().apply { this[key] = !(this[key] ?: false) }
-            _state.update { it.copy(checked = liveChecked) }
+            val row = liveRows.firstOrNull { it.id == id } ?: return
+            val key = row.key
+            val food = liveRows.filter { it.key == key }
+            var boughtQty = food.filter { it.checked }.sumOf { it.qty }
+            var toBuyQty = food.filter { !it.checked }.sumOf { it.qty }
+            if (row.checked) { boughtQty -= row.qty; toBuyQty += row.qty } else { boughtQty += row.qty; toBuyQty -= row.qty }
+            val rebuilt = buildList {
+                if (boughtQty > 0.0) add(GroceryRow("$key#b", key, row.name, row.unit, boughtQty, true, row.category))
+                if (toBuyQty > 0.0) add(GroceryRow("$key#t", key, row.name, row.unit, toBuyQty, false, row.category))
+            }
+            liveRows = (liveRows.filter { it.key != key } + rebuilt).sortedBy { it.name.lowercase() }
+            showRows()
         }
     }
 
     fun uncheckAll() {
         val s = _state.value
-        if (s.activeId != null) {
-            val lists = s.savedLists.map { l -> if (l.id == s.activeId) l.copy(checked = emptyMap()) else l }
+        val active = s.savedLists.firstOrNull { it.id == s.activeId }
+        if (active != null) {
+            val lists = s.savedLists.map { l -> if (l.id == active.id) l.copy(checked = emptyMap()) else l }
             persist(lists)
             _state.update { it.copy(savedLists = lists) }
+            showRows()
         } else {
-            liveChecked = emptyMap()
-            _state.update { it.copy(checked = emptyMap()) }
+            liveRows = liveRows.groupBy { it.key }.map { (key, rs) ->
+                val f = rs.first()
+                GroceryRow("$key#t", key, f.name, f.unit, rs.sumOf { it.qty }, false, f.category)
+            }.sortedBy { it.name.lowercase() }
+            showRows()
         }
     }
 
@@ -245,36 +334,35 @@ class GroceryViewModel @Inject constructor(
     fun saveList() {
         val s = _state.value
         val keys = s.selectedDates.map { it.toString() }.sorted()
-        if (keys.isEmpty() || s.items.isEmpty()) return
+        if (keys.isEmpty() || liveRows.isEmpty()) return
         val label = rangeLabel(s.selectedDates.toList().sorted())
-        val items = s.items.map { SavedGroceryItem(it.key, it.name, it.unit, it.total, it.count) }
-        val checked = s.items.filter { liveChecked[it.key] == true }.associate { it.key to true }
+        // Flatten the live rows per ingredient into the saved snapshot (total + fully-bought flag).
+        val byFood = liveRows.groupBy { it.key }
+        val items = byFood.map { (key, rs) -> val f = rs.first(); SavedGroceryItem(key, f.name, f.unit, rs.sumOf { it.qty }, 1) }
+        val checked = byFood.filterValues { rs -> rs.all { it.checked } }.keys.associateWith { true }
         val id = "gl" + System.currentTimeMillis()
-        val saved = SavedGroceryList(
-            id = id, name = "Groceries · $label", dateKeys = keys,
-            items = items, checked = checked, days = keys.size,
-        )
+        val saved = SavedGroceryList(id = id, name = "Groceries · $label", dateKeys = keys, items = items, checked = checked, days = keys.size)
         val lists = listOf(saved) + s.savedLists
         persist(lists)
         _state.update { it.copy(savedLists = lists, activeId = id) }
-        regenerate()
+        showRows()
     }
 
     fun loadSaved(id: String) {
         _state.update { it.copy(activeId = id, sheetSaved = false, view = GroceryView.ALL, calOpen = false) }
-        regenerate()
+        showRows()
     }
 
     fun deleteSaved(id: String) {
         val lists = _state.value.savedLists.filterNot { it.id == id }
         persist(lists)
         _state.update { it.copy(savedLists = lists, activeId = if (it.activeId == id) null else it.activeId) }
-        regenerate()
+        showRows()
     }
 
     fun newList() {
         _state.update { it.copy(activeId = null, view = GroceryView.ALL) }
-        regenerate()
+        showRows()
     }
 
     private fun persist(lists: List<SavedGroceryList>) = store.save(lists)

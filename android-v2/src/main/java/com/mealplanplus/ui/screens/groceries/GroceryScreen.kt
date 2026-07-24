@@ -26,8 +26,10 @@ import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -245,6 +247,16 @@ private fun ListHeader(state: GroceryUiState, vm: GroceryViewModel) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(if (state.isSaved) "Saved list" else "Shopping list", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
         Spacer(Modifier.weight(1f))
+        if (!state.isSaved) {
+            IconButton(onClick = vm::refresh, enabled = !state.refreshing, modifier = Modifier.size(34.dp)) {
+                if (state.refreshing) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, color = Teal, modifier = Modifier.size(16.dp))
+                } else {
+                    Icon(Icons.Default.Refresh, "Recalculate from plan", tint = MutedDark, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.width(2.dp))
+        }
         val label = if (state.isSaved) "Done" else "Save"
         val enabled = state.isSaved || (state.total > 0 && state.selectedDates.isNotEmpty())
         Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
@@ -267,15 +279,13 @@ private fun ListHeader(state: GroceryUiState, vm: GroceryViewModel) {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 @Composable
 private fun Tabs(state: GroceryUiState, vm: GroceryViewModel) {
-    val remaining = state.items.count { state.checked[it.key] != true }
-    val bought = state.boughtCount
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(SurfaceMuted).padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Tab("All · ${state.total}", state.view == GroceryView.ALL, Modifier.weight(1f)) { vm.setView(GroceryView.ALL) }
-        Tab("To buy · $remaining", state.view == GroceryView.TO_BUY, Modifier.weight(1f)) { vm.setView(GroceryView.TO_BUY) }
-        Tab("Bought · $bought", state.view == GroceryView.BOUGHT, Modifier.weight(1f)) { vm.setView(GroceryView.BOUGHT) }
+        Tab("To buy · ${state.toBuy.size}", state.view == GroceryView.TO_BUY, Modifier.weight(1f)) { vm.setView(GroceryView.TO_BUY) }
+        Tab("Bought · ${state.boughtCount}", state.view == GroceryView.BOUGHT, Modifier.weight(1f)) { vm.setView(GroceryView.BOUGHT) }
     }
 }
 
@@ -292,14 +302,13 @@ private fun Tab(label: String, selected: Boolean, modifier: Modifier, onClick: (
 // ── Shopping list body ─────────────────────────────────────────────────────────
 @Composable
 private fun ShoppingList(state: GroceryUiState, vm: GroceryViewModel) {
-    val bought = state.items.filter { state.checked[it.key] == true }
-    val remaining = state.items.filter { state.checked[it.key] != true }
-    val primary = if (state.view == GroceryView.BOUGHT) bought else remaining
+    // Each row is independent: unchecked rows sit in their aisle, checked rows in Bought.
+    val primary = if (state.view == GroceryView.BOUGHT) state.bought else state.toBuy
     val groups = CAT_ORDER.mapNotNull { cat ->
-        val its = primary.filter { it.category == cat }
-        if (its.isEmpty()) null else cat to its
+        val rs = primary.filter { it.category == cat }
+        if (rs.isEmpty()) null else cat to rs
     }
-    val showBought = state.view == GroceryView.ALL && bought.isNotEmpty()
+    val showBought = state.view == GroceryView.ALL && state.bought.isNotEmpty()
 
     val nDays = state.dateKeys.size
     val empty = state.total == 0 || (groups.isEmpty() && !showBought)
@@ -317,14 +326,14 @@ private fun ShoppingList(state: GroceryUiState, vm: GroceryViewModel) {
         return
     }
 
-    groups.forEach { (cat, items) ->
-        CategoryGroup(cat, items, state.checked, vm::toggleItem)
+    groups.forEach { (cat, rows) ->
+        CategoryGroup(cat, rows, vm::toggleRow)
         Spacer(Modifier.height(12.dp))
     }
 
     if (showBought) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)) {
-            Text("Bought · ${bought.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MutedDark)
+            Text("Bought · ${state.bought.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MutedDark)
             Spacer(Modifier.weight(1f))
             Text("Uncheck all", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
                 modifier = Modifier.clickable(onClick = vm::uncheckAll).padding(4.dp))
@@ -333,13 +342,13 @@ private fun ShoppingList(state: GroceryUiState, vm: GroceryViewModel) {
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
         ) {
-            bought.forEach { ItemRow(it, true, vm::toggleItem) }
+            state.bought.forEach { ItemRow(it, vm::toggleRow) }
         }
     }
 }
 
 @Composable
-private fun CategoryGroup(cat: GroceryCat, items: List<GroceryItem>, checked: Map<String, Boolean>, onToggle: (String) -> Unit) {
+private fun CategoryGroup(cat: GroceryCat, rows: List<GroceryRow>, onToggle: (String) -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface)
             .border(1.dp, CardBorder, RoundedCornerShape(12.dp)).padding(bottom = 2.dp),
@@ -349,16 +358,18 @@ private fun CategoryGroup(cat: GroceryCat, items: List<GroceryItem>, checked: Ma
             Spacer(Modifier.width(7.dp))
             Text(cat.label.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = MutedDark, letterSpacing = 0.5.sp)
             Spacer(Modifier.width(6.dp))
-            Text("${items.size}", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+            Text("${rows.size}", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
         }
-        items.forEach { ItemRow(it, checked[it.key] == true, onToggle) }
+        rows.forEach { ItemRow(it, onToggle) }
     }
 }
 
+/** One independently-checkable list row. */
 @Composable
-private fun ItemRow(item: GroceryItem, bought: Boolean, onToggle: (String) -> Unit) {
+private fun ItemRow(row: GroceryRow, onToggle: (String) -> Unit) {
+    val bought = row.checked
     Row(
-        Modifier.fillMaxWidth().clickable { onToggle(item.key) }.padding(horizontal = 14.dp, vertical = 9.dp),
+        Modifier.fillMaxWidth().clickable { onToggle(row.id) }.padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -371,17 +382,13 @@ private fun ItemRow(item: GroceryItem, bought: Boolean, onToggle: (String) -> Un
         }
         Spacer(Modifier.width(11.dp))
         Text(
-            item.name, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold,
+            row.name, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold,
             color = if (bought) MutedFaint else Ink,
             textDecoration = if (bought) TextDecoration.LineThrough else null,
         )
-        if (item.count > 1) {
-            Spacer(Modifier.width(7.dp))
-            Text("×${item.count}", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
-        }
         Spacer(Modifier.weight(1f))
         Text(
-            "${fmtQty(item.total)} ${unitLabel(item.unit)}", fontFamily = DmMono, fontSize = 12.sp,
+            "${fmtQty(row.qty)} ${unitLabel(row.unit)}", fontFamily = DmMono, fontSize = 12.sp,
             color = if (bought) MutedFaint else MutedDark,
         )
     }

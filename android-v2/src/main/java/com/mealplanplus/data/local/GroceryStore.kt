@@ -33,7 +33,30 @@ data class SavedGroceryList(
     val days: Int,
 )
 
-/** Persists saved grocery lists locally (JSON in SharedPreferences). Most-recent first. */
+/**
+ * The live (unsaved) working state — which days are picked and how much of each item is ticked.
+ * Persisted so leaving the screen and coming back keeps your checks (else a checked 5 that grows
+ * to 6 would reset to 6 unchecked instead of 5 bought + 1 to buy).
+ */
+/** One persisted row of the live list — an independent line that's either checked (bought) or not. */
+data class WorkRow(
+    val id: String = "",
+    val key: String = "",
+    val name: String = "",
+    val unit: String = "GRAM",
+    val qty: Double = 0.0,
+    val checked: Boolean = false,
+)
+
+data class GroceryWork(
+    val selected: List<String> = emptyList(),
+    val activeId: String? = null,
+    /** The live list's rows — kept as-is until the user hits refresh or changes days, so a plan
+     *  edit elsewhere doesn't silently reshuffle the list. */
+    val rows: List<WorkRow> = emptyList(),
+)
+
+/** Persists saved grocery lists + the live working state locally (JSON in SharedPreferences). */
 @Singleton
 class GroceryStore @Inject constructor(@ApplicationContext ctx: Context) {
     private val prefs = ctx.getSharedPreferences("groceries", Context.MODE_PRIVATE)
@@ -47,7 +70,14 @@ class GroceryStore @Inject constructor(@ApplicationContext ctx: Context) {
     fun save(lists: List<SavedGroceryList>) =
         prefs.edit().putString(KEY, gson.toJson(lists, listType)).apply()
 
+    fun loadWork(): GroceryWork? =
+        prefs.getString(WORK_KEY, null)?.let { runCatching { gson.fromJson(it, GroceryWork::class.java) }.getOrNull() }
+
+    fun saveWork(work: GroceryWork) =
+        prefs.edit().putString(WORK_KEY, gson.toJson(work)).apply()
+
     private companion object {
         const val KEY = "saved_lists"
+        const val WORK_KEY = "work_state"
     }
 }
