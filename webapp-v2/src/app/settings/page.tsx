@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { collectExportData, downloadCsv } from "@/lib/export/collectExport";
+import { buildCsv } from "@/lib/export/csvExporter";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
@@ -48,6 +50,20 @@ function SettingsInner() {
   const [notifOpen, setNotifOpen] = useState(true);
   const [notif, setNotif] = useState<Record<string, boolean>>({ meals: true, water: true, workout: true, weighin: false, glucose: true });
   const onCount = Object.values(notif).filter(Boolean).length;
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const csv = buildCsv(await collectExportData());
+      downloadCsv(`mealplan-export-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="flex flex-col min-h-dvh" style={{ background: C.bg }}>
@@ -101,7 +117,7 @@ function SettingsInner() {
             <span style={{ marginLeft: "auto", font: "400 12px system-ui", color: C.muted }}>Meals · workouts · health</span>
           </div>
           <div style={{ padding: 14 }}>
-            <button style={{ width: "100%", border: "none", borderRadius: 11, padding: "12px 0", background: C.bgAlt, color: C.muted3, font: "600 13px system-ui", cursor: "pointer" }}>⬇ Export  CSV</button>
+            <button onClick={handleExport} disabled={exporting} style={{ width: "100%", border: "none", borderRadius: 11, padding: "12px 0", background: C.bgAlt, color: C.muted3, font: "600 13px system-ui", cursor: exporting ? "default" : "pointer", opacity: exporting ? 0.6 : 1 }}>{exporting ? "Exporting…" : "⬇ Export  CSV"}</button>
           </div>
         </div>
 

@@ -23,9 +23,14 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | ISO dates + **Groceries** (rows-based refresh) + **Settings UI** + nav restructure (More tab) | Same, at parity |
-| **Next task** | **Settings — wire functionality** (one section at a time) | **Settings — wire functionality** |
+| **Last completed** | Settings: **Export CSV** wired (device-verified) | Settings: **Export CSV** wired (browser-verified, parity w/ android) |
+| **Next task** | Settings — next section (Notifications / Health Connect / Backup) | Same section as android |
 | **Blocked on?** | — | — |
+
+**Settings wiring — Export CSV (android-v2, DONE, device-verified 2026-07-24):**
+- Single sectioned `.csv` (one file, 4 labelled sections): **Meals** + **Diets** (all, from Room) · **Workouts** (completed sessions, **last 7 days**, one row per set, 1-based set# grouped per exercise) · **Health** (all built-in types, **last 90 days**). Numbers `Locale.US`, RFC-4180 escaping, ISO dates.
+- Files: `data/export/{ExportData,CsvExporter,ExportRepository}.kt`, `ui/screens/settings/SettingsViewModel.kt` (one-shot Share event), `SettingsScreen.kt` wired (Export button → FileProvider share sheet), `AndroidManifest.xml` + `res/xml/file_paths.xml` (FileProvider, cacheDir/exports). Unit test `CsvExporterTest` (7 tests).
+- **✅ Webapp DONE (browser-verified, parity):** `lib/export/{exportData,csvExporter,collectExport}.ts` + `app/settings/page.tsx` Export button. Reuses `foodMacros` resolver; Blob download; same single-sectioned format. Health section byte-identical to android; workouts 1-based. (Webapp has no test runner — format logic covered by android `CsvExporterTest`.)
 
 **Done since Health:**
 - **Dates**: backend now serializes `date-time`/`date` as ISO-8601 (`WRITE_DATES_AS_TIMESTAMPS=false`, regression test `JsonDateSerializationTest`). Android Gson adapter + webapp both consume ISO directly; the old epoch-millis/`[y,m,d]` workarounds are gone. ⚠ **Do NOT deploy backend to `main`** until the old prod Android app is retired — `android/SyncRepository.kt` still expects epoch millis and would break.
