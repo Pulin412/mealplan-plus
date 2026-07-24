@@ -1,8 +1,12 @@
 package com.mealplanplus.ui.screens.settings
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,7 +42,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,7 +54,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.data.notifications.NotificationHelper
+import com.mealplanplus.data.notifications.NotificationSettings
+import com.mealplanplus.data.notifications.NotificationType
 import java.io.File
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderMuted
@@ -72,6 +79,19 @@ import com.mealplanplus.ui.theme.Teal
 fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val exporting by viewModel.exporting.collectAsState()
+    val notifSettings by viewModel.notifications.collectAsState()
+    val hcState by viewModel.healthConnectState.collectAsState()
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val hcLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) {
+        viewModel.refreshHealthConnect()
+    }
+    LaunchedEffect(Unit) { viewModel.refreshHealthConnect() }
+    val onToggleNotif: (NotificationType, Boolean) -> Unit = { type, on ->
+        viewModel.setNotification(type, on)
+        if (on && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !NotificationHelper.canPost(context)) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     LaunchedEffect(Unit) {
         viewModel.events.collect { ev ->
             when (ev) {
@@ -113,7 +133,11 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                 // ── Health Connect ────────────────────────────────────────────────
                 SectionLabel("Health Connect")
                 Card {
-                    var connected by remember { mutableStateOf(false) }
+                    val subtitle = when {
+                        !hcState.available -> "Not available on this device"
+                        hcState.connected -> "Connected"
+                        else -> "Not connected"
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(14.dp)) {
                         Box(Modifier.size(34.dp).clip(CircleShape).background(SurfaceMuted), Alignment.Center) {
                             Icon(Icons.Outlined.FavoriteBorder, null, tint = MutedDark, modifier = Modifier.size(18.dp))
@@ -121,9 +145,26 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                         Spacer(Modifier.width(11.dp))
                         Column(Modifier.weight(1f)) {
                             Text("Health Connect", fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                            Text(if (connected) "Connected" else "Not connected", fontSize = 11.5.sp, color = MutedLight)
+                            Text(subtitle, fontSize = 11.5.sp, color = MutedLight)
                         }
-                        AppSwitch(connected) { connected = it }
+                        AppSwitch(hcState.connected) { on ->
+                            when {
+                                !hcState.available ->
+                                    Toast.makeText(context, "Health Connect isn't available on this device", Toast.LENGTH_LONG).show()
+                                on -> hcLauncher.launch(viewModel.healthConnectPermissions)
+                                else -> viewModel.disconnectHealthConnect()
+                            }
+                        }
+                    }
+                    if (hcState.connected) {
+                        Divider()
+                        val s = hcState.summary
+                        val weight = s.latestWeightKg?.let { " · %.1f kg".format(it) } ?: ""
+                        Text(
+                            "Today · %,d steps · %d kcal burned".format(s.steps, s.caloriesBurned) + weight,
+                            fontSize = 12.sp, color = MutedDark,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                        )
                     }
                 }
 
@@ -151,7 +192,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                 }
 
                 // ── Notifications (collapsible) ────────────────────────────────────
-                NotificationsSection()
+                NotificationsSection(notifSettings, onToggleNotif, viewModel::setQuietHours)
                 Spacer(Modifier.height(28.dp))
             }
         }
@@ -183,10 +224,13 @@ private val NOTIF_DEFS = listOf(
 )
 
 @Composable
-private fun NotificationsSection() {
+private fun NotificationsSection(
+    settings: NotificationSettings,
+    onToggle: (NotificationType, Boolean) -> Unit,
+    onToggleQuiet: (Boolean) -> Unit,
+) {
     var open by remember { mutableStateOf(true) }
-    val on = remember { mutableStateMapOf("meals" to true, "water" to true, "workout" to true, "weighin" to false, "glucose" to true) }
-    val onCount = on.count { it.value }
+    val onCount = settings.onCount
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -208,6 +252,7 @@ private fun NotificationsSection() {
                 .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
         ) {
             NOTIF_DEFS.forEachIndexed { i, n ->
+                val type = NotificationType.fromKey(n.key)
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 10.dp)) {
                     Box(Modifier.size(34.dp).clip(CircleShape).background(Color(n.bg)), Alignment.Center) {
                         Text(n.icon, fontSize = 16.sp)
@@ -217,12 +262,18 @@ private fun NotificationsSection() {
                         Text(n.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                         Text(n.hint, fontSize = 11.5.sp, color = MutedLight)
                     }
-                    AppSwitch(on[n.key] == true) { on[n.key] = it }
+                    AppSwitch(type != null && settings.enabled[type] == true) { on -> type?.let { onToggle(it, on) } }
                 }
                 if (i < NOTIF_DEFS.size - 1) Divider()
             }
             Divider()
-            ValueRow("Quiet hours", "10 PM – 7 AM", labelColor = MutedDark)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Quiet hours", fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = MutedDark)
+                    Text(if (settings.quietHours) "No reminders 10 PM – 7 AM" else "Off", fontSize = 11.5.sp, color = MutedLight)
+                }
+                AppSwitch(settings.quietHours, onToggleQuiet)
+            }
         }
     }
 }

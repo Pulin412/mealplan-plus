@@ -23,14 +23,18 @@
 
 | | android-v2 | webapp-v2 |
 |--|------------|-----------|
-| **Last completed** | Settings: **Export CSV** wired (device-verified) | Settings: **Export CSV** wired (browser-verified, parity w/ android) |
-| **Next task** | Settings — next section (Notifications / Health Connect / Backup) | Same section as android |
-| **Blocked on?** | — | — |
+| **Last completed** | Settings: Export CSV ✅ + **Notifications** ✅ (built+installed, awaiting user smoke-test) | Settings: Export CSV ✅. Notifications **removed** (deferred — see iOS Web Push memo) |
+| **Next task** | Settings — Health Connect or Backup & restore | Health Connect or Backup (Notifications deferred) |
+| **Blocked on?** | Android notifications: user to smoke-test + OK to commit | — |
 
 **Settings wiring — Export CSV (android-v2, DONE, device-verified 2026-07-24):**
 - Single sectioned `.csv` (one file, 4 labelled sections): **Meals** + **Diets** (all, from Room) · **Workouts** (completed sessions, **last 7 days**, one row per set, 1-based set# grouped per exercise) · **Health** (all built-in types, **last 90 days**). Numbers `Locale.US`, RFC-4180 escaping, ISO dates.
 - Files: `data/export/{ExportData,CsvExporter,ExportRepository}.kt`, `ui/screens/settings/SettingsViewModel.kt` (one-shot Share event), `SettingsScreen.kt` wired (Export button → FileProvider share sheet), `AndroidManifest.xml` + `res/xml/file_paths.xml` (FileProvider, cacheDir/exports). Unit test `CsvExporterTest` (7 tests).
 - **✅ Webapp DONE (browser-verified, parity):** `lib/export/{exportData,csvExporter,collectExport}.ts` + `app/settings/page.tsx` Export button. Reuses `foodMacros` resolver; Blob download; same single-sectioned format. Health section byte-identical to android; workouts 1-based. (Webapp has no test runner — format logic covered by android `CsvExporterTest`.)
+
+**Settings wiring — Notifications (2026-07-24):**
+- **✅ android-v2 DONE** (built + installed; **awaiting user on-device smoke-test before commit**). All 5 types (Meal/Water/Workout/Weigh-in/Glucose) + quiet hours. **Fixed configurable times**, on-device **AlarmManager** (inexact `setAndAllowWhileIdle` — dodges the exact-alarm Play gate), no backend. Files: `data/notifications/{NotificationType,NotificationStore,NotificationHelper,NotificationScheduler}.kt`, `receiver/{NotificationReceiver,BootReceiver}.kt`, `res/drawable/ic_notification.xml`, manifest receivers, `MealPlanApplication` (channel), `MainActivity` (reschedule on launch), `SettingsViewModel` + `SettingsScreen` (toggles + `POST_NOTIFICATIONS` prompt). Prefs = SharedPreferences (`notifications`). Test `NotificationSettingsTest` (4, quiet-hours wrap-around). Verified: 17 alarms scheduled (4 enabled types; weigh-in off by default). Defaults: Meal 8/13/19h · Water 8–20h/2h · Workout 18h · Weigh-in Sun 8h · Glucose ×6. Follow-ups: per-time editor UI; "skip if already logged" guard.
+- **⏸ webapp/PWA DEFERRED — removed from UI.** iOS has **no on-device scheduler** → reminders must be **server-sent Web Push** (iOS 16.4+, installed PWA only, VAPID). Full design memo (architecture, 2 new tables, 5 endpoints, Cloud Scheduler cost options, sign-off gates): **[iOS Web Push design memo](https://claude.ai/code/artifact/dc89e1d8-cdf3-4f63-a360-505125ab948b)** (2026-07-24). Needs: Flyway migration + API-contract change + Cloud Scheduler — all sign-off gates. The webapp Settings **Notifications section was removed** (a no-op toggle is misleading); see the code comment in `app/settings/page.tsx`. Revisit alongside Phase 8 (PWA hardening).
 
 **Done since Health:**
 - **Dates**: backend now serializes `date-time`/`date` as ISO-8601 (`WRITE_DATES_AS_TIMESTAMPS=false`, regression test `JsonDateSerializationTest`). Android Gson adapter + webapp both consume ISO directly; the old epoch-millis/`[y,m,d]` workarounds are gone. ⚠ **Do NOT deploy backend to `main`** until the old prod Android app is retired — `android/SyncRepository.kt` still expects epoch millis and would break.
@@ -389,6 +393,7 @@ its own "try next" suggests adding them); app-bar avatar is decorative (Profile 
 - ⬜ Install prompt (Add to Home Screen) — tested on iOS Safari + Android Chrome
 - ⬜ Manifest: icons (all sizes), splash, `display: standalone`, correct `theme_color`
 - ⬜ Lighthouse: PWA + Performance + Accessibility + Best Practices all green
+- ⬜ **iOS Web Push reminders** (deferred from Settings/Notifications) — builds on the manifest + service worker above. Design memo: https://claude.ai/code/artifact/dc89e1d8-cdf3-4f63-a360-505125ab948b — needs Flyway migration + API-contract change + Cloud Scheduler (all sign-off gates).
 
 ---
 
@@ -417,7 +422,7 @@ These are from spec §10 and project-specific gaps. Answer before implementing t
 | 6 | Timezone / day-rollover for streaks: use device local midnight or UTC? | Phase 3 + Phase 6 streaks | — |
 | 7 | Meal slot enum — spec lists 11 fixed slots + user custom. Should custom slots be supported in v2 or deferred? | Phase 2 meals, Phase 3 home | — |
 | 8 | Google OAuth for webapp-v2 — is `NEXT_PUBLIC_GOOGLE_CLIENT_ID` configured in `.env.local`? | Phase 1 auth | — |
-| 9 | Notifications for android-v2 — carry over AlarmManager from `android/` or redesign? | Phase 8 | — |
+| 9 | Notifications for android-v2 — carry over AlarmManager from `android/` or redesign? | Phase 8 | ✅ Fresh AlarmManager impl, fixed configurable times, all 5 types (2026-07-24). Webapp deferred → iOS Web Push memo. |
 
 ---
 

@@ -14,6 +14,8 @@ import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.generated.model.FoodUnit
 import com.mealplanplus.data.generated.model.PlannedWorkoutDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import com.mealplanplus.data.healthconnect.HealthConnectManager
+import com.mealplanplus.data.healthconnect.HealthConnectSummary
 import com.mealplanplus.data.repository.ExerciseRepository
 import com.mealplanplus.data.repository.WorkoutSessionRepository
 import com.mealplanplus.ui.theme.ThemeStore
@@ -42,6 +44,8 @@ data class HomeUiState(
     val exercises: List<ExerciseDto> = emptyList(),                // for the "add exercise" picker
     val error: String? = null,
     val togglingSlot: String? = null,
+    val hcConnected: Boolean = false,               // Health Connect granted
+    val hcSummary: HealthConnectSummary = HealthConnectSummary(),
 )
 
 /**
@@ -57,13 +61,27 @@ class HomeViewModel @Inject constructor(
     private val workoutsApi: WorkoutTemplatesApi,
     private val sessionRepo: WorkoutSessionRepository,
     private val exerciseRepo: ExerciseRepository,
+    private val healthConnect: HealthConnectManager,
     private val themeStore: ThemeStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state
 
-    init { load(); loadFoods(); loadWorkouts(); loadWorkoutTemplates(); loadExercises() }
+    init { load(); loadFoods(); loadWorkouts(); loadWorkoutTemplates(); loadExercises(); loadActivity() }
+
+    /** Today's steps + calories burned from Health Connect (shown only when connected). */
+    fun loadActivity() {
+        viewModelScope.launch {
+            val connected = healthConnect.isAvailable && healthConnect.hasAllPermissions()
+            _state.update {
+                it.copy(
+                    hcConnected = connected,
+                    hcSummary = if (connected) healthConnect.readTodaySummary() else HealthConnectSummary(),
+                )
+            }
+        }
+    }
 
     fun load() {
         viewModelScope.launch {

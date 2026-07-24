@@ -9,6 +9,14 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
 
+    <!-- Android 11–13 so PackageManager can resolve the Health Connect companion app + rationale intent. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MealPlanApplication"
         android:allowBackup="true"
@@ -24,7 +32,30 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Health Connect permission rationale (Android 9–13 / companion app). -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+            <!-- Health Connect permission usage (Android 14+ / built-in — required or getGrantedPermissions() throws). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
         </activity>
+
+        <!-- Fires reminder notifications when an AlarmManager alarm goes off. -->
+        <receiver
+            android:name=".receiver.NotificationReceiver"
+            android:exported="false" />
+
+        <!-- Re-arms reminder alarms after a device reboot. -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Shares exported CSV files from cacheDir via a content:// URI (no storage permission). -->
         <provider

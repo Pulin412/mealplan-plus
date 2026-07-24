@@ -72,6 +72,7 @@ import com.mealplanplus.data.generated.model.SlotStatusDto
 import com.mealplanplus.data.generated.model.StreakDto
 import com.mealplanplus.data.generated.model.TodayMealItemDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import com.mealplanplus.data.healthconnect.HealthConnectSummary
 import com.mealplanplus.ui.theme.Success
 import com.mealplanplus.data.repository.defaultQtyFor
 import com.mealplanplus.data.repository.unitLabel
@@ -127,7 +128,9 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
     // Reload today's workout status when returning to Home (e.g. after finishing the runner).
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val obs = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.loadWorkouts() }
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) { viewModel.loadWorkouts(); viewModel.loadActivity() }
+        }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
@@ -163,6 +166,10 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
                                 }
                             },
                             onAdd = { sheet = HomeSheet.AddWorkout })
+                        if (state.hcConnected) {
+                            Spacer(Modifier.height(16.dp))
+                            ActivityCard(state.hcSummary)
+                        }
                         Spacer(Modifier.height(16.dp))
                         StreakCard(d.streak, d)
                         Spacer(Modifier.height(96.dp))
@@ -187,6 +194,29 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
             onPickExercise = { ex -> sheet = HomeSheet.None; ex.id?.let { onOpenExerciseRunner(it, ex.name) } },
             onClose = { sheet = HomeSheet.None })
         HomeSheet.None -> {}
+    }
+}
+
+// ── Activity (Health Connect) ────────────────────────────────────────────────────
+@Composable
+private fun ActivityCard(summary: HealthConnectSummary) {
+    Text("Activity", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ActivityStat("%,d".format(summary.steps), "steps", Modifier.weight(1f))
+        Box(Modifier.width(1.dp).height(32.dp).background(SurfaceMuted))
+        ActivityStat(summary.caloriesBurned.toString(), "kcal burned", Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun ActivityStat(value: String, label: String, modifier: Modifier = Modifier) {
+    Row(modifier.padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Text(value, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Ink, fontFamily = DmMono)
+        Spacer(Modifier.width(6.dp))
+        Text(label, fontSize = 11.5.sp, color = MutedLight)
     }
 }
 
