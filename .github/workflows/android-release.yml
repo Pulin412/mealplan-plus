@@ -1,0 +1,99 @@
+name: Android Release (manual)
+
+# Build a versioned, installable APK on demand and publish it to a GitHub Release.
+#
+# WHY debug-signed for now: there is no Play Store account and no upload keystore yet, so this
+# builds a DEBUG-signed, NON-minified APK pointed at the PROD backend. It installs on any device
+# (sideload / adb install) without Play, and skips the R8 keep-rule work a real release needs.
+#
+# WHEN Play creds exist: switch to a signed release AAB and enable the "Upload to Play" step below
+# (see the placeholder at the bottom). Prereqs then: ANDROID_KEYSTORE_BASE64, keystore passwords,
+# PLAY_SERVICE_ACCOUNT_JSON secrets + R8 keep-rules in proguard-rules.pro.
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: "Version name (e.g. 2.1.0)"
+        required: true
+        default: "2.0.0"
+      versionCode:
+        description: "Version code (integer, must increase each release)"
+        required: true
+        default: "1"
+      notes:
+        description: "Release notes (optional)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # create the GitHub Release + upload the APK
+
+jobs:
+  build:
+    name: Build installable APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build APK (debug-signed, prod backend)
+        run: >
+          ./gradlew :android:assembleDebug
+          -PversionName=${{ github.event.inputs.versionName }}
+          -PversionCode=${{ github.event.inputs.versionCode }}
+          -PapiBaseUrl=https://mealplan-api-rfo22lhanq-ez.a.run.app
+          --no-daemon --build-cache
+
+      - name: Rename APK with version
+        id: rename
+        run: |
+          SRC=$(find android/build/outputs/apk/debug -name "*.apk" | head -1)
+          OUT="mealplanplus-${{ github.event.inputs.versionName }}.apk"
+          cp "$SRC" "$OUT"
+          echo "apk=$OUT" >> "$GITHUB_OUTPUT"
+
+      # Downloadable from the workflow run (kept 90 days).
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mealplanplus-${{ github.event.inputs.versionName }}
+          path: ${{ steps.rename.outputs.apk }}
+
+      # Permanent, versioned home for the APK.
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v${{ github.event.inputs.versionName }}
+          name: Android v${{ github.event.inputs.versionName }}
+          body: |
+            Installable debug-signed APK (prod backend). Sideload / `adb install`.
+            appId `com.mealplanplus.v2.dev` · versionCode ${{ github.event.inputs.versionCode }}
+
+            ${{ github.event.inputs.notes }}
+          files: ${{ steps.rename.outputs.apk }}
+          draft: false
+          prerelease: true
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # PLACEHOLDER — enable once a Play Store account + upload keystore exist.
+      # Replace assembleDebug above with a signed `:android:bundleRelease` (needs R8
+      # keep-rules) and uncomment:
+      #
+      # - name: Upload to Google Play (internal track)
+      #   uses: r0adkll/upload-google-play@v1
+      #   with:
+      #     serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      #     packageName: com.mealplanplus            # final Play applicationId
+      #     releaseFiles: android/build/outputs/bundle/release/*.aab
+      #     track: internal
+      #     status: draft
+      # ─────────────────────────────────────────────────────────────────────────

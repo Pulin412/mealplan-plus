@@ -16,8 +16,9 @@ android {
         applicationId = "com.mealplanplus.v2"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "2.0"
+        // Overridable from CI: -PversionCode=<n> -PversionName=<x> (defaults for local builds).
+        versionCode = (providers.gradleProperty("versionCode").orNull ?: "1").toInt()
+        versionName = providers.gradleProperty("versionName").orNull ?: "2.0"
         buildConfigField("boolean", "ZERO_BILLING_MODE", "true")
         buildConfigField("boolean", "FORBID_PAID_FIREBASE_FEATURES", "true")
         buildConfigField("String", "API_BASE_URL", "\"https://mealplan-api-rfo22lhanq-ez.a.run.app\"")
@@ -31,10 +32,15 @@ android {
             applicationIdSuffix = ".dev"
             isMinifyEnabled = false
             isShrinkResources = false
-            // Debug builds hit the local v2 backend. 10.0.2.2 is the emulator's alias
+            // Debug builds hit the local v2 backend by default. 10.0.2.2 is the emulator's alias
             // for the host machine's localhost. Cleartext for this host is allowed via
             // the debug-only network security config (src/debug/res/xml).
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080\"")
+            // CI overrides this with -PapiBaseUrl=<prod URL> to produce an installable APK
+            // (debug-signed, non-minified) that talks to the real backend for manual distribution.
+            buildConfigField(
+                "String", "API_BASE_URL",
+                "\"${providers.gradleProperty("apiBaseUrl").orNull ?: "http://10.0.2.2:8080"}\"",
+            )
         }
         release {
             isMinifyEnabled = true

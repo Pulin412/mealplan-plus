@@ -7,6 +7,8 @@ name: Android CI
 on:
   push:
     branches: [develop]
+  pull_request:
+    branches: [develop]   # gate PRs before they merge, not just after
 
 jobs:
   detect-changes:
@@ -50,9 +52,10 @@ jobs:
         with:
           cache-read-only: false
 
-      - name: Build
+      - name: Build + unit tests
         run: >
           ./gradlew
           :android:assembleDebug
+          :android:testDebugUnitTest
           --build-cache
           --no-daemon
