@@ -47,6 +47,16 @@ server:
 firebase:
   project-id: ${FIREBASE_PROJECT_ID:mealplan-plus}
 
+# App-specific config. Dev defaults here; the `prod` profile tightens them.
+app:
+  cors:
+    # Comma-separated allowed origins. Dev: localhost + Vercel previews. Prod overrides to the prod origin.
+    allowed-origins: "http://localhost:*,https://*.vercel.app,https://mealplan-plus.vercel.app"
+  swagger:
+    # Basic-auth credentials for Swagger/OpenAPI — only enforced by the `prod` profile.
+    user: ${SWAGGER_USER:dev}
+    password: ${SWAGGER_PASSWORD:dev}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

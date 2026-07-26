@@ -14,9 +14,14 @@ name: Backend — Deploy to Cloud Run
 #   FIREBASE_PROJECT_ID  — Firebase project ID
 #
 # Required Secret Manager secrets (referenced by --set-secrets):
-#   mealplan-db-url      — jdbc:postgresql://<host>/<db>?sslmode=require (Neon.tech)
-#   mealplan-db-user     — DB username
-#   mealplan-db-password — DB password
+#   mealplan-db-url            — jdbc:postgresql://<host>/<db>?sslmode=require (Neon.tech; prefer the -pooler host)
+#   mealplan-db-user           — DB username
+#   mealplan-db-password       — DB password
+#   mealplan-swagger-user      — Basic-auth username for /swagger-ui on prod
+#   mealplan-swagger-password  — Basic-auth password for /swagger-ui on prod
+#
+# Runs under SPRING_PROFILES_ACTIVE=prod (application-prod.yml): hardened logging, CORS locked to the
+# prod webapp origin, Swagger behind Basic auth, ddl-auto=validate, Flyway clean disabled.
 
 on:
   pull_request:
@@ -91,8 +96,8 @@ jobs:
             --min-instances=0 \
             --max-instances=3 \
             --service-account=mealplan-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=docker,FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},DB_DRIVER=org.postgresql.Driver,DDL_AUTO=validate,DB_DIALECT=org.hibernate.dialect.PostgreSQLDialect" \
-            --set-secrets="DB_URL=mealplan-db-url:latest,DB_USER=mealplan-db-user:latest,DB_PASSWORD=mealplan-db-password:latest"
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --set-secrets="DB_URL=mealplan-db-url:latest,DB_USER=mealplan-db-user:latest,DB_PASSWORD=mealplan-db-password:latest,SWAGGER_USER=mealplan-swagger-user:latest,SWAGGER_PASSWORD=mealplan-swagger-password:latest"
 
       - name: Verify health check
         run: |
