@@ -23,9 +23,36 @@
 
 | | android | webapp |
 |--|------------|-----------|
-| **Last completed** | **Settings wired: Export ✅ · Notifications ✅ · Health Connect ✅ (+Home activity card).** Backup **dropped**. | Settings: Export ✅. Notifications deferred (Web Push memo); Backup **dropped**; Health Connect is Android-only. |
-| **Next task** | Settings section complete → pick next (Profile polish / Phase 8 PWA / cross-cutting) | Same |
-| **Blocked on?** | Android notifications + Health Connect: user on-device smoke-test pending | — |
+| **Last completed** | Settings (Export/Notif/HealthConnect) · barcode · OFF search · **repo cleanup + prod-cutover prep (Phase 0 done)** | Same + OFF search via backend proxy |
+| **Next task** | **Prod cutover — Phase 1** (user's GCP/Neon/Vercel checklist) → Phase 2 merge to develop → Phase 3 release to main | Same |
+| **Blocked on?** | **Phase 1 = user actions** (secrets, Neon reset, Vercel config). See "Prod cutover" below. | — |
+
+## ▶▶ Prod cutover — IN PROGRESS (2026-07-26)
+
+**Goal:** clean cutover of v2 to prod. Old app removed → ISO-date deploy gate is clear. User confirmed **old data is disposable** (diets re-seed from `data/`, keep a DB backup) → **clean-slate DB**.
+
+**Deploy model (each surface independent):** backend = merge to `main` (`backend/**`) → Cloud Run; webapp = Vercel native on `main` (scope Root Dir = `webapp`); android = **manual** `workflow_dispatch` (`android-release.yml`) → versioned installable APK on a GitHub Release (debug-signed, prod backend URL; Play upload is a commented placeholder — no Play acct yet).
+
+**Phase 0 — DONE (local, verified against real Postgres 16 via docker-compose):**
+- **Migrations squashed** V1..V24 → single `V1__baseline.sql` (from `pg_dump`; old files deleted, in git history; delete for good after release testing).
+- **2 bugs fixed** that H2 hid & would've broken the deploy: V15 `tags.firebase_uid` NOT NULL vs NULL system tags; missing `exercises.description` column.
+- **Prod profile** `application-prod.yml` (`SPRING_PROFILES_ACTIVE=prod`): INFO logs, Hikari pool 5, `validate`, Flyway `clean-disabled`, graceful shutdown, compression, hidden errors. **CORS** profile-driven (prod = `mealplan-plus.vercel.app` only). **Swagger behind Basic auth** on prod (401 public / 200 creds; health public) — verified. `backend-deploy.yml` now uses `prod` profile + 2 new swagger secrets.
+- All verified: Flyway apply + Hibernate validate + boot + full security matrix + CORS + backend tests + Docker image build.
+
+**Phase 1 — user actions (NEXT, external — I can't do these):**
+- GCP Secret Manager: add `mealplan-swagger-user`, `mealplan-swagger-password`; confirm `mealplan-db-url/user/password` → **prod Neon (pooled `-pooler` host)**.
+- GitHub secrets exist: `GCP_PROJECT_ID`, `GCP_SA_KEY` (roles incl. artifactregistry.repoAdmin), `FIREBASE_PROJECT_ID`.
+- Neon: **backup prod, then reset schema to empty** (clean slate). Flyway builds V1 baseline on first boot.
+- Vercel: Project Root Dir = `webapp`, Production Branch = `main`, prod env vars (`NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_API_BASE_URL` = prod API).
+
+**Phase 2:** PR `feature/app-redesign → develop` (CI gates, now runs on PRs) → merge.
+**Phase 3:** PR `develop → main` (release) → merge auto-deploys backend (Cloud Run, Flyway migrates fresh) + webapp (Vercel). Verify health/Swagger/webapp login.
+**Phase 4:** run `android-release.yml` → download APK → sideload on a **test device** (keeps user's existing APK intact; appId `com.mealplanplus.v2.dev`).
+**Phase 5:** rewrite `docs/DEPLOYMENT.md` for v2; document repeatable release flow.
+
+**Open decision:** release `applicationId` stays `com.mealplanplus.v2` or reclaim `com.mealplanplus` (permanent Play identity — decide before first Play upload). Noted in `android/CLAUDE.md`.
+
+---
 
 **✅ Settings functionality is essentially complete.** Export (both) · Notifications (android; webapp deferred to Web Push) · Health Connect (android; N/A on web) · Backup **dropped as redundant with sync**.
 
