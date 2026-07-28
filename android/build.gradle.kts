@@ -25,6 +25,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // The CI release APK passes -PsingleAbi=arm64-v8a to ship a single ABI (~15 MB smaller):
+        // the x86*/armeabi-v7a native libs (mostly ML Kit's bundled barcode model, duplicated per
+        // ABI) aren't needed on real phones. Local/emulator builds omit the flag and keep all ABIs
+        // (the emulator needs x86_64). Accepts a comma-separated list.
+        providers.gradleProperty("singleAbi").orNull?.let { abis ->
+            ndk { abiFilters += abis.split(",").map { it.trim() } }
+        }
     }
 
     buildTypes {

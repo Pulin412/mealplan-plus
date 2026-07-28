@@ -51,6 +51,7 @@ jobs:
           -PversionName=${{ github.event.inputs.versionName }}
           -PversionCode=${{ github.event.inputs.versionCode }}
           -PapiBaseUrl=https://mealplan-api-rfo22lhanq-ez.a.run.app
+          -PsingleAbi=arm64-v8a
           --no-daemon --build-cache
 
       - name: Rename APK with version
