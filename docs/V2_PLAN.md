@@ -47,10 +47,10 @@
 
 **Phase 2:** PR `feature/app-redesign → develop` (CI gates, now runs on PRs) → merge.
 **Phase 3:** PR `develop → main` (release) → merge auto-deploys backend (Cloud Run, Flyway migrates fresh) + webapp (Vercel). Verify health/Swagger/webapp login.
-**Phase 4:** run `android-release.yml` → download APK → sideload on a **test device** (keeps user's existing APK intact; appId `com.mealplanplus.v2.dev`).
+**Phase 4:** run `android-release.yml` → download APK → sideload on a **test device** (keeps user's existing APK intact; appId `com.mealplanplus.dev`).
 **Phase 5:** rewrite `docs/DEPLOYMENT.md` for v2; document repeatable release flow.
 
-**Open decision:** release `applicationId` stays `com.mealplanplus.v2` or reclaim `com.mealplanplus` (permanent Play identity — decide before first Play upload). Noted in `android/CLAUDE.md`.
+**Resolved (2026-07-28):** release `applicationId` = **`com.mealplanplus`** (reclaimed from interim `.v2`; sideload = `com.mealplanplus.dev`). Permanent Play identity — locked before first Play upload.
 
 ---
 
@@ -96,7 +96,7 @@
 | Module | Role | Status |
 |--------|------|--------|
 | `backend/` | Spring Boot REST API — **shared by both clients** | ✅ Done |
-| `android/` | Fresh Kotlin/Compose redesign (`com.mealplanplus.v2`) | 🔄 In progress |
+| `android/` | Fresh Kotlin/Compose redesign (`com.mealplanplus`) | 🔄 In progress |
 | `webapp/` | Fresh Next.js 14 redesign PWA | 🔄 In progress |
 
 > `android/` and `webapp/` are the **current** clients (renamed from `android-v2`/`webapp-v2`; the old pre-redesign apps were removed).

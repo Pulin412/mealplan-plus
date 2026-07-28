@@ -13,7 +13,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.mealplanplus.v2"
+        applicationId = "com.mealplanplus"
         minSdk = 26
         targetSdk = 34
         // Overridable from CI: -PversionCode=<n> -PversionName=<x> (defaults for local builds).

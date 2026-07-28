@@ -76,7 +76,7 @@ jobs:
           name: Android v${{ github.event.inputs.versionName }}
           body: |
             Installable debug-signed APK (prod backend). Sideload / `adb install`.
-            appId `com.mealplanplus.v2.dev` · versionCode ${{ github.event.inputs.versionCode }}
+            appId `com.mealplanplus.dev` · versionCode ${{ github.event.inputs.versionCode }}
 
             ${{ github.event.inputs.notes }}
           files: ${{ steps.rename.outputs.apk }}
