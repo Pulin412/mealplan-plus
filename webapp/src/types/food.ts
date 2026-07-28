@@ -13,4 +13,5 @@ export interface ManualFoodForm {
   protein: string;
   carbs: string;
   fat: string;
+  category: string;
 }

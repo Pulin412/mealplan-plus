@@ -5,7 +5,7 @@ import { listFoods, createFood, deleteFood, toggleFavorite, searchFoodsOnline, t
 import { createScannedFood, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
 
-const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "" };
+const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "" };
 
 export function useFoods() {
   const [foods, setFoods]               = useState<FoodDto[]>([]);
@@ -18,6 +18,7 @@ export function useFoods() {
   const [viewMode, setViewMode]         = useState<FoodViewMode>("list");
   const [favOnly, setFavOnly]           = useState(false);
   const [sortOpen, setSortOpen]         = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   // row state
   const [expandedIds, setExpandedIds]   = useState<Set<number>>(new Set());
@@ -46,6 +47,7 @@ export function useFoods() {
   const filtered = useMemo(() => {
     let result = foods;
     if (favOnly) result = result.filter((f) => f.isFavorite);
+    if (categoryFilter) result = result.filter((f) => f.category === categoryFilter);
     if (query.trim()) {
       const q = query.toLowerCase();
       result = result.filter((f) =>
@@ -58,9 +60,15 @@ export function useFoods() {
       case "protein":  return [...result].sort((a, b) => b.proteinPer100 - a.proteinPer100);
       default:         return result;
     }
-  }, [foods, favOnly, query, sort]);
+  }, [foods, favOnly, categoryFilter, query, sort]);
 
   const favCount = useMemo(() => foods.filter((f) => f.isFavorite).length, [foods]);
+
+  // Distinct categories actually present — drives the filter chips.
+  const usedCategories = useMemo(
+    () => Array.from(new Set(foods.map((f) => f.category).filter((c): c is string => !!c))).sort(),
+    [foods]
+  );
 
   const toggleExpand = useCallback((id: number) => {
     setExpandedIds((prev) => {
@@ -179,6 +187,7 @@ export function useFoods() {
     sort, setSort, sortOpen, setSortOpen,
     viewMode, setViewMode,
     favOnly, setFavOnly,
+    categoryFilter, setCategoryFilter, usedCategories,
     expandedIds, toggleExpand,
     handleToggleFav, handleDelete,
     fanOpen, setFanOpen,

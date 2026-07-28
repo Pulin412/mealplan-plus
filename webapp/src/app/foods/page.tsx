@@ -9,6 +9,7 @@ import { NutritionNav } from "@/components/layout/NutritionNav";
 import { lookupBarcode, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodDto } from "@/lib/api/foods";
 import type { FoodSort } from "@/types/food";
+import { DEFAULT_FOOD_CATEGORIES } from "@/lib/foodCategories";
 
 // ─── token shortcuts ─────────────────────────────────────────────────────────
 const C = {
@@ -179,6 +180,24 @@ function ManualSheet({ open, form, isSaveEnabled, saving, onField, onSave, onClo
           value={form.carbs} onChange={(v) => onField("carbs", v)} className="flex-1" />
         <SheetField label="Fat" placeholder="g" inputMode="numeric"
           value={form.fat} onChange={(v) => onField("fat", v)} className="flex-1" />
+      </div>
+      <SheetField label="Category" placeholder="Pick one below or type your own"
+        value={form.category} onChange={(v) => onField("category", v)} className="mb-[8px]" />
+      <div className="flex flex-wrap gap-[6px] mb-5">
+        {DEFAULT_FOOD_CATEGORIES.map((cat) => {
+          const on = form.category === cat;
+          return (
+            <button key={cat} type="button" onClick={() => onField("category", on ? "" : cat)}
+              className="rounded-full px-3 py-[6px] text-[12px] font-semibold"
+              style={{
+                background: on ? C.teal : "transparent",
+                color:      on ? "#fff" : C.muted3,
+                border:     `1.5px solid ${on ? C.teal : C.border}`,
+              }}>
+              {cat}
+            </button>
+          );
+        })}
       </div>
       <button onClick={onSave} disabled={!isSaveEnabled || saving}
         className="w-full rounded-[12px] py-[14px] text-[13px] font-semibold transition-colors"
@@ -419,6 +438,7 @@ function FoodsPageInner() {
     foods, totalCount, favCount, loading, error,
     query, setQuery, sort, setSort, sortOpen, setSortOpen,
     viewMode, setViewMode, favOnly, setFavOnly,
+    categoryFilter, setCategoryFilter, usedCategories,
     expandedIds, toggleExpand,
     handleToggleFav, handleDelete,
     fanOpen, setFanOpen, activeSheet, openSheet, closeSheet,
@@ -485,6 +505,28 @@ function FoodsPageInner() {
           </div>
         </div>
       </div>
+
+      {/* Category filter chips — only shown once some foods have categories */}
+      {usedCategories.length > 0 && (
+        <div className="flex-none px-[14px] py-[10px] flex gap-[6px] overflow-x-auto"
+          style={{ background: C.surface, borderBottom: `1px solid #eef1f3` }}>
+          {usedCategories.map((cat) => {
+            const on = categoryFilter === cat;
+            return (
+              <button key={cat} type="button"
+                onClick={() => setCategoryFilter(on ? null : cat)}
+                className="rounded-full px-3 py-[6px] text-[12px] font-semibold whitespace-nowrap"
+                style={{
+                  background: on ? C.teal : "transparent",
+                  color:      on ? "#fff" : C.muted3,
+                  border:     `1.5px solid ${on ? C.teal : C.border}`,
+                }}>
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-[14px] pt-3" style={{ paddingBottom: 120 }}>

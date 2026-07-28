@@ -28,6 +28,7 @@ export async function createFood(form: ManualFoodForm): Promise<FoodDto> {
     body: JSON.stringify({
       name:          form.name,
       brand:         null,
+      category:      form.category.trim() || null,
       caloriesPer100: kcal,
       proteinPer100:  parseFloat(form.protein) || 0,
       carbsPer100:    parseFloat(form.carbs)   || 0,
