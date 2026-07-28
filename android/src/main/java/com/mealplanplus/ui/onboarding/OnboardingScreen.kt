@@ -137,17 +137,14 @@ private fun WelcomeStep() {
             Text("Let's get you set up — takes a minute.", color = MutedDark, fontSize = 13.sp)
         }
         listOf(
-            Triple("🍽️", "Log meals by slot", "Track calories & macros as you eat."),
-            Triple("📋", "Plan diets & groceries", "Build diets, get an aisle-grouped shopping list."),
-            Triple("💪", "Workouts & health", "Sessions, weight, glucose and BP in one place."),
-        ).forEach { (icon, title, sub) ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            "🍽️" to "Log meals by slot",
+            "📋" to "Plan diets & groceries",
+            "💪" to "Workouts & health",
+        ).forEach { (icon, title) ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(icon, fontSize = 24.sp)
                 Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(title, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text(sub, color = MutedDark, fontSize = 12.5.sp)
-                }
+                Text(title, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
