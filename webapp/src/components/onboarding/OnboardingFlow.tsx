@@ -121,9 +121,9 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
 
 function Welcome() {
   const rows = [
-    ["🍽️", "Log meals by slot", "Track calories & macros as you eat."],
-    ["📋", "Plan diets & groceries", "Build diets, get an aisle-grouped shopping list."],
-    ["💪", "Workouts & health", "Sessions, weight, glucose and BP in one place."],
+    ["🍽️", "Log meals by slot"],
+    ["📋", "Plan diets & groceries"],
+    ["💪", "Workouts & health"],
   ];
   return (
     <div>
@@ -132,13 +132,10 @@ function Welcome() {
         <div className="text-[13px] mt-1" style={{ color: C.muted3 }}>Let&apos;s get you set up — takes a minute.</div>
       </div>
       <div className="flex flex-col gap-4">
-        {rows.map(([icon, title, sub]) => (
-          <div key={title} className="flex items-start gap-3">
+        {rows.map(([icon, title]) => (
+          <div key={title} className="flex items-center gap-3">
             <span className="text-[24px]">{icon}</span>
-            <div>
-              <div className="text-[14px] font-semibold" style={{ color: C.ink }}>{title}</div>
-              <div className="text-[12.5px]" style={{ color: C.muted3 }}>{sub}</div>
-            </div>
+            <div className="text-[14px] font-semibold" style={{ color: C.ink }}>{title}</div>
           </div>
         ))}
       </div>
