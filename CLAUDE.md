@@ -3,10 +3,11 @@
 Offline-first meal planning & food logging. Log meals by slot (BREAKFAST/LUNCH/DINNER),
 track health metrics, browse/create diets, get shopping lists, smart "you haven't logged yet" notifications.
 
-**Three independent clients, one backend.** `android/`, `webapp/`, `backend/`. No shared client code.
+**Two independent clients, one backend.** `android/`, `webapp/`, `backend/`. No shared client code.
 Module-specific rules live in each module's own `CLAUDE.md` — this file holds only what applies to every module.
+The old `android/` + `webapp/` (pre-redesign) apps were removed — their reference docs live in `docs/legacy/`.
 
-> Deep docs (do NOT paste here, link only): `ROADMAP.md`, `docs/DATABASE_SCHEMA.md`, `docs/DEPLOYMENT.md`, `docs/BRANCHING.md`, `docs/openapi.yaml`.
+> Deep docs (do NOT paste here, link only): `docs/V2_PLAN.md`, `docs/V2_ARCHITECTURE.md`, `docs/DEPLOYMENT.md`, `docs/BRANCHING.md`, `docs/openapi.yaml`. Old-app docs archived under `docs/legacy/`.
 
 ## Commands
 | Module | Build / Test |
@@ -18,10 +19,10 @@ Module-specific rules live in each module's own `CLAUDE.md` — this file holds 
 ## Module map
 | Module | Role |
 |--------|------|
-| `android/` | Kotlin, Compose, Room, Hilt — self-contained production app |
+| `android/` | Kotlin, Compose, Room, Hilt — self-contained production app (redesign) |
 | `backend/` | Spring Boot 3.2.5 REST API; Firebase JWT auth, Neon.tech Postgres + pgvector — deployed on Cloud Run |
 | `webapp/`  | Next.js 14 + TypeScript PWA — deployed on Vercel |
-| `docs/`    | Schema, deployment, branching, OpenAPI |
+| `docs/`    | V2 plan/architecture, deployment, branching, OpenAPI (`docs/legacy/` = old-app archive) |
 | `scripts/` | One-off setup scripts |
 
 Live: API `https://mealplan-api-rfo22lhanq-ez.a.run.app` · Web `https://mealplan-plus.vercel.app` · health `…/actuator/health`.
@@ -29,7 +30,7 @@ Backend is the source of truth and shared layer for both clients.
 
 ## Hard rules — never break (cross-cutting)
 1. **Zero-billing guardrail.** IMPORTANT: never import Firestore, Cloud Functions, Firebase Storage, or Realtime DB. Firebase is Auth + Crashlytics + Remote Config + Analytics, free-tier only. A CI task fails the build if banned SDKs appear.
-2. **`shared/` KMP module is dead.** Do not add code there; `:shared` is removed from `settings.gradle.kts`.
+2. **`shared/` KMP module is dead.** Do not re-add it; `:shared` and the old `:android` are gone from `settings.gradle.kts`.
 3. **iOS is gone.** The iPhone client is the Next.js PWA (`webapp/`) on Safari. Do not re-add an `ios/` module.
 4. **YOU MUST confirm with the user before any commit or push.** No exceptions.
 5. Small, focused commits — one logical change each. Never a 40-file monster commit.
@@ -51,7 +52,7 @@ IMPORTANT: `develop` is the base/integration branch — treat it as primary, not
 - Anything touching billing posture (Firebase/GCP services, Cloud Run config).
 
 ## CI
-Path-filtered workflows on push to `develop`: `android.yml` (android + backend), `backend.yml`, `webapp.yml` (webapp + backend). `backend-deploy.yml` deploys to Cloud Run on PR merge to `main`. Vercel auto-deploys webapp on `main`.
+⚠️ **Pipeline pending review** — the workflows in `.github/` (`android.yml`, `webapp.yml`, `webapp-prune.yml`) were written for the old module layout and still reference the now-renamed paths; they need rewiring to the current `android/` + `webapp/` (formerly `android-v2`/`webapp-v2`). `backend.yml`, `backend-deploy.yml` (Cloud Run on merge to `main`) and Vercel deploy still apply. Keep `backend/**` in every client workflow's path filter so API changes rebuild the clients.
 
 ## Workflow
 - Make minimal changes; do not refactor unrelated code.

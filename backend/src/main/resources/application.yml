@@ -2,7 +2,10 @@ spring:
   application:
     name: mealplan-api
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:mealplandb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    # Local default is H2 (prod overrides DB_URL with Neon Postgres). The INIT clause teaches
+    # H2 the Postgres-only enum types (tag_entity_type, and the user enums) so ddl-auto can
+    # create those tables locally; on prod the real Postgres enums are used.
+    url: ${DB_URL:jdbc:h2:mem:mealplandb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;INIT=CREATE DOMAIN IF NOT EXISTS tag_entity_type AS varchar(32)\;CREATE DOMAIN IF NOT EXISTS activity_level_enum AS varchar(32)\;CREATE DOMAIN IF NOT EXISTS gender_enum AS varchar(16)\;CREATE DOMAIN IF NOT EXISTS goal_type_enum AS varchar(24)\;CREATE DOMAIN IF NOT EXISTS units_enum AS varchar(16)}
     username: ${DB_USER:sa}
     password: ${DB_PASSWORD:}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
@@ -20,8 +23,8 @@ spring:
     enabled: false
   jackson:
     serialization:
-      write-dates-as-timestamps: true
-      write-date-timestamps-as-nanoseconds: false
+      # ISO-8601 strings on the wire — matches the `date-time` / `date` types declared in docs/openapi.yaml.
+      write-dates-as-timestamps: false
   ai:
     anthropic:
       api-key: ${ANTHROPIC_API_KEY:}
@@ -43,6 +46,16 @@ server:
 
 firebase:
   project-id: ${FIREBASE_PROJECT_ID:mealplan-plus}
+
+# App-specific config. Dev defaults here; the `prod` profile tightens them.
+app:
+  cors:
+    # Comma-separated allowed origins. Dev: localhost + Vercel previews. Prod overrides to the prod origin.
+    allowed-origins: "http://localhost:*,https://*.vercel.app,https://mealplan-plus.vercel.app"
+  swagger:
+    # Basic-auth credentials for Swagger/OpenAPI — only enforced by the `prod` profile.
+    user: ${SWAGGER_USER:dev}
+    password: ${SWAGGER_PASSWORD:dev}
 
 springdoc:
   api-docs:

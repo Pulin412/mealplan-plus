@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.sync
 
+import com.mealplanplus.api.generated.model.TombstoneDto
 import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID
@@ -18,10 +19,8 @@ class Tombstone(
     val deletedAt: Instant = Instant.now()
 )
 
-data class TombstoneDto(
-    val entityType: String,
-    val serverId: UUID,
-    val deletedAt: Instant
+fun Tombstone.toDto() = TombstoneDto(
+    entityType = entityType,
+    serverId   = serverId,
+    deletedAt  = deletedAt
 )
-
-fun Tombstone.toDto() = TombstoneDto(entityType, serverId, deletedAt)

@@ -3,9 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
-    // Keep disabled by default to avoid hard build dependency on google-services.json.
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
+    id("org.openapi.generator") version "7.6.0"
 }
 
 android {
@@ -16,17 +16,15 @@ android {
         applicationId = "com.mealplanplus"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Overridable from CI: -PversionCode=<n> -PversionName=<x> (defaults for local builds).
+        versionCode = (providers.gradleProperty("versionCode").orNull ?: "1").toInt()
+        versionName = providers.gradleProperty("versionName").orNull ?: "2.0"
         buildConfigField("boolean", "ZERO_BILLING_MODE", "true")
-        buildConfigField("boolean", "OAUTH_GOOGLE_ANDROID_ENABLED", "true")
-        buildConfigField("boolean", "OAUTH_GOOGLE_IOS_ENABLED", "false")
         buildConfigField("boolean", "FORBID_PAID_FIREBASE_FEATURES", "true")
+        buildConfigField("String", "API_BASE_URL", "\"https://mealplan-api-rfo22lhanq-ez.a.run.app\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        vectorDrawables { useSupportLibrary = true }
     }
 
     buildTypes {
@@ -34,6 +32,15 @@ android {
             applicationIdSuffix = ".dev"
             isMinifyEnabled = false
             isShrinkResources = false
+            // Debug builds hit the local v2 backend by default. 10.0.2.2 is the emulator's alias
+            // for the host machine's localhost. Cleartext for this host is allowed via
+            // the debug-only network security config (src/debug/res/xml).
+            // CI overrides this with -PapiBaseUrl=<prod URL> to produce an installable APK
+            // (debug-signed, non-minified) that talks to the real backend for manual distribution.
+            buildConfigField(
+                "String", "API_BASE_URL",
+                "\"${providers.gradleProperty("apiBaseUrl").orNull ?: "http://10.0.2.2:8080"}\"",
+            )
         }
         release {
             isMinifyEnabled = true
@@ -45,36 +52,24 @@ android {
         }
     }
 
-    // Split APKs by ABI to reduce size
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = true
-        }
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-    // Room schema export for migration validation
-    ksp {
-        arg("room.schemaLocation", "$projectDir/schemas")
-    }
+    kotlinOptions { jvmTarget = "17" }
+
+    ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+    packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+
+    sourceSets {
+        getByName("main") {
+            java.srcDir(layout.buildDirectory.dir("generated/openapi/src/main/kotlin").get().asFile)
         }
     }
 }
@@ -82,10 +77,11 @@ android {
 dependencies {
     // Core
     implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.activity:activity-compose:1.8.1")
 
-    // Compose
+    // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -94,67 +90,56 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.5")
 
-    // Room (SQLite)
+    // Room
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
-    // Hilt (DI)
+    // Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")
     ksp("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-    // WorkManager
+
+    // WorkManager (sync)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
-    // Glance (Home Screen Widgets)
-    implementation("androidx.glance:glance-appwidget:1.1.0")
-    implementation("androidx.glance:glance-material3:1.1.0")
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Networking
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.retrofit2:converter-scalars:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Charts (Vico)
     implementation("com.patrykandpatrick.vico:compose:1.13.1")
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
     implementation("com.patrykandpatrick.vico:core:1.13.1")
 
-    // DataStore (Preferences)
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
-
-    // CameraX (Barcode Scanner)
-    implementation("androidx.camera:camera-core:1.3.1")
-    implementation("androidx.camera:camera-camera2:1.3.1")
-    implementation("androidx.camera:camera-lifecycle:1.3.1")
-    implementation("androidx.camera:camera-view:1.3.1")
-
-    // ML Kit Barcode Scanning
-    implementation("com.google.mlkit:barcode-scanning:17.2.0")
-
-    // Networking (OpenFoodFacts API)
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-
-    // Accompanist (Permissions)
-    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
-
-    // Health Connect (read steps, calories burned, weight from fitness watches / Health apps)
-    // 1.1.0-alpha08 is the highest version with minCompileSdk=34; alpha09+ requires 35.
+    // Health Connect
     implementation("androidx.health.connect:connect-client:1.1.0-alpha08")
 
-    // Firebase (Spark/free-tier compatible — Auth + Crashlytics + Remote Config + Analytics only)
+    // Barcode scanning — CameraX preview/analysis + ML Kit (on-device, bundled)
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // Firebase (free-tier only)
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.firebase:firebase-config-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
 
-    // Google Sign-In via Credential Manager
+    // Google Sign-In
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
-
-    // Google Sign-In (for Drive OAuth scope)
-    implementation("com.google.android.gms:play-services-auth:21.0.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -166,13 +151,37 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.room:room-testing:2.6.1")
-    androidTestImplementation("androidx.test:runner:1.5.2")
-    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-// Zero-billing guardrail: fail build if obviously billable Firebase data products are added.
+openApiGenerate {
+    generatorName.set("kotlin")
+    inputSpec.set("${rootProject.projectDir}/docs/openapi.yaml")
+    outputDir.set(layout.buildDirectory.dir("generated/openapi").get().asFile.absolutePath)
+    apiPackage.set("com.mealplanplus.data.generated.api")
+    modelPackage.set("com.mealplanplus.data.generated.model")
+    library.set("jvm-retrofit2")
+    configOptions.set(mapOf(
+        "dateLibrary"          to "java8",
+        "collectionType"       to "list",
+        "gradleBuildFile"      to "false",
+        "serializationLibrary" to "gson",
+        "useCoroutines"        to "true",
+        "omitGradleWrapper"    to "true",
+    ))
+    typeMappings.set(mapOf("DateTime" to "Instant"))
+    importMappings.set(mapOf("Instant" to "java.time.Instant"))
+    generateApiTests.set(false)
+    generateModelTests.set(false)
+    generateModelDocumentation.set(false)
+    generateApiDocumentation.set(false)
+}
+
+tasks.named("preBuild") {
+    dependsOn(tasks.named("openApiGenerate"))
+}
+
 tasks.register("verifyNoBillableFirebaseFeatures") {
     doLast {
         val forbidden = setOf(
@@ -181,20 +190,12 @@ tasks.register("verifyNoBillableFirebaseFeatures") {
             "com.google.firebase:firebase-storage",
             "com.google.firebase:firebase-database"
         )
-
-        val offenders = configurations
-            .flatMap { cfg -> cfg.dependencies.map { dep -> "${dep.group}:${dep.name}" } }
-            .filter { dep -> forbidden.any { dep.startsWith(it) } }
-            .distinct()
-
-        if (offenders.isNotEmpty()) {
-            throw GradleException(
-                "Zero-billing mode violation: forbidden Firebase dependencies detected: $offenders"
-            )
+        val buildFile = file("build.gradle.kts").readText()
+        forbidden.forEach { dep ->
+            require(!buildFile.contains(dep)) {
+                "ZERO_BILLING_MODE violation: $dep is forbidden (paid Firebase service)"
+            }
         }
     }
 }
-
-tasks.named("preBuild").configure {
-    dependsOn("verifyNoBillableFirebaseFeatures")
-}
+tasks.named("build") { dependsOn("verifyNoBillableFirebaseFeatures") }

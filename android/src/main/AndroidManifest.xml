@@ -1,26 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Required to post notifications on Android 13+ (API 33). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Required for exact AlarmManager alarms on API 31+ (user grants via Settings). -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <!-- Re-schedule alarms after device reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-
-    <!-- Health Connect: read activity data (steps, calories burned, weight) from health apps/watches -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
 
-    <!--
-        Required on Android 11–13 so PackageManager can resolve the Health Connect companion app
-        and the permission-request intent. On Android 14+ HC is part of the OS; not needed there.
-    -->
+    <!-- Android 11–13 so PackageManager can resolve the Health Connect companion app + rationale intent. -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
@@ -29,35 +20,49 @@
     </queries>
 
     <application
-        android:name=".MealPlanApp"
+        android:name=".MealPlanApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.MealPlanPlus">
+        android:label="MealPlan+"
+        android:theme="@style/Theme.MealPlanPlus"
+        android:supportsRtl="true">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.MealPlanPlus">
+            android:theme="@style/Theme.MealPlanPlus.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Health Connect (Android 9–13 / HC companion app) -->
+            <!-- Health Connect permission rationale (Android 9–13 / companion app). -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
-            <!-- Health Connect (Android 14+ / built-in OS — required or getGrantedPermissions() throws) -->
+            <!-- Health Connect permission usage (Android 14+ / built-in — required or getGrantedPermissions() throws). -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity>
 
+        <!-- Fires reminder notifications when an AlarmManager alarm goes off. -->
+        <receiver
+            android:name=".receiver.NotificationReceiver"
+            android:exported="false" />
+
+        <!-- Re-arms reminder alarms after a device reboot. -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Shares exported CSV files from cacheDir via a content:// URI (no storage permission). -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
@@ -65,66 +70,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- ── Notification Alarms ────────────────────────────────────────── -->
-
-        <!-- Receives exact alarm broadcasts and posts the notification. -->
-        <receiver
-            android:name=".notification.NotificationAlarmReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.mealplanplus.ACTION_NOTIFICATION_ALARM" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Re-schedules notification alarms after device reboot. -->
-        <receiver
-            android:name=".notification.BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- ── Home Screen Widgets ──────────────────────────────────────── -->
-
-        <!-- Mini Calendar Widget -->
-        <receiver
-            android:name=".widget.CalendarWidgetReceiver"
-            android:exported="true"
-            android:label="@string/widget_calendar_description">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_calendar_info" />
-        </receiver>
-
-        <!-- Today's Plan Widget -->
-        <receiver
-            android:name=".widget.TodayPlanWidgetReceiver"
-            android:exported="true"
-            android:label="@string/widget_today_plan_description">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_today_plan_info" />
-        </receiver>
-
-        <!-- Today's Diet Summary Widget -->
-        <receiver
-            android:name=".widget.DietSummaryWidgetReceiver"
-            android:exported="true"
-            android:label="@string/widget_diet_summary_description">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_diet_summary_info" />
-        </receiver>
     </application>
 
 </manifest>

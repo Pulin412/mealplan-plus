@@ -1,10 +1,12 @@
 package com.mealplanplus.api.domain.food
 
+import com.mealplanplus.api.generated.model.FoodDto
+import com.mealplanplus.api.generated.model.FoodPage
+import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.domain.sync.TombstoneService
 import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -37,11 +39,12 @@ class FoodService(
     private fun Food.toDtoWithPrefs(favIds: Set<Long>): FoodDto =
         toDto().copy(isFavorite = if (isSystemFood) id in favIds else isFavorite)
 
-    fun list(firebaseUid: String): List<FoodDto> {
+    fun list(firebaseUid: String, favoritesOnly: Boolean = false): List<FoodDto> {
         val systemFoods = getSystemFoods()
         val userFoods   = repo.findByFirebaseUid(firebaseUid)
-        val favIds = systemFavIds(firebaseUid)
-        return (systemFoods + userFoods).map { it.toDtoWithPrefs(favIds) }
+        val favIds      = systemFavIds(firebaseUid)
+        val all = (systemFoods + userFoods).map { it.toDtoWithPrefs(favIds) }
+        return if (favoritesOnly) all.filter { it.isFavorite == true } else all
     }
 
     fun get(id: Long, firebaseUid: String): FoodDto {
@@ -53,15 +56,52 @@ class FoodService(
     @Transactional
     fun create(dto: FoodDto, firebaseUid: String): FoodDto {
         val food = Food(
-            firebaseUid = firebaseUid, name = dto.name, brand = dto.brand,
-            barcode = dto.barcode, caloriesPer100 = dto.caloriesPer100,
-            proteinPer100 = dto.proteinPer100, carbsPer100 = dto.carbsPer100,
-            fatPer100 = dto.fatPer100, gramsPerPiece = dto.gramsPerPiece,
-            gramsPerCup = dto.gramsPerCup, gramsPerTbsp = dto.gramsPerTbsp,
-            gramsPerTsp = dto.gramsPerTsp, glycemicIndex = dto.glycemicIndex,
-            isFavorite = dto.isFavorite
-        ).also { if (dto.serverId != null) it.serverId = dto.serverId }
+            firebaseUid    = firebaseUid,
+            name           = dto.name,
+            brand          = dto.brand,
+            barcode        = dto.barcode,
+            caloriesPer100 = dto.caloriesPer100,
+            proteinPer100  = dto.proteinPer100,
+            carbsPer100    = dto.carbsPer100,
+            fatPer100      = dto.fatPer100,
+            unit           = (dto.unit ?: FoodUnit.GRAM).value,
+            gramsPerPiece  = dto.gramsPerPiece,
+            gramsPerCup    = dto.gramsPerCup,
+            gramsPerTbsp   = dto.gramsPerTbsp,
+            gramsPerTsp    = dto.gramsPerTsp,
+            glycemicIndex  = dto.glycemicIndex,
+            isFavorite     = dto.isFavorite ?: false,
+            verified       = dto.verified ?: false
+        ).also { if (dto.serverId != null) it.serverId = UUID.fromString(dto.serverId.toString()) }
         return repo.save(food).toDto()
+    }
+
+    @Transactional
+    fun update(id: Long, dto: FoodDto, firebaseUid: String): FoodDto {
+        val food = repo.findById(id).orElseThrow()
+        if (food.firebaseUid != firebaseUid)
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        val updated = Food(
+            id             = food.id,
+            firebaseUid    = food.firebaseUid,
+            name           = dto.name,
+            brand          = dto.brand,
+            barcode        = dto.barcode,
+            caloriesPer100 = dto.caloriesPer100,
+            proteinPer100  = dto.proteinPer100,
+            carbsPer100    = dto.carbsPer100,
+            fatPer100      = dto.fatPer100,
+            unit           = (dto.unit ?: FoodUnit.GRAM).value,
+            gramsPerPiece  = dto.gramsPerPiece,
+            gramsPerCup    = dto.gramsPerCup,
+            gramsPerTbsp   = dto.gramsPerTbsp,
+            gramsPerTsp    = dto.gramsPerTsp,
+            glycemicIndex  = dto.glycemicIndex,
+            isSystemFood   = food.isSystemFood,
+            isFavorite     = food.isFavorite,
+            verified       = dto.verified ?: false
+        ).also { it.serverId = food.serverId }
+        return repo.save(updated).toDto()
     }
 
     @Transactional
@@ -69,6 +109,15 @@ class FoodService(
         val food = repo.findById(id).orElseThrow()
         if (food.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        repo.delete(food)
+        tombstones.record(firebaseUid, "food", food.serverId)
+    }
+
+    /** Sync-push delete: remove by stable serverId and record a tombstone. No-op if absent/foreign. */
+    @Transactional
+    fun deleteByServerId(serverId: UUID, firebaseUid: String) {
+        val food = repo.findByServerId(serverId) ?: return
+        if (food.firebaseUid != firebaseUid) return
         repo.delete(food)
         tombstones.record(firebaseUid, "food", food.serverId)
     }
@@ -97,10 +146,17 @@ class FoodService(
         }
     }
 
-    fun search(query: String, firebaseUid: String, pageable: Pageable): Page<FoodDto> {
+    fun search(query: String, firebaseUid: String, pageable: Pageable): FoodPage {
         val favIds = systemFavIds(firebaseUid)
-        return repo.searchByNameOrBrand(firebaseUid, query.trim(), pageable)
+        val page = repo.searchByNameOrBrand(firebaseUid, query.trim(), pageable)
             .map { it.toDtoWithPrefs(favIds) }
+        return FoodPage(
+            content       = page.content,
+            totalElements = page.totalElements,
+            totalPages    = page.totalPages,
+            number        = page.number,
+            propertySize  = page.size
+        )
     }
 
     fun since(firebaseUid: String, since: Instant): List<FoodDto> {
@@ -111,26 +167,60 @@ class FoodService(
     }
 
     @Transactional
-    @CacheEvict(value = ["system-foods"], condition = "#dto.isSystemFood")
+    @CacheEvict(value = ["system-foods"], condition = "#dto.isSystemFood == true")
     fun upsert(dto: FoodDto, firebaseUid: String): FoodDto {
-        val existing = dto.serverId?.let { repo.findByServerId(it) }
+        val serverId = dto.serverId?.let { UUID.fromString(it.toString()) }
+        val existing = serverId?.let { repo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) {
             val favIds = if (existing.isSystemFood) systemFavIds(firebaseUid) else emptySet()
             return existing.toDtoWithPrefs(favIds)
         }
         val updated = Food(
-            id = existing.id, firebaseUid = existing.firebaseUid,
-            name = dto.name, brand = dto.brand, barcode = dto.barcode,
-            caloriesPer100 = dto.caloriesPer100, proteinPer100 = dto.proteinPer100,
-            carbsPer100 = dto.carbsPer100, fatPer100 = dto.fatPer100,
-            gramsPerPiece = dto.gramsPerPiece, gramsPerCup = dto.gramsPerCup,
-            gramsPerTbsp = dto.gramsPerTbsp, gramsPerTsp = dto.gramsPerTsp,
-            glycemicIndex = dto.glycemicIndex, isSystemFood = existing.isSystemFood,
-            isFavorite = if (existing.isSystemFood) existing.isFavorite else dto.isFavorite
+            id             = existing.id,
+            firebaseUid    = existing.firebaseUid,
+            name           = dto.name,
+            brand          = dto.brand,
+            barcode        = dto.barcode,
+            caloriesPer100 = dto.caloriesPer100,
+            proteinPer100  = dto.proteinPer100,
+            carbsPer100    = dto.carbsPer100,
+            fatPer100      = dto.fatPer100,
+            unit           = (dto.unit ?: FoodUnit.GRAM).value,
+            gramsPerPiece  = dto.gramsPerPiece,
+            gramsPerCup    = dto.gramsPerCup,
+            gramsPerTbsp   = dto.gramsPerTbsp,
+            gramsPerTsp    = dto.gramsPerTsp,
+            glycemicIndex  = dto.glycemicIndex,
+            isSystemFood   = existing.isSystemFood,
+            isFavorite     = if (existing.isSystemFood) existing.isFavorite else dto.isFavorite ?: false,
+            verified       = dto.verified ?: false
         ).also { it.serverId = existing.serverId }
         val saved = repo.save(updated)
         val favIds = if (saved.isSystemFood) systemFavIds(firebaseUid) else emptySet()
         return saved.toDtoWithPrefs(favIds)
     }
 }
+
+fun Food.toDto() = FoodDto(
+    id            = id,
+    serverId      = serverId,
+    firebaseUid   = firebaseUid,
+    name          = name,
+    brand         = brand,
+    barcode       = barcode,
+    caloriesPer100 = caloriesPer100,
+    proteinPer100 = proteinPer100,
+    carbsPer100   = carbsPer100,
+    fatPer100     = fatPer100,
+    unit          = FoodUnit.forValue(unit),
+    gramsPerPiece = gramsPerPiece,
+    gramsPerCup   = gramsPerCup,
+    gramsPerTbsp  = gramsPerTbsp,
+    gramsPerTsp   = gramsPerTsp,
+    glycemicIndex = glycemicIndex,
+    isSystemFood  = isSystemFood,
+    isFavorite    = isFavorite,
+    verified      = verified,
+    updatedAt     = updatedAt
+)

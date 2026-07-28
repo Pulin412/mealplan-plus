@@ -13,10 +13,6 @@ class Exercise(
     val firebaseUid: String? = null,
 
     val name: String = "",
-    val category: String = "STRENGTH",
-    val muscleGroup: String? = null,
-    val equipment: String? = null,
     val description: String? = null,
-    val videoLink: String? = null,
     val isSystem: Boolean = false
 ) : SyncableEntity()

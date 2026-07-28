@@ -2,9 +2,7 @@ package com.mealplanplus.api.domain.plan
 
 import com.mealplanplus.api.domain.SyncableEntity
 import jakarta.persistence.*
-import java.time.Instant
 import java.time.LocalDate
-import java.util.UUID
 
 @Entity
 @Table(
@@ -16,25 +14,15 @@ class DayPlan(
     val id: Long = 0,
     val firebaseUid: String = "",
     val date: LocalDate = LocalDate.now(),
-    val dietId: Long = 0
+    val dietId: Long? = null
 ) : SyncableEntity()
 
-// ── DTO ──────────────────────────────────────────────────────────────────────
-
-data class DayPlanDto(
+@Entity
+@Table(name = "planned_workouts")
+class PlannedWorkout(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
-    val serverId: UUID? = null,
-    val firebaseUid: String = "",
-    val date: String = "",          // ISO-8601 yyyy-MM-dd
-    val dietId: Long = 0,
-    val updatedAt: Instant? = null
-)
-
-fun DayPlan.toDto() = DayPlanDto(
-    id          = id,
-    serverId    = serverId,
-    firebaseUid = firebaseUid,
-    date        = date.toString(),
-    dietId      = dietId,
-    updatedAt   = updatedAt
+    val dayPlanId: Long = 0,
+    val workoutTemplateId: Long? = null,
+    val activityName: String = ""
 )

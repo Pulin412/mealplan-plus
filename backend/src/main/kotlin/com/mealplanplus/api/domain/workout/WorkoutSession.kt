@@ -25,10 +25,19 @@ class TemplateExercise(
     val templateId: Long = 0,
     val exerciseId: Long = 0,
     val orderIndex: Int = 0,
-    val targetSets: Int = 3,
-    val targetReps: Int? = null,
-    val targetWeightKg: Double? = null,
     val notes: String? = null
+)
+
+/** One target set within a [TemplateExercise] — per-set reps + optional weight. */
+@Entity
+@Table(name = "template_exercise_sets")
+class TemplateExerciseSet(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+    val templateExerciseId: Long = 0,
+    val setNumber: Int = 0,
+    val reps: Int? = null,
+    val weightKg: Double? = null
 )
 
 @Entity

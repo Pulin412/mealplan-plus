@@ -1,127 +1,54 @@
 package com.mealplanplus.data.repository
 
-import com.mealplanplus.data.local.DietDao
-import com.mealplanplus.data.local.TagDao
-import com.mealplanplus.data.model.*
+import com.mealplanplus.data.local.dao.DietDao
+import com.mealplanplus.data.local.dao.FoodDao
+import com.mealplanplus.data.local.dao.MealDao
+import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.DietEntry
+import com.mealplanplus.data.model.DietTag
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Local-only diets. Reads combine the diets table with the meal + food caches so each
+ * entry resolves to a real name + macros (see [Diet.resolve]). Writes are optimistic +
+ * marked dirty for [com.mealplanplus.data.sync.SyncManager].
+ */
 @Singleton
 class DietRepository @Inject constructor(
     private val dietDao: DietDao,
-    private val tagDao: TagDao,
-    private val mealRepository: MealRepository
+    private val mealDao: MealDao,
+    private val foodDao: FoodDao,
 ) {
-    fun getDietsForUser(userId: Long): Flow<List<Diet>> = dietDao.getDietsForUser(userId)
-
-    fun getDietsWithFullSummaryForUser(userId: Long): Flow<List<DietFullSummary>> =
-        dietDao.getDietsWithFullSummaryForUser(userId)
-
-    fun getFavouriteDietsForUser(userId: Long): Flow<List<Diet>> =
-        dietDao.getFavouriteDietsForUser(userId)
-
-    suspend fun getDietCountForUser(userId: Long): Int = dietDao.getDietCountForUser(userId)
-
-    /** Unfiltered — for seeder / importer use only. */
-    fun getAllDiets(): Flow<List<Diet>> = dietDao.getAllDiets()
-
-    fun getDietsWithFullSummary(): Flow<List<DietFullSummary>> = dietDao.getDietsWithFullSummary()
-
-    suspend fun getDietById(id: Long): Diet? = dietDao.getDietById(id)
-
-    suspend fun getTagsForDiet(dietId: Long): List<Tag> = tagDao.getTagsForDiet(dietId)
-
-    suspend fun getTagsForDiets(dietIds: List<Long>): Map<Long, List<Tag>> {
-        if (dietIds.isEmpty()) return emptyMap()
-        return tagDao.getTagsForDiets(dietIds)
-            .groupBy({ it.dietId }, { it.toTag() })
-    }
-
-    suspend fun getDietFoodNamesAndSlots(
-        dietIds: List<Long>
-    ): Pair<Map<Long, List<String>>, Map<Long, Set<String>>> {
-        if (dietIds.isEmpty()) return emptyMap<Long, List<String>>() to emptyMap()
-        val foodRows = dietDao.getFoodNamesForDiets(dietIds)
-        val mealRows = dietDao.getDietMealsForDiets(dietIds)
-        val foodNames = foodRows.groupBy({ it.dietId }, { it.foodName })
-        val slots = mealRows.groupBy({ it.dietId }, { it.slotType })
-            .mapValues { (_, v) -> v.toSet() }
-        return foodNames to slots
-    }
-
-    suspend fun getDietWithMeals(dietId: Long): DietWithMeals? {
-        val diet = dietDao.getDietById(dietId) ?: return null
-        val dietMeals = dietDao.getDietMeals(dietId)
-        val mealsMap = mutableMapOf<String, MealWithFoods?>()
-        for (dm in dietMeals) {
-            val isCustom = dm.slotType.startsWith("CUSTOM:")
-            // Skip null-mealId records for default slots — they're stale placeholders.
-            // Custom slots (CUSTOM:*) keep their placeholder so they remain visible.
-            if (dm.mealId == null && !isCustom) continue
-            val mealWithFoods = dm.mealId?.let { mealRepository.getMealWithFoods(it) }
-            // Skip default slots where the meal row was deleted from the meals table.
-            if (mealWithFoods == null && dm.mealId != null && !isCustom) continue
-            mealsMap[dm.slotType] = mealWithFoods
+    fun getDiets(): Flow<List<DietUi>> =
+        combine(dietDao.getAllDiets(), mealDao.getAllMeals(), foodDao.getAllFoods()) { diets, meals, foods ->
+            val foodsById = foods.associateBy { it.id }
+            val mealsById = meals.associate { it.id to it.resolve(foodsById) }
+            diets.map { it.resolve(mealsById, foodsById) }
         }
-        val instructionsMap = dietMeals.associate { it.slotType to it.instructions }
-        return DietWithMeals(diet, mealsMap, instructionsMap)
+
+    suspend fun create(name: String, entries: List<DietEntry>, tags: List<DietTag> = emptyList(), targetCalories: Double? = null) {
+        dietDao.upsert(Diet(name = name.trim(), entries = entries, tags = tags, targetCalories = targetCalories, dirty = true))
     }
 
-    suspend fun insertDiet(diet: Diet): Long = dietDao.insertDiet(diet)
-
-    suspend fun updateDiet(diet: Diet) = dietDao.updateDiet(diet)
-
-    suspend fun toggleFavourite(diet: Diet) = dietDao.setFavourite(diet.id, !diet.isFavourite)
-
-    fun getFavouriteDiets(): Flow<List<Diet>> = dietDao.getFavouriteDiets()
-
-    suspend fun deleteDiet(diet: Diet) = dietDao.deleteDiet(diet)
-
-    suspend fun setMealForSlot(dietId: Long, slotType: String, mealId: Long?) {
-        if (mealId == null && !slotType.startsWith("CUSTOM:")) {
-            // Clearing a default slot — remove the record entirely so it stops
-            // appearing as an empty slot in daily log planning.
-            dietDao.removeMealFromDiet(dietId, slotType)
-        } else {
-            val existing = dietDao.getDietMeal(dietId, slotType)
-            dietDao.insertDietMeal(DietMeal(dietId, slotType, mealId, existing?.instructions))
-        }
+    /** Overwrite an existing diet's name/entries/tags (keeps id + favourite); marks dirty. */
+    suspend fun update(existing: Diet, name: String, entries: List<DietEntry>, tags: List<DietTag>) {
+        dietDao.upsert(existing.copy(
+            name = name.trim(), entries = entries, tags = tags,
+            updatedAt = System.currentTimeMillis(), dirty = true,
+        ))
     }
 
-    suspend fun updateSlotInstructions(dietId: Long, slotType: String, instructions: String?) {
-        val existing = dietDao.getDietMeal(dietId, slotType)
-        if (existing != null) {
-            dietDao.updateDietMealInstructions(dietId, slotType, instructions)
-        } else if (slotType.startsWith("CUSTOM:")) {
-            // Only create placeholder records for custom slots, not for default slots
-            // without a meal assigned (those would show as empty in daily log).
-            dietDao.insertDietMeal(DietMeal(dietId, slotType, null, instructions))
-        }
+    suspend fun toggleFavorite(diet: Diet) {
+        dietDao.upsert(
+            diet.copy(isFavorite = !diet.isFavorite, updatedAt = System.currentTimeMillis(), dirty = true)
+        )
     }
 
-    suspend fun removeMealFromSlot(dietId: Long, slotType: String) {
-        dietDao.removeMealFromDiet(dietId, slotType)
+    suspend fun delete(diet: Diet) {
+        val now = System.currentTimeMillis()
+        dietDao.upsert(diet.copy(deletedAt = now, updatedAt = now, dirty = true))
     }
-
-    suspend fun duplicateDiet(dietId: Long, newName: String): Long {
-        val original = getDietWithMeals(dietId) ?: return -1
-        val newDiet = original.diet.copy(id = 0, name = newName)
-        val newDietId = dietDao.insertDiet(newDiet)
-
-        val dietMeals = dietDao.getDietMeals(dietId)
-        dietDao.insertDietMeals(dietMeals.map { it.copy(dietId = newDietId) })
-
-        val tags = tagDao.getTagsForDiet(dietId)
-        tagDao.insertDietTags(tags.map { DietTagCrossRef(newDietId, it.id) })
-
-        return newDietId
-    }
-
-    suspend fun setDietTags(dietId: Long, tagIds: List<Long>) {
-        tagDao.clearDietTags(dietId)
-        tagDao.insertDietTags(tagIds.map { DietTagCrossRef(dietId, it) })
-    }
-
-    suspend fun getDietCount(): Int = dietDao.getDietCount()
 }

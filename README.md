@@ -3,8 +3,9 @@
 Offline-first meal planning, nutrition logging, and workout tracking app.  
 Android app + Spring Boot backend + Next.js PWA (iPhone via Add to Home Screen).
 
-> **Roadmap:** See [ROADMAP.md](ROADMAP.md) for the full phase plan and GitHub issue tracking.  
-> **Design spec:** Open `design-future.html` in a browser — interactive mockups for all screens.
+> **Redesign (current):** the v2 clients are `android/` + `webapp/`. Live plan in [docs/V2_PLAN.md](docs/V2_PLAN.md).
+> **Legacy:** old-app roadmap/design/docs are archived under [docs/legacy/](docs/legacy/) (e.g. `docs/legacy/ROADMAP.md`, `docs/legacy/design-future.html`).
+> ⚠️ This README still describes the old app structure and needs a rewrite for v2.
 
 ---
 
@@ -112,7 +113,7 @@ The app uses Firebase Auth only (free tier — no Firestore, no Storage, no Clou
 3. Add a **Web app** → copy the config into `webapp/.env.local` (see `webapp/.env.local.example`)
 4. Enable **Authentication → Sign-in methods → Email/Password** and **Google**
 
-Full details: [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+Full details: [docs/legacy/FIREBASE_SETUP.md](docs/legacy/FIREBASE_SETUP.md)
 
 ### 3. Android
 
@@ -184,10 +185,10 @@ Never push directly to `main`. Every production change goes through a PR.
 | File | Purpose |
 |---|---|
 | `CLAUDE.md` | Full project context for AI assistant |
-| `ROADMAP.md` | Phase plan, GitHub issues, current status |
-| `docs/DATABASE_SCHEMA.md` | Full Room schema, ER diagram, migration history |
+| `docs/legacy/ROADMAP.md` | Phase plan, GitHub issues (old-app archive) |
+| `docs/legacy/DATABASE_SCHEMA.md` | Old-app Room schema, ER diagram, migration history |
 | `docs/BRANCHING.md` | Branching strategy and PR workflow |
-| `design-future.html` | Interactive design mockups — open in browser |
+| `docs/legacy/design-future.html` | Old interactive design mockups (archive) |
 | `docs/openapi.yaml` | Backend OpenAPI spec — source of truth for API types |
 
 ---

@@ -1,22 +1,33 @@
 package com.mealplanplus.api.domain.meal
 
-import io.swagger.v3.oas.annotations.tags.Tag
-import jakarta.validation.Valid
+import com.mealplanplus.api.generated.api.MealsApi
+import com.mealplanplus.api.generated.model.MealDto
 import org.springframework.http.HttpStatus
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/v1/meals")
-@Tag(name = "Meals")
-class MealController(private val service: MealService) {
+class MealController(private val service: MealService) : MealsApi {
 
-    @GetMapping fun list(auth: Authentication) = service.list(auth.name)
-    @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id)
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody dto: MealDto, auth: Authentication) = service.create(dto, auth.name)
-    @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @Valid @RequestBody dto: MealDto, auth: Authentication) = service.update(id, dto, auth.name)
-    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+    override fun listMeals(favorites: Boolean): ResponseEntity<List<MealDto>> =
+        ResponseEntity.ok(service.list(currentUid(), favoritesOnly = favorites))
+
+    override fun getMeal(id: Long): ResponseEntity<MealDto> =
+        ResponseEntity.ok(service.get(id, currentUid()))
+
+    override fun createMeal(mealDto: MealDto): ResponseEntity<MealDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.create(mealDto, currentUid()))
+
+    override fun updateMeal(id: Long, mealDto: MealDto): ResponseEntity<MealDto> =
+        ResponseEntity.ok(service.update(id, mealDto, currentUid()))
+
+    override fun deleteMeal(id: Long): ResponseEntity<Unit> {
+        service.delete(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    override fun toggleMealFavorite(id: Long): ResponseEntity<MealDto> =
+        ResponseEntity.ok(service.toggleFavorite(id, currentUid()))
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

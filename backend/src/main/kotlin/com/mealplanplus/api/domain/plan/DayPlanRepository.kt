@@ -7,8 +7,15 @@ import java.util.UUID
 
 interface DayPlanRepository : JpaRepository<DayPlan, Long> {
     fun findByFirebaseUid(firebaseUid: String): List<DayPlan>
+    fun findByFirebaseUidAndDateBetween(firebaseUid: String, from: LocalDate, to: LocalDate): List<DayPlan>
     fun findByFirebaseUidAndDate(firebaseUid: String, date: LocalDate): DayPlan?
     fun findByServerId(serverId: UUID): DayPlan?
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<DayPlan>
     fun deleteByFirebaseUidAndDate(firebaseUid: String, date: LocalDate)
+}
+
+interface PlannedWorkoutRepository : JpaRepository<PlannedWorkout, Long> {
+    fun findByDayPlanId(dayPlanId: Long): List<PlannedWorkout>
+    fun findByDayPlanIdIn(dayPlanIds: Collection<Long>): List<PlannedWorkout>
+    fun deleteByDayPlanId(dayPlanId: Long)
 }

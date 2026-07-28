@@ -8,6 +8,8 @@ name: Webapp CI
 on:
   push:
     branches: [develop]
+  pull_request:
+    branches: [develop]   # gate PRs before they merge, not just after
 
 jobs:
   detect-changes:

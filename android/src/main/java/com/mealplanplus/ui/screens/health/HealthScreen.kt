@@ -1,1178 +1,445 @@
 package com.mealplanplus.ui.screens.health
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import com.mealplanplus.ui.theme.BrandGreen
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.mealplanplus.data.healthconnect.ActivityDaySummary
-import com.mealplanplus.data.model.CustomMetricType
-import com.mealplanplus.data.model.GlucoseSubType
-import com.mealplanplus.data.model.HealthMetric
-import com.mealplanplus.data.model.MetricType
-import com.patrykandpatrick.vico.compose.axis.axisGuidelineComponent
-import com.patrykandpatrick.vico.compose.axis.axisLabelComponent
-import com.patrykandpatrick.vico.compose.axis.axisLineComponent
-import com.patrykandpatrick.vico.compose.axis.axisTickComponent
-import com.patrykandpatrick.vico.compose.component.shape.shader.toDynamicShader
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec
-import com.patrykandpatrick.vico.compose.chart.line.lineChart
-import com.patrykandpatrick.vico.compose.chart.line.lineSpec
-import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
-import com.patrykandpatrick.vico.core.axis.AxisPosition
-import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
-import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
-import com.patrykandpatrick.vico.core.entry.entryOf
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import com.mealplanplus.util.toChartLabel
-import com.mealplanplus.util.toEpochMs
-import com.mealplanplus.ui.theme.DesignGreen
-import com.mealplanplus.ui.theme.DesignGreenLight
-import com.mealplanplus.ui.theme.TextDestructive
-import com.mealplanplus.ui.theme.TextPrimary
-import com.mealplanplus.ui.theme.DividerColor
-import com.mealplanplus.ui.theme.TextSecondary
-import com.mealplanplus.util.toLocalDate
+import com.mealplanplus.data.generated.model.HealthMetricDto
+import com.mealplanplus.ui.components.AppCard
+import com.mealplanplus.ui.theme.AppBg
+import com.mealplanplus.ui.theme.BorderCool
+import com.mealplanplus.ui.theme.BorderSoft
+import com.mealplanplus.ui.theme.CardBorder
+import com.mealplanplus.ui.theme.DmMono
+import com.mealplanplus.ui.theme.Ink
+import com.mealplanplus.ui.theme.MutedDark
+import com.mealplanplus.ui.theme.MutedFaint
+import com.mealplanplus.ui.theme.MutedLight
+import com.mealplanplus.ui.theme.OnAccent
+import com.mealplanplus.ui.theme.Success
+import com.mealplanplus.ui.theme.Surface
+import com.mealplanplus.ui.theme.SurfaceMuted
+import com.mealplanplus.ui.theme.Teal
+import com.mealplanplus.ui.theme.StreakFlame
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+/** Diastolic line colour (design spec: violet on the BP chart). */
+private val Diastolic = Color(0xFFC7A4DD)
+private val DateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")
+
 @Composable
-fun HealthScreen(
-    onNavigateBack: () -> Unit,
-    onNavigateToCharts: () -> Unit,
-    viewModel: HealthViewModel = hiltViewModel()
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val customTypes by viewModel.customTypes.collectAsState()
-    var customTypeToDelete by remember { mutableStateOf<CustomMetricType?>(null) }
+fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
+    val state by viewModel.state.collectAsState()
+    val tab = state.tab
+    val today = remember { LocalDate.now() }
 
-    Scaffold(
-        containerColor = Color(0xFFF7F7F7),
-        topBar = {
-            TopAppBar(
-                title = { Text("Health", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111111)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF111111))
-                    }
-                },
-                actions = {
-                    OutlinedButton(
-                        onClick = { viewModel.showLogSheet() },
-                        modifier = Modifier.padding(end = 8.dp).height(32.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF111111)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDDDDD))
-                    ) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Log Reading", style = MaterialTheme.typography.labelMedium)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF111111),
-                    navigationIconContentColor = Color(0xFF111111),
-                    actionIconContentColor = Color(0xFF111111)
-                )
-            )
-        }
-    ) { padding ->
-        val selectedUnit = when {
-            uiState.selectedCustomTypeId != null ->
-                customTypes.find { it.id == uiState.selectedCustomTypeId }?.unit ?: ""
-            else -> uiState.selectedMetricType?.unit ?: ""
-        }
-        val selectedDisplayName = when {
-            uiState.selectedCustomTypeId != null ->
-                customTypes.find { it.id == uiState.selectedCustomTypeId }?.name ?: "Custom"
-            else -> uiState.selectedMetricType?.displayName ?: ""
-        }
+    // Derived view for the active tab.
+    val all = state.current
+    val window = remember(all, state.range) { all.filter { !dateOf(it).isBefore(today.minusDays(state.range.days)) } }
+    val latest = all.lastOrNull()
+    val start = window.firstOrNull()
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            // Metric type tabs
-            item {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(MetricType.entries.toList()) { type ->
-                        HealthFilterChip(
-                            label = type.displayName,
-                            selected = uiState.selectedMetricType == type && uiState.selectedCustomTypeId == null,
-                            onClick = { viewModel.selectMetricType(type) }
-                        )
-                    }
-                    items(customTypes) { customType ->
-                        HealthFilterChip(
-                            label = customType.name,
-                            selected = uiState.selectedCustomTypeId == customType.id,
-                            onClick = { viewModel.selectCustomType(customType.id) },
-                            modifier = Modifier.combinedClickable(
-                                onClick = { viewModel.selectCustomType(customType.id) },
-                                onLongClick = { customTypeToDelete = customType }
-                            )
-                        )
-                    }
-                    item {
-                        HealthFilterChip(
-                            label = "🏃 Activity",
-                            selected = uiState.isActivityTabSelected,
-                            onClick = { viewModel.selectActivityTab() }
-                        )
-                    }
-                    item {
-                        HealthFilterChip(
-                            label = "+ Add Metric",
-                            selected = false,
-                            onClick = { viewModel.showAddCustomTypeDialog() }
-                        )
-                    }
+    Box(Modifier.fillMaxSize().background(AppBg)) {
+        Column(Modifier.fillMaxSize()) {
+            // App bar
+            Row(verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)) {
+                Text("Health", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink)
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.size(34.dp).clip(CircleShape).background(Teal), Alignment.Center) {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = OnAccent, modifier = Modifier.size(18.dp))
                 }
             }
 
-            // ── Period navigator — shared by all tabs ─────────────────────────
-            item {
-                if (uiState.isActivityTabSelected) {
-                    PeriodNavigator(
-                        viewType = uiState.activityViewType,
-                        rangeLabel = uiState.activityRangeLabel,
-                        canGoForward = uiState.activityPeriodOffset < 0,
-                        onViewTypeChange = { viewModel.selectActivityViewType(it) },
-                        onBack = { viewModel.shiftActivityPeriod(-1) },
-                        onForward = { viewModel.shiftActivityPeriod(1) }
-                    )
+            MetricTabs(tab, viewModel::setTab)
+
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+                Spacer(Modifier.height(14.dp))
+                LatestBlock(tab, latest, start, window.size, state.range)
+                Spacer(Modifier.height(12.dp))
+                RangeToggle(state.range, viewModel::setRange)
+                Spacer(Modifier.height(12.dp))
+                TrendChartCard(tab, window, state.range)
+                Spacer(Modifier.height(16.dp))
+                StatsRow(all, today)
+                Spacer(Modifier.height(18.dp))
+                Text("Recent readings", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(bottom = 10.dp))
+                if (all.isEmpty()) {
+                    Text("No readings yet. Tap ＋ to log your first ${tab.metricLabel.lowercase()}.",
+                        fontSize = 12.sp, color = MutedLight, modifier = Modifier.padding(bottom = 20.dp))
                 } else {
-                    PeriodNavigator(
-                        viewType = uiState.metricViewType,
-                        rangeLabel = uiState.metricRangeLabel,
-                        canGoForward = uiState.metricPeriodOffset < 0,
-                        onViewTypeChange = { viewModel.selectMetricViewType(it) },
-                        onBack = { viewModel.shiftMetricPeriod(-1) },
-                        onForward = { viewModel.shiftMetricPeriod(1) }
-                    )
+                    all.asReversed().take(8).forEach { RecentRow(tab, it) }
                 }
+                Spacer(Modifier.height(90.dp))
             }
+        }
 
-            if (uiState.isActivityTabSelected) {
-                // ── Activity (Health Connect) tab ────────────────────────────
-                item { ActivityTabContent(uiState = uiState, viewModel = viewModel) }
-            } else {
-                // ── Regular metric tabs ──────────────────────────────────────
+        // FAB → log sheet
+        Box(contentAlignment = Alignment.Center,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp)
+                .size(56.dp).clip(CircleShape).background(Teal).clickable(onClick = viewModel::openLog)) {
+            Icon(Icons.Default.Add, contentDescription = "Log reading", tint = OnAccent, modifier = Modifier.size(28.dp))
+        }
+    }
 
-                // BG summary cards — only when BG selected and has data
-                if (uiState.selectedMetricType == MetricType.BLOOD_GLUCOSE &&
-                    uiState.estimatedA1c != null && uiState.timeInRangePercent != null
-                ) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            BgSummaryCard("Est. A1C", String.format("%.1f%%", uiState.estimatedA1c), Modifier.weight(1f))
-                            BgSummaryCard("Time in Range", "${uiState.timeInRangePercent}%", Modifier.weight(1f))
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
-                }
+    if (state.log != null) LogSheet(state, viewModel)
+}
 
-                // Stats row
-                uiState.stats?.let { stats ->
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            MetricStatCard("Average", formatHealthValue(stats.avg), selectedUnit, Modifier.weight(1f))
-                            MetricStatCard("Minimum", formatHealthValue(stats.min), selectedUnit, Modifier.weight(1f))
-                            MetricStatCard("Maximum", formatHealthValue(stats.max), selectedUnit, Modifier.weight(1f))
-                        }
-                    }
-                }
-
-                // BG Range Distribution
-                if (uiState.selectedMetricType == MetricType.BLOOD_GLUCOSE) {
-                    uiState.bgDistribution?.let { dist ->
-                        item {
-                            BgDistributionCard(
-                                distribution = dist,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Trend chart
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "$selectedDisplayName Trend ($selectedUnit)",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            if (uiState.metrics.size >= 2) {
-                                HealthTrendChart(metrics = uiState.metrics, modifier = Modifier.fillMaxWidth())
-                            } else {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().height(100.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "Log at least 2 readings to see trend",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Recent Readings header + list
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Recent Readings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    }
-                }
-
-                val recentMetrics = uiState.metrics.take(10)
-                if (recentMetrics.isNotEmpty()) {
-                    items(recentMetrics, key = { it.id }) { metric ->
-                        RecentReadingRow(
-                            metric = metric,
-                            metricType = uiState.selectedMetricType,
-                            unit = selectedUnit,
-                            onDelete = { viewModel.deleteMetric(metric) }
-                        )
-                    }
-                } else if (!uiState.isLoading) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(80.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Tap + Log Reading to add data",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── Streak & Stats entry row ────────────────────────────────────
-            item {
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White)
-                        .clickable { onNavigateToCharts() }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text("🔥", fontSize = 20.sp)
-                        Column {
-                            Text(
-                                "Streak & Stats",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF111111)
-                            )
-                            Text(
-                                "View your streak, calendar & analytics",
-                                fontSize = 12.sp,
-                                color = Color(0xFF888888)
-                            )
-                        }
-                    }
-                    Icon(
-                        Icons.Default.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = Color(0xFFCCCCCC),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
+// ── Metric tabs (Glucose · Weight · BP) ─────────────────────────────────────────
+@Composable
+private fun MetricTabs(tab: HealthTab, onSelect: (HealthTab) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        .clip(RoundedCornerShape(11.dp)).background(BorderSoft).padding(4.dp)) {
+        HealthTab.entries.forEach { t ->
+            val selected = t == tab
+            val interaction = remember { MutableInteractionSource() }
+            Box(contentAlignment = Alignment.Center,
+                modifier = Modifier.weight(1f).height(34.dp).clip(RoundedCornerShape(8.dp))
+                    .background(if (selected) Surface else Color.Transparent)
+                    .clickable(interactionSource = interaction, indication = null) { onSelect(t) }) {
+                Text(t.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (selected) Ink else MutedLight)
             }
         }
     }
+}
 
-    // Log Reading bottom sheet
-    if (uiState.showLogSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.hideLogSheet() },
-            sheetState = sheetState
-        ) {
-            LogReadingSheet(
-                uiState = uiState,
-                customTypes = customTypes,
-                onBgValueChange = viewModel::updateLogBgValue,
-                onBgSubTypeChange = viewModel::updateLogBgSubType,
-                onWeightValueChange = viewModel::updateLogWeightValue,
-                onBpSystolicChange = viewModel::updateLogBpSystolic,
-                onBpDiastolicChange = viewModel::updateLogBpDiastolic,
-                onCustomValueChange = viewModel::updateLogCustomValue,
-                onDateChange = viewModel::updateLogDate,
-                onNotesChange = viewModel::updateLogNotes,
-                onSave = { viewModel.saveAllMetrics() },
-                onDismiss = { viewModel.hideLogSheet() }
-            )
+// ── Latest reading + delta vs range start ───────────────────────────────────────
+@Composable
+private fun LatestBlock(tab: HealthTab, latest: HealthMetricDto?, start: HealthMetricDto?, count: Int, range: RangeWindow) {
+    Column {
+        Text(tab.metricLabel, fontSize = 11.sp, color = MutedLight)
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 2.dp)) {
+            Text(if (latest != null) valueText(tab, latest) else "—", fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = DmMono, color = Ink)
+            Spacer(Modifier.width(5.dp))
+            Text(tab.unit, fontSize = 12.sp, color = MutedLight, modifier = Modifier.padding(bottom = 3.dp))
+        }
+        val (label, improving) = deltaLabel(tab, latest, start, range, count)
+        Text(label, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold,
+            color = if (improving == true) Success else MutedLight, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+// ── Range toggle (7D / 30D / 90D) ───────────────────────────────────────────────
+@Composable
+private fun RangeToggle(range: RangeWindow, onSelect: (RangeWindow) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        RangeWindow.entries.forEach { r ->
+            val on = r == range
+            Text(r.label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                color = if (on) OnAccent else MutedDark,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (on) Ink else SurfaceMuted)
+                    .clickable { onSelect(r) }.padding(horizontal = 14.dp, vertical = 6.dp))
         }
     }
+}
 
-    // Add custom type dialog
-    if (uiState.showAddCustomTypeDialog) {
-        AddCustomTypeDialog(
-            name = uiState.newCustomTypeName,
-            unit = uiState.newCustomTypeUnit,
-            minValue = uiState.newCustomTypeMin,
-            maxValue = uiState.newCustomTypeMax,
-            error = uiState.error,
-            onNameChange = viewModel::updateNewCustomTypeName,
-            onUnitChange = viewModel::updateNewCustomTypeUnit,
-            onMinChange = viewModel::updateNewCustomTypeMin,
-            onMaxChange = viewModel::updateNewCustomTypeMax,
-            onCreate = { viewModel.addCustomType() },
-            onDismiss = { viewModel.hideAddCustomTypeDialog() }
-        )
-    }
+// ── Trend chart ─────────────────────────────────────────────────────────────────
+@Composable
+private fun TrendChartCard(tab: HealthTab, window: List<HealthMetricDto>, range: RangeWindow) {
+    val dual = tab == HealthTab.BP
+    val lineColor = when (tab) { HealthTab.WEIGHT -> Success; else -> Teal }
+    // Resolve composable colours here — they can't be read inside the DrawScope lambda.
+    val gridColor = BorderSoft
+    val inkColor = Ink
+    val bubbleBg = Surface
+    val bubbleBorder = CardBorder
+    // Range-aware aggregation: 7D raw · 30D daily avg · 90D weekly avg (Apple-style).
+    val points = remember(window, range) { aggregate(window, range) }
+    val showDots = range != RangeWindow.D90 && points.size <= 20
+    val textMeasurer = rememberTextMeasurer()
+    // Tap-selected point index (reset when the series changes).
+    var selected by remember(points) { mutableStateOf<Int?>(null) }
 
-    // Delete custom type confirmation
-    customTypeToDelete?.let { type ->
-        AlertDialog(
-            onDismissRequest = { customTypeToDelete = null },
-            title = { Text("Remove Metric") },
-            text = { Text("Remove \"${type.name}\" metric? Existing readings are kept.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteCustomType(type)
-                    customTypeToDelete = null
-                }) {
-                    Text("Remove", color = TextDestructive)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { customTypeToDelete = null }) { Text("Cancel") }
+    AppCard {
+        if (points.isEmpty()) {
+            Box(Modifier.fillMaxWidth().height(104.dp), Alignment.Center) {
+                Text("No readings in this range", fontSize = 12.sp, color = MutedLight)
             }
-        )
-    }
-}
-
-@Composable
-fun BgSummaryCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = DesignGreenLight)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = TextSecondary.copy(alpha = 0.7f))
-            Spacer(Modifier.height(4.dp))
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
-        }
-    }
-}
-
-@Composable
-fun MetricStatCard(label: String, value: String, unit: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = DesignGreen)
-            if (unit.isNotBlank()) Text(unit, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-        }
-    }
-}
-
-@Composable
-fun BgDistributionCard(distribution: BgDistribution, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Range Distribution", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(12.dp))
-            BgRangeBar("Low (<70)", distribution.lowPercent, Color(0xFFE53935))
-            BgRangeBar("In Range (70–140)", distribution.inRangePercent, Color(0xFF43A047))
-            BgRangeBar("Elevated (140–200)", distribution.elevatedPercent, Color(0xFFFFA726))
-            BgRangeBar("High (>200)", distribution.highPercent, Color(0xFFEF5350))
-        }
-    }
-}
-
-@Composable
-fun BgRangeBar(label: String, percent: Int, color: Color) {
-    Column(modifier = Modifier.padding(vertical = 3.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("$percent%", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-        }
-        Spacer(Modifier.height(2.dp))
-        LinearProgressIndicator(
-            progress = percent / 100f,
-            modifier = Modifier.fillMaxWidth().height(6.dp),
-            color = color,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    }
-}
-
-@Composable
-fun HealthTrendChart(metrics: List<HealthMetric>, modifier: Modifier = Modifier) {
-    val chartMetrics = remember(metrics) { metrics.reversed() }
-    val entries = remember(chartMetrics) {
-        chartMetrics.mapIndexed { i, m -> entryOf(i.toFloat(), m.value.toFloat()) }
-    }
-    val modelProducer = remember(entries) { ChartEntryModelProducer(entries) }
-    val dateLabels = remember(chartMetrics) { chartMetrics.map { m -> m.date.toChartLabel("d MMM") } }
-    val xSpacing = remember(chartMetrics.size) { maxOf(1, chartMetrics.size / 5) }
-    val xFmt = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ -> dateLabels.getOrElse(v.toInt()) { "" } }
-
-    val labelComp = axisLabelComponent(color = TextSecondary, textSize = 10.sp)
-    val lineComp  = axisLineComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
-    val tickComp  = axisTickComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
-    val gridComp  = axisGuidelineComponent(color = DividerColor.copy(alpha = 0.35f))
-
-    Chart(
-        chart = lineChart(
-            lines = listOf(
-                lineSpec(
-                    lineColor = DesignGreen,
-                    lineThickness = 2.dp,
-                    lineBackgroundShader = androidx.compose.ui.graphics.Brush.verticalGradient(
-                        listOf(DesignGreen.copy(alpha = 0.25f), DesignGreen.copy(alpha = 0f))
-                    ).toDynamicShader()
-                )
-            )
-        ),
-        chartModelProducer = modelProducer,
-        isZoomEnabled = false,
-        chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
-        startAxis = rememberStartAxis(
-            label = labelComp,
-            axis = lineComp,
-            tick = tickComp,
-            guideline = gridComp,
-            itemPlacer = remember { AxisItemPlacer.Vertical.default(maxItemCount = 4) }
-        ),
-        bottomAxis = rememberBottomAxis(
-            label = labelComp,
-            axis = lineComp,
-            tick = tickComp,
-            guideline = null,
-            valueFormatter = xFmt,
-            itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
-        ),
-        modifier = modifier.height(180.dp)
-    )
-}
-
-@Composable
-fun RecentReadingRow(
-    metric: HealthMetric,
-    metricType: MetricType?,
-    unit: String,
-    onDelete: () -> Unit
-) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    val valueText = when {
-        metricType == MetricType.BLOOD_PRESSURE && metric.secondaryValue != null ->
-            "${metric.value.toInt()}/${metric.secondaryValue.toInt()} $unit"
-        else -> "${formatHealthValue(metric.value)} $unit"
-    }
-    val subTypeLabel = if (metricType == MetricType.BLOOD_GLUCOSE && metric.subType != null) {
-        runCatching { GlucoseSubType.valueOf(metric.subType).displayName }.getOrNull()
-    } else null
-
-    Surface(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(valueText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    subTypeLabel?.let {
-                        Spacer(Modifier.width(8.dp))
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.extraSmall
-                        ) {
-                            Text(
-                                it,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+        } else {
+            val primary = points.map { it.value }
+            val secondary = if (dual) points.map { it.secondary ?: it.value } else emptyList()
+            val allVals = primary + secondary
+            val minV = allVals.minOrNull() ?: 0.0
+            val maxV = allVals.maxOrNull() ?: 1.0
+            Canvas(
+                Modifier.fillMaxWidth().height(104.dp)
+                    .pointerInput(points.size) {
+                        detectTapGestures { off ->
+                            val n = points.size
+                            if (n == 0) return@detectTapGestures
+                            val padL = size.width * 0.05f; val padR = size.width * 0.05f
+                            val frac = ((off.x - padL) / (size.width - padL - padR)).coerceIn(0f, 1f)
+                            val idx = if (n == 1) 0 else Math.round(frac * (n - 1))
+                            selected = if (selected == idx) null else idx
                         }
-                    }
+                    },
+            ) {
+                val w = size.width; val h = size.height
+                val padL = w * 0.05f; val padR = w * 0.05f
+                val padT = 14f; val padB = 14f
+                val span = (maxV - minV).takeIf { it > 0.0 } ?: 1.0
+                fun px(i: Int, n: Int) = if (n == 1) (padL + w - padR) / 2f else padL + (w - padL - padR) * (i.toFloat() / (n - 1))
+                fun py(v: Double) = padT + (h - padT - padB) * (1f - ((v - minV) / span).toFloat())
+                // 3 gridlines
+                listOf(padT, (padT + (h - padB)) / 2f, h - padB).forEach { y ->
+                    drawLine(gridColor, Offset(padL, y), Offset(w - padR, y), strokeWidth = 1f)
                 }
-                Text(metric.date.toChartLabel("dd/MM/yyyy"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                fun offsets(values: List<Double>): List<Offset> = values.mapIndexed { i, v -> Offset(px(i, values.size), py(v)) }
+                fun polyline(pts: List<Offset>, color: Color, stroke: Float) {
+                    if (pts.size < 2) return
+                    val path = Path().apply { moveTo(pts.first().x, pts.first().y); pts.drop(1).forEach { lineTo(it.x, it.y) } }
+                    drawPath(path, color, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
+                if (dual) polyline(offsets(secondary), Diastolic, 2f)
+                val mainPts = offsets(primary)
+                polyline(mainPts, lineColor, 2.5f)
+                if (showDots) mainPts.forEach { drawCircle(lineColor, radius = 2.6f, center = it) }
+
+                // Tap marker: vertical guide + highlighted dot + value bubble.
+                selected?.let { i ->
+                    if (i !in points.indices) return@let
+                    val p = points[i]
+                    val x = px(i, points.size)
+                    drawLine(lineColor.copy(alpha = 0.35f), Offset(x, padT - 6f), Offset(x, h - padB + 6f), strokeWidth = 1.5f)
+                    drawCircle(bubbleBg, radius = 5f, center = Offset(x, py(p.value)))
+                    drawCircle(lineColor, radius = 5f, center = Offset(x, py(p.value)), style = Stroke(width = 2f))
+                    if (dual) {
+                        drawCircle(bubbleBg, radius = 4f, center = Offset(x, py(p.secondary ?: p.value)))
+                        drawCircle(Diastolic, radius = 4f, center = Offset(x, py(p.secondary ?: p.value)), style = Stroke(width = 2f))
+                    }
+                    val label = "${p.label} · ${pointValueText(dual, p)} ${tab.unit}"
+                    val measured = textMeasurer.measure(label, style = TextStyle(fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = inkColor))
+                    val bw = measured.size.width.toFloat(); val bh = measured.size.height.toFloat()
+                    val bx = (x - bw / 2f).coerceIn(0f, w - bw - 8f)
+                    val by = 0f
+                    drawRoundRect(bubbleBg, topLeft = Offset(bx - 5f, by), size = Size(bw + 10f, bh + 6f), cornerRadius = CornerRadius(6f, 6f))
+                    drawRoundRect(bubbleBorder, topLeft = Offset(bx - 5f, by), size = Size(bw + 10f, bh + 6f), cornerRadius = CornerRadius(6f, 6f), style = Stroke(width = 1f))
+                    drawText(measured, topLeft = Offset(bx, by + 3f))
+                }
             }
-            IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp), tint = TextDestructive)
+            // Axis row: start date · [BP legend] · end date
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                Text(points.first().label, fontSize = 9.5.sp, color = MutedFaint)
+                Spacer(Modifier.weight(1f))
+                if (dual) {
+                    Text("● systolic", fontSize = 9.5.sp, color = lineColor)
+                    Spacer(Modifier.width(6.dp))
+                    Text("● diastolic", fontSize = 9.5.sp, color = Diastolic)
+                    Spacer(Modifier.weight(1f))
+                }
+                Text(points.last().label, fontSize = 9.5.sp, color = MutedFaint)
+            }
+            if (range == RangeWindow.D90) {
+                Text("Weekly average · tap a point for details", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 3.dp))
             }
         }
     }
-    HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+}
 
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Reading") },
-            text = { Text("Delete this reading?") },
-            confirmButton = {
-                TextButton(onClick = { onDelete(); showDeleteDialog = false }) {
-                    Text("Delete", color = TextDestructive)
-                }
-            },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
-        )
+// ── Streak + readings-in-range ──────────────────────────────────────────────────
+@Composable
+private fun StatsRow(all: List<HealthMetricDto>, today: LocalDate) {
+    val days = remember(all) { all.map { dateOf(it) }.toSortedSet() }
+    val streak = remember(days) { currentStreak(days, today) }
+    val best = remember(days) { bestStreak(days) }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        AppCard(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("🔥", fontSize = 15.sp, color = StreakFlame)
+                Text("$streak", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = DmMono, color = Ink)
+            }
+            Text("Day streak · best $best", fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 5.dp))
+        }
+        AppCard(modifier = Modifier.weight(1f)) {
+            Text("${all.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = DmMono, color = Ink)
+            Text("Readings logged", fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 5.dp))
+        }
     }
 }
 
+// ── Recent reading row ──────────────────────────────────────────────────────────
+@Composable
+private fun RecentRow(tab: HealthTab, m: HealthMetricDto) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp)
+            .clip(RoundedCornerShape(11.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(11.dp))
+            .padding(horizontal = 12.dp, vertical = 11.dp)) {
+        Text(dateOf(m).format(DateFmt), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MutedDark)
+        Spacer(Modifier.weight(1f))
+        Text(valueText(tab, m), fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = DmMono, color = Ink)
+        Spacer(Modifier.width(4.dp))
+        Text(tab.unit, fontSize = 10.sp, color = MutedFaint)
+    }
+}
+
+// ── Log sheet ───────────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LogReadingSheet(
-    uiState: HealthUiState,
-    customTypes: List<CustomMetricType>,
-    onBgValueChange: (String) -> Unit,
-    onBgSubTypeChange: (String) -> Unit,
-    onWeightValueChange: (String) -> Unit,
-    onBpSystolicChange: (String) -> Unit,
-    onBpDiastolicChange: (String) -> Unit,
-    onCustomValueChange: (String) -> Unit,
-    onDateChange: (LocalDate) -> Unit,
-    onNotesChange: (String) -> Unit,
-    onSave: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showSubTypeMenu by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = uiState.logDate
-            .atStartOfDay(java.time.ZoneId.systemDefault())
-            .toInstant().toEpochMilli()
-    )
-    val selectedCustomType = customTypes.find { it.id == uiState.selectedCustomTypeId }
-    val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Log Reading", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-
-        // Blood Glucose
-        Text("Blood Glucose", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = uiState.logBgValue,
-                onValueChange = onBgValueChange,
-                label = { Text("Value (mg/dL)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            Box(modifier = Modifier.weight(1f)) {
-                OutlinedCard(onClick = { showSubTypeMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            runCatching { GlucoseSubType.valueOf(uiState.logBgSubType).displayName }
-                                .getOrDefault(uiState.logBgSubType),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(20.dp))
-                    }
+private fun LogSheet(state: HealthUiState, vm: HealthViewModel) {
+    val log = state.log ?: return
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(onDismissRequest = vm::closeLog, sheetState = sheetState, containerColor = Surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+            Text("Log ${log.tab.metricLabel.lowercase()}", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                modifier = Modifier.padding(bottom = 16.dp))
+            if (log.isDual) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f)) { LabeledField("Systolic", log.value, vm::setLogValue, "120") }
+                    Box(Modifier.weight(1f)) { LabeledField("Diastolic", log.secondary, vm::setLogSecondary, "80") }
                 }
-                DropdownMenu(expanded = showSubTypeMenu, onDismissRequest = { showSubTypeMenu = false }) {
-                    GlucoseSubType.entries.forEach { st ->
-                        DropdownMenuItem(
-                            text = { Text(st.displayName) },
-                            onClick = { onBgSubTypeChange(st.name); showSubTypeMenu = false }
-                        )
-                    }
-                }
-            }
-        }
-
-        HorizontalDivider()
-
-        // Weight
-        Text("Weight", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(
-            value = uiState.logWeightValue,
-            onValueChange = onWeightValueChange,
-            label = { Text("Value (${MetricType.WEIGHT.unit})") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        HorizontalDivider()
-
-        // Blood Pressure
-        Text("Blood Pressure", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = uiState.logBpSystolic,
-                onValueChange = onBpSystolicChange,
-                label = { Text("Systolic") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = uiState.logBpDiastolic,
-                onValueChange = onBpDiastolicChange,
-                label = { Text("Diastolic") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        // Custom metric
-        if (selectedCustomType != null) {
-            HorizontalDivider()
-            Text(selectedCustomType.name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedTextField(
-                value = uiState.logCustomValue,
-                onValueChange = onCustomValueChange,
-                label = { Text("Value (${selectedCustomType.unit})") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        HorizontalDivider()
-
-        // Date
-        OutlinedTextField(
-            value = uiState.logDate.format(dateFormatter),
-            onValueChange = {},
-            label = { Text("Date") },
-            readOnly = true,
-            trailingIcon = {
-                IconButton(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Default.DateRange, null)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }
-        )
-
-        // Notes
-        OutlinedTextField(
-            value = uiState.logNotes,
-            onValueChange = onNotesChange,
-            label = { Text("Notes (optional)") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2
-        )
-
-        uiState.error?.let {
-            Text(it, color = TextDestructive, style = MaterialTheme.typography.bodySmall)
-        }
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Cancel") }
-            Button(
-                onClick = onSave,
-                enabled = !uiState.isSaving,
-                modifier = Modifier.weight(1f)
-            ) {
-                if (uiState.isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary)
-                else Text("Save")
-            }
-        }
-    }
-
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        onDateChange(
-                            java.time.Instant.ofEpochMilli(millis)
-                                .atZone(java.time.ZoneId.systemDefault())
-                                .toLocalDate()
-                        )
-                    }
-                    showDatePicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-}
-
-@Composable
-fun AddCustomTypeDialog(
-    name: String,
-    unit: String,
-    minValue: String,
-    maxValue: String,
-    error: String?,
-    onNameChange: (String) -> Unit,
-    onUnitChange: (String) -> Unit,
-    onMinChange: (String) -> Unit,
-    onMaxChange: (String) -> Unit,
-    onCreate: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Metric Type") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name, onValueChange = onNameChange,
-                    label = { Text("Metric name") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = unit, onValueChange = onUnitChange,
-                    label = { Text("Unit (e.g. bpm, steps)") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = minValue, onValueChange = onMinChange,
-                        label = { Text("Min (opt)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true, modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = maxValue, onValueChange = onMaxChange,
-                        label = { Text("Max (opt)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true, modifier = Modifier.weight(1f)
-                    )
-                }
-                error?.let { Text(it, color = TextDestructive, style = MaterialTheme.typography.bodySmall) }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onCreate, enabled = name.isNotBlank() && unit.isNotBlank()) { Text("Create") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-// ── Activity Tab ──────────────────────────────────────────────────────────────
-
-private val StepsColor  = Color(0xFF2E7D52)
-private val CaloriesActivityColor = Color(0xFFF57C00)
-
-@Composable
-private fun PeriodNavigator(
-    viewType: PeriodViewType,
-    rangeLabel: String,
-    canGoForward: Boolean,
-    onViewTypeChange: (PeriodViewType) -> Unit,
-    onBack: () -> Unit,
-    onForward: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        // Days / Week / Month toggle
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PeriodViewType.entries.forEach { type ->
-                val selected = viewType == type
-                OutlinedButton(
-                    onClick = { onViewTypeChange(type) },
-                    modifier = Modifier.weight(1f).height(34.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (selected) DesignGreenLight
-                                         else Color.Transparent,
-                        contentColor = if (selected) TextPrimary
-                                       else TextSecondary
-                    ),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(
-                            if (selected) DesignGreen
-                            else Color(0xFFE0E0E0)
-                        )
-                    ),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        type.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
-            }
-        }
-
-        // Navigation row: < [label] >
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                Icon(
-                    Icons.Default.ChevronLeft,
-                    contentDescription = "Previous period",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Text(
-                rangeLabel,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            IconButton(
-                onClick = onForward,
-                enabled = canGoForward,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = "Next period",
-                    tint = if (canGoForward) MaterialTheme.colorScheme.onSurface
-                           else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ActivityTabContent(uiState: HealthUiState, viewModel: HealthViewModel) {
-    val history = uiState.activityHistory
-
-    when {
-        uiState.isLoading -> {
-            Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        }
-        !uiState.isHcAvailable -> {
-            ActivityEmptyCard(
-                icon = "📱",
-                title = "Health Connect not available",
-                body = "Health Connect requires Android 9+ and the companion app on Android 9–13."
-            )
-        }
-        !uiState.isHcConnected -> {
-            ActivityEmptyCard(
-                icon = "🔗",
-                title = "Not connected",
-                body = "Go to Settings → Fitness & Wearables and tap Connect to link Health Connect."
-            )
-        }
-        history.isEmpty() -> {
-            ActivityEmptyCard(
-                icon = "🏃",
-                title = "No activity data",
-                body = "No steps or calories recorded in the selected period. Make sure your fitness app syncs to Health Connect."
-            )
-        }
-        else -> {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Stats row
-                val avgSteps = history.map { it.steps }.average().toLong()
-                val bestSteps = history.maxOf { it.steps }
-                val totalCals = history.sumOf { it.caloriesBurned }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActivityStatCard("Avg Steps", "$avgSteps", "steps/day", StepsColor, Modifier.weight(1f))
-                    ActivityStatCard("Best Day", "$bestSteps", "steps", StepsColor, Modifier.weight(1f))
-                    ActivityStatCard("Total Burned", "$totalCals", "kcal", CaloriesActivityColor, Modifier.weight(1f))
-                }
-
-                // Steps chart
-                ActivityChartCard(
-                    title = "Steps Trend",
-                    color = StepsColor,
-                    history = history,
-                    valueSelector = { it.steps.toFloat() },
-                    minPoints = 2
-                )
-
-                // Calories chart
-                ActivityChartCard(
-                    title = "Calories Burned Trend",
-                    color = CaloriesActivityColor,
-                    history = history,
-                    valueSelector = { it.caloriesBurned.toFloat() },
-                    minPoints = 2
-                )
-
-                // Daily history list
-                Text(
-                    "Daily History",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                history.forEach { day ->
-                    ActivityDayRow(day)
-                    HorizontalDivider(modifier = Modifier.padding(start = 8.dp))
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActivityEmptyCard(icon: String, title: String, body: String) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(icon, fontSize = 36.sp)
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        }
-    }
-}
-
-@Composable
-private fun ActivityStatCard(label: String, value: String, unit: String, color: Color, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = color)
-            Text(unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun ActivityChartCard(
-    title: String,
-    color: Color,
-    history: List<ActivityDaySummary>,
-    valueSelector: (ActivityDaySummary) -> Float,
-    minPoints: Int = 2
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
-            val chronological = remember(history) { history.reversed() }
-            if (chronological.size >= minPoints) {
-                val entries = remember(chronological) {
-                    chronological.mapIndexed { i, d -> entryOf(i.toFloat(), valueSelector(d)) }
-                }
-                val modelProducer = remember(entries) { ChartEntryModelProducer(entries) }
-                val dateLabels = remember(chronological) { chronological.map { d -> d.date.toEpochMs().toChartLabel("d MMM") } }
-                val xSpacing = remember(chronological.size) { maxOf(1, chronological.size / 5) }
-                val xFmt = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { v, _ -> dateLabels.getOrElse(v.toInt()) { "" } }
-                val labelComp = axisLabelComponent(color = TextSecondary, textSize = 10.sp)
-                val lineComp  = axisLineComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
-                val tickComp  = axisTickComponent(color = DividerColor.copy(alpha = 0.6f), dynamicShader = null)
-                val gridComp  = axisGuidelineComponent(color = DividerColor.copy(alpha = 0.35f))
-                Chart(
-                    chart = lineChart(
-                        lines = listOf(
-                            lineSpec(
-                                lineColor = color,
-                                lineThickness = 2.dp,
-                                lineBackgroundShader = androidx.compose.ui.graphics.Brush.verticalGradient(
-                                    listOf(color.copy(alpha = 0.22f), color.copy(alpha = 0f))
-                                ).toDynamicShader()
-                            )
-                        )
-                    ),
-                    chartModelProducer = modelProducer,
-                    isZoomEnabled = false,
-                    chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
-                    startAxis = rememberStartAxis(
-                        label = labelComp, axis = lineComp, tick = tickComp, guideline = gridComp,
-                        itemPlacer = remember { AxisItemPlacer.Vertical.default(maxItemCount = 4) }
-                    ),
-                    bottomAxis = rememberBottomAxis(
-                        label = labelComp, axis = lineComp, tick = tickComp, guideline = null,
-                        valueFormatter = xFmt,
-                        itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }
-                    ),
-                    modifier = Modifier.fillMaxWidth().height(180.dp)
-                )
             } else {
-                Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-                    Text("Need at least 2 days of data to show trend",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center)
-                }
+                LabeledField("Reading · ${log.tab.unit}", log.value, vm::setLogValue, "Enter value", decimal = true)
+            }
+            state.error?.let { Text(it, color = com.mealplanplus.ui.theme.Danger, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
+            Spacer(Modifier.height(18.dp))
+            Box(contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(12.dp))
+                    .background(if (log.canSave) Teal else SurfaceMuted)
+                    .then(if (log.canSave) Modifier.clickable(onClick = vm::saveLog) else Modifier)) {
+                Text("Save reading", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (log.canSave) OnAccent else MutedLight)
             }
         }
     }
 }
 
 @Composable
-private fun ActivityDayRow(day: ActivityDaySummary) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Date badge
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(DesignGreenLight),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    day.date.dayOfMonth.toString(),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    lineHeight = 16.sp
-                )
-                Text(
-                    day.date.month.name.take(3),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary.copy(alpha = 0.7f),
-                    lineHeight = 14.sp
-                )
+private fun LabeledField(label: String, value: String, onChange: (String) -> Unit, hint: String, decimal: Boolean = false) {
+    Column {
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
+        Row(verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(12.dp))
+                .padding(horizontal = 13.dp, vertical = 12.dp)) {
+            Box(Modifier.weight(1f)) {
+                if (value.isEmpty()) Text(hint, fontSize = 15.sp, color = MutedLight)
+                BasicTextField(value, onChange, singleLine = true,
+                    textStyle = TextStyle(fontSize = 15.sp, color = Ink, fontFamily = DmMono),
+                    keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
+                    cursorBrush = SolidColor(Teal), modifier = Modifier.fillMaxWidth())
             }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("🏃 ", fontSize = 14.sp)
-                Text("${day.steps} steps", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = StepsColor)
-            }
-            Text("🔥 ${day.caloriesBurned} kcal burned", style = MaterialTheme.typography.bodySmall, color = CaloriesActivityColor)
-        }
-        // Step goal progress ring hint
-        val stepGoal = 10_000f
-        val fraction = (day.steps / stepGoal).coerceIn(0f, 1f)
-        Column(horizontalAlignment = Alignment.End) {
-            Text("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.labelSmall,
-                color = if (fraction >= 1f) StepsColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (fraction >= 1f) FontWeight.Bold else FontWeight.Normal)
-            Text("of 10k goal", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
         }
     }
 }
 
-private fun formatHealthValue(value: Double): String =
-    if (value == value.toLong().toDouble()) value.toLong().toString()
-    else String.format("%.1f", value)
+// ── Chart aggregation ───────────────────────────────────────────────────────────
+/** One plotted point: a raw reading (7D) or an averaged bin (30D daily / 90D weekly). */
+private data class ChartPoint(val label: String, val value: Double, val secondary: Double?)
 
-@Composable
-private fun HealthFilterChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (selected) Color(0xFF111111) else Color.White)
-            .border(1.dp, if (selected) Color(0xFF111111) else Color(0xFFE8E8E8), RoundedCornerShape(50))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-    ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else Color(0xFF555555)
-        )
+/**
+ * Range-aware aggregation so long ranges don't over-populate the chart (industry standard):
+ * 7D = raw readings, 30D = daily average, 90D = weekly average. [label] is the point's date label.
+ */
+private fun aggregate(window: List<HealthMetricDto>, range: RangeWindow): List<ChartPoint> {
+    if (window.isEmpty()) return emptyList()
+    fun bin(keyOf: (LocalDate) -> LocalDate): List<ChartPoint> =
+        window.groupBy { keyOf(dateOf(it)) }.toSortedMap().map { (key, rs) ->
+            ChartPoint(key.format(DateFmt), rs.map { it.value }.average(),
+                rs.mapNotNull { it.secondaryValue }.let { if (it.isEmpty()) null else it.average() })
+        }
+    return when (range) {
+        RangeWindow.D7 -> window.map { ChartPoint(dateOf(it).format(DateFmt), it.value, it.secondaryValue) }
+        RangeWindow.D30 -> bin { it }                                    // daily
+        RangeWindow.D90 -> bin { it.minusDays((it.dayOfWeek.value - 1).toLong()) } // week start (Mon)
     }
+}
+
+/** Marker value text: "128/82" for BP, formatted number otherwise. */
+private fun pointValueText(dual: Boolean, p: ChartPoint): String =
+    if (dual) "${fmtNum(p.value)}/${fmtNum(p.secondary ?: 0.0)}" else fmtNum(p.value)
+
+// ── Pure helpers ────────────────────────────────────────────────────────────────
+private fun dateOf(m: HealthMetricDto): LocalDate = m.recordedAt.atZone(ZoneId.systemDefault()).toLocalDate()
+
+private fun fmtNum(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else String.format("%.1f", v)
+
+/** Display value for a reading — "120/80" for BP, formatted number otherwise. */
+private fun valueText(tab: HealthTab, m: HealthMetricDto): String =
+    if (tab == HealthTab.BP) "${fmtNum(m.value)}/${fmtNum(m.secondaryValue ?: 0.0)}" else fmtNum(m.value)
+
+/**
+ * Delta of the latest reading vs the first reading in the window. Returns the label and an
+ * `improving` flag (true = lower than start → shown green; null = no delta to show).
+ */
+private fun deltaLabel(tab: HealthTab, latest: HealthMetricDto?, start: HealthMetricDto?, range: RangeWindow, count: Int): Pair<String, Boolean?> {
+    if (latest == null) return "No readings yet" to null
+    if (start == null || count < 2 || start === latest) return "First reading in ${range.label}" to null
+    val d = latest.value - start.value
+    val arrow = if (d < 0) "▼" else if (d > 0) "▲" else "•"
+    return "$arrow ${fmtNum(kotlin.math.abs(d))} ${tab.unit} vs ${range.label} start" to (d < 0)
+}
+
+/** Consecutive days up to & including today that have ≥1 reading. */
+private fun currentStreak(days: Set<LocalDate>, today: LocalDate): Int {
+    var d = today; var c = 0
+    while (d in days) { c++; d = d.minusDays(1) }
+    return c
+}
+
+/** Longest run of consecutive logged days in history. */
+private fun bestStreak(days: Set<LocalDate>): Int {
+    if (days.isEmpty()) return 0
+    val sorted = days.toList().sorted()
+    var best = 1; var run = 1
+    for (i in 1 until sorted.size) {
+        run = if (sorted[i] == sorted[i - 1].plusDays(1)) run + 1 else 1
+        if (run > best) best = run
+    }
+    return best
 }
