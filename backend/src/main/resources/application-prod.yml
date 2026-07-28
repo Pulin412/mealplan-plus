@@ -12,6 +12,11 @@ spring:
       minimum-idle: 1
       connection-timeout: 30000
       max-lifetime: 280000   # under Neon's idle cutoff so stale conns are recycled
+      data-source-properties:
+        # Let pgjdbc send String params as 'unknown' so Postgres implicitly casts text -> native
+        # enum types (units_enum, gender_enum, etc.). Without this, inserting a user 500s. H2 (dev)
+        # models these enums as varchar DOMAINs, so this only bites on real Postgres.
+        stringtype: unspecified
   jpa:
     hibernate:
       ddl-auto: validate     # never mutate the prod schema; Flyway owns migrations

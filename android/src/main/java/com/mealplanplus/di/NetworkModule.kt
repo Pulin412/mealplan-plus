@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -22,6 +23,11 @@ object NetworkModule {
     @Provides @Singleton
     fun provideOkHttpClient(auth: FirebaseAuth): OkHttpClient =
         OkHttpClient.Builder()
+            // Cloud Run scales to zero; the first request after idle pays a cold start (~5-10s+).
+            // OkHttp's 10s default read timeout is too short → first call times out. Give it room.
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 // Await the token — `.result` throws when the Task isn't already resolved
                 // (e.g. sync firing on app start), which silently dropped the auth header.
