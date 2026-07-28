@@ -1,208 +1,54 @@
 # MealPlan+
 
-Offline-first meal planning, nutrition logging, and workout tracking app.  
-Android app + Spring Boot backend + Next.js PWA (iPhone via Add to Home Screen).
+Offline-first meal planning, nutrition logging, and workout tracking. One backend, two
+independent clients — a native Android app and a Next.js PWA (the iPhone experience is the
+PWA via Safari → Add to Home Screen).
 
-> **Redesign (current):** the v2 clients are `android/` + `webapp/`. Live plan in [docs/V2_PLAN.md](docs/V2_PLAN.md).
-> **Legacy:** old-app roadmap/design/docs are archived under [docs/legacy/](docs/legacy/) (e.g. `docs/legacy/ROADMAP.md`, `docs/legacy/design-future.html`).
-> ⚠️ This README still describes the old app structure and needs a rewrite for v2.
+## Live
 
----
+| Surface | URL |
+|---|---|
+| API | https://mealplan-api-rfo22lhanq-ez.a.run.app |
+| Health | https://mealplan-api-rfo22lhanq-ez.a.run.app/actuator/health |
+| Web app | https://mealplan-plus.vercel.app |
+| API docs (Swagger) | `…/swagger-ui.html` — Basic auth on prod |
 
-## Platform Support
+## Modules
 
-| Platform | Stack | Status |
+| Dir | Stack | Role |
 |---|---|---|
-| Android | Kotlin, Jetpack Compose, Room, Hilt | ✅ Production |
-| iPhone / iPad | Next.js PWA (Safari → Add to Home Screen) | 🚧 Phase 3c — deploying |
-| Web (desktop / Chrome) | Next.js 14, Tailwind, shadcn/ui | ✅ Built, deploying |
-| Backend | Spring Boot 3.2.5, Kotlin, JPA, Flyway | ✅ Built, deploying |
+| `backend/` | Spring Boot 3, Kotlin, Postgres (Neon) + pgvector, Firebase JWT | REST API — source of truth, deployed on Cloud Run |
+| `android/` | Kotlin, Compose, Room, Hilt | Native client, deployed as a sideloadable APK |
+| `webapp/` | Next.js 14, TypeScript, Tailwind | PWA client, deployed on Vercel |
 
----
+Clients share **no code** — only the API contract `docs/openapi.yaml`, from which each
+generates its own typed client. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Features
-
-- **Food Database** — Manual entry, barcode scan, USDA / OpenFoodFacts search
-- **Meal Templates** — Reusable meals with quantities and units
-- **Diet Templates** — Full-day plans across Breakfast, Lunch, Dinner slots
-- **Calendar Planning** — Assign diets to dates, plan the week ahead
-- **Daily Logging** — Log what you ate, compare against the plan, streak tracking
-- **Workout Logging** — Exercise catalogue, workout templates, session history, sets/reps/weight
-- **Health Metrics** — Weight, blood glucose, HbA1c, custom metrics with trend charts
-- **Grocery Lists** — Auto-generated from planned diets for any date range
-- **Backup & Restore** — Google Drive (appDataFolder) + local file export/import, GZIP compressed
-- **Health Connect** — Steps, calories burned, weight from Garmin/Fitbit/Samsung (Android)
-- **Home Screen Widgets** — Today's plan, diet summary, mini calendar (Android, Glance)
-- **AI Assistant** — Dietary chatbot via Spring AI + RAG (Phase 4, upcoming)
-
----
-
-## Architecture
-
-```
-Android (Room) ←──── SyncWorker ────→ Spring Boot API ←──── Next.js PWA
-                                            │
-                                       Neon.tech Postgres
-                                       + pgvector (AI Phase 4)
-```
-
-- **Android** — fully offline-first; Room is source of truth; syncs to backend via WorkManager
-- **Backend** — Firebase JWT auth; delta sync push/pull with last-write-wins conflict resolution
-- **Webapp** — same Firebase project; same backend API; works as PWA on iPhone Safari
-- **No KMP / no shared module** — Android and web are independent codebases; backend is the shared layer
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Android | Kotlin 1.9, Jetpack Compose, Room v29, Hilt, Retrofit, WorkManager, Glance |
-| Backend | Spring Boot 3.2.5, Kotlin, Spring Data JPA, Flyway, Spring AI (Phase 4) |
-| Database | Neon.tech Postgres 16 + pgvector extension |
-| Auth | Firebase Authentication (Google + email/password) |
-| Webapp | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, serwist (PWA) |
-| CI/CD | GitHub Actions — build+test on PRs; deploy to Cloud Run on develop→main merge |
-| Hosting | Google Cloud Run (backend) · Vercel (webapp) |
-
----
-
-## Repository Layout
-
-```
-mealplan-plus/
-├── android/          ← Kotlin, Compose, Room, Hilt — fully self-contained
-├── backend/          ← Spring Boot 3 — REST API, source of truth
-├── webapp/           ← Next.js 14 PWA — web + iPhone via Add to Home Screen
-├── docs/             ← Architecture docs, DB schema, branching strategy
-├── scripts/          ← One-time setup scripts (GCP, etc.)
-├── shared/           ← DISCONNECTED — do not add code here
-├── ios/              ← SUPERSEDED by PWA — no new work
-├── backup/           ← Seed data (one-time import, historical)
-├── CLAUDE.md         ← AI assistant context (always keep up to date)
-└── ROADMAP.md        ← Phase plan and GitHub issue tracking
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-| Tool | Version |
-|---|---|
-| Android Studio | Hedgehog or later |
-| JDK | 17 (Android) · 21 (Backend) |
-| Android SDK | API 26–35 |
-| Node.js | 18+ |
-| Firebase project | Required (see below) |
-
-### 1. Clone
+## Quickstart
 
 ```bash
-git clone https://github.com/Pulin412/mealplan-plus.git
-cd mealplan-plus
+# Backend (H2 in-memory dev profile on :8080)
+cd backend && ./gradlew bootRun
+
+# Webapp (:3000)
+cd webapp && npm install && npm run dev
+
+# Android — build + install debug on a running emulator/device
+./gradlew :android:installDebug
 ```
 
-### 2. Firebase setup
+## Build & test
 
-The app uses Firebase Auth only (free tier — no Firestore, no Storage, no Cloud Functions).
-
-1. Go to [Firebase Console](https://console.firebase.google.com) → project `mealplan-plus`
-2. Add an **Android app** → package name `com.mealplanplus` → download `google-services.json` → place in `android/`
-3. Add a **Web app** → copy the config into `webapp/.env.local` (see `webapp/.env.local.example`)
-4. Enable **Authentication → Sign-in methods → Email/Password** and **Google**
-
-Full details: [docs/legacy/FIREBASE_SETUP.md](docs/legacy/FIREBASE_SETUP.md)
-
-### 3. Android
-
-```bash
-# Build debug APK
-./gradlew :android:assembleDebug
-
-# Run unit tests
-./gradlew :android:testDebugUnitTest
-
-# Install on connected device
-adb install android/build/outputs/apk/debug/android-debug.apk
-```
-
-### 4. Backend (local)
-
-```bash
-cd backend
-./gradlew bootRun
-# Runs on http://localhost:8080 with H2 in-memory DB — no Postgres needed locally
-```
-
-### 5. Webapp (local)
-
-```bash
-cd webapp
-cp .env.local.example .env.local   # fill in Firebase config
-npm install
-npm run dev
-# Runs on http://localhost:3000
-```
-
----
-
-## Branching Strategy
-
-See [docs/BRANCHING.md](docs/BRANCHING.md) for full details.
-
-```
-feature/* → PR → develop   (CI: build + test gate)
-develop   → PR → main      (CI: build + test gate → deploy on merge)
-```
-
-| Branch | Purpose |
+| Module | Command |
 |---|---|
-| `main` | Production — only updated via PR merge from `develop` |
-| `develop` | Integration — all feature branches merge here first |
-| `feature/*` | Individual features — one branch per GitHub issue |
+| Backend | `cd backend && ./gradlew build test` |
+| Android | `./gradlew :android:testDebugUnitTest` |
+| Webapp | `cd webapp && npm run build && npm run lint` |
+| Regen API types (webapp) | `cd webapp && npm run gen:api` |
 
-Never push directly to `main`. Every production change goes through a PR.
+## Docs
 
----
-
-## CI / CD
-
-| Workflow | Triggers | What it does |
-|---|---|---|
-| `ci.yml` | Push to `main`/`develop`; any PR | Build + unit tests for changed modules (path-filtered) |
-| `backend-deploy.yml` | PR merged `develop` → `main` | JAR → Docker → Artifact Registry → Cloud Run → health check |
-
-**Deployed services:**
-- **Backend:** Google Cloud Run · `mealplan-api` · `europe-west4` (Netherlands)
-- **Webapp:** Vercel · auto-deploy on push to `main`
-
----
-
-## Key Docs
-
-| File | Purpose |
-|---|---|
-| `CLAUDE.md` | Full project context for AI assistant |
-| `docs/legacy/ROADMAP.md` | Phase plan, GitHub issues (old-app archive) |
-| `docs/legacy/DATABASE_SCHEMA.md` | Old-app Room schema, ER diagram, migration history |
-| `docs/BRANCHING.md` | Branching strategy and PR workflow |
-| `docs/legacy/design-future.html` | Old interactive design mockups (archive) |
-| `docs/openapi.yaml` | Backend OpenAPI spec — source of truth for API types |
-
----
-
-## Files That Must Never Be Committed
-
-- `android/google-services.json` — Firebase Android credentials
-- `webapp/.env.local` — Firebase web config + API keys
-- `local.properties` — local SDK paths
-
-All listed in `.gitignore`.
-
----
-
-## License
-
-Private repository. All rights reserved.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the tiers fit, data/sync model, auth, deployment, zero-billing.
+- [docs/FEATURES.md](docs/FEATURES.md) — what's built and what's planned.
+- `docs/openapi.yaml` — the API contract (build input; keep in sync with every API change).
+- `docs/agents/` — planning for the future AI-agent feature.
