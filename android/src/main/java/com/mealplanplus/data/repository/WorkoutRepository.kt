@@ -1,119 +1,35 @@
 package com.mealplanplus.data.repository
 
-import com.mealplanplus.data.local.ExerciseCategoryDao
-import com.mealplanplus.data.local.ExerciseDao
-import com.mealplanplus.data.local.PlannedWorkoutDao
-import com.mealplanplus.data.local.WorkoutSessionDao
-import com.mealplanplus.data.local.WorkoutSetDao
-import com.mealplanplus.data.local.WorkoutTemplateDao
-import com.mealplanplus.data.model.Exercise
-import com.mealplanplus.data.model.ExerciseCategoryEntity
-import com.mealplanplus.data.model.PlannedWorkout
-import com.mealplanplus.data.model.WorkoutSession
-import com.mealplanplus.data.model.WorkoutSet
-import com.mealplanplus.data.model.WorkoutTemplate
-import com.mealplanplus.data.model.WorkoutTemplateExercise
-import com.mealplanplus.data.model.WorkoutTemplateSet
+import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
+import com.mealplanplus.data.generated.model.TemplateExerciseDto
+import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Server-backed workout templates (name + ordered exercises with a sets×reps target). Not in the
+ * offline sync contract, so these are direct REST calls (needs a backend up), like [ExerciseRepository].
+ */
 @Singleton
 class WorkoutRepository @Inject constructor(
-    private val sessionDao: WorkoutSessionDao,
-    private val setDao: WorkoutSetDao,
-    private val exerciseDao: ExerciseDao,
-    private val templateDao: WorkoutTemplateDao,
-    private val plannedWorkoutDao: PlannedWorkoutDao,
-    private val categoryDao: ExerciseCategoryDao
+    private val api: WorkoutTemplatesApi,
 ) {
-    // ── Sessions ─────────────────────────────────────────────────────────────
-    fun getSessions(userId: String) = sessionDao.getSessions(userId)
-    fun getSessionsWithSets(userId: String) = sessionDao.getSessionsWithSets(userId)
-    fun observeInProgressSession(userId: String) = sessionDao.observeInProgressSession(userId)
-    suspend fun getInProgressSession(userId: String) = sessionDao.getInProgressSession(userId)
-    fun getSessionsForDate(userId: String, date: Long) = sessionDao.getSessionsForDate(userId, date)
-    fun getSessionsInRange(userId: String, from: Long, to: Long) = sessionDao.getSessionsInRange(userId, from, to)
-    suspend fun getSessionWithSets(id: Long) = sessionDao.getSessionWithSets(id)
-    fun observeSessionWithSets(id: Long) = sessionDao.observeSessionWithSets(id)
-    suspend fun createSession(session: WorkoutSession): Long = sessionDao.insert(session)
-    suspend fun updateSession(session: WorkoutSession) = sessionDao.update(session)
-    suspend fun deleteSession(session: WorkoutSession) = sessionDao.delete(session)
-    suspend fun getUnsyncedSessions(userId: String) = sessionDao.getUnsyncedSessions(userId)
-    suspend fun markSessionCompleted(id: Long) =
-        sessionDao.markCompleted(id, System.currentTimeMillis())
+    suspend fun list(): List<WorkoutTemplateDto> =
+        runCatching { api.listWorkoutTemplates().body().orEmpty() }.getOrDefault(emptyList())
 
-    suspend fun markAllInProgressCompleted(userId: String) =
-        sessionDao.markAllInProgressCompleted(userId, System.currentTimeMillis())
-
-    fun getCompletedSessionsWithSetsForDate(userId: String, date: Long) =
-        sessionDao.getCompletedSessionsWithSetsForDate(userId, date)
-
-    suspend fun deleteSessionsInRange(userId: String, from: Long, to: Long) {
-        val ids = sessionDao.getSessionsInRangeOnce(userId, from, to).map { it.id }
-        if (ids.isNotEmpty()) setDao.deleteAllForSessions(ids)
-        sessionDao.deleteSessionsInRange(userId, from, to)
+    suspend fun create(name: String, exercises: List<TemplateExerciseDto>): Result<WorkoutTemplateDto> = runCatching {
+        api.createWorkoutTemplate(WorkoutTemplateDto(name = name.trim(), exercises = reindex(exercises))).body()!!
     }
 
-    // ── Sets ─────────────────────────────────────────────────────────────────
-    suspend fun addSet(set: WorkoutSet): Long = setDao.insert(set)
-    suspend fun updateSet(set: WorkoutSet) = setDao.update(set)
-    suspend fun deleteSet(set: WorkoutSet) = setDao.delete(set)
-    suspend fun getLastSetsForExercise(
-        userId: String,
-        exerciseId: Long,
-        excludeSessionId: Long,
-        templateId: Long? = null
-    ): List<WorkoutSet> =
-        setDao.getLastSetsForExercise(userId, exerciseId, excludeSessionId, templateId)
-
-    // ── Exercises ─────────────────────────────────────────────────────────────
-    fun getAllExercisesForUser(userId: String) = exerciseDao.getAllForUser(userId)
-    fun getAllExercises() = exerciseDao.getAll()
-    fun getExercisesByCategory(category: String) = exerciseDao.getByCategory(category)
-    suspend fun getExerciseById(id: Long): Exercise? = exerciseDao.getById(id)
-    suspend fun getExerciseByName(name: String): Exercise? = exerciseDao.getByName(name)
-    suspend fun insertExercise(exercise: Exercise): Long = exerciseDao.insert(exercise)
-    suspend fun updateExercise(exercise: Exercise) = exerciseDao.update(exercise)
-    suspend fun deleteExercise(exercise: Exercise) = exerciseDao.delete(exercise)
-    suspend fun upsertSystemExercises(exercises: List<Exercise>) = exerciseDao.upsertAll(exercises)
-
-    // ── Exercise categories ───────────────────────────────────────────────────
-    fun getAllCategories() = categoryDao.getAllCategories()
-    suspend fun addCategory(name: String): Long {
-        val trimmed = name.trim().uppercase()
-        if (trimmed.isBlank()) return -1
-        if (categoryDao.countByName(trimmed) > 0) return -1
-        return categoryDao.insert(ExerciseCategoryEntity(name = trimmed, isSystem = false))
-    }
-    suspend fun deleteCategory(category: ExerciseCategoryEntity) = categoryDao.delete(category)
-
-    // ── Templates ─────────────────────────────────────────────────────────────
-    fun getTemplatesForUser(userId: String) = templateDao.getTemplatesForUser(userId)
-    suspend fun getTemplateWithExercises(id: Long) = templateDao.getTemplateWithExercises(id)
-    suspend fun insertTemplate(template: WorkoutTemplate): Long = templateDao.insertTemplate(template)
-    suspend fun upsertTemplateExercises(exercises: List<WorkoutTemplateExercise>) =
-        templateDao.upsertTemplateExercises(exercises)
-    suspend fun insertTemplateSets(sets: List<WorkoutTemplateSet>) = templateDao.insertTemplateSets(sets)
-    suspend fun clearSetsForTemplate(templateId: Long) = templateDao.clearSetsForTemplate(templateId)
-
-    suspend fun saveTemplate(template: WorkoutTemplate, exercises: List<WorkoutTemplateExercise>): Long {
-        val templateId = if (template.id == 0L) {
-            templateDao.insertTemplate(template)
-        } else {
-            templateDao.updateTemplate(template.copy(updatedAt = System.currentTimeMillis()))
-            template.id
-        }
-        templateDao.clearTemplateExercises(templateId)
-        templateDao.upsertTemplateExercises(exercises.map { it.copy(templateId = templateId) })
-        return templateId
+    suspend fun update(id: Long, name: String, exercises: List<TemplateExerciseDto>): Result<WorkoutTemplateDto> = runCatching {
+        api.updateWorkoutTemplate(id, WorkoutTemplateDto(name = name.trim(), id = id, exercises = reindex(exercises))).body()!!
     }
 
-    suspend fun deleteTemplate(template: WorkoutTemplate) = templateDao.deleteTemplate(template)
+    suspend fun delete(id: Long): Result<Unit> = runCatching {
+        api.deleteWorkoutTemplate(id); Unit
+    }
 
-    // ── Planned workouts ──────────────────────────────────────────────────────
-    fun getPlannedForDate(userId: String, date: Long) = plannedWorkoutDao.getPlannedForDate(userId, date)
-    fun getPlannedInRange(userId: String, from: Long, to: Long) = plannedWorkoutDao.getPlannedInRange(userId, from, to)
-    suspend fun planWorkout(plannedWorkout: PlannedWorkout) = plannedWorkoutDao.plan(plannedWorkout)
-    suspend fun unplanWorkout(userId: String, date: Long, templateId: Long) =
-        plannedWorkoutDao.unplanByKey(userId, date, templateId)
+    /** Stamp orderIndex from list position so the server preserves the builder's ordering. */
+    private fun reindex(exercises: List<TemplateExerciseDto>): List<TemplateExerciseDto> =
+        exercises.mapIndexed { i, e -> e.copy(orderIndex = i) }
 }

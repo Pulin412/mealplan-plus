@@ -1,25 +1,36 @@
 package com.mealplanplus.api.domain.diet
 
-import io.swagger.v3.oas.annotations.tags.Tag
-import jakarta.validation.Valid
+import com.mealplanplus.api.generated.api.DietsApi
+import com.mealplanplus.api.generated.model.DietDto
 import org.springframework.http.HttpStatus
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/v1/diets")
-@Tag(name = "Diets")
-class DietController(private val service: DietService) {
+class DietController(private val service: DietService) : DietsApi {
 
-    @GetMapping fun list(auth: Authentication) = service.list(auth.name)
-    @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id)
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody dto: DietDto, auth: Authentication) = service.create(dto, auth.name)
-    @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @Valid @RequestBody dto: DietDto, auth: Authentication) = service.update(id, dto, auth.name)
-    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+    override fun listDiets(favorites: Boolean): ResponseEntity<List<DietDto>> =
+        ResponseEntity.ok(service.list(currentUid(), favoritesOnly = favorites))
 
-    @PostMapping("/{id}/duplicate") @ResponseStatus(HttpStatus.CREATED)
-    fun duplicate(@PathVariable id: Long, auth: Authentication) = service.duplicate(id, auth.name)
+    override fun getDiet(id: Long): ResponseEntity<DietDto> =
+        ResponseEntity.ok(service.get(id, currentUid()))
+
+    override fun createDiet(dietDto: DietDto): ResponseEntity<DietDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.create(dietDto, currentUid()))
+
+    override fun updateDiet(id: Long, dietDto: DietDto): ResponseEntity<DietDto> =
+        ResponseEntity.ok(service.update(id, dietDto, currentUid()))
+
+    override fun deleteDiet(id: Long): ResponseEntity<Unit> {
+        service.delete(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    override fun duplicateDiet(id: Long): ResponseEntity<DietDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.duplicate(id, currentUid()))
+
+    override fun toggleDietFavorite(id: Long): ResponseEntity<DietDto> =
+        ResponseEntity.ok(service.toggleFavorite(id, currentUid()))
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

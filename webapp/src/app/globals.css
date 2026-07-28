@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design system tokens — spec §3 */
+:root {
+  --color-primary:  oklch(0.62 0.09 210);   /* teal */
+  --color-bg:       #f7f9fa;
+  --color-ink:      #14181b;
+  --color-success:  oklch(0.66 0.13 150);   /* workout green */
+  --color-flame:    oklch(0.7 0.18 45);     /* streak orange */
+  --color-danger:   #b23b3b;
+  --color-border:   #eaeef0;
+  --color-surface:  #ffffff;
+  --radius-card:    12px;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: system-ui, sans-serif;
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}

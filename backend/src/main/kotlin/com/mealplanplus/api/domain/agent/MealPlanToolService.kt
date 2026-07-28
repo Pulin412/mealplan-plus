@@ -30,7 +30,7 @@ class MealPlanToolService(
     fun searchFoods(query: String): String {
         if (query.isBlank()) return "Please provide a food name to search."
         val page = foodService.search(query, uid, PageRequest.of(0, 8))
-        if (page.isEmpty) return "No foods found matching '$query'. Try a simpler name."
+        if (page.content.isEmpty()) return "No foods found matching '$query'. Try a simpler name."
         return page.content.joinToString("\n") { f ->
             "id=${f.id} | ${f.name}${f.brand?.let { " ($it)" } ?: ""} | " +
             "${f.caloriesPer100.toInt()} kcal | ${f.proteinPer100}g protein | " +

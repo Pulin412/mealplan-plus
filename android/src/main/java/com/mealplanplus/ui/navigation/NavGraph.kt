@@ -1,0 +1,173 @@
+package com.mealplanplus.ui.navigation
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.mealplanplus.ui.screens.auth.AuthScreen
+import com.mealplanplus.ui.screens.auth.AuthViewModel
+import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
+import com.mealplanplus.ui.screens.diets.DietsScreen
+import com.mealplanplus.ui.screens.exercises.ExercisesScreen
+import com.mealplanplus.ui.screens.foods.FoodsScreen
+import com.mealplanplus.ui.screens.groceries.GroceryScreen
+import com.mealplanplus.ui.screens.health.HealthScreen
+import com.mealplanplus.ui.screens.meals.MealsScreen
+import com.mealplanplus.ui.screens.misc.MiscScreen
+import com.mealplanplus.ui.screens.home.HomeScreen
+import com.mealplanplus.ui.screens.plan.PlanScreen
+import com.mealplanplus.ui.screens.profile.ProfileScreen
+import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
+import com.mealplanplus.ui.screens.settings.SettingsScreen
+import java.net.URLEncoder
+
+sealed class Screen(val route: String, val label: String) {
+    object Today     : Screen("today",     "Today")
+    object Plan      : Screen("plan",      "Plan")
+    object Exercises : Screen("exercises", "Exercises")
+    object Health    : Screen("health",    "Health")
+    object Foods     : Screen("foods",     "Foods")
+    object Meals     : Screen("meals",     "Meals")
+    object Diets     : Screen("diets",     "Diets")
+    object Groceries : Screen("groceries", "Groceries")
+    object Misc      : Screen("misc",      "More")
+    object Profile   : Screen("profile",   "Profile")
+    object Settings  : Screen("settings",  "Settings")
+}
+
+private val bottomNavItems = listOf(
+    Screen.Today     to Icons.Default.Home,
+    Screen.Plan      to Icons.Default.CalendarMonth,
+    Screen.Exercises to Icons.Default.FitnessCenter,
+    Screen.Health    to Icons.Default.MonitorHeart,
+    Screen.Misc      to Icons.Default.GridView,
+)
+
+/**
+ * Top-level gate: unauthenticated users see the auth flow; signed-in users get the app.
+ * The switch is automatic — [AuthViewModel.authState] flips on sign-in/out.
+ */
+@Composable
+fun AppRoot() {
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val user by authViewModel.authState.collectAsState()
+    if (user == null) AuthNavHost(authViewModel) else MealPlanNavHost()
+}
+
+@Composable
+private fun AuthNavHost(vm: AuthViewModel) {
+    val nav = rememberNavController()
+    NavHost(navController = nav, startDestination = "auth") {
+        composable("auth")   { AuthScreen(vm, onForgotPassword = { nav.navigate("forgot") }) }
+        composable("forgot") { ForgotPasswordScreen(vm, onBack = { nav.popBackStack() }) }
+    }
+}
+
+@Composable
+fun MealPlanNavHost() {
+    val navController = rememberNavController()
+    val navBackStack  by navController.currentBackStackEntryAsState()
+    val currentDest   = navBackStack?.destination
+
+    // Persistent bottom nav on every in-app screen, except the full-screen Session Runner.
+    val showBottomBar = currentDest?.route?.startsWith("runner") != true
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    bottomNavItems.forEach { (screen, icon) ->
+                        NavigationBarItem(
+                            selected = currentDest?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick  = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState    = true
+                                }
+                            },
+                            icon  = { Icon(icon, contentDescription = screen.label) },
+                            label = { Text(screen.label) }
+                        )
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController    = navController,
+            // TEMP (no bottom nav yet): launch on Today; ☰/back cycle Today → Meals → Diets → Foods → Today.
+            startDestination = Screen.Today.route,
+            modifier         = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Today.route)     {
+                HomeScreen(onMenu = { navController.navigate(Screen.Settings.route) },
+                    onProfile = { navController.navigate(Screen.Profile.route) },
+                    onOpenRunner = { templateId, name ->
+                        navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
+                    },
+                    onOpenExerciseRunner = { exerciseId, name ->
+                        navController.navigate("runner?exerciseId=$exerciseId&name=${URLEncoder.encode(name, "UTF-8")}")
+                    })
+            }
+            composable(
+                route = "runner?templateId={templateId}&exerciseId={exerciseId}&name={name}",
+                arguments = listOf(
+                    navArgument("templateId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("exerciseId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("name") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) {
+                SessionRunnerScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.Profile.route)   {
+                ProfileScreen(onBack = { navController.navigate(Screen.Today.route) })
+            }
+            composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.navigate(Screen.Profile.route) }) }
+            composable(Screen.Plan.route)      { PlanScreen() }
+            composable(Screen.Exercises.route) { ExercisesScreen() }
+            composable(Screen.Health.route)    { HealthScreen() }
+            composable(Screen.Misc.route)      {
+                MiscScreen(
+                    onFoods = { navController.navigate(Screen.Foods.route) },
+                    onMeals = { navController.navigate(Screen.Meals.route) },
+                    onDiets = { navController.navigate(Screen.Diets.route) },
+                    onGroceries = { navController.navigate(Screen.Groceries.route) },
+                )
+            }
+            composable(Screen.Meals.route)     {
+                MealsScreen(onBack = { navController.navigate(Screen.Misc.route) })
+            }
+            composable(Screen.Diets.route)     {
+                DietsScreen(onBack = { navController.navigate(Screen.Misc.route) })
+            }
+            composable(Screen.Foods.route)     {
+                FoodsScreen(onBack = { navController.navigate(Screen.Misc.route) })
+            }
+            composable(Screen.Groceries.route) {
+                GroceryScreen(onMenu = { navController.navigate(Screen.Misc.route) })
+            }
+        }
+    }
+}

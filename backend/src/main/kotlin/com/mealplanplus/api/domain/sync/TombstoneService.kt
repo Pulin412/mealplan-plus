@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.sync
 
+import com.mealplanplus.api.generated.model.TombstoneDto
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.util.UUID

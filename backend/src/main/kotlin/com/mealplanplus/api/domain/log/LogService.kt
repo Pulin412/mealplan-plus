@@ -1,5 +1,8 @@
 package com.mealplanplus.api.domain.log
 
+import com.mealplanplus.api.generated.model.DailyLogDto
+import com.mealplanplus.api.generated.model.FoodUnit
+import com.mealplanplus.api.generated.model.LoggedFoodDto
 import com.mealplanplus.api.domain.sync.TombstoneService
 import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
@@ -8,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 import java.time.LocalDate
+import java.util.UUID
 
 @Service
 class DailyLogService(
@@ -29,15 +33,16 @@ class DailyLogService(
 
     @Transactional
     fun create(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
+        val date = dto.date
         val log = DailyLog(
             firebaseUid = firebaseUid,
-            date = dto.date ?: LocalDate.now(),
+            date = date,
             notes = dto.notes
         ).also { if (dto.serverId != null) it.serverId = dto.serverId }
         val saved = logRepo.save(log)
-        val foods = dto.loggedFoods.map { f ->
-            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId,
-                mealSlot = f.mealSlot, quantity = f.quantity, unit = f.unit))
+        val foods = (dto.loggedFoods ?: emptyList()).map { f ->
+            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId ?: 0L,
+                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit.value))
         }
         return saved.toDto(foods)
     }
@@ -60,31 +65,53 @@ class DailyLogService(
         val existing = logRepo.findById(id).orElseThrow()
         if (existing.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         foodRepo.deleteByDailyLogId(existing.id)
+        val date = dto.date
         val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
-            date = dto.date ?: existing.date, notes = dto.notes)
+            date = date, notes = dto.notes)
             .also { it.serverId = existing.serverId }
         val saved = logRepo.save(updated)
-        val foods = dto.loggedFoods.map { f ->
-            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId,
-                mealSlot = f.mealSlot, quantity = f.quantity, unit = f.unit))
+        val foods = (dto.loggedFoods ?: emptyList()).map { f ->
+            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId ?: 0L,
+                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit.value))
         }
         return saved.toDto(foods)
     }
 
     @Transactional
     fun upsert(dto: DailyLogDto, firebaseUid: String): DailyLogDto {
-        val existing = dto.serverId?.let { logRepo.findByServerId(it) }
+        val serverId = dto.serverId
+        val existing = serverId?.let { logRepo.findByServerId(it) }
         if (existing == null) return create(dto, firebaseUid)
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDto(foodRepo.findByDailyLogId(existing.id))
         foodRepo.deleteByDailyLogId(existing.id)
+        val date = dto.date
         val updated = DailyLog(id = existing.id, firebaseUid = existing.firebaseUid,
-            date = dto.date ?: existing.date, notes = dto.notes)
+            date = date, notes = dto.notes)
             .also { it.serverId = existing.serverId }
         val saved = logRepo.save(updated)
-        val foods = dto.loggedFoods.map { f ->
-            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId,
-                mealSlot = f.mealSlot, quantity = f.quantity, unit = f.unit))
+        val foods = (dto.loggedFoods ?: emptyList()).map { f ->
+            foodRepo.save(LoggedFood(dailyLogId = saved.id, foodId = f.foodId ?: 0L,
+                mealSlot = f.mealSlot ?: "Lunch", quantity = f.quantity, unit = f.unit.value))
         }
         return saved.toDto(foods)
     }
 }
+
+fun LoggedFood.toDto() = LoggedFoodDto(
+    id         = id,
+    dailyLogId = dailyLogId,
+    foodId     = foodId,
+    mealSlot   = mealSlot,
+    quantity   = quantity,
+    unit       = FoodUnit.forValue(unit)
+)
+
+fun DailyLog.toDto(loggedFoods: List<LoggedFood>) = DailyLogDto(
+    id          = id,
+    serverId    = serverId,
+    firebaseUid = firebaseUid,
+    date        = date,
+    notes       = notes,
+    loggedFoods = loggedFoods.map { it.toDto() },
+    updatedAt   = updatedAt
+)

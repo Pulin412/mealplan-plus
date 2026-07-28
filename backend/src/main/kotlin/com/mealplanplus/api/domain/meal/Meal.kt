@@ -10,6 +10,10 @@ class Meal(
     val id: Long = 0,
     val firebaseUid: String = "",
     val name: String = "",
+    var isFavorite: Boolean = false,
+    @Convert(converter = StringListConverter::class)
+    @Column(columnDefinition = "text")
+    var slots: List<String> = emptyList()
 ) : SyncableEntity()
 
 @Entity

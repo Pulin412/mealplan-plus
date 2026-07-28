@@ -3,38 +3,16 @@ package com.mealplanplus.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import com.mealplanplus.data.model.*
+import com.mealplanplus.data.local.dao.DietDao
+import com.mealplanplus.data.local.dao.FoodDao
+import com.mealplanplus.data.local.dao.MealDao
+import com.mealplanplus.data.model.Diet
+import com.mealplanplus.data.model.Food
+import com.mealplanplus.data.model.Meal
 
 @Database(
-    entities = [
-        FoodItem::class,
-        Meal::class,
-        MealFoodItem::class,
-        Diet::class,
-        DietMeal::class,
-        DailyLog::class,
-        LoggedFood::class,
-        Plan::class,
-        PlannedSlot::class,
-        PlannedSlotFood::class,
-        HealthMetric::class,
-        CustomMetricType::class,
-        User::class,
-        Tag::class,
-        DietTagCrossRef::class,
-        FoodTagCrossRef::class,
-        GroceryList::class,
-        GroceryItem::class,
-        Exercise::class,
-        WorkoutSession::class,
-        WorkoutSet::class,
-        WorkoutTemplate::class,
-        WorkoutTemplateExercise::class,
-        WorkoutTemplateSet::class,
-        PlannedWorkout::class,
-        ExerciseCategoryEntity::class
-    ],
-    version = 45,
+    entities  = [Food::class, Meal::class, Diet::class],
+    version   = 8,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -42,17 +20,4 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao
     abstract fun mealDao(): MealDao
     abstract fun dietDao(): DietDao
-    abstract fun dailyLogDao(): DailyLogDao
-    abstract fun planDao(): PlanDao
-    abstract fun plannedSlotDao(): PlannedSlotDao
-    abstract fun healthMetricDao(): HealthMetricDao
-    abstract fun userDao(): UserDao
-    abstract fun tagDao(): TagDao
-    abstract fun groceryDao(): GroceryDao
-    abstract fun exerciseDao(): ExerciseDao
-    abstract fun workoutSessionDao(): WorkoutSessionDao
-    abstract fun workoutSetDao(): WorkoutSetDao
-    abstract fun workoutTemplateDao(): WorkoutTemplateDao
-    abstract fun plannedWorkoutDao(): PlannedWorkoutDao
-    abstract fun exerciseCategoryDao(): ExerciseCategoryDao
 }

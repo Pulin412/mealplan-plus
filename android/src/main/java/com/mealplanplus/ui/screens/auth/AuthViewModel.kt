@@ -1,153 +1,69 @@
 package com.mealplanplus.ui.screens.auth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mealplanplus.data.model.User
-import com.mealplanplus.data.repository.AuthRepository
+import com.google.firebase.auth.FirebaseUser
+import com.mealplanplus.data.auth.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AuthUiState(
     val isLoading: Boolean = false,
-    val isLoggedIn: Boolean = false,
     val error: String? = null,
-    val user: User? = null,
-    val forgotPasswordResult: String? = null,
-    val passwordResetEmailSent: Boolean = false
+    /** Set to the address once a password-reset email has been sent (drives the "check inbox" state). */
+    val resetSentTo: String? = null,
 )
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val repo: AuthRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AuthUiState())
-    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+    /** Drives the top-level auth gate. */
+    val authState: StateFlow<FirebaseUser?> = repo.authState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), repo.currentUser)
 
-    init {
-        checkAuthState()
-    }
+    private val _ui = MutableStateFlow(AuthUiState())
+    val ui: StateFlow<AuthUiState> = _ui.asStateFlow()
 
-    private fun checkAuthState() {
+    fun signIn(email: String, password: String) = run { repo.signIn(email, password) }
+    fun register(email: String, password: String, name: String) = run { repo.register(email, password, name) }
+    fun signInWithGoogle(activityContext: Context) = run { repo.signInWithGoogle(activityContext) }
+    fun clearError() { _ui.value = _ui.value.copy(error = null) }
+
+    /** Send a password-reset email; on success flips [AuthUiState.resetSentTo] to show the inbox screen. */
+    fun sendPasswordReset(email: String) {
         viewModelScope.launch {
-            authRepository.isLoggedIn().collect { isLoggedIn ->
-                _uiState.update { it.copy(isLoggedIn = isLoggedIn) }
+            _ui.value = AuthUiState(isLoading = true)
+            try {
+                repo.sendPasswordReset(email)
+                _ui.value = AuthUiState(resetSentTo = email.trim())
+            } catch (e: Exception) {
+                _ui.value = AuthUiState(error = e.message ?: "Something went wrong")
             }
         }
     }
 
-    fun signIn(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _uiState.update { it.copy(error = "Email and password required") }
-            return
-        }
+    /** Reset transient auth UI state (called when leaving the forgot-password flow). */
+    fun resetUiState() { _ui.value = AuthUiState() }
 
+    /** Runs an auth action with shared loading/error handling. */
+    private fun run(block: suspend () -> Unit) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val result = authRepository.signInWithEmail(email, password)
-            result.fold(
-                onSuccess = { user ->
-                    _uiState.update { it.copy(isLoading = false, isLoggedIn = true, user = user) }
-                },
-                onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Sign in failed") }
-                }
-            )
+            _ui.value = AuthUiState(isLoading = true)
+            try {
+                block()
+                _ui.value = AuthUiState()   // success — gate switches via authState
+            } catch (e: Exception) {
+                _ui.value = AuthUiState(error = e.message ?: "Something went wrong")
+            }
         }
-    }
-
-    fun signInWithGoogle(idToken: String) {
-        if (idToken.isBlank()) {
-            _uiState.update { it.copy(error = "Google sign-in returned an empty token") }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val result = authRepository.signInWithGoogle(idToken)
-            result.fold(
-                onSuccess = { user ->
-                    _uiState.update { it.copy(isLoading = false, isLoggedIn = true, user = user) }
-                },
-                onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Google sign in failed") }
-                }
-            )
-        }
-    }
-
-    fun signUp(email: String, password: String, confirmPassword: String, name: String) {
-        if (email.isBlank() || password.isBlank() || name.isBlank()) {
-            _uiState.update { it.copy(error = "All fields are required") }
-            return
-        }
-        if (password != confirmPassword) {
-            _uiState.update { it.copy(error = "Passwords do not match") }
-            return
-        }
-        if (password.length < 6) {
-            _uiState.update { it.copy(error = "Password must be at least 6 characters") }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val result = authRepository.signUpWithEmail(email, password, name)
-            result.fold(
-                onSuccess = { user ->
-                    _uiState.update { it.copy(isLoading = false, isLoggedIn = true, user = user) }
-                },
-                onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Sign up failed") }
-                }
-            )
-        }
-    }
-
-    fun forgotPassword(email: String) {
-        if (email.isBlank()) {
-            _uiState.update { it.copy(error = "Please enter your email address") }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val result = authRepository.sendPasswordResetEmail(email)
-            result.fold(
-                onSuccess = {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            passwordResetEmailSent = true,
-                            forgotPasswordResult = "A password reset link has been sent to ${email.trim()}.\n\nCheck your inbox and follow the link to set a new password."
-                        )
-                    }
-                },
-                onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message) }
-                }
-            )
-        }
-    }
-
-    fun signOut() {
-        viewModelScope.launch {
-            authRepository.signOut()
-            _uiState.update { AuthUiState(isLoggedIn = false) }
-        }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
-    }
-
-    fun setOAuthError(message: String) {
-        _uiState.update { it.copy(isLoading = false, error = message) }
-    }
-
-    fun clearForgotPasswordResult() {
-        _uiState.update { it.copy(forgotPasswordResult = null, passwordResetEmailSent = false) }
     }
 }

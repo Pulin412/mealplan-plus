@@ -1,700 +1,309 @@
 package com.mealplanplus.ui.screens.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.*
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.SavedStateHandle
-import com.mealplanplus.data.healthconnect.ActivitySummary
-import com.mealplanplus.data.model.HealthMetric
-import com.mealplanplus.data.model.DefaultMealSlot
-import com.mealplanplus.util.ThemePreferences
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.compose.chart.line.lineChart
-import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
-import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
-import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
-import com.patrykandpatrick.vico.core.axis.AxisPosition
-import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
-import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
-import com.patrykandpatrick.vico.core.entry.entryOf
-import com.mealplanplus.util.toEpochMs
-import com.mealplanplus.util.toLocalDate
-import java.time.LocalDate
+import com.mealplanplus.data.generated.model.DashboardDto
+import com.mealplanplus.data.generated.model.ExerciseDto
+import com.mealplanplus.data.generated.model.FoodDto
+import com.mealplanplus.data.generated.model.FoodUnit
+import com.mealplanplus.data.generated.model.LoggedFoodResponseDto
+import com.mealplanplus.data.generated.model.SlotStatusDto
+import com.mealplanplus.data.generated.model.StreakDto
+import com.mealplanplus.data.generated.model.TodayMealItemDto
+import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import com.mealplanplus.data.healthconnect.HealthConnectSummary
+import com.mealplanplus.ui.theme.Success
+import com.mealplanplus.data.repository.defaultQtyFor
+import com.mealplanplus.data.repository.unitLabel
+import com.mealplanplus.ui.theme.AppBg
+import com.mealplanplus.ui.theme.BorderCool
+import com.mealplanplus.ui.theme.Carbs
+import com.mealplanplus.ui.theme.CardBorder
+import com.mealplanplus.ui.theme.DmMono
+import com.mealplanplus.ui.theme.Fat
+import com.mealplanplus.ui.theme.Ink
+import com.mealplanplus.ui.theme.LocalAppColors
+import com.mealplanplus.ui.theme.MutedDark
+import com.mealplanplus.ui.theme.MutedFaint
+import com.mealplanplus.ui.theme.MutedLight
+import com.mealplanplus.ui.theme.OnAccent
+import com.mealplanplus.ui.theme.Protein
+import com.mealplanplus.ui.theme.StreakFlame
+import com.mealplanplus.ui.theme.Surface
+import com.mealplanplus.ui.theme.SurfaceMuted
+import com.mealplanplus.ui.theme.Teal
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
+import java.time.format.TextStyle as JTextStyle
 import java.util.Locale
-import com.mealplanplus.data.model.PlannedWorkoutWithTemplate
-import com.mealplanplus.data.model.WorkoutSessionWithSets
-import com.mealplanplus.ui.theme.AiPurple
-import com.mealplanplus.ui.theme.BgPage
-import com.mealplanplus.ui.theme.CardBg
-import com.mealplanplus.ui.theme.MacroCal
-import com.mealplanplus.ui.theme.MacroCarbs
-import com.mealplanplus.ui.theme.MacroFat
-import com.mealplanplus.ui.theme.MacroProtein
-import com.mealplanplus.ui.theme.PrimaryGreen
-import com.mealplanplus.ui.theme.SlotBreakfast
-import com.mealplanplus.ui.theme.SlotDefault
-import com.mealplanplus.ui.theme.SlotDinner
-import com.mealplanplus.ui.theme.SlotLunch
-import com.mealplanplus.ui.theme.TextMuted
-import com.mealplanplus.ui.theme.TextPrimary
-import com.mealplanplus.ui.theme.TextSecondary
-import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+private val HOME_SLOTS = listOf(
+    "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
+    "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
+)
+
+private val CardDark = Color(0xFF14181B)
+private val CardDarkText = Color(0xFFEDF1F2)
+private val CardDarkMuted = Color(0xFF8A949B)
+private val OverColor = Color(0xFFD98A4A)
+
+private sealed interface HomeSheet {
+    data object None : HomeSheet
+    data object Diet : HomeSheet
+    data object AddToday : HomeSheet
+    data object AddWorkout : HomeSheet
+}
+
+@Composable
+fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
+               onOpenRunner: (Long, String) -> Unit = { _, _ -> },
+               onOpenExerciseRunner: (Long, String) -> Unit = { _, _ -> }) {
+    val viewModel: HomeViewModel = hiltViewModel()
+    val state by viewModel.state.collectAsState()
+    val isDark = LocalAppColors.current.isDark
+    var sheet by remember { mutableStateOf<HomeSheet>(HomeSheet.None) }
+    var expandedSlots by remember { mutableStateOf(setOf<String>()) }
+
+    // Reload today's workout status when returning to Home (e.g. after finishing the runner).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) { viewModel.loadWorkouts(); viewModel.loadActivity() }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    Box(Modifier.fillMaxSize().background(AppBg)) {
+        Column(Modifier.fillMaxSize()) {
+            HomeAppBar(state.dashboard, isDark, onMenu, onProfile, onToggleTheme = { viewModel.toggleTheme(isDark) },
+                onDietClick = { if (state.dashboard?.dietName != null) sheet = HomeSheet.Diet })
+            when {
+                state.loading && state.dashboard == null ->
+                    Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Loading today…", fontSize = 13.sp, color = MutedLight) }
+                state.dashboard == null ->
+                    Box(Modifier.fillMaxSize(), Alignment.Center) { Text(state.error ?: "Couldn't load today", fontSize = 13.sp, color = MutedLight) }
+                else -> {
+                    val d = state.dashboard!!
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+                        Spacer(Modifier.height(4.dp))
+                        CalorieCard(d)
+                        Spacer(Modifier.height(16.dp))
+                        MealsChecklist(d.slots, state.togglingSlot, expandedSlots,
+                            onToggle = viewModel::toggleSlot,
+                            onToggleExpand = { s -> expandedSlots = if (s in expandedSlots) expandedSlots - s else expandedSlots + s })
+                        if (d.additionalFoods.isNotEmpty()) {
+                            Spacer(Modifier.height(16.dp))
+                            AddedTodaySection(d.additionalFoods, state.foods, viewModel::removeFood)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        WorkoutSection(state.workouts,
+                            onOpen = { w ->
+                                when {
+                                    w.templateId != null -> onOpenRunner(w.templateId, w.name)
+                                    w.exerciseId != null -> onOpenExerciseRunner(w.exerciseId, w.name)
+                                }
+                            },
+                            onAdd = { sheet = HomeSheet.AddWorkout })
+                        if (state.hcConnected) {
+                            Spacer(Modifier.height(16.dp))
+                            ActivityCard(state.hcSummary)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        StreakCard(d.streak, d)
+                        Spacer(Modifier.height(96.dp))
+                    }
+                }
+            }
+        }
+
+        Box(contentAlignment = Alignment.Center,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).size(56.dp).clip(CircleShape).background(Teal)
+                .clickable { if (state.dashboard != null) sheet = HomeSheet.AddToday }) {
+            Icon(Icons.Default.Add, "Add to today", tint = OnAccent, modifier = Modifier.size(28.dp))
+        }
+    }
+
+    when (sheet) {
+        is HomeSheet.Diet -> state.dashboard?.let { DietDetailSheet(it) { sheet = HomeSheet.None } }
+        is HomeSheet.AddToday -> AddToTodaySheet(state.foods, state.dashboard?.slots.orEmpty().map { it.slot },
+            onAdd = { foodId, slot, qty, unit -> viewModel.addFood(foodId, slot, qty, unit); sheet = HomeSheet.None }) { sheet = HomeSheet.None }
+        is HomeSheet.AddWorkout -> AddWorkoutSheet(state.workoutTemplates, state.exercises,
+            onPickWorkout = { viewModel.addWorkout(it); sheet = HomeSheet.None },
+            onPickExercise = { ex -> sheet = HomeSheet.None; ex.id?.let { onOpenExerciseRunner(it, ex.name) } },
+            onClose = { sheet = HomeSheet.None })
+        HomeSheet.None -> {}
+    }
+}
+
+// ── Activity (Health Connect) ────────────────────────────────────────────────────
+@Composable
+private fun ActivityCard(summary: HealthConnectSummary) {
+    Text("Activity", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ActivityStat("%,d".format(summary.steps), "steps", Modifier.weight(1f))
+        Box(Modifier.width(1.dp).height(32.dp).background(SurfaceMuted))
+        ActivityStat(summary.caloriesBurned.toString(), "kcal burned", Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun ActivityStat(value: String, label: String, modifier: Modifier = Modifier) {
+    Row(modifier.padding(vertical = 11.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Text(value, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Ink, fontFamily = DmMono)
+        Spacer(Modifier.width(6.dp))
+        Text(label, fontSize = 11.5.sp, color = MutedLight)
+    }
+}
+
+// ── Today's workout ──────────────────────────────────────────────────────────────
+@Composable
+private fun WorkoutSection(workouts: List<HomeWorkout>, onOpen: (HomeWorkout) -> Unit, onAdd: () -> Unit) {
+    Text("Today's workout", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+    if (workouts.isEmpty()) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            .clickable(onClick = onAdd).padding(vertical = 20.dp), Alignment.Center) {
+            Text("＋ Add a workout or exercise", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+        }
+        return
+    }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))) {
+        workouts.forEachIndexed { i, w ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onOpen(w) }.padding(horizontal = 12.dp, vertical = 12.dp)) {
+                Text("🏋️", fontSize = 15.sp)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(w.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    WorkoutStatusLabel(w.status)
+                }
+                Text("›", fontSize = 20.sp, color = MutedLight)
+            }
+            if (i < workouts.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+        Box(Modifier.fillMaxWidth().clickable(onClick = onAdd).padding(vertical = 11.dp), Alignment.Center) {
+            Text("＋ Add workout or exercise", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+        }
+    }
+}
+
+@Composable
+private fun WorkoutStatusLabel(status: WorkoutStatus) {
+    val (text, color) = when (status) {
+        WorkoutStatus.PLANNED -> "Planned · tap to start" to MutedLight
+        WorkoutStatus.IN_PROGRESS -> "In progress · tap to continue" to Teal
+        WorkoutStatus.DONE -> "✓ Done" to Success
+    }
+    Text(text, fontSize = 10.5.sp, fontWeight = if (status == WorkoutStatus.DONE) FontWeight.SemiBold else FontWeight.Normal, color = color, modifier = Modifier.padding(top = 1.dp))
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    onNavigateToLog: () -> Unit = {},
-    onNavigateToLogWithDate: (String) -> Unit = {},
-    onNavigateToHealth: () -> Unit = {},
-    onNavigateToCalendar: () -> Unit = {},
-    onNavigateToGroceryLists: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {},
-    onNavigateToDietPickerForToday: () -> Unit = {},
-    onNavigateToMealDetail: (Long, String) -> Unit = { _, _ -> },
-    onNavigateToFoods: () -> Unit = {},
-    onNavigateToMeals: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToDiets: () -> Unit = {},
-    onNavigateToWorkoutLog: (Long) -> Unit = {},
-    onNavigateToWorkoutSession: (Long) -> Unit = {},
-    savedStateHandle: SavedStateHandle? = null,
-    viewModel: HomeViewModel = hiltViewModel(),
-    quickLogViewModel: QuickLogViewModel = hiltViewModel()
+private fun AddWorkoutSheet(
+    templates: List<WorkoutTemplateDto>,
+    exercises: List<ExerciseDto>,
+    onPickWorkout: (WorkoutTemplateDto) -> Unit,
+    onPickExercise: (ExerciseDto) -> Unit,
+    onClose: () -> Unit,
 ) {
-    val uiState = viewModel.uiState.collectAsState().value
-    val scope   = rememberCoroutineScope()
-    val context    = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    var showQuickLog by remember { mutableStateOf(false) }
-    val quickLogState by quickLogViewModel.uiState.collectAsState()
-
-    LaunchedEffect(uiState.finishCompleted) {
-        if (uiState.finishCompleted) {
-            snackbarHostState.showSnackbar("Day completed! Great work 🎉", duration = SnackbarDuration.Short)
-            viewModel.clearFinishCompleted()
-        }
-    }
-
-    val followSystem by ThemePreferences.isFollowSystem(context).collectAsState(initial = true)
-    val darkModePref by ThemePreferences.isDarkMode(context).collectAsState(initial = false)
-    val isDark = if (followSystem) isSystemInDarkTheme() else darkModePref
-
-    // Observe diet selection result from DietPickerScreen
-    val selectedDietId by (savedStateHandle
-        ?.getStateFlow("selected_diet_id", -1L)
-        ?.collectAsState() ?: remember { mutableStateOf(-1L) })
-    LaunchedEffect(selectedDietId) {
-        if (selectedDietId != -1L) {
-            viewModel.planDietForToday(selectedDietId)
-            savedStateHandle?.set("selected_diet_id", -1L)
-        }
-    }
-
-    if (showQuickLog) {
-        QuickLogBottomSheet(
-            uiState = quickLogState,
-            onDismiss = {
-                showQuickLog = false
-                quickLogViewModel.resetOnClose()
-            },
-            onSlotSelect = quickLogViewModel::updateSlot,
-            onSearchQueryChange = quickLogViewModel::updateSearchQuery,
-            onSearch = quickLogViewModel::search,
-            onLocalFoodSelect = quickLogViewModel::selectLocalFood,
-            onUsdaFoodSelect = quickLogViewModel::selectUsdaFood,
-            onDismissFood = quickLogViewModel::dismissSelectedFood,
-            onQuantityChange = quickLogViewModel::updateQuantity,
-            onUnitChange = quickLogViewModel::updateUnit,
-            onGiChange = quickLogViewModel::updateGiInput,
-            onAddFood = quickLogViewModel::addFood,
-            onRemoveItem = quickLogViewModel::removeItem
-        )
-    }
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = BgPage,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    quickLogViewModel.initForToday()
-                    showQuickLog = true
-                },
-                containerColor = PrimaryGreen,
-                contentColor = Color.White,
-                shape = androidx.compose.foundation.shape.CircleShape
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Quick log food")
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = innerPadding.calculateBottomPadding())
-                .verticalScroll(rememberScrollState())
-        ) {
-            // ── Top: greeting + inline stat strip ─────────────────────────
-            HomeGreetingHeader(
-                userName      = uiState.userName,
-                userInitial   = uiState.userInitial,
-                dayStreak     = uiState.dayStreak,
-                caloriesConsumed = uiState.todaySummary.calories,
-                activitySteps = if (uiState.activitySummary.isConnected) uiState.activitySummary.stepsToday.toInt() else 0,
-                isDark        = isDark,
-                onThemeToggle = {
-                    scope.launch {
-                        ThemePreferences.setFollowSystem(context, false)
-                        ThemePreferences.setDarkMode(context, !isDark)
-                    }
-                },
-                onNotificationClick = onNavigateToSettings,
-                onProfileClick = onNavigateToProfile
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ── Macros card ────────────────────────────────────────────────
-            MacroProgressCard(
-                calories      = uiState.todaySummary.calories,
-                calorieGoal   = uiState.calorieGoal,
-                protein       = uiState.todaySummary.protein,
-                carbs         = uiState.todaySummary.carbs,
-                fat           = uiState.todaySummary.fat,
-                modifier      = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // ── AI insight strip (Phase 4 placeholder) ─────────────────────
-            AiInsightStrip(
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // ── Today's meals ──────────────────────────────────────────────
-            TodayMealsSection(
-                slots              = uiState.todayPlanSlots,
-                hasDietToday       = uiState.hasDietToday,
-                isTodayCompleted   = uiState.isTodayCompleted,
-                todayDietName      = uiState.todayDietName,
-                todayDietGl        = uiState.todayDietGl,
-                todayDietGlIsPartial = uiState.todayDietGlIsPartial,
-                ingredientChecks   = uiState.ingredientChecks,
-                onPlanOrChangeDiet = onNavigateToDietPickerForToday,
-                onSlotToggle       = { slot -> viewModel.toggleSlotLogged(slot) },
-                onSlotTap          = { slot ->
-                    val dId = slot.dietId
-                    if (dId != null && slot.plannedMealId != null)
-                        onNavigateToMealDetail(dId, slot.slotType)
-                },
-                onToggleIngredientCheck = viewModel::toggleIngredientCheck,
-                onFinishDay        = { viewModel.finishTodayPlan() },
-                onReopenDay        = { viewModel.reopenTodayPlan() },
-                plannedWorkouts    = uiState.plannedWorkoutsToday,
-                completedWorkoutsToday = uiState.completedWorkoutsToday,
-                onStartWorkout     = { templateId -> onNavigateToWorkoutLog(templateId) },
-                onViewWorkoutSession = onNavigateToWorkoutSession,
-                modifier           = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(88.dp))
-        }
-    }
-}
-
-// ── Greeting header + stat strip ──────────────────────────────────────────────
-
-@Composable
-fun HomeGreetingHeader(
-    userName: String,
-    userInitial: String,
-    dayStreak: Int,
-    caloriesConsumed: Int,
-    activitySteps: Int = 0,
-    isDark: Boolean = false,
-    onThemeToggle: () -> Unit = {},
-    onNotificationClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
-) {
-    val greeting = when (java.time.LocalTime.now().hour) {
-        in 5..11  -> "Good morning"
-        in 12..16 -> "Good afternoon"
-        else      -> "Good evening"
-    }
-    val today = LocalDate.now()
-    val dayOfWeek = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-    val dateStr = "$dayOfWeek, ${today.dayOfMonth} ${today.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())}"
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(BgPage)
-            .padding(start = 20.dp, end = 16.dp, top = 56.dp, bottom = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "$greeting, ${userName.ifBlank { "there" }}",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    letterSpacing = (-0.3).sp
-                )
-                Text(
-                    text = dateStr,
-                    fontSize = 12.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onThemeToggle, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
-                        contentDescription = "Toggle theme",
-                        tint = TextMuted,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                IconButton(onClick = onNotificationClick, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Default.Notifications,
-                        contentDescription = "Settings",
-                        tint = TextMuted,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFE8F5EE))
-                        .clickable(onClick = onProfileClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = userInitial,
-                        color = PrimaryGreen,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Inline stat strip
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            StatChip(emoji = "🔥", value = "$dayStreak", label = "days")
-            StatDivider()
-            StatChip(emoji = "⚡", value = "%,d".format(caloriesConsumed), label = "kcal")
-            StatDivider()
-            StatChip(emoji = "💪", value = "%,d".format(activitySteps), label = "steps")
-        }
-    }
-}
-
-@Composable
-private fun StatChip(emoji: String, value: String, label: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.padding(end = 14.dp)
-    ) {
-        Text(emoji, fontSize = 13.sp)
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF333333), letterSpacing = (-0.3).sp)
-        Text(label, fontSize = 11.sp, color = TextMuted)
-    }
-}
-
-@Composable
-private fun StatDivider() {
-    Box(modifier = Modifier.width(1.dp).height(14.dp).background(Color(0xFFDEDEDE)).padding(end = 14.dp))
-}
-
-// ── Macro progress card ────────────────────────────────────────────────────────
-
-@Composable
-fun MacroProgressCard(
-    calories: Int,
-    calorieGoal: Int,
-    protein: Int,
-    carbs: Int,
-    fat: Int,
-    modifier: Modifier = Modifier
-) {
-    val proteinGoal = ((calorieGoal * 0.30f) / 4).toInt()
-    val carbsGoal   = ((calorieGoal * 0.40f) / 4).toInt()
-    val fatGoal     = ((calorieGoal * 0.30f) / 9).toInt()
-
-    val isOnTrack = calories <= calorieGoal && protein <= proteinGoal * 1.1f
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Today vs plan", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(
-                        "Target: $calorieGoal kcal",
-                        fontSize = 10.sp,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(top = 1.dp)
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isOnTrack) Color(0xFFE8F5EE) else Color(0xFFFFF3E0)
-                ) {
-                    Text(
-                        text = if (isOnTrack) "On track" else "Over",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isOnTrack) PrimaryGreen else Color(0xFFC05200),
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 2×2 grid
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                MacroProgressItem("Protein", protein, proteinGoal, "g", MacroProtein, Modifier.weight(1f))
-                MacroProgressItem("Carbs", carbs, carbsGoal, "g", MacroCarbs, Modifier.weight(1f))
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                MacroProgressItem("Fat", fat, fatGoal, "g", MacroFat, Modifier.weight(1f))
-                MacroProgressItem("Calories", calories, calorieGoal, "", MacroCal, Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun MacroProgressItem(
-    label: String,
-    value: Int,
-    goal: Int,
-    unit: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    val progress = if (goal > 0) (value.toFloat() / goal).coerceIn(0f, 1f) else 0f
-    Column(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF444444))
-            Text(
-                text = "$value / $goal$unit",
-                fontSize = 11.sp,
-                color = TextSecondary
-            )
-        }
-        Spacer(modifier = Modifier.height(5.dp))
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-            color = color,
-            trackColor = Color(0xFFF0F0F0),
-            strokeCap = StrokeCap.Round
-        )
-    }
-}
-
-// ── AI insight strip ───────────────────────────────────────────────────────────
-
-@Composable
-fun AiInsightStrip(modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFF3EEFF)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("✦", fontSize = 12.sp, color = AiPurple)
-            }
-            Text(
-                text = "AI Coach — coming in Phase 4. Tap to learn more.",
-                fontSize = 12.sp,
-                color = Color(0xFF444444),
-                modifier = Modifier.weight(1f),
-                lineHeight = 17.sp
-            )
-            Text("›", fontSize = 16.sp, color = TextMuted)
-        }
-    }
-}
-
-// ── Today's meals section ──────────────────────────────────────────────────────
-
-@Composable
-fun TodayMealsSection(
-    slots: List<TodayPlanSlot>,
-    hasDietToday: Boolean,
-    isTodayCompleted: Boolean,
-    onPlanOrChangeDiet: () -> Unit,
-    onSlotToggle: (TodayPlanSlot) -> Unit,
-    onSlotTap: (TodayPlanSlot) -> Unit,
-    onFinishDay: () -> Unit,
-    onReopenDay: () -> Unit,
-    modifier: Modifier = Modifier,
-    todayDietName: String? = null,
-    todayDietGl: Double? = null,
-    todayDietGlIsPartial: Boolean = false,
-    ingredientChecks: Set<String> = emptySet(),
-    onToggleIngredientCheck: (slotType: String, foodId: Long) -> Unit = { _, _ -> },
-    plannedWorkouts: List<PlannedWorkoutWithTemplate> = emptyList(),
-    completedWorkoutsToday: List<WorkoutSessionWithSets> = emptyList(),
-    onStartWorkout: (Long) -> Unit = {},
-    onViewWorkoutSession: (Long) -> Unit = {}
-) {
-    val loggedCount = slots.count { it.isLogged }
-    val totalCount  = slots.size
-    val allLogged   = totalCount > 0 && loggedCount == totalCount
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Section header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = if (!todayDietName.isNullOrBlank()) "TODAY · $todayDietName" else "TODAY",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.8.sp,
-                    color = TextSecondary
-                )
-                if (todayDietGl != null) {
-                    val glColor = dietGlColor(todayDietGl)
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = glColor.copy(alpha = 0.12f)
-                    ) {
-                        Text(
-                            text = "GL ${String.format("%.0f", todayDietGl)}${if (todayDietGlIsPartial) "*" else ""}",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = glColor,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                        )
+    var tab by remember { mutableStateOf(0) } // 0 = Workouts, 1 = Exercises
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = Surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+            Text("Add to today", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text(if (tab == 0) "Pick a workout to plan for today" else "Pick a single exercise to log now",
+                fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp, bottom = 12.dp))
+            // Segmented Workouts | Exercises
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).border(1.dp, BorderCool, RoundedCornerShape(9.dp))) {
+                listOf("Workouts", "Exercises").forEachIndexed { i, label ->
+                    val on = i == tab
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f).height(34.dp)
+                        .background(if (on) Ink else Surface).clickable { tab = i }) {
+                        Text(label, fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (on) Surface else MutedDark)
                     }
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (!isTodayCompleted && totalCount > 0) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF0F0F0)
-                    ) {
-                        Text(
-                            text = "$loggedCount / $totalCount logged",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF666666),
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
-                        )
+            Spacer(Modifier.height(10.dp))
+            if (tab == 0) {
+                if (templates.isEmpty()) {
+                    EmptyPicker("No workouts yet — build one in Exercises → Workouts.")
+                } else LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                    items(templates, key = { it.id ?: it.name.hashCode().toLong() }) { w ->
+                        val items = w.exercises ?: emptyList()
+                        val totalSets = items.sumOf { it.sets?.size ?: 0 }
+                        PickerRow(w.name, "${items.size} exercise${if (items.size == 1) "" else "s"} · $totalSets sets", "+ Add") { onPickWorkout(w) }
                     }
                 }
-                // Day-complete tick
-                if (hasDietToday && totalCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(if (isTodayCompleted) PrimaryGreen else Color.Transparent)
-                            .then(
-                                if (isTodayCompleted) Modifier else Modifier.background(Color.Transparent)
-                            )
-                            .clickable(onClick = if (isTodayCompleted) onReopenDay else onFinishDay),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(Color.Transparent),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isTodayCompleted) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = "Day complete – tap to reopen",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Transparent)
-                                ) {
-                                    Canvas22dp(
-                                        color = PrimaryGreen
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                // Plan / change diet button
-                TextButton(
-                    onClick = onPlanOrChangeDiet,
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                ) {
-                    Text(
-                        text = if (hasDietToday) "Change ›" else "Plan diet ›",
-                        color = PrimaryGreen,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-
-        // Slot cards
-        if (slots.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBg),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                Text(
-                    text = if (hasDietToday) "Loading plan…"
-                           else "No diet planned for today.\nTap \"Plan diet\" to get started.",
-                    fontSize = 13.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(16.dp),
-                    lineHeight = 19.sp
-                )
-            }
-        } else {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBg),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                slots.forEachIndexed { index, slot ->
-                    val canNavigate = slot.dietId != null && slot.plannedMealId != null
-                    NewTodaySlotRow(
-                        slot                    = slot,
-                        ingredientChecks        = ingredientChecks,
-                        onToggleIngredientCheck = onToggleIngredientCheck,
-                        onToggle = if (!isTodayCompleted) { -> onSlotToggle(slot) } else { -> },
-                        onTap    = if (canNavigate) { -> onSlotTap(slot) } else null
-                    )
-                    if (index < slots.lastIndex) {
-                        HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
-                    }
-                }
-            }
-        }
-        if (plannedWorkouts.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBg),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                plannedWorkouts.forEachIndexed { index, workout ->
-                    val completedSession = completedWorkoutsToday.firstOrNull {
-                        it.session.templateId == workout.plannedWorkout.templateId
-                    }
-                    PlannedWorkoutRow(
-                        workout = workout,
-                        completedSession = completedSession,
-                        onStart = { onStartWorkout(workout.plannedWorkout.templateId) },
-                        onView = { completedSession?.let { onViewWorkoutSession(it.session.id) } }
-                    )
-                    if (index < plannedWorkouts.lastIndex) {
-                        HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
+            } else {
+                if (exercises.isEmpty()) {
+                    EmptyPicker("No exercises yet — add some in Exercises.")
+                } else LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                    items(exercises, key = { it.id ?: it.name.hashCode().toLong() }) { ex ->
+                        PickerRow(ex.name, ex.description?.takeIf { it.isNotBlank() } ?: "Tap to log now", "▶ Log") { onPickExercise(ex) }
                     }
                 }
             }
@@ -702,473 +311,328 @@ fun TodayMealsSection(
     }
 }
 
-// Draws the outline-circle tick (no Canvas dep — uses nested Box with border)
 @Composable
-private fun Canvas22dp(color: Color) {
-    Box(
-        modifier = Modifier
-            .size(22.dp)
-            .clip(CircleShape)
-            .background(Color.Transparent),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(22.dp)
-                .clip(CircleShape)
-                .background(Color.Transparent)
-        ) {
-            // Outer ring
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.15f))
-            )
-        }
-        Icon(
-            Icons.Default.Check,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(12.dp)
-        )
+private fun EmptyPicker(text: String) {
+    Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), Alignment.Center) {
+        Text(text, fontSize = 12.sp, color = MutedLight)
     }
 }
 
 @Composable
-fun NewTodaySlotRow(
-    slot: TodayPlanSlot,
-    ingredientChecks: Set<String> = emptySet(),
-    onToggleIngredientCheck: (slotType: String, foodId: Long) -> Unit = { _, _ -> },
-    onToggle: () -> Unit = {},
-    onTap: (() -> Unit)? = null
-) {
-    val dotColor = when (slot.slotType.uppercase()) {
-        "BREAKFAST"   -> SlotBreakfast
-        "LUNCH"       -> SlotLunch
-        "DINNER"      -> SlotDinner
-        else          -> SlotDefault
+private fun PickerRow(title: String, sub: String, action: String, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 11.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Text(sub, fontSize = 10.5.sp, color = MutedLight, maxLines = 1)
+        }
+        Text(action, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+            modifier = Modifier.clip(RoundedCornerShape(9.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(9.dp)).padding(horizontal = 12.dp, vertical = 7.dp))
     }
-    val canToggle      = slot.plannedFoods.isNotEmpty() || slot.isLogged
-    val hasLoggedFoods = slot.loggedFoods.isNotEmpty()
-    val hasPlanFoods   = slot.plannedFoods.isNotEmpty()
-    val hasFoodsToShow = hasLoggedFoods || hasPlanFoods
-    var expanded by remember(slot.slotType, slot.loggedFoods.size) { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+}
 
-    val calories = when {
-        slot.isLogged && hasLoggedFoods ->
-            slot.loggedFoods.sumOf { it.calculatedCalories.toInt() }
-        hasPlanFoods ->
-            slot.plannedFoods.sumOf { it.calculatedCalories.toInt() }
-        else -> 0
+@Composable
+private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, onProfile: () -> Unit, onToggleTheme: () -> Unit, onDietClick: () -> Unit) {
+    val dateText = d?.date?.format(DateTimeFormatter.ofPattern("EEEE, d MMM")) ?: ""
+    Column(Modifier.fillMaxWidth().padding(start = 6.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = onMenu) { Icon(Icons.Default.Settings, "Settings", tint = Ink) }
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.size(34.dp).clip(CircleShape).clickable(onClick = onToggleTheme), contentAlignment = Alignment.Center) {
+                Text(if (isDark) "☀️" else "🌙", fontSize = 16.sp)
+            }
+            IconButton(onClick = {}) { Icon(Icons.Default.Notifications, "Notifications", tint = MutedDark, modifier = Modifier.size(20.dp)) }
+            Box(Modifier.size(34.dp).clip(CircleShape).background(Teal).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Person, "Profile", tint = OnAccent, modifier = Modifier.size(18.dp))
+            }
+        }
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(start = 10.dp, top = 2.dp)) {
+            Text(dateText, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Ink)
+            d?.dietName?.let {
+                Spacer(Modifier.width(8.dp))
+                Text("· $it", fontSize = 12.sp, color = Teal, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 3.dp).clip(RoundedCornerShape(4.dp)).clickable(onClick = onDietClick))
+            }
+        }
     }
+}
 
+// ── Calorie strip (dark hero card) ─────────────────────────────────────────────
+@Composable
+private fun CalorieCard(d: DashboardDto) {
+    val ring = d.calorieRing
+    val over = ring.isOver
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardDark).padding(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CalorieRing(ring.consumed, ring.target.toDouble(), over) {
+                val big = if (over) (-ring.remaining) else ring.remaining
+                Text("${big.roundToInt()}", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 26.sp, color = CardDarkText)
+                Text(if (over) "kcal over" else "kcal left", fontSize = 10.sp, color = CardDarkMuted)
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(Modifier.weight(1f)) {
+                Text("${ring.consumed.roundToInt()} of ${ring.target} kcal", fontSize = 12.sp, color = CardDarkMuted)
+                Spacer(Modifier.height(10.dp))
+                MacroBar("Protein", d.macros.consumedProtein, d.macros.targetProtein, Protein)
+                Spacer(Modifier.height(7.dp))
+                MacroBar("Carbs", d.macros.consumedCarbs, d.macros.targetCarbs, Carbs)
+                Spacer(Modifier.height(7.dp))
+                MacroBar("Fat", d.macros.consumedFat, d.macros.targetFat, Fat)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalorieRing(consumed: Double, target: Double, over: Boolean, center: @Composable () -> Unit) {
+    val frac = if (target <= 0) 0f else (consumed / target).coerceIn(0.0, 1.0).toFloat()
+    val progressColor = if (over) OverColor else Teal
+    Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(96.dp)) {
+            val sw = 11.dp.toPx()
+            val dm = size.minDimension - sw
+            val tl = Offset(sw / 2, sw / 2)
+            val sz = Size(dm, dm)
+            drawArc(Color(0xFF2A3136), -90f, 360f, false, style = Stroke(sw, cap = StrokeCap.Round), topLeft = tl, size = sz)
+            drawArc(progressColor, -90f, 360f * frac, false, style = Stroke(sw, cap = StrokeCap.Round), topLeft = tl, size = sz)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) { center() }
+    }
+}
+
+@Composable
+private fun MacroBar(label: String, consumed: Double, target: Int?, color: Color) {
+    val frac = if (target == null || target <= 0) 0f else (consumed / target).coerceIn(0.0, 1.0).toFloat()
     Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    if (hasFoodsToShow) expanded = !expanded
-                }
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Colour dot
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(if (slot.isLogged) dotColor else Color(0xFFCCCCCC))
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, fontSize = 10.sp, color = CardDarkMuted, modifier = Modifier.width(52.dp))
+            Text("${consumed.roundToInt()}${target?.let { " / ${it}g" } ?: "g"}", fontFamily = DmMono, fontSize = 10.sp, color = CardDarkText)
+        }
+        Spacer(Modifier.height(3.dp))
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF2A3136))) {
+            Box(Modifier.fillMaxWidth(frac).height(4.dp).clip(RoundedCornerShape(2.dp)).background(color))
+        }
+    }
+}
 
-            // Name + subtitle
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = slot.plannedMealName ?: slot.slotDisplayName,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (slot.isLogged) TextPrimary else Color(0xFF444444)
-                )
-                val subtitle = when {
-                    slot.isLogged && hasFoodsToShow ->
-                        "${slot.slotDisplayName} · Logged ✓ · tap to see ingredients"
-                    slot.isLogged ->
-                        "${slot.slotDisplayName} · Logged ✓"
-                    slot.plannedMealName != null && hasPlanFoods ->
-                        "${slot.slotDisplayName} · Not logged · tap to see ingredients"
-                    slot.plannedMealName != null ->
-                        "${slot.slotDisplayName} · Not logged yet"
-                    else -> slot.slotDisplayName
+// ── Meals checklist ────────────────────────────────────────────────────────────
+@Composable
+private fun MealsChecklist(slots: List<SlotStatusDto>, toggling: String?, expanded: Set<String>, onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit) {
+    Text("Today's meals", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+    if (slots.isEmpty()) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp)).padding(vertical = 22.dp), Alignment.Center) {
+            Text("No diet planned for today.", fontSize = 12.sp, color = MutedLight)
+        }
+        return
+    }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))) {
+        slots.forEachIndexed { i, slot ->
+            SlotRow(slot, toggling == slot.slot, slot.slot in expanded, onToggle, onToggleExpand)
+            if (i < slots.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+        }
+    }
+}
+
+@Composable
+private fun SlotRow(slot: SlotStatusDto, busy: Boolean, expanded: Boolean, onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onToggleExpand(slot.slot) }.padding(horizontal = 12.dp, vertical = 11.dp)) {
+            // Check circle is its own tap target — logs/unlogs; the rest of the row expands/collapses.
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp).clip(CircleShape).clickable(enabled = !busy) { onToggle(slot.slot) }) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(22.dp).clip(CircleShape)
+                    .background(if (slot.isLogged) Teal else Color.Transparent)
+                    .border(1.5.dp, if (slot.isLogged) Teal else BorderCool, CircleShape)) {
+                    if (slot.isLogged) Icon(Icons.Default.Check, null, tint = OnAccent, modifier = Modifier.size(14.dp))
                 }
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = if (slot.isLogged) PrimaryGreen else TextSecondary,
-                    fontWeight = if (slot.isLogged) FontWeight.Medium else FontWeight.Normal
-                )
             }
-
-            // Calorie count
-            if (calories > 0) {
-                Text(
-                    text = "$calories",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (slot.isLogged) Color(0xFF888888) else Color(0xFFCCCCCC)
-                )
+            Spacer(Modifier.width(9.dp))
+            Column(Modifier.weight(1f)) {
+                Text(slot.slot, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                Text(slot.mealName ?: "—", fontSize = 10.5.sp, color = MutedLight)
             }
+            Text("${slot.kcal.roundToInt()}", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
+            Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
+        }
+        if (expanded) SlotDetail(slot)
+    }
+}
 
-            // Tick / circle
-            if (slot.isLogged) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFE8F5EE))
-                        .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = "Logged", tint = PrimaryGreen, modifier = Modifier.size(12.dp))
+/** Inline meal detail: a cooking checklist (ticking does NOT log the meal) + macro totals. */
+@Composable
+private fun SlotDetail(slot: SlotStatusDto) {
+    var checked by remember(slot.slot) { mutableStateOf(setOf<Long>()) }
+    Column(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
+        slot.items.forEach { item ->
+            val on = item.foodId in checked
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+                .clickable { checked = if (on) checked - item.foodId else checked + item.foodId }.padding(vertical = 6.dp)) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(18.dp).clip(RoundedCornerShape(5.dp))
+                    .background(if (on) Teal else Color.Transparent).border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(5.dp))) {
+                    if (on) Icon(Icons.Default.Check, null, tint = OnAccent, modifier = Modifier.size(12.dp))
                 }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF5F5F5))
-                        .then(if (canToggle) Modifier.clickable(onClick = onToggle) else Modifier),
-                    contentAlignment = Alignment.Center
-                ) { /* empty circle */ }
+                Spacer(Modifier.width(9.dp))
+                Text(item.foodName, fontSize = 11.5.sp, color = MutedDark, modifier = Modifier.weight(1f))
+                Text("${item.quantity.trimNum()} ${unitLabel(item.unit.value)}", fontSize = 10.sp, color = MutedFaint, fontFamily = DmMono)
             }
         }
+        Text("P${slot.protein.roundToInt()} · C${slot.carbs.roundToInt()} · F${slot.fat.roundToInt()}", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 6.dp))
+    }
+}
 
-        // Expandable ingredient list with meal-prep checkboxes
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-            data class IngredientRow(val label: String, val foodId: Long)
-            val foods: List<IngredientRow> = if (hasLoggedFoods)
-                slot.loggedFoods.map { lfd ->
-                    IngredientRow(
-                        label = "${lfd.food.name} · ${lfd.loggedFood.quantity.toInt()}${lfd.loggedFood.unit.name.take(1).lowercase()}",
-                        foodId = lfd.food.id
-                    )
+// ── Added today (unplanned foods logged via FAB) ────────────────────────────────
+@Composable
+private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<FoodDto>, onRemove: (Long) -> Unit) {
+    val byId = foods.associateBy { it.id }
+    Text("Added today", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))) {
+        added.forEachIndexed { i, lf ->
+            val food = byId[lf.foodId]
+            val unit = lf.unit ?: FoodUnit.GRAM
+            val kcal = ((food?.caloriesPer100 ?: 0.0) * gramsForDto(food, lf.quantity, unit.value) / 100.0).roundToInt()
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(food?.name ?: "Food", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                        SlotBadge(lf.mealSlot)
+                        Spacer(Modifier.width(6.dp))
+                        Text("${lf.quantity.trimNum()} ${unitLabel(unit.value)}", fontSize = 10.sp, color = MutedFaint, fontFamily = DmMono)
+                    }
                 }
-            else
-                slot.plannedFoods.map { mfi ->
-                    IngredientRow(
-                        label = "${mfi.food.name} · ${mfi.mealFoodItem.quantity.toInt()}${mfi.mealFoodItem.unit.name.take(1).lowercase()}",
-                        foodId = mfi.food.id
-                    )
+                Text("$kcal", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
+                Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable { onRemove(lf.id) })
+            }
+            if (i < added.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+        }
+    }
+}
+
+private fun gramsForDto(food: FoodDto?, quantity: Double, unit: String): Double = when (unit) {
+    "PIECE" -> quantity * (food?.gramsPerPiece ?: 1.0)
+    "CUP"   -> quantity * (food?.gramsPerCup ?: 1.0)
+    "TBSP"  -> quantity * (food?.gramsPerTbsp ?: 1.0)
+    "TSP"   -> quantity * (food?.gramsPerTsp ?: 1.0)
+    else    -> quantity
+}
+
+// ── Streak card (week) ──────────────────────────────────────────────────────────
+@Composable
+private fun StreakCard(streak: StreakDto, d: DashboardDto) {
+    val today = d.date
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp)).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("🔥", fontSize = 16.sp)
+            Spacer(Modifier.width(6.dp))
+            Text("${streak.current}", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Ink)
+            Spacer(Modifier.width(8.dp))
+            Text("Day streak · best ${streak.best}", fontSize = 10.5.sp, color = MutedLight)
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            streak.dots.forEachIndexed { i, on ->
+                val date = today?.minusDays((6 - i).toLong())
+                val label = date?.dayOfWeek?.getDisplayName(JTextStyle.NARROW, Locale.getDefault()) ?: ""
+                val isToday = i == streak.dots.lastIndex
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(26.dp).clip(CircleShape)
+                        .background(if (on) Teal else SurfaceMuted)
+                        .border(if (isToday) 1.5.dp else 0.dp, if (isToday) Teal else Color.Transparent, CircleShape),
+                        contentAlignment = Alignment.Center) {
+                        if (on) Icon(Icons.Default.Check, null, tint = OnAccent, modifier = Modifier.size(13.dp))
+                    }
+                    Text(label, fontSize = 9.sp, color = if (isToday) Teal else MutedFaint, modifier = Modifier.padding(top = 4.dp))
                 }
-            if (foods.isNotEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 24.dp, end = 14.dp, bottom = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
-                ) {
-                    foods.forEach { row ->
-                        val checkKey = "${slot.slotType}:${row.foodId}"
-                        val isChecked = checkKey in ingredientChecks
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onToggleIngredientCheck(slot.slotType, row.foodId) }
-                                .padding(vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = isChecked,
-                                onCheckedChange = { onToggleIngredientCheck(slot.slotType, row.foodId) },
-                                modifier = Modifier.size(32.dp),
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = PrimaryGreen,
-                                    uncheckedColor = Color(0xFFCCCCCC)
-                                )
-                            )
-                            Text(
-                                text = row.label,
-                                fontSize = 12.sp,
-                                color = if (isChecked) TextMuted else Color(0xFF555555),
-                                textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None
-                            )
+            }
+        }
+    }
+}
+
+// ── Diet detail sheet ──────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DietDetailSheet(d: DashboardDto, onClose: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = Surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+            Text(d.dietName ?: "Diet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text("${d.calorieRing.target} kcal target · ${d.slots.size} slots", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp, bottom = 12.dp))
+            d.slots.forEach { slot ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                    SlotBadge(slot.slot)
+                    Spacer(Modifier.weight(1f))
+                    Text("${slot.kcal.roundToInt()} kcal", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
+                }
+                Text(slot.mealName ?: "—", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(top = 2.dp))
+                slot.items.forEach { ItemLine(it) }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted).padding(top = 6.dp))
+            }
+        }
+    }
+}
+
+// ── Add to today (unplanned food → slot) ────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AddToTodaySheet(foods: List<FoodDto>, plannedSlots: List<String>, onAdd: (Long, String, Double, FoodUnit) -> Unit, onClose: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var slot by remember { mutableStateOf(plannedSlots.firstOrNull() ?: HOME_SLOTS[1]) }
+    var query by remember { mutableStateOf("") }
+    val list = foods.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
+    ModalBottomSheet(onDismissRequest = onClose, sheetState = sheetState, containerColor = Surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 20.dp).height(520.dp)) {
+            Text("Add to today", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text("Log an unplanned food into a slot", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
+            Text("Slot", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                HOME_SLOTS.forEach { s ->
+                    val on = s == slot
+                    Text(s, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (on) OnAccent else MutedDark,
+                        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Teal else Color.Transparent)
+                            .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp)).clickable { slot = s }.padding(horizontal = 11.dp, vertical = 6.dp))
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(SurfaceMuted).padding(horizontal = 12.dp, vertical = 10.dp)) {
+                Text("⌕", fontSize = 14.sp, color = MutedLight)
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.weight(1f)) {
+                    if (query.isEmpty()) Text("Search your foods…", fontSize = 13.sp, color = MutedLight)
+                    BasicTextField(query, { query = it }, singleLine = true, cursorBrush = SolidColor(Teal),
+                        textStyle = TextStyle(fontSize = 13.sp, color = Ink), modifier = Modifier.fillMaxWidth())
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(Modifier.weight(1f)) {
+                items(list, key = { it.id ?: it.name.hashCode().toLong() }) { food ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(food.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                            Text("${food.caloriesPer100.toInt()} kcal / 100g", fontSize = 10.5.sp, color = MutedLight)
                         }
+                        val unit = food.unit ?: FoodUnit.GRAM
+                        Text("+ Add", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                            modifier = Modifier.clip(RoundedCornerShape(9.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(9.dp))
+                                .clickable { food.id?.let { onAdd(it, slot, defaultQtyFor(unit.value), unit) } }.padding(horizontal = 12.dp, vertical = 7.dp))
                     }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
                 }
             }
         }
     }
 }
 
+// ── small helpers ──
 @Composable
-private fun PlannedWorkoutRow(
-    workout: PlannedWorkoutWithTemplate,
-    completedSession: WorkoutSessionWithSets? = null,
-    onStart: () -> Unit,
-    onView: () -> Unit = {}
-) {
-    val name = workout.template.template.name
-    val exerciseCount = workout.template.exercises.size
-    val isCompleted = completedSession != null
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = if (isCompleted) onView else onStart)
-            .padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = name,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            if (isCompleted) {
-                val s = completedSession!!.sets.size
-                val e = completedSession.sets.map { it.exercise.id }.distinct().size
-                Text(
-                    text = "$s set${if (s != 1) "s" else ""} · $e exercise${if (e != 1) "s" else ""} · Done",
-                    fontSize = 11.sp,
-                    color = PrimaryGreen
-                )
-            } else {
-                Text(
-                    text = "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · Planned workout",
-                    fontSize = 11.sp,
-                    color = TextSecondary
-                )
-            }
-        }
-        Text(
-            text = if (isCompleted) "✓ View ›" else "Start ›",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (isCompleted) PrimaryGreen else PrimaryGreen
-        )
-    }
-}
-
-// ── This week (restyled) ───────────────────────────────────────────────────────
-
-@Composable
-fun ThisWeekCard(
-    weekDays: List<WeekDayInfo>,
-    weekOffset: Int = 0,
-    onDayClick: (LocalDate) -> Unit = {},
-    onPreviousWeek: () -> Unit = {},
-    onNextWeek: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    val today = LocalDate.now()
-    val displayDays = if (weekDays.isEmpty()) {
-        (6 downTo 0).map { WeekDayInfo(today.minusDays(it.toLong()), null, WeekDayState.NO_DATA) }
-    } else weekDays
-
-    val weekLabel = if (displayDays.isNotEmpty()) {
-        val start = displayDays.first().date
-        val end   = displayDays.last().date
-        val sm = start.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-        val em = end.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-        if (start.month == end.month) "$sm ${start.year}" else "$sm – $em ${end.year}"
-    } else {
-        today.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + " ${today.year}"
-    }
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("This week", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onPreviousWeek, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = TextMuted, modifier = Modifier.size(16.dp))
-                    }
-                    Text(weekLabel, fontSize = 12.sp, color = TextSecondary)
-                    IconButton(onClick = onNextWeek, enabled = weekOffset < 0, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = if (weekOffset < 0) TextSecondary else TextMuted, modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                displayDays.forEach { info ->
-                    val letter = info.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(1).uppercase()
-                    Text(letter, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                displayDays.forEach { info ->
-                    val isToday = info.date == today
-                    val bgColor = when {
-                        isToday -> PrimaryGreen
-                        info.state == WeekDayState.COMPLETED -> PrimaryGreen
-                        info.state == WeekDayState.PLANNED_FUTURE -> Color(0xFFF57C00)
-                        info.state == WeekDayState.MISSED -> Color(0xFFD32F2F)
-                        else -> Color.Transparent
-                    }
-                    val textColor = if (bgColor == Color.Transparent) Color(0xFFCCCCCC) else Color.White
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(CircleShape)
-                                .background(bgColor)
-                                .then(if (info.state != WeekDayState.NO_DATA) Modifier.clickable { onDayClick(info.date) } else Modifier),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(info.date.dayOfMonth.toString(), fontSize = 12.sp, fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal, color = textColor)
-                        }
-                        if (info.dietLabel != null) {
-                            Text(info.dietLabel, fontSize = 9.sp, color = PrimaryGreen, textAlign = TextAlign.Center, maxLines = 1)
-                        } else {
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LegendDot(color = PrimaryGreen, label = "Done")
-                LegendDot(color = Color(0xFFF57C00), label = "Planned")
-                LegendDot(color = Color(0xFFD32F2F), label = "Missed")
-            }
-        }
-    }
+private fun SlotBadge(slot: String) {
+    Text(slot.uppercase(), fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+        modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f)).padding(horizontal = 6.dp, vertical = 2.dp))
 }
 
 @Composable
-fun LegendDot(color: Color, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(color))
-        Text(label, fontSize = 11.sp, color = TextSecondary)
+private fun ItemLine(item: TodayMealItemDto) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(item.foodName, fontSize = 11.sp, color = MutedDark, modifier = Modifier.weight(1f))
+        Text("${item.quantity.trimNum()} ${unitLabel(item.unit.value)}", fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
     }
 }
 
-// ── Kept for other screens that still reference them ──────────────────────────
-
-@Composable
-fun BloodGlucoseCard(
-    latestSugar: HealthMetric?,
-    glucoseHistory: List<HealthMetric>,
-    onDetailsClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Blood Glucose", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
-                TextButton(onClick = onDetailsClick) { Text("Details ›", color = PrimaryGreen, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            if (latestSugar != null) {
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(latestSugar.value.toInt().toString(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text("mg/dL", fontSize = 14.sp, color = TextSecondary, modifier = Modifier.padding(bottom = 6.dp))
-                }
-                val inRange = latestSugar.value in 80.0..130.0
-                Surface(shape = RoundedCornerShape(20.dp), color = if (inRange) Color(0xFFE8F5EE) else Color(0xFFFFEBEE)) {
-                    Text(
-                        if (inRange) "In Range" else "Out of Range",
-                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                        color = if (inRange) PrimaryGreen else Color(0xFFD32F2F),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-                if (glucoseHistory.size >= 2) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    GlucoseChart(history = glucoseHistory)
-                }
-            } else {
-                Text("No glucose reading today.\nLog a reading in Health.", fontSize = 13.sp, color = TextSecondary, modifier = Modifier.padding(vertical = 8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun GlucoseChart(history: List<HealthMetric>) {
-    val sorted   = remember(history) { history.sortedBy { it.date } }
-    val entries  = remember(sorted) { sorted.mapIndexed { i, m -> entryOf(i.toFloat(), m.value.toFloat()) } }
-    val producer = remember(entries) { ChartEntryModelProducer(entries) }
-    val labels   = remember(sorted) { val fmt = DateTimeFormatter.ofPattern("dd/MM"); sorted.map { it.date.toLocalDate().format(fmt) } }
-    val xSpacing = remember(sorted.size) { maxOf(1, sorted.size / 4) }
-    val formatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ -> labels.getOrElse(value.toInt()) { "" } }
-    ProvideChartStyle(m3ChartStyle()) {
-        Chart(
-            chart = lineChart(), chartModelProducer = producer,
-            startAxis = rememberStartAxis(itemPlacer = AxisItemPlacer.Vertical.default(maxItemCount = 4)),
-            bottomAxis = rememberBottomAxis(valueFormatter = formatter, itemPlacer = remember(xSpacing) { AxisItemPlacer.Horizontal.default(spacing = xSpacing) }),
-            modifier = Modifier.fillMaxWidth().height(140.dp)
-        )
-    }
-}
-
-@Composable
-fun StatsRow(latestHba1c: HealthMetric?, latestWeight: HealthMetric?, dayStreak: Int, modifier: Modifier = Modifier) {
-    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatCard(emoji = "🏅", value = latestHba1c?.let { "${it.value}%" } ?: "--", label = "A1C Level", iconBg = Color(0xFFEDE7F6), modifier = Modifier.weight(1f))
-        StatCard(emoji = "⚡", value = latestWeight?.let { "${it.value} lbs" } ?: "--", label = "Weight", iconBg = Color(0xFFE3F2FD), modifier = Modifier.weight(1f))
-        StatCard(emoji = "🕐", value = "$dayStreak", label = "Streak", iconBg = Color(0xFFFFF8E1), modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-fun StatCard(emoji: String, value: String, label: String, iconBg: Color, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
-    Card(
-        modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(iconBg), contentAlignment = Alignment.Center) {
-                Text(emoji, fontSize = 16.sp)
-            }
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
-            Text(label, fontSize = 10.sp, color = TextSecondary)
-        }
-    }
-}
-
-// Kept for HealthScreen which references these
-@Composable
-fun MacroRingsCard(calories: Int, calorieGoal: Int, protein: Int, carbs: Int, fat: Int) {
-    MacroProgressCard(calories = calories, calorieGoal = calorieGoal, protein = protein, carbs = carbs, fat = fat)
-}
-
-// Diet-level GL thresholds: low <80, medium 80-120, high >120 per day
-fun dietGlColor(gl: Double): Color = when {
-    gl < 80.0  -> Color(0xFF2E7D32)
-    gl < 120.0 -> Color(0xFFF57F17)
-    else       -> Color(0xFFB71C1C)
-}
-
-
+private fun Double.trimNum(): String = if (this % 1.0 == 0.0) toInt().toString() else "%.1f".format(this)

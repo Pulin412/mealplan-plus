@@ -1,26 +1,27 @@
 package com.mealplanplus.api.domain.grocery
 
-import io.swagger.v3.oas.annotations.tags.Tag
-import jakarta.validation.Valid
+import com.mealplanplus.api.generated.api.GroceryListsApi
+import com.mealplanplus.api.generated.model.GroceryListDto
 import org.springframework.http.HttpStatus
-import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.*
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/v1/grocery-lists")
-@Tag(name = "Grocery Lists")
-class GroceryController(private val service: GroceryService) {
+class GroceryController(private val service: GroceryService) : GroceryListsApi {
 
-    @GetMapping fun list(auth: Authentication) = service.list(auth.name)
-    @GetMapping("/{id}") fun get(@PathVariable id: Long, auth: Authentication) = service.get(id)
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody dto: GroceryListDto, auth: Authentication) = service.create(dto, auth.name)
-    @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @Valid @RequestBody dto: GroceryListDto, auth: Authentication) = service.update(id, dto, auth.name)
-    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long, auth: Authentication) = service.delete(id, auth.name)
+    override fun listGroceryLists(): ResponseEntity<List<GroceryListDto>> =
+        ResponseEntity.ok(service.list(currentUid()))
 
-    @PostMapping("/from-diet/{dietId}") @ResponseStatus(HttpStatus.CREATED)
-    fun createFromDiet(@PathVariable dietId: Long, auth: Authentication) =
-        service.createFromDiet(dietId, auth.name)
+    override fun getGroceryList(id: Long): ResponseEntity<GroceryListDto> =
+        ResponseEntity.ok(service.get(id))
+
+    override fun createGroceryList(groceryListDto: GroceryListDto): ResponseEntity<GroceryListDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.create(groceryListDto, currentUid()))
+
+    override fun deleteGroceryList(id: Long): ResponseEntity<Unit> {
+        service.delete(id, currentUid()); return ResponseEntity.noContent().build()
+    }
+
+    private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

@@ -1,56 +1,95 @@
 package com.mealplanplus.data.repository
 
-import com.mealplanplus.data.local.FoodDao
-import com.mealplanplus.data.local.TagDao
-import com.mealplanplus.data.model.FoodItem
-import com.mealplanplus.data.model.FoodTagCrossRef
-import com.mealplanplus.data.model.Tag
+import com.mealplanplus.data.generated.api.FoodsApi
+import com.mealplanplus.data.generated.model.FoodDto
+import com.mealplanplus.data.local.dao.FoodDao
+import com.mealplanplus.data.model.Food
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Local-only data source for foods. All reads and writes go to Room; the UI never waits
+ * on the network. Writes are optimistic and marked `dirty` for the [SyncManager] to push.
+ *
+ * The one exception is [searchOnline] — an explicit online-only read against the external
+ * food database (not local data), mirroring the "online-only" case in the offline-first
+ * guidance.
+ */
 @Singleton
 class FoodRepository @Inject constructor(
-    private val foodDao: FoodDao,
-    private val tagDao: TagDao
+    private val dao: FoodDao,
+    private val api: FoodsApi,
 ) {
-    fun getAllFoods(): Flow<List<FoodItem>> = foodDao.getAllFoods()
+    fun getFoods(): Flow<List<Food>> = dao.getAllFoods()
 
-    fun searchFoods(query: String): Flow<List<FoodItem>> = foodDao.searchFoods(query)
+    fun searchFoods(q: String): Flow<List<Food>> = dao.searchFoods(q)
 
-    suspend fun getFoodById(id: Long): FoodItem? = foodDao.getFoodById(id)
+    /**
+     * Create a food locally with a client-generated UUID; returns its id. Syncs on next push.
+     *
+     * [unit] is the food's natural measurement unit (GRAM/ML/PIECE/CUP/TBSP/TSP). For the
+     * count-based units, [gramsPerUnit] is how many grams one unit weighs (e.g. 1 egg = 50 g);
+     * it's routed into the matching gramsPer* column so calories can be computed. Ignored for
+     * GRAM/ML (quantity is already grams/ml ≈ grams).
+     */
+    suspend fun createManual(
+        name: String,
+        caloriesPer100: Double,
+        proteinPer100: Double,
+        carbsPer100: Double,
+        fatPer100: Double,
+        servingLabel: String? = null,
+        unit: String = "GRAM",
+        gramsPerUnit: Double? = null,
+    ): String {
+        val food = Food(
+            name = name,
+            caloriesPer100 = caloriesPer100,
+            proteinPer100 = proteinPer100,
+            carbsPer100 = carbsPer100,
+            fatPer100 = fatPer100,
+            servingLabel = servingLabel,
+            unit = unit,
+            gramsPerPiece = if (unit == "PIECE") gramsPerUnit else null,
+            gramsPerCup   = if (unit == "CUP")   gramsPerUnit else null,
+            gramsPerTbsp  = if (unit == "TBSP")  gramsPerUnit else null,
+            gramsPerTsp   = if (unit == "TSP")   gramsPerUnit else null,
+            dirty = true,
+        )
+        dao.upsert(food)
+        return food.id
+    }
 
-    suspend fun getFoodByBarcode(barcode: String): FoodItem? = foodDao.getFoodByBarcode(barcode)
+    /** Update an existing food (offline-first upsert-by-UUID); bumps updatedAt + marks dirty. */
+    suspend fun update(food: Food) {
+        dao.upsert(food.copy(updatedAt = System.currentTimeMillis(), dirty = true))
+    }
 
-    fun getFavorites(): Flow<List<FoodItem>> = foodDao.getFavorites()
+    suspend fun toggleFavorite(food: Food) {
+        dao.upsert(
+            food.copy(
+                isFavorite = !food.isFavorite,
+                updatedAt = System.currentTimeMillis(),
+                dirty = true,
+            )
+        )
+    }
 
-    fun getRecentFoods(limit: Int = 20): Flow<List<FoodItem>> = foodDao.getRecentFoods(limit)
+    /** Soft-delete: hidden from the UI now, pushed as a tombstone, removed once synced. */
+    suspend fun delete(food: Food) {
+        val now = System.currentTimeMillis()
+        dao.upsert(food.copy(deletedAt = now, updatedAt = now, dirty = true))
+    }
 
-    suspend fun setFavorite(id: Long, isFavorite: Boolean) = foodDao.setFavorite(id, isFavorite)
+    // ── Online-only: external food DB search (not local data) ────────────────────
+    suspend fun searchOnline(q: String): List<FoodDto> =
+        api.searchFoods(q = q, page = 0, size = 30).body()?.content ?: emptyList()
 
-    suspend fun updateLastUsed(id: Long) = foodDao.updateLastUsed(id)
-
-    suspend fun updateLastUsedWithQuantity(id: Long, quantity: Double, unit: String) =
-        foodDao.updateLastUsedWithQuantity(id, quantity, unit)
-
-    suspend fun insertFood(food: FoodItem): Long = foodDao.insertFood(food)
-
-    /** Upsert a system food by name (insert or replace). Used by the manual food import. */
-    suspend fun upsertSystemFood(food: FoodItem) = foodDao.upsertSystemFood(food)
-
-    suspend fun updateFood(food: FoodItem) = foodDao.updateFood(food)
-
-    suspend fun deleteFood(food: FoodItem) = foodDao.deleteFood(food)
-
-    suspend fun deleteFoodById(id: Long) = foodDao.deleteFoodById(id)
-
-    fun getTagsForFood(foodId: Long): Flow<List<Tag>> = tagDao.getTagsForFood(foodId)
-
-    fun getFoodIdsForTag(tagId: Long): Flow<List<Long>> = tagDao.getFoodIdsForTag(tagId)
-
-    suspend fun addTagToFood(foodId: Long, tagId: Long) = tagDao.insertFoodTag(FoodTagCrossRef(foodId, tagId))
-
-    suspend fun removeTagFromFood(foodId: Long, tagId: Long) = tagDao.removeFoodTag(foodId, tagId)
-
-    suspend fun clearFoodTags(foodId: Long) = tagDao.clearFoodTags(foodId)
+    /** Save an online search result as the user's own food (fresh identity); returns its id. */
+    suspend fun addOnline(dto: FoodDto): String {
+        val food = dto.toEntity(dirty = true)
+        dao.upsert(food)
+        return food.id
+    }
 }
