@@ -1,0 +1,982 @@
+[
+ {
+  "name": "Sweet Potato",
+  "category": "Vegetable",
+  "calories": 86,
+  "protein": 1.6,
+  "carbs": 20.1,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Eggplant (Brinjal)",
+  "category": "Vegetable",
+  "calories": 25,
+  "protein": 1.0,
+  "carbs": 6.0,
+  "fat": 0.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Bitter Gourd (Karela)",
+  "category": "Vegetable",
+  "calories": 17,
+  "protein": 1.0,
+  "carbs": 3.7,
+  "fat": 0.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Pumpkin",
+  "category": "Vegetable",
+  "calories": 26,
+  "protein": 1.0,
+  "carbs": 6.5,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Radish",
+  "category": "Vegetable",
+  "calories": 16,
+  "protein": 0.7,
+  "carbs": 3.4,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Garlic",
+  "category": "Vegetable",
+  "calories": 149,
+  "protein": 6.4,
+  "carbs": 33.1,
+  "fat": 0.5,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Ginger",
+  "category": "Vegetable",
+  "calories": 80,
+  "protein": 1.8,
+  "carbs": 17.8,
+  "fat": 0.8,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Green Chilli",
+  "category": "Vegetable",
+  "calories": 40,
+  "protein": 1.9,
+  "carbs": 8.8,
+  "fat": 0.4,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Kale",
+  "category": "Vegetable",
+  "calories": 49,
+  "protein": 4.3,
+  "carbs": 8.8,
+  "fat": 0.9,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Coriander Leaves",
+  "category": "Vegetable",
+  "calories": 23,
+  "protein": 2.1,
+  "carbs": 3.7,
+  "fat": 0.5,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Colocasia (Arbi)",
+  "category": "Vegetable",
+  "calories": 112,
+  "protein": 1.5,
+  "carbs": 26.5,
+  "fat": 0.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Green Peas",
+  "category": "Vegetable",
+  "calories": 81,
+  "protein": 5.4,
+  "carbs": 14.5,
+  "fat": 0.4,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Orange",
+  "category": "Fruit",
+  "calories": 47,
+  "protein": 0.9,
+  "carbs": 11.8,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Pineapple",
+  "category": "Fruit",
+  "calories": 50,
+  "protein": 0.5,
+  "carbs": 13.1,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Guava",
+  "category": "Fruit",
+  "calories": 68,
+  "protein": 2.6,
+  "carbs": 14.3,
+  "fat": 1.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Pomegranate",
+  "category": "Fruit",
+  "calories": 83,
+  "protein": 1.7,
+  "carbs": 18.7,
+  "fat": 1.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Coconut (Fresh)",
+  "category": "Fruit",
+  "calories": 354,
+  "protein": 3.3,
+  "carbs": 15.2,
+  "fat": 33.5,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Fig (Anjeer)",
+  "category": "Fruit",
+  "calories": 74,
+  "protein": 0.8,
+  "carbs": 19.2,
+  "fat": 0.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Lemon",
+  "category": "Fruit",
+  "calories": 29,
+  "protein": 1.1,
+  "carbs": 9.3,
+  "fat": 0.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Peach",
+  "category": "Fruit",
+  "calories": 39,
+  "protein": 0.9,
+  "carbs": 9.5,
+  "fat": 0.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Apricot",
+  "category": "Fruit",
+  "calories": 48,
+  "protein": 1.4,
+  "carbs": 11.1,
+  "fat": 0.4,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Cherry",
+  "category": "Fruit",
+  "calories": 63,
+  "protein": 1.1,
+  "carbs": 16.0,
+  "fat": 0.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Lychee",
+  "category": "Fruit",
+  "calories": 66,
+  "protein": 0.8,
+  "carbs": 16.5,
+  "fat": 0.4,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Custard Apple (Sitaphal)",
+  "category": "Fruit",
+  "calories": 94,
+  "protein": 2.1,
+  "carbs": 23.6,
+  "fat": 0.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Chikoo (Sapota)",
+  "category": "Fruit",
+  "calories": 83,
+  "protein": 0.4,
+  "carbs": 20.0,
+  "fat": 1.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Sweet Lime (Mosambi)",
+  "category": "Fruit",
+  "calories": 43,
+  "protein": 0.8,
+  "carbs": 9.3,
+  "fat": 0.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Brown Rice",
+  "category": "Grain",
+  "calories": 123,
+  "protein": 2.7,
+  "carbs": 25.6,
+  "fat": 1.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Quinoa",
+  "category": "Grain",
+  "calories": 120,
+  "protein": 4.4,
+  "carbs": 21.3,
+  "fat": 1.9,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Whole Wheat Bread",
+  "category": "Grain",
+  "calories": 247,
+  "protein": 13.0,
+  "carbs": 41.0,
+  "fat": 3.4,
+  "unit": "PIECE",
+  "grams_per_piece": 30
+ },
+ {
+  "name": "White Bread",
+  "category": "Grain",
+  "calories": 265,
+  "protein": 9.0,
+  "carbs": 49.0,
+  "fat": 3.2,
+  "unit": "PIECE",
+  "grams_per_piece": 25
+ },
+ {
+  "name": "Roti (Chapati)",
+  "category": "Grain",
+  "calories": 300,
+  "protein": 9.0,
+  "carbs": 55.0,
+  "fat": 4.0,
+  "unit": "PIECE",
+  "grams_per_piece": 40
+ },
+ {
+  "name": "Semolina (Sooji)",
+  "category": "Grain",
+  "calories": 360,
+  "protein": 12.7,
+  "carbs": 72.8,
+  "fat": 1.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Barley",
+  "category": "Grain",
+  "calories": 354,
+  "protein": 12.5,
+  "carbs": 73.5,
+  "fat": 2.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Bajra Flour",
+  "category": "Grain",
+  "calories": 361,
+  "protein": 11.6,
+  "carbs": 67.0,
+  "fat": 5.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Muesli",
+  "category": "Grain",
+  "calories": 362,
+  "protein": 9.7,
+  "carbs": 66.0,
+  "fat": 5.9,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Vermicelli",
+  "category": "Grain",
+  "calories": 348,
+  "protein": 10.0,
+  "carbs": 74.0,
+  "fat": 1.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Toor Dal (Arhar)",
+  "category": "Legume",
+  "calories": 343,
+  "protein": 22.0,
+  "carbs": 63.0,
+  "fat": 1.5,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Masoor Dal",
+  "category": "Legume",
+  "calories": 352,
+  "protein": 25.0,
+  "carbs": 60.0,
+  "fat": 1.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Urad Dal",
+  "category": "Legume",
+  "calories": 341,
+  "protein": 25.0,
+  "carbs": 59.0,
+  "fat": 1.6,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Kidney Beans (Rajma, dry)",
+  "category": "Legume",
+  "calories": 333,
+  "protein": 24.0,
+  "carbs": 60.0,
+  "fat": 0.8,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Black Beans",
+  "category": "Legume",
+  "calories": 341,
+  "protein": 21.6,
+  "carbs": 62.0,
+  "fat": 1.4,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Cowpea (Lobia)",
+  "category": "Legume",
+  "calories": 336,
+  "protein": 24.0,
+  "carbs": 60.0,
+  "fat": 1.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Egg Yolk",
+  "category": "Protein",
+  "calories": 322,
+  "protein": 15.9,
+  "carbs": 3.6,
+  "fat": 26.5,
+  "unit": "PIECE",
+  "grams_per_piece": 17
+ },
+ {
+  "name": "Chicken Thigh",
+  "category": "Protein",
+  "calories": 209,
+  "protein": 26.0,
+  "carbs": 0.0,
+  "fat": 11.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Salmon",
+  "category": "Protein",
+  "calories": 208,
+  "protein": 20.0,
+  "carbs": 0.0,
+  "fat": 13.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Tuna",
+  "category": "Protein",
+  "calories": 130,
+  "protein": 28.0,
+  "carbs": 0.0,
+  "fat": 1.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Basa Fish",
+  "category": "Protein",
+  "calories": 90,
+  "protein": 15.0,
+  "carbs": 0.0,
+  "fat": 3.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Rohu Fish",
+  "category": "Protein",
+  "calories": 97,
+  "protein": 17.0,
+  "carbs": 0.0,
+  "fat": 3.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Prawns",
+  "category": "Protein",
+  "calories": 99,
+  "protein": 24.0,
+  "carbs": 0.2,
+  "fat": 0.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Mutton",
+  "category": "Protein",
+  "calories": 143,
+  "protein": 27.0,
+  "carbs": 0.0,
+  "fat": 3.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Tempeh",
+  "category": "Protein",
+  "calories": 192,
+  "protein": 20.0,
+  "carbs": 7.6,
+  "fat": 11.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Greek Yogurt",
+  "category": "Dairy",
+  "calories": 59,
+  "protein": 10.0,
+  "carbs": 3.6,
+  "fat": 0.4,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Buttermilk (Chaas)",
+  "category": "Dairy",
+  "calories": 40,
+  "protein": 3.3,
+  "carbs": 4.8,
+  "fat": 0.9,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Cheddar Cheese",
+  "category": "Dairy",
+  "calories": 402,
+  "protein": 25.0,
+  "carbs": 1.3,
+  "fat": 33.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Mozzarella",
+  "category": "Dairy",
+  "calories": 300,
+  "protein": 22.0,
+  "carbs": 2.2,
+  "fat": 22.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Condensed Milk",
+  "category": "Dairy",
+  "calories": 321,
+  "protein": 8.0,
+  "carbs": 54.0,
+  "fat": 8.7,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Khoya (Mawa)",
+  "category": "Dairy",
+  "calories": 421,
+  "protein": 20.0,
+  "carbs": 25.0,
+  "fat": 26.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Skimmed Milk",
+  "category": "Dairy",
+  "calories": 34,
+  "protein": 3.4,
+  "carbs": 5.0,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Peanuts",
+  "category": "Nuts & Seeds",
+  "calories": 567,
+  "protein": 26.0,
+  "carbs": 16.0,
+  "fat": 49.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Flax Seeds",
+  "category": "Nuts & Seeds",
+  "calories": 534,
+  "protein": 18.3,
+  "carbs": 28.9,
+  "fat": 42.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Pumpkin Seeds",
+  "category": "Nuts & Seeds",
+  "calories": 559,
+  "protein": 30.0,
+  "carbs": 11.0,
+  "fat": 49.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Sunflower Seeds",
+  "category": "Nuts & Seeds",
+  "calories": 584,
+  "protein": 21.0,
+  "carbs": 20.0,
+  "fat": 51.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Sesame Seeds",
+  "category": "Nuts & Seeds",
+  "calories": 573,
+  "protein": 18.0,
+  "carbs": 23.0,
+  "fat": 50.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Makhana (Fox Nuts)",
+  "category": "Nuts & Seeds",
+  "calories": 347,
+  "protein": 9.7,
+  "carbs": 77.0,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Coconut Oil",
+  "category": "Fats & Oils",
+  "calories": 862,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 100.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Sunflower Oil",
+  "category": "Fats & Oils",
+  "calories": 884,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 100.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Groundnut Oil",
+  "category": "Fats & Oils",
+  "calories": 884,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 100.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Green Tea",
+  "category": "Beverage",
+  "calories": 1,
+  "protein": 0.0,
+  "carbs": 0.2,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Coconut Water",
+  "category": "Beverage",
+  "calories": 19,
+  "protein": 0.7,
+  "carbs": 3.7,
+  "fat": 0.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Orange Juice",
+  "category": "Beverage",
+  "calories": 45,
+  "protein": 0.7,
+  "carbs": 10.4,
+  "fat": 0.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Cola",
+  "category": "Beverage",
+  "calories": 42,
+  "protein": 0.0,
+  "carbs": 10.6,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Beer",
+  "category": "Beverage",
+  "calories": 43,
+  "protein": 0.5,
+  "carbs": 3.6,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Sugar",
+  "category": "Condiment",
+  "calories": 387,
+  "protein": 0.0,
+  "carbs": 100.0,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Jaggery (Gur)",
+  "category": "Condiment",
+  "calories": 383,
+  "protein": 0.4,
+  "carbs": 97.0,
+  "fat": 0.1,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Turmeric Powder",
+  "category": "Condiment",
+  "calories": 312,
+  "protein": 9.7,
+  "carbs": 67.0,
+  "fat": 3.2,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Cumin (Jeera)",
+  "category": "Condiment",
+  "calories": 375,
+  "protein": 18.0,
+  "carbs": 44.0,
+  "fat": 22.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Black Pepper",
+  "category": "Condiment",
+  "calories": 251,
+  "protein": 10.0,
+  "carbs": 64.0,
+  "fat": 3.3,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Red Chilli Powder",
+  "category": "Condiment",
+  "calories": 282,
+  "protein": 12.0,
+  "carbs": 50.0,
+  "fat": 14.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Garam Masala",
+  "category": "Condiment",
+  "calories": 379,
+  "protein": 14.0,
+  "carbs": 45.0,
+  "fat": 15.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Tamarind",
+  "category": "Condiment",
+  "calories": 239,
+  "protein": 2.8,
+  "carbs": 62.5,
+  "fat": 0.6,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Vinegar",
+  "category": "Condiment",
+  "calories": 18,
+  "protein": 0.0,
+  "carbs": 0.9,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Dark Chocolate",
+  "category": "Sweet",
+  "calories": 546,
+  "protein": 4.9,
+  "carbs": 61.0,
+  "fat": 31.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Milk Chocolate",
+  "category": "Sweet",
+  "calories": 535,
+  "protein": 7.6,
+  "carbs": 59.0,
+  "fat": 30.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Potato Chips",
+  "category": "Sweet",
+  "calories": 536,
+  "protein": 7.0,
+  "carbs": 53.0,
+  "fat": 34.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Gulab Jamun",
+  "category": "Sweet",
+  "calories": 320,
+  "protein": 4.0,
+  "carbs": 44.0,
+  "fat": 15.0,
+  "unit": "PIECE",
+  "grams_per_piece": 40
+ },
+ {
+  "name": "Laddu",
+  "category": "Sweet",
+  "calories": 400,
+  "protein": 8.0,
+  "carbs": 50.0,
+  "fat": 20.0,
+  "unit": "PIECE",
+  "grams_per_piece": 30
+ },
+ {
+  "name": "Casein Protein",
+  "category": "Supplement",
+  "calories": 360,
+  "protein": 78.0,
+  "carbs": 8.0,
+  "fat": 2.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Mass Gainer",
+  "category": "Supplement",
+  "calories": 380,
+  "protein": 15.0,
+  "carbs": 70.0,
+  "fat": 3.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Red Wine",
+  "category": "Beverage",
+  "calories": 85,
+  "protein": 0.1,
+  "carbs": 2.6,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "White Wine",
+  "category": "Beverage",
+  "calories": 82,
+  "protein": 0.1,
+  "carbs": 2.6,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Ros\u00e9 Wine",
+  "category": "Beverage",
+  "calories": 83,
+  "protein": 0.1,
+  "carbs": 2.9,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Sparkling Wine (Champagne)",
+  "category": "Beverage",
+  "calories": 76,
+  "protein": 0.2,
+  "carbs": 1.4,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Whiskey",
+  "category": "Beverage",
+  "calories": 250,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Vodka",
+  "category": "Beverage",
+  "calories": 231,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Rum",
+  "category": "Beverage",
+  "calories": 231,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Gin",
+  "category": "Beverage",
+  "calories": 263,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Brandy",
+  "category": "Beverage",
+  "calories": 231,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ },
+ {
+  "name": "Tequila",
+  "category": "Beverage",
+  "calories": 231,
+  "protein": 0.0,
+  "carbs": 0.0,
+  "fat": 0.0,
+  "unit": "GRAM",
+  "grams_per_piece": null
+ }
+]

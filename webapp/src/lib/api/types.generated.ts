@@ -1045,6 +1045,8 @@ export interface components {
             name: string;
             brand?: string | null;
             barcode?: string | null;
+            /** @description Free-form category (user-picked from suggestions or custom); null = uncategorized. */
+            category?: string | null;
             /** Format: double */
             caloriesPer100: number;
             /** Format: double */

@@ -26,6 +26,7 @@ data class FoodsUiState(
     val sortMode: FoodSort = FoodSort.RECENT,
     val viewMode: FoodViewMode = FoodViewMode.LIST,
     val favOnly: Boolean = false,
+    val categoryFilter: String? = null,   // null = all categories
     val expandedIds: Set<String> = emptySet(),
     val activeSheet: FoodSheet? = null,
     val fanOpen: Boolean = false,
@@ -39,6 +40,7 @@ data class FoodsUiState(
     val manualFat: String = "",
     val manualUnit: String = "GRAM",
     val manualGramsPerUnit: String = "",
+    val manualCategory: String = "",
     val editingFoodId: String? = null,   // null = creating; non-null = editing that food
     val onlineQuery: String = "",
     val onlineResults: List<FoodDto> = emptyList(),
@@ -60,6 +62,7 @@ data class FoodsUiState(
             if (favOnly) {
                 list = list.filter { it.isFavorite }
             }
+            categoryFilter?.let { cat -> list = list.filter { it.category == cat } }
             list = when (sortMode) {
                 FoodSort.RECENT   -> list.sortedByDescending { it.updatedAt }
                 FoodSort.NAME     -> list.sortedBy { it.name.lowercase() }
@@ -70,6 +73,10 @@ data class FoodsUiState(
         }
 
     val favCount: Int get() = foods.count { it.isFavorite }
+
+    /** Distinct categories actually present in the user's foods — drives the filter chips. */
+    val usedCategories: List<String>
+        get() = foods.mapNotNull { it.category?.takeIf(String::isNotBlank) }.distinct().sorted()
 
     val isSaveManualEnabled: Boolean
         get() = manualName.isNotBlank() && manualKcal.isNotBlank() &&
@@ -118,6 +125,12 @@ class FoodViewModel @Inject constructor(
 
     fun toggleFavOnly() {
         _state.value = _state.value.copy(favOnly = !_state.value.favOnly)
+    }
+
+    /** Toggle a category filter chip (tapping the active one clears it). */
+    fun setCategoryFilter(category: String?) {
+        val current = _state.value.categoryFilter
+        _state.value = _state.value.copy(categoryFilter = if (current == category) null else category)
     }
 
     fun toggleExpand(id: String) {
@@ -169,6 +182,7 @@ class FoodViewModel @Inject constructor(
             manualFat = "",
             manualUnit = "GRAM",
             manualGramsPerUnit = "",
+            manualCategory = "",
             editingFoodId = null,
             onlineQuery = "",
             onlineResults = emptyList(),
@@ -226,6 +240,7 @@ class FoodViewModel @Inject constructor(
             manualFat = food.fatPer100.numStr(),
             manualUnit = food.unit,
             manualGramsPerUnit = gpu?.numStr() ?: "",
+            manualCategory = food.category ?: "",
         )
     }
 
@@ -237,6 +252,7 @@ class FoodViewModel @Inject constructor(
     fun setManualFat(v: String)     { _state.value = _state.value.copy(manualFat = v) }
     fun setManualUnit(v: String)    { _state.value = _state.value.copy(manualUnit = v) }
     fun setManualGramsPerUnit(v: String) { _state.value = _state.value.copy(manualGramsPerUnit = v) }
+    fun setManualCategory(v: String) { _state.value = _state.value.copy(manualCategory = v) }
 
     fun saveManual() {
         val s = _state.value
@@ -251,10 +267,12 @@ class FoodViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             runCatching {
+                val category = s.manualCategory.trim().ifBlank { null }
                 if (editing != null) {
                     repository.update(editing.copy(
                         name           = s.manualName.trim(),
                         servingLabel   = s.manualServing.ifBlank { null },
+                        category       = category,
                         caloriesPer100 = kcal, proteinPer100 = protein, carbsPer100 = carbs, fatPer100 = fat,
                         unit           = s.manualUnit,
                         gramsPerPiece  = if (s.manualUnit == "PIECE") gpu else null,
@@ -266,7 +284,7 @@ class FoodViewModel @Inject constructor(
                     repository.createManual(
                         name = s.manualName.trim(), caloriesPer100 = kcal, proteinPer100 = protein,
                         carbsPer100 = carbs, fatPer100 = fat, servingLabel = s.manualServing.ifBlank { null },
-                        unit = s.manualUnit, gramsPerUnit = gpu,
+                        unit = s.manualUnit, gramsPerUnit = gpu, category = category,
                     )
                 }
             }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }

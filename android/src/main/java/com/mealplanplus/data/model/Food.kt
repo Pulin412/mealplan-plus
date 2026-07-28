@@ -19,6 +19,8 @@ data class Food(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
     val brand: String? = null,
+    /** Free-form category (e.g. "Vegetable", "Protein") — user-picked or custom. Null = uncategorized. */
+    val category: String? = null,
     val servingLabel: String? = null,
     val caloriesPer100: Double,
     val proteinPer100: Double,

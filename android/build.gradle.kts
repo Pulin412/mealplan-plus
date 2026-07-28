@@ -79,6 +79,10 @@ android {
         getByName("main") {
             java.srcDir(layout.buildDirectory.dir("generated/openapi/src/main/kotlin").get().asFile)
         }
+        // Expose the exported Room schemas to MigrationTestHelper at test runtime.
+        getByName("androidTest") {
+            assets.srcDir("$projectDir/schemas")
+        }
     }
 }
 
