@@ -23,6 +23,7 @@ export async function searchFoodsOnline(q: string): Promise<FoodDto[]> {
 
 export async function createFood(form: ManualFoodForm): Promise<FoodDto> {
   const kcal = parseFloat(form.kcal) || 0;
+  const gpu = form.gramsPerUnit ? parseFloat(form.gramsPerUnit) : null;
   return apiFetch<FoodDto>("/api/v1/foods", {
     method: "POST",
     body: JSON.stringify({
@@ -33,6 +34,11 @@ export async function createFood(form: ManualFoodForm): Promise<FoodDto> {
       proteinPer100:  parseFloat(form.protein) || 0,
       carbsPer100:    parseFloat(form.carbs)   || 0,
       fatPer100:      parseFloat(form.fat)     || 0,
+      unit:          form.unit,
+      gramsPerPiece: form.unit === "PIECE" ? gpu : null,
+      gramsPerCup:   form.unit === "CUP"   ? gpu : null,
+      gramsPerTbsp:  form.unit === "TBSP"  ? gpu : null,
+      gramsPerTsp:   form.unit === "TSP"   ? gpu : null,
     }),
   });
 }

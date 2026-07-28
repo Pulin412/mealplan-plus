@@ -5,7 +5,7 @@ import { listFoods, createFood, deleteFood, toggleFavorite, searchFoodsOnline, t
 import { createScannedFood, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
 
-const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "" };
+const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "", unit: "GRAM", gramsPerUnit: "" };
 
 export function useFoods() {
   const [foods, setFoods]               = useState<FoodDto[]>([]);

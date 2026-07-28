@@ -10,6 +10,7 @@ import { lookupBarcode, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodDto } from "@/lib/api/foods";
 import type { FoodSort } from "@/types/food";
 import { DEFAULT_FOOD_CATEGORIES } from "@/lib/foodCategories";
+import { FOOD_UNITS, unitLabel, isCountUnit } from "@/lib/foodUnits";
 
 // ─── token shortcuts ─────────────────────────────────────────────────────────
 const C = {
@@ -169,6 +170,30 @@ function ManualSheet({ open, form, isSaveEnabled, saving, onField, onSave, onClo
     <BottomSheet open={open} onClose={onClose} title="New food">
       <SheetField label="Name" placeholder="e.g. Overnight oats"
         value={form.name} onChange={(v) => onField("name", v)} className="mb-[13px]" />
+      {/* Measured in — count units (piece/cup/tbsp/tsp) convert to grams via the factor below */}
+      <div className="mb-[13px]">
+        <label className="block text-[11px] font-semibold mb-[6px]" style={{ color: C.muted }}>Measured in</label>
+        <div className="flex flex-wrap gap-[6px]">
+          {FOOD_UNITS.map((u) => {
+            const on = form.unit === u;
+            return (
+              <button key={u} type="button" onClick={() => onField("unit", u)}
+                className="rounded-full px-3 py-[6px] text-[12px] font-semibold"
+                style={{
+                  background: on ? C.teal : "transparent",
+                  color:      on ? "#fff" : C.muted3,
+                  border:     `1.5px solid ${on ? C.teal : C.border}`,
+                }}>
+                {unitLabel(u)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {isCountUnit(form.unit) && (
+        <SheetField label={`Grams per ${unitLabel(form.unit)}`} placeholder="e.g. 50" inputMode="numeric"
+          value={form.gramsPerUnit} onChange={(v) => onField("gramsPerUnit", v)} className="mb-[13px]" />
+      )}
       <SheetField label="Serving size" placeholder="e.g. 250 g"
         value={form.servingLabel} onChange={(v) => onField("servingLabel", v)} className="mb-[13px]" />
       <SheetField label="Calories (kcal)" placeholder="0" inputMode="numeric"

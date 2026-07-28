@@ -14,4 +14,6 @@ export interface ManualFoodForm {
   carbs: string;
   fat: string;
   category: string;
+  unit: string;
+  gramsPerUnit: string;
 }
