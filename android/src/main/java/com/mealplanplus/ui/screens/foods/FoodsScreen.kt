@@ -456,13 +456,14 @@ fun FoodListCard(
             // Calories
             CalorieValue(kcal = food.caloriesPer100.toInt())
 
-            Spacer(Modifier.width(10.dp))
-
-            // Delete
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onDelete),
-            ) { Icon(Icons.Default.Close, contentDescription = "Delete", tint = DeleteColor, modifier = Modifier.size(15.dp)) }
+            // Delete — seed/system foods are read-only (no delete)
+            if (!food.isSystemFood) {
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onDelete),
+                ) { Icon(Icons.Default.Close, contentDescription = "Delete", tint = DeleteColor, modifier = Modifier.size(15.dp)) }
+            }
         }
 
         AnimatedVisibility(
