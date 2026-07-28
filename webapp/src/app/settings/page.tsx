@@ -13,7 +13,7 @@ const C = {
 };
 
 // Notifications intentionally omitted on web/PWA — iOS reminders require server-sent Web Push
-// (no on-device scheduler). Design + rollout plan: docs/V2_PLAN.md → "iOS Web Push (deferred)".
+// (no on-device scheduler). See docs/FEATURES.md → Planned: "Webapp push notifications".
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -65,7 +65,7 @@ function SettingsInner() {
 
       <div className="flex-1 overflow-y-auto" style={{ padding: "0 16px 40px" }}>
         {/* Backup & restore intentionally omitted — redundant with backend sync (data lives in
-            Postgres keyed to the Firebase UID; a reinstall re-syncs). See docs/V2_PLAN.md. */}
+            Postgres keyed to the Firebase UID; a reinstall re-syncs). See docs/FEATURES.md → Dropped. */}
 
         {/* Health Connect */}
         <SectionLabel text="Health Connect" />

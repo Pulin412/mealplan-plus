@@ -108,7 +108,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
 
             Column(Modifier.padding(horizontal = 16.dp)) {
                 // Backup & restore intentionally omitted — redundant with backend sync (all data lives
-                // in Postgres keyed to the Firebase UID; a reinstall re-syncs). See docs/V2_PLAN.md.
+                // in Postgres keyed to the Firebase UID; a reinstall re-syncs). See docs/FEATURES.md → Dropped.
 
                 // ── Health Connect ────────────────────────────────────────────────
                 SectionLabel("Health Connect")
