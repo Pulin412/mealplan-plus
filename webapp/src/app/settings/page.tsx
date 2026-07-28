@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { collectExportData, downloadCsv } from "@/lib/export/collectExport";
 import { buildCsv } from "@/lib/export/csvExporter";
@@ -40,6 +41,7 @@ function ValueRow({ label, value, labelColor = C.ink }: { label: string; value: 
 
 function SettingsInner() {
   const router = useRouter();
+  const ob = useOnboarding();
   const [connected, setConnected] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -89,6 +91,16 @@ function SettingsInner() {
           </div>
           <div style={{ padding: 14 }}>
             <button onClick={handleExport} disabled={exporting} style={{ width: "100%", border: "none", borderRadius: 11, padding: "12px 0", background: C.bgAlt, color: C.muted3, font: "600 13px system-ui", cursor: exporting ? "default" : "pointer", opacity: exporting ? 0.6 : 1 }}>{exporting ? "Exporting…" : "⬇ Export  CSV"}</button>
+          </div>
+        </div>
+
+        {/* Help */}
+        <SectionLabel text="Help" />
+        <div style={cardStyle}>
+          <div onClick={() => { ob.reset(); router.push("/today"); }}
+            style={{ display: "flex", alignItems: "center", padding: "13px 14px", cursor: "pointer" }}>
+            <span style={{ font: "500 13.5px system-ui", color: C.ink }}>Replay setup / tutorial</span>
+            <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
           </div>
         </div>
       </div>
