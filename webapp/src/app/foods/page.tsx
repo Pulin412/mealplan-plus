@@ -54,10 +54,12 @@ function StarBtn({ active, onClick }: { active: boolean; onClick: (e: React.Mous
 }
 
 // ─── List view card ───────────────────────────────────────────────────────────
-function FoodListCard({ food, expanded, onToggleExpand, onToggleFav, onDelete }: {
+function FoodListCard({ food, expanded, onToggleExpand, onToggleFav, onEdit, onDelete }: {
   food: FoodDto; expanded: boolean;
-  onToggleExpand: () => void; onToggleFav: (e: React.MouseEvent) => void; onDelete: (e: React.MouseEvent) => void;
+  onToggleExpand: () => void; onToggleFav: (e: React.MouseEvent) => void;
+  onEdit: (e: React.MouseEvent) => void; onDelete: (e: React.MouseEvent) => void;
 }) {
+  const owned = !food.isSystemFood;   // system (seed) foods are read-only
   return (
     <div onClick={onToggleExpand} className="cursor-pointer rounded-[12px] mb-[7px] px-3 py-[9px]"
       style={{ background: C.surface, border: `1px solid ${C.border}` }}>
@@ -72,13 +74,18 @@ function FoodListCard({ food, expanded, onToggleExpand, onToggleFav, onDelete }:
         <span className="flex-none text-[11.5px] font-semibold tabular-nums" style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }}>
           {food.caloriesPer100}
         </span>
-        <button onClick={onDelete} className="flex-none text-[14px] leading-none" style={{ color: "#c4ccd1" }}>✕</button>
       </div>
       {expanded && (
         <div className="flex items-center gap-[10px] mt-[9px] pt-[9px]" style={{ borderTop: `1px solid ${C.bgAlt}` }}>
           <span className="text-[10.5px]" style={{ color: C.muted3, fontFamily: "'DM Mono', monospace" }}>{macroText(food)}</span>
           <span className="flex-1" />
           <VerifiedBadge verified={food.verified} />
+          {owned && (
+            <>
+              <button onClick={onEdit} className="text-[12px] font-semibold ml-[14px]" style={{ color: C.teal }}>✎ Edit</button>
+              <button onClick={onDelete} className="text-[12px] ml-[14px]" style={{ color: "#c4ccd1" }}>✕ Remove</button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -109,10 +116,12 @@ function FoodCompactRow({ food, expanded, onToggleExpand, onToggleFav, onDelete,
           <span className="text-[10px]" style={{ color: C.muted3, fontFamily: "'DM Mono', monospace" }}>{macroText(food)}</span>
           <span className="flex-1" />
           <VerifiedBadge verified={food.verified} />
-          <button onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-            className="flex-none text-[12px] leading-none" style={{ color: "#c4ccd1" }}>
-            ✕ Remove
-          </button>
+          {!food.isSystemFood && (
+            <button onClick={(e) => { e.stopPropagation(); onDelete(e); }}
+              className="flex-none text-[12px] leading-none" style={{ color: "#c4ccd1" }}>
+              ✕ Remove
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -160,14 +169,14 @@ function FoodsFab({ open, onToggle, onManual, onOnline, onBarcode }: {
 }
 
 // ─── Manual entry sheet ───────────────────────────────────────────────────────
-function ManualSheet({ open, form, isSaveEnabled, saving, onField, onSave, onClose }: {
-  open: boolean; form: ReturnType<typeof useFoods>["form"];
+function ManualSheet({ open, editing, form, isSaveEnabled, saving, onField, onSave, onClose }: {
+  open: boolean; editing: boolean; form: ReturnType<typeof useFoods>["form"];
   isSaveEnabled: boolean; saving: boolean;
   onField: (k: keyof typeof form, v: string) => void;
   onSave: () => void; onClose: () => void;
 }) {
   return (
-    <BottomSheet open={open} onClose={onClose} title="New food">
+    <BottomSheet open={open} onClose={onClose} title={editing ? "Edit food" : "New food"}>
       <SheetField label="Name" placeholder="e.g. Overnight oats"
         value={form.name} onChange={(v) => onField("name", v)} className="mb-[13px]" />
       {/* Measured in — count units (piece/cup/tbsp/tsp) convert to grams via the factor below */}
@@ -231,7 +240,7 @@ function ManualSheet({ open, form, isSaveEnabled, saving, onField, onSave, onClo
           color:      isSaveEnabled ? "#fff" : C.muted2,
           border: "none",
         }}>
-        {saving ? "Saving…" : "Save food"}
+        {saving ? "Saving…" : editing ? "Update food" : "Save food"}
       </button>
     </BottomSheet>
   );
@@ -467,7 +476,7 @@ function FoodsPageInner() {
     expandedIds, toggleExpand,
     handleToggleFav, handleDelete,
     fanOpen, setFanOpen, activeSheet, openSheet, closeSheet,
-    form, updateForm, isSaveEnabled, saving, saveManual,
+    form, updateForm, isSaveEnabled, saving, saveManual, editingId, openEdit,
     onlineQuery, setOnlineQuery, onlineResults, onlineLoading, runOnlineSearch, addOnlineFood,
     addScannedFood,
   } = useFoods();
@@ -575,6 +584,7 @@ function FoodsPageInner() {
             expanded={expandedIds.has(f.id!)}
             onToggleExpand={() => toggleExpand(f.id!)}
             onToggleFav={(e) => { e.stopPropagation(); void handleToggleFav(f); }}
+            onEdit={(e) => { e.stopPropagation(); openEdit(f); }}
             onDelete={(e) => { e.stopPropagation(); void handleDelete(f); }} />
         ))}
 
@@ -600,7 +610,7 @@ function FoodsPageInner() {
         onBarcode={() => openSheet("barcode")} />
 
       {/* Sheets */}
-      <ManualSheet open={activeSheet === "manual"} form={form}
+      <ManualSheet open={activeSheet === "manual"} editing={editingId != null} form={form}
         isSaveEnabled={isSaveEnabled} saving={saving}
         onField={updateForm} onSave={saveManual} onClose={closeSheet} />
       <OnlineSheet open={activeSheet === "online"} query={onlineQuery}

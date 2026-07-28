@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { listFoods, createFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
+import { listFoods, createFood, updateFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
 import { createScannedFood, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
 
@@ -29,6 +29,7 @@ export function useFoods() {
 
   // manual form
   const [form, setForm]                 = useState<ManualFoodForm>(EMPTY_FORM);
+  const [editingId, setEditingId]       = useState<number | null>(null);
   const [saving, setSaving]             = useState(false);
 
   // online search
@@ -107,8 +108,27 @@ export function useFoods() {
   const closeSheet = useCallback(() => {
     setActiveSheet(null);
     setForm(EMPTY_FORM);
+    setEditingId(null);
     setOnlineQuery("");
     setOnlineResults([]);
+  }, []);
+
+  const numStr = (n: number) => (Number.isInteger(n) ? String(n) : String(n));
+
+  // Open the manual sheet pre-filled to edit an existing (user-owned) food.
+  const openEdit = useCallback((food: FoodDto) => {
+    const u = food.unit ?? "GRAM";
+    const gpu = u === "PIECE" ? food.gramsPerPiece : u === "CUP" ? food.gramsPerCup
+      : u === "TBSP" ? food.gramsPerTbsp : u === "TSP" ? food.gramsPerTsp : null;
+    setForm({
+      name: food.name, servingLabel: "",
+      kcal: numStr(food.caloriesPer100), protein: numStr(food.proteinPer100),
+      carbs: numStr(food.carbsPer100), fat: numStr(food.fatPer100),
+      category: food.category ?? "", unit: u, gramsPerUnit: gpu != null ? numStr(gpu) : "",
+    });
+    setEditingId(food.id ?? null);
+    setFanOpen(false);
+    setActiveSheet("manual");
   }, []);
 
   const updateForm = useCallback((field: keyof ManualFoodForm, value: string) => {
@@ -121,15 +141,20 @@ export function useFoods() {
     if (!isSaveEnabled) return;
     setSaving(true);
     try {
-      const created = await createFood(form);
-      setFoods((prev) => [created, ...prev]);
+      if (editingId != null) {
+        const updated = await updateFood(editingId, form);
+        setFoods((prev) => prev.map((f) => (f.id === editingId ? updated : f)));
+      } else {
+        const created = await createFood(form);
+        setFoods((prev) => [created, ...prev]);
+      }
       closeSheet();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save food");
     } finally {
       setSaving(false);
     }
-  }, [form, isSaveEnabled, closeSheet]);
+  }, [form, editingId, isSaveEnabled, closeSheet]);
 
   const runOnlineSearch = useCallback(async () => {
     if (!onlineQuery.trim()) return;
@@ -193,6 +218,7 @@ export function useFoods() {
     fanOpen, setFanOpen,
     activeSheet, openSheet, closeSheet,
     form, updateForm, isSaveEnabled, saving, saveManual,
+    editingId, openEdit,
     onlineQuery, setOnlineQuery, onlineResults, onlineLoading, runOnlineSearch, addOnlineFood,
     addScannedFood,
   };
