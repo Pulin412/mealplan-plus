@@ -4,6 +4,9 @@ spring:
     username: mealplan
     password: mealplan_dev
     driver-class-name: org.postgresql.Driver
+    hikari:
+      data-source-properties:
+        stringtype: unspecified   # text -> native Postgres enum casts (see application-prod.yml)
   jpa:
     hibernate:
       ddl-auto: validate
