@@ -7,6 +7,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  sendPasswordResetEmail,
   signOut as fbSignOut,
   type User,
 } from "firebase/auth";
@@ -18,6 +19,7 @@ interface AuthState {
   signInEmail: (email: string, password: string) => Promise<void>;
   signUpEmail: (email: string, password: string) => Promise<void>;
   signInGoogle: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -46,12 +48,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
   }, []);
 
+  const sendPasswordReset = useCallback(async (email: string) => {
+    await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
+  }, []);
+
   const signOut = useCallback(async () => {
     await fbSignOut(getFirebaseAuth());
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInEmail, signUpEmail, signInGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signInEmail, signUpEmail, signInGoogle, sendPasswordReset, signOut }}>
       {children}
     </AuthContext.Provider>
   );

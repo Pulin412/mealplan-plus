@@ -72,6 +72,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
               style={{ border: `1px solid ${C.border}`, color: C.ink }} />
           </label>
 
+          {mode === "login" && (
+            <Link href="/forgot-password" className="self-end text-[11.5px] font-semibold" style={{ color: C.teal }}>
+              Forgot password?
+            </Link>
+          )}
+
           {error && <div className="text-[11.5px]" style={{ color: C.danger }}>{error}</div>}
 
           <button type="submit" disabled={busy}
