@@ -479,9 +479,11 @@ fun FoodListCard(
                 Box(Modifier.weight(1f)) {
                     MacroText(food.proteinPer100, food.carbsPer100, food.fatPer100, fontSize = 10.5.sp)
                 }
-                Spacer(Modifier.width(8.dp))
-                Text("✎ Edit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal,
-                    modifier = Modifier.clickable(onClick = onEdit).padding(end = 10.dp))
+                if (!food.isSystemFood) {   // seed/system foods are read-only
+                    Spacer(Modifier.width(8.dp))
+                    Text("✎ Edit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                        modifier = Modifier.clickable(onClick = onEdit).padding(end = 10.dp))
+                }
                 VerifiedBadge(food.verified)
             }
         }
@@ -600,18 +602,22 @@ fun FoodCompactRow(
                 Box(Modifier.weight(1f)) {
                     MacroText(food.proteinPer100, food.carbsPer100, food.fatPer100, fontSize = 10.sp)
                 }
-                Spacer(Modifier.width(8.dp))
-                Text("✎ Edit", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Teal,
-                    modifier = Modifier.clickable(onClick = onEdit))
+                if (!food.isSystemFood) {   // seed/system foods are read-only
+                    Spacer(Modifier.width(8.dp))
+                    Text("✎ Edit", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                        modifier = Modifier.clickable(onClick = onEdit))
+                }
                 Spacer(Modifier.width(8.dp))
                 VerifiedBadge(food.verified)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "✕ Remove",
-                    fontSize  = 10.sp,
-                    color     = Muted,
-                    modifier  = Modifier.clickable(onClick = onDelete),
-                )
+                if (!food.isSystemFood) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "✕ Remove",
+                        fontSize  = 10.sp,
+                        color     = Muted,
+                        modifier  = Modifier.clickable(onClick = onDelete),
+                    )
+                }
             }
         }
     }
