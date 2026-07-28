@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -183,6 +185,31 @@ fun FoodsScreen(onBack: () -> Unit, viewModel: FoodViewModel = hiltViewModel()) 
                     sortMenuOpen = false
                 },
             )
+
+            // Category filter chips — only shown once some foods have categories.
+            if (state.usedCategories.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    state.usedCategories.forEach { cat ->
+                        val on = state.categoryFilter == cat
+                        Text(
+                            cat, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                            color = if (on) OnAccent else MutedDark,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (on) Teal else Color.Transparent)
+                                .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
+                                .clickable { viewModel.setCategoryFilter(cat) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
 
             val foods = state.filteredFoods
@@ -808,6 +835,37 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
                 keyboardType  = KeyboardType.Number,
                 modifier    = Modifier.weight(1f),
             )
+        }
+
+        Spacer(Modifier.height(10.dp))
+        // Category: type your own or tap a suggestion (suggestions = defaults + already-used).
+        SheetTextField(
+            label       = "Category",
+            placeholder = "Pick one below or type your own",
+            value       = state.manualCategory,
+            onValueChange = viewModel::setManualCategory,
+        )
+        Spacer(Modifier.height(8.dp))
+        val catSuggestions = (com.mealplanplus.data.DEFAULT_FOOD_CATEGORIES + state.usedCategories).distinct()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            catSuggestions.forEach { cat ->
+                val on = cat == state.manualCategory
+                Text(
+                    cat, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (on) OnAccent else MutedDark,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (on) Teal else Color.Transparent)
+                        .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
+                        .clickable { viewModel.setManualCategory(if (on) "" else cat) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
         }
 
         Spacer(Modifier.height(20.dp))
