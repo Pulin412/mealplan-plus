@@ -42,6 +42,7 @@ class FoodRepository @Inject constructor(
         servingLabel: String? = null,
         unit: String = "GRAM",
         gramsPerUnit: Double? = null,
+        category: String? = null,
     ): String {
         val food = Food(
             name = name,
@@ -50,6 +51,7 @@ class FoodRepository @Inject constructor(
             carbsPer100 = carbsPer100,
             fatPer100 = fatPer100,
             servingLabel = servingLabel,
+            category = category,
             unit = unit,
             gramsPerPiece = if (unit == "PIECE") gramsPerUnit else null,
             gramsPerCup   = if (unit == "CUP")   gramsPerUnit else null,

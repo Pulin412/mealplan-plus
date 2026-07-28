@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { listFoods, createFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
+import { listFoods, createFood, updateFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
 import { createScannedFood, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
 
-const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "" };
+const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "", unit: "GRAM", gramsPerUnit: "" };
 
 export function useFoods() {
   const [foods, setFoods]               = useState<FoodDto[]>([]);
@@ -18,6 +18,7 @@ export function useFoods() {
   const [viewMode, setViewMode]         = useState<FoodViewMode>("list");
   const [favOnly, setFavOnly]           = useState(false);
   const [sortOpen, setSortOpen]         = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   // row state
   const [expandedIds, setExpandedIds]   = useState<Set<number>>(new Set());
@@ -28,6 +29,7 @@ export function useFoods() {
 
   // manual form
   const [form, setForm]                 = useState<ManualFoodForm>(EMPTY_FORM);
+  const [editingId, setEditingId]       = useState<number | null>(null);
   const [saving, setSaving]             = useState(false);
 
   // online search
@@ -46,6 +48,7 @@ export function useFoods() {
   const filtered = useMemo(() => {
     let result = foods;
     if (favOnly) result = result.filter((f) => f.isFavorite);
+    if (categoryFilter) result = result.filter((f) => f.category === categoryFilter);
     if (query.trim()) {
       const q = query.toLowerCase();
       result = result.filter((f) =>
@@ -58,9 +61,15 @@ export function useFoods() {
       case "protein":  return [...result].sort((a, b) => b.proteinPer100 - a.proteinPer100);
       default:         return result;
     }
-  }, [foods, favOnly, query, sort]);
+  }, [foods, favOnly, categoryFilter, query, sort]);
 
   const favCount = useMemo(() => foods.filter((f) => f.isFavorite).length, [foods]);
+
+  // Distinct categories actually present — drives the filter chips.
+  const usedCategories = useMemo(
+    () => Array.from(new Set(foods.map((f) => f.category).filter((c): c is string => !!c))).sort(),
+    [foods]
+  );
 
   const toggleExpand = useCallback((id: number) => {
     setExpandedIds((prev) => {
@@ -99,8 +108,27 @@ export function useFoods() {
   const closeSheet = useCallback(() => {
     setActiveSheet(null);
     setForm(EMPTY_FORM);
+    setEditingId(null);
     setOnlineQuery("");
     setOnlineResults([]);
+  }, []);
+
+  const numStr = (n: number) => (Number.isInteger(n) ? String(n) : String(n));
+
+  // Open the manual sheet pre-filled to edit an existing (user-owned) food.
+  const openEdit = useCallback((food: FoodDto) => {
+    const u = food.unit ?? "GRAM";
+    const gpu = u === "PIECE" ? food.gramsPerPiece : u === "CUP" ? food.gramsPerCup
+      : u === "TBSP" ? food.gramsPerTbsp : u === "TSP" ? food.gramsPerTsp : null;
+    setForm({
+      name: food.name, servingLabel: "",
+      kcal: numStr(food.caloriesPer100), protein: numStr(food.proteinPer100),
+      carbs: numStr(food.carbsPer100), fat: numStr(food.fatPer100),
+      category: food.category ?? "", unit: u, gramsPerUnit: gpu != null ? numStr(gpu) : "",
+    });
+    setEditingId(food.id ?? null);
+    setFanOpen(false);
+    setActiveSheet("manual");
   }, []);
 
   const updateForm = useCallback((field: keyof ManualFoodForm, value: string) => {
@@ -113,15 +141,20 @@ export function useFoods() {
     if (!isSaveEnabled) return;
     setSaving(true);
     try {
-      const created = await createFood(form);
-      setFoods((prev) => [created, ...prev]);
+      if (editingId != null) {
+        const updated = await updateFood(editingId, form);
+        setFoods((prev) => prev.map((f) => (f.id === editingId ? updated : f)));
+      } else {
+        const created = await createFood(form);
+        setFoods((prev) => [created, ...prev]);
+      }
       closeSheet();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save food");
     } finally {
       setSaving(false);
     }
-  }, [form, isSaveEnabled, closeSheet]);
+  }, [form, editingId, isSaveEnabled, closeSheet]);
 
   const runOnlineSearch = useCallback(async () => {
     if (!onlineQuery.trim()) return;
@@ -179,11 +212,13 @@ export function useFoods() {
     sort, setSort, sortOpen, setSortOpen,
     viewMode, setViewMode,
     favOnly, setFavOnly,
+    categoryFilter, setCategoryFilter, usedCategories,
     expandedIds, toggleExpand,
     handleToggleFav, handleDelete,
     fanOpen, setFanOpen,
     activeSheet, openSheet, closeSheet,
     form, updateForm, isSaveEnabled, saving, saveManual,
+    editingId, openEdit,
     onlineQuery, setOnlineQuery, onlineResults, onlineLoading, runOnlineSearch, addOnlineFood,
     addScannedFood,
   };

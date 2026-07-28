@@ -2040,6 +2040,10 @@ components:
         barcode:
           type: string
           nullable: true
+        category:
+          type: string
+          nullable: true
+          description: Free-form category (user-picked from suggestions or custom); null = uncategorized.
         caloriesPer100:
           type: number
           format: double

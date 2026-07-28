@@ -3,6 +3,7 @@ package com.mealplanplus.di
 import android.content.Context
 import androidx.room.Room
 import com.mealplanplus.data.local.AppDatabase
+import com.mealplanplus.data.local.MIGRATION_8_9
 import com.mealplanplus.data.local.dao.DietDao
 import com.mealplanplus.data.local.dao.FoodDao
 import com.mealplanplus.data.local.dao.MealDao
@@ -20,8 +21,10 @@ object DatabaseModule {
     @Provides @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): AppDatabase =
         Room.databaseBuilder(ctx, AppDatabase::class.java, "mealplan_v2.db")
-            // Destructive reset is intentional for the v2 offline-first rebuild: the local
-            // DB is a throwaway cache that re-syncs from the server (source of truth).
+            // Explicit migrations preserve local data (incl. not-yet-synced rows) across upgrades.
+            .addMigrations(MIGRATION_8_9)
+            // Fallback only for unexpected version gaps with no registered path: the local DB is a
+            // cache that re-syncs from the server (source of truth), so a reset is recoverable.
             .fallbackToDestructiveMigration()
             .build()
 

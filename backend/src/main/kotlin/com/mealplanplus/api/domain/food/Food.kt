@@ -16,6 +16,9 @@ class Food(
     val brand: String? = null,
     val barcode: String? = null,
 
+    /** Free-form category (e.g. "Vegetable", "Protein") — user-picked or custom. Null = uncategorized. */
+    val category: String? = null,
+
     val caloriesPer100: Double = 0.0,
     val proteinPer100: Double = 0.0,
     val carbsPer100: Double = 0.0,
