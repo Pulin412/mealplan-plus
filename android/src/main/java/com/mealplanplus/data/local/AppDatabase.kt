@@ -12,7 +12,7 @@ import com.mealplanplus.data.model.Meal
 
 @Database(
     entities  = [Food::class, Meal::class, Diet::class],
-    version   = 9,   // v9: Food.category. Local cache re-syncs on destructive upgrade (see DatabaseModule).
+    version   = 9,   // v9: Food.category — added in place via MIGRATION_8_9 (preserves local data).
     exportSchema = true
 )
 @TypeConverters(Converters::class)
