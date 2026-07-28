@@ -101,10 +101,15 @@ fun MealPlanNavHost() {
                         NavigationBarItem(
                             selected = currentDest?.hierarchy?.any { it.route == screen.route } == true,
                             onClick  = {
+                                // Tapping a tab returns to that top-level screen, clearing any
+                                // transient screens (Profile, Settings, Meals…) pushed on top.
+                                // No saveState/restoreState — that captured non-tab screens into a
+                                // tab's state and resurrected them (e.g. Home re-opening Profile).
                                 navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        inclusive = false
+                                    }
                                     launchSingleTop = true
-                                    restoreState    = true
                                 }
                             },
                             icon  = { Icon(icon, contentDescription = screen.label) },
@@ -122,8 +127,8 @@ fun MealPlanNavHost() {
             modifier         = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Today.route)     {
-                HomeScreen(onMenu = { navController.navigate(Screen.Settings.route) },
-                    onProfile = { navController.navigate(Screen.Profile.route) },
+                HomeScreen(onMenu = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                    onProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } },
                     onOpenRunner = { templateId, name ->
                         navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
                     },
@@ -142,9 +147,9 @@ fun MealPlanNavHost() {
                 SessionRunnerScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Profile.route)   {
-                ProfileScreen(onBack = { navController.navigate(Screen.Today.route) })
+                ProfileScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.navigate(Screen.Profile.route) }) }
+            composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.popBackStack() }) }
             composable(Screen.Plan.route)      { PlanScreen() }
             composable(Screen.Exercises.route) { ExercisesScreen() }
             composable(Screen.Health.route)    { HealthScreen() }
@@ -157,16 +162,16 @@ fun MealPlanNavHost() {
                 )
             }
             composable(Screen.Meals.route)     {
-                MealsScreen(onBack = { navController.navigate(Screen.Misc.route) })
+                MealsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Diets.route)     {
-                DietsScreen(onBack = { navController.navigate(Screen.Misc.route) })
+                DietsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Foods.route)     {
-                FoodsScreen(onBack = { navController.navigate(Screen.Misc.route) })
+                FoodsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Groceries.route) {
-                GroceryScreen(onMenu = { navController.navigate(Screen.Misc.route) })
+                GroceryScreen(onMenu = { navController.popBackStack() })
             }
         }
     }

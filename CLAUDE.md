@@ -5,9 +5,8 @@ track health metrics, browse/create diets, get shopping lists, smart "you haven'
 
 **Two independent clients, one backend.** `android/`, `webapp/`, `backend/`. No shared client code.
 Module-specific rules live in each module's own `CLAUDE.md` — this file holds only what applies to every module.
-The old `android/` + `webapp/` (pre-redesign) apps were removed — their reference docs live in `docs/legacy/`.
 
-> Deep docs (do NOT paste here, link only): `docs/V2_PLAN.md`, `docs/V2_ARCHITECTURE.md`, `docs/DEPLOYMENT.md`, `docs/BRANCHING.md`, `docs/openapi.yaml`. Old-app docs archived under `docs/legacy/`.
+> Deep docs (do NOT paste here, link only): `docs/ARCHITECTURE.md` (tiers, sync, auth, deployment, zero-billing), `docs/FEATURES.md` (built + planned), `docs/openapi.yaml` (API contract), `docs/agents/` (future AI-agent planning).
 
 ## Commands
 | Module | Build / Test |
@@ -22,7 +21,7 @@ The old `android/` + `webapp/` (pre-redesign) apps were removed — their refere
 | `android/` | Kotlin, Compose, Room, Hilt — self-contained production app (redesign) |
 | `backend/` | Spring Boot 3.2.5 REST API; Firebase JWT auth, Neon.tech Postgres + pgvector — deployed on Cloud Run |
 | `webapp/`  | Next.js 14 + TypeScript PWA — deployed on Vercel |
-| `docs/`    | V2 plan/architecture, deployment, branching, OpenAPI (`docs/legacy/` = old-app archive) |
+| `docs/`    | `ARCHITECTURE.md`, `FEATURES.md`, `openapi.yaml`, `agents/` (AI-agent planning) |
 | `scripts/` | One-off setup scripts |
 
 Live: API `https://mealplan-api-rfo22lhanq-ez.a.run.app` · Web `https://mealplan-plus.vercel.app` · health `…/actuator/health`.
@@ -43,7 +42,7 @@ IMPORTANT: `develop` is the base/integration branch — treat it as primary, not
 2. **Every change lands via a PR into `develop`** (squash-and-merge). No exceptions — even a one-line fix gets a branch + PR.
 3. Branch off `develop`, never off `main`. Name after the issue/phase: `feature/…`, `fix/…`.
 4. `develop → main` PRs are release-only and deploy on merge — open one only when the user explicitly asks to release.
-5. Full model: `docs/BRANCHING.md`.
+5. Full model: `docs/ARCHITECTURE.md` → Deployment.
 
 ## Human approval required (stop and ask)
 - Any commit, push, branch, or PR.

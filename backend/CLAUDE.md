@@ -21,8 +21,8 @@ Source of truth for both clients. Deployed to Cloud Run (`europe-west4`):
 4. No paid GCP/Firebase services (root zero-billing rule).
 
 ## Deploy
-`backend-deploy.yml` deploys to Cloud Run on PR merge to `main` when `backend/**` changes. Rollback + credentials: `docs/DEPLOYMENT.md`.
+`backend-deploy.yml` deploys to Cloud Run on PR merge to `main` when `backend/**` changes. Rollback + credentials: `docs/ARCHITECTURE.md`.
 
 ## Out of scope / do not touch
 - Applied Flyway migrations `V1`–`V6`.
-- Cloud Run service config / secrets — managed outside the repo (see `docs/DEPLOYMENT.md`).
+- Cloud Run service config / secrets — managed outside the repo (see `docs/ARCHITECTURE.md`).
