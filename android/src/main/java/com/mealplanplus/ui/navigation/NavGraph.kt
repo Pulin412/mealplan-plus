@@ -25,6 +25,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.mealplanplus.ui.onboarding.OnboardingScreen
+import com.mealplanplus.ui.onboarding.OnboardingViewModel
 import com.mealplanplus.ui.screens.auth.AuthScreen
 import com.mealplanplus.ui.screens.auth.AuthViewModel
 import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
@@ -72,7 +74,14 @@ private val bottomNavItems = listOf(
 fun AppRoot() {
     val authViewModel: AuthViewModel = hiltViewModel()
     val user by authViewModel.authState.collectAsState()
-    if (user == null) AuthNavHost(authViewModel) else MealPlanNavHost()
+    if (user == null) {
+        AuthNavHost(authViewModel)
+        return
+    }
+    // Signed in: gate the app (no bottom nav) behind first-run onboarding until it's done/skipped.
+    val onboardingViewModel: OnboardingViewModel = hiltViewModel()
+    val onboardingDone by onboardingViewModel.done.collectAsState()
+    if (!onboardingDone) OnboardingScreen(onboardingViewModel) else MealPlanNavHost()
 }
 
 @Composable

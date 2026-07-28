@@ -24,6 +24,8 @@
         android:name=".MealPlanApplication"
         android:allowBackup="true"
         android:label="MealPlan+"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.MealPlanPlus"
         android:supportsRtl="true">
 
