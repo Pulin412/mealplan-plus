@@ -72,4 +72,13 @@ class AuthRepository @Inject constructor(
     }
 
     fun signOut() = auth.signOut()
+
+    /**
+     * Delete this device's Firebase auth account (account-deletion option A). May throw
+     * FirebaseAuthRecentLoginRequiredException if the sign-in is stale — callers treat that as
+     * non-fatal since the server-side data is already erased.
+     */
+    suspend fun deleteCurrentUser() {
+        auth.currentUser?.delete()?.await()
+    }
 }

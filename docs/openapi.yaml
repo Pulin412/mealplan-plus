@@ -103,6 +103,19 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Users]
+      summary: Delete account (right to erasure)
+      description: >-
+        Permanently deletes the authenticated user and ALL their data (meals, diets, foods,
+        health metrics, workouts, plans, logs, grocery lists, etc.). Irreversible. The caller
+        should also delete its own Firebase auth account and sign out after a 204.
+      operationId: deleteMe
+      responses:
+        '204':
+          description: Account and all associated data deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   # ── Dashboard ───────────────────────────────────────────────────────────────
   /api/v1/dashboard:
@@ -1755,6 +1768,23 @@ components:
           type: string
           format: date-time
           readOnly: true
+        consentedAt:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: When the user accepted the privacy policy (null = not yet consented).
+        privacyPolicyVersion:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Version of the privacy policy the user consented to.
+        onboardingCompletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: When first-run onboarding was completed/skipped (null = not yet onboarded).
       required: [id, firebaseUid]
 
     UserUpdateRequest:
@@ -1803,6 +1833,18 @@ components:
         targetFat:
           type: integer
           nullable: true
+        privacyPolicyVersion:
+          type: string
+          nullable: true
+          description: >-
+            Privacy-policy version the user is accepting. When present, the server stamps
+            consentedAt = now() and stores this version.
+        onboardingCompleted:
+          type: boolean
+          nullable: true
+          description: >-
+            Send true when first-run onboarding is finished/skipped; the server stamps
+            onboardingCompletedAt = now().
 
     # ── Dashboard ─────────────────────────────────────────────────────────────
 

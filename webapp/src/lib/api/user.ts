@@ -12,3 +12,8 @@ export function getMe(): Promise<UserResponse> {
 export function updateMe(patch: UserUpdateRequest): Promise<UserResponse> {
   return apiFetch<UserResponse>("/api/v1/users/me", { method: "PUT", body: JSON.stringify(patch) });
 }
+
+/** Right-to-erasure: permanently delete the account and all server data (204, no body). */
+export function deleteMe(): Promise<void> {
+  return apiFetch<void>("/api/v1/users/me", { method: "DELETE" });
+}

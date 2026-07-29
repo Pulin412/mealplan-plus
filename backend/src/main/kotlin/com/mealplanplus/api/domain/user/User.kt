@@ -51,6 +51,11 @@ class User(
     @Column(columnDefinition = "units_enum", nullable = false)
     var preferredUnits: UnitsEnum = UnitsEnum.METRIC,
 
+    // Consent + onboarding (see V4 migration).
+    var consentedAt: Instant? = null,
+    var privacyPolicyVersion: String? = null,
+    var onboardingCompletedAt: Instant? = null,
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     var createdAt: Instant = Instant.now(),

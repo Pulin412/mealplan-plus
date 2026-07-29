@@ -2,11 +2,17 @@ package com.mealplanplus.api.domain.user
 
 import com.mealplanplus.api.generated.model.UserResponse
 import com.mealplanplus.api.generated.model.UserUpdateRequest
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 @Service
 class UserService(private val userRepository: UserRepository) {
+
+    @PersistenceContext
+    private lateinit var em: EntityManager
 
     @Transactional
     fun getOrCreate(firebaseUid: String, email: String? = null, displayName: String? = null): UserResponse {
@@ -31,7 +37,39 @@ class UserService(private val userRepository: UserRepository) {
         req.targetCarbs?.let      { user.targetCarbs    = it }
         req.targetFat?.let        { user.targetFat      = it }
         req.units?.let            { user.preferredUnits = mapUnits(it) }
+        // Consent: recording a policy version stamps the consent time.
+        req.privacyPolicyVersion?.let {
+            user.privacyPolicyVersion = it
+            user.consentedAt = Instant.now()
+        }
+        // Onboarding: first completion/skip stamps the time (idempotent — keep the first).
+        if (req.onboardingCompleted == true && user.onboardingCompletedAt == null) {
+            user.onboardingCompletedAt = Instant.now()
+        }
         return userRepository.save(user).toResponse()
+    }
+
+    /**
+     * Right-to-erasure: delete the user and ALL their data. Top-level tables are keyed by
+     * firebase_uid; their child rows are removed by FK ON DELETE CASCADE. System foods/exercises
+     * (owned by no user) are untouched. The caller deletes its own Firebase auth account.
+     */
+    @Transactional
+    fun deleteMe(firebaseUid: String) {
+        val userOwnedTables = listOf(
+            "food_user_prefs", "logged_meal_slots", "daily_logs", "grocery_lists",
+            "day_plans", "workout_sessions", "workout_templates", "exercises",
+            "meals", "diets", "tags", "health_metrics", "custom_metric_types",
+            "foods", "entity_embeddings", "tombstones",
+        )
+        userOwnedTables.forEach { table ->
+            em.createNativeQuery("DELETE FROM $table WHERE firebase_uid = :uid")
+                .setParameter("uid", firebaseUid)
+                .executeUpdate()
+        }
+        em.createNativeQuery("DELETE FROM users WHERE firebase_uid = :uid")
+            .setParameter("uid", firebaseUid)
+            .executeUpdate()
     }
 
     private fun mapGender(g: UserUpdateRequest.Gender): GenderEnum? = when (g) {
@@ -77,7 +115,10 @@ fun User.toResponse() = UserResponse(
     targetCarbs    = targetCarbs,
     targetFat      = targetFat,
     units          = mapUnitsToSpec(preferredUnits),
-    createdAt      = createdAt
+    createdAt      = createdAt,
+    consentedAt           = consentedAt,
+    privacyPolicyVersion  = privacyPolicyVersion,
+    onboardingCompletedAt = onboardingCompletedAt
 )
 
 private fun mapGenderToSpec(g: GenderEnum): UserResponse.Gender = when (g) {

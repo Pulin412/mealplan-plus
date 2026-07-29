@@ -103,6 +103,15 @@ function SettingsInner() {
             <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
           </div>
         </div>
+
+        {/* About */}
+        <SectionLabel text="About" />
+        <div style={cardStyle}>
+          <a href="/privacy" style={{ display: "flex", alignItems: "center", padding: "13px 14px", textDecoration: "none" }}>
+            <span style={{ font: "500 13.5px system-ui", color: C.ink }}>Privacy Policy</span>
+            <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
+          </a>
+        </div>
       </div>
     </div>
   );

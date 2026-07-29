@@ -14,13 +14,12 @@ on:
   workflow_dispatch:
     inputs:
       versionName:
-        description: "Version name (e.g. 2.1.0)"
+        description: "Version name (e.g. 2.2.0) — cosmetic; set it each release"
         required: true
-        default: "2.0.0"
       versionCode:
-        description: "Version code (integer, must increase each release)"
-        required: true
-        default: "1"
+        description: "Version code (integer, must increase). Leave BLANK to auto-use the run number (always the next value)."
+        required: false
+        default: ""
       notes:
         description: "Release notes (optional)"
         required: false
@@ -49,7 +48,7 @@ jobs:
         run: >
           ./gradlew :android:assembleDebug
           -PversionName=${{ github.event.inputs.versionName }}
-          -PversionCode=${{ github.event.inputs.versionCode }}
+          -PversionCode=${{ github.event.inputs.versionCode || github.run_number }}
           -PapiBaseUrl=https://mealplan-api-rfo22lhanq-ez.a.run.app
           -PsingleAbi=arm64-v8a
           --no-daemon --build-cache
@@ -77,7 +76,7 @@ jobs:
           name: Android v${{ github.event.inputs.versionName }}
           body: |
             Installable debug-signed APK (prod backend). Sideload / `adb install`.
-            appId `com.mealplanplus.dev` · versionCode ${{ github.event.inputs.versionCode }}
+            appId `com.mealplanplus.dev` · versionCode ${{ github.event.inputs.versionCode || github.run_number }}
 
             ${{ github.event.inputs.notes }}
           files: ${{ steps.rename.outputs.apk }}
