@@ -22,7 +22,11 @@ export interface paths {
          */
         put: operations["updateMe"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete account (right to erasure)
+         * @description Permanently deletes the authenticated user and ALL their data (meals, diets, foods, health metrics, workouts, plans, logs, grocery lists, etc.). Irreversible. The caller should also delete its own Firebase auth account and sign out after a 204.
+         */
+        delete: operations["deleteMe"];
         options?: never;
         head?: never;
         patch?: never;
@@ -890,6 +894,18 @@ export interface components {
             targetFat?: number | null;
             /** Format: date-time */
             readonly createdAt?: string;
+            /**
+             * Format: date-time
+             * @description When the user accepted the privacy policy (null = not yet consented).
+             */
+            readonly consentedAt?: string | null;
+            /** @description Version of the privacy policy the user consented to. */
+            readonly privacyPolicyVersion?: string | null;
+            /**
+             * Format: date-time
+             * @description When first-run onboarding was completed/skipped (null = not yet onboarded).
+             */
+            readonly onboardingCompletedAt?: string | null;
         };
         /** @description Fields accepted on PUT /api/v1/users/me (all optional — only send what changed). */
         UserUpdateRequest: {
@@ -911,6 +927,10 @@ export interface components {
             targetProtein?: number | null;
             targetCarbs?: number | null;
             targetFat?: number | null;
+            /** @description Privacy-policy version the user is accepting. When present, the server stamps consentedAt = now() and stores this version. */
+            privacyPolicyVersion?: string | null;
+            /** @description Send true when first-run onboarding is finished/skipped; the server stamps onboardingCompletedAt = now(). */
+            onboardingCompleted?: boolean | null;
         };
         /** @description Full Today / Home screen payload. */
         DashboardDto: {
@@ -1665,6 +1685,25 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account and all associated data deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
         };

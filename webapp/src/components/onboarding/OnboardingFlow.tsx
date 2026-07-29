@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { updateMe } from "@/lib/api/user";
+import { PRIVACY_POLICY_VERSION } from "@/lib/legal";
 
 const C = { ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", border: "#eaeef0", surface: "#ffffff", bg: "#f7f9fa", bgAlt: "#f2f4f5", teal: "oklch(0.62 0.09 210)" };
 const TOTAL = 4;
@@ -18,6 +19,7 @@ type Sex = "MALE" | "FEMALE" | "OTHER";
 export function OnboardingFlow({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [consented, setConsented] = useState(false);
 
   // required personal details
   const [name, setName] = useState("");
@@ -48,6 +50,8 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
         gender: sex || null,
         heightCm: Math.round(Number(height)),
         weightKg: Math.round(Number(weight)),
+        // Consent was accepted on the Welcome step; record it with the first profile write.
+        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
       });
     } catch { /* keep going; they can edit in Profile */ }
     setSaving(false);
@@ -86,7 +90,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col justify-center px-7 py-4">
-        {step === 0 && <Welcome />}
+        {step === 0 && <Welcome consented={consented} setConsented={setConsented} />}
         {step === 1 && (
           <Details
             name={name} setName={setName} age={age} setAge={setAge} sex={sex} setSex={setSex}
@@ -103,7 +107,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="px-7 pb-10 pt-2">
-        {step === 0 && <PrimaryBtn label="Get started" onClick={next} />}
+        {step === 0 && <PrimaryBtn label="Get started" onClick={next} disabled={!consented} />}
         {step === 1 && (
           <PrimaryBtn label={saving ? "Saving…" : "Continue"} onClick={saveDetails} disabled={!detailsValid || saving} />
         )}
@@ -119,7 +123,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
   );
 }
 
-function Welcome() {
+function Welcome({ consented, setConsented }: { consented: boolean; setConsented: (v: boolean) => void }) {
   const rows = [
     ["🍽️", "Log meals by slot"],
     ["📋", "Plan diets & groceries"],
@@ -139,6 +143,18 @@ function Welcome() {
           </div>
         ))}
       </div>
+      {/* Consent gate — must accept before continuing (health data is stored). */}
+      <label className="flex items-start gap-2 mt-8 cursor-pointer">
+        <input type="checkbox" checked={consented} onChange={(e) => setConsented(e.target.checked)}
+          className="mt-[2px] h-[16px] w-[16px] accent-current" style={{ accentColor: C.teal }} />
+        <span className="text-[12px] leading-snug" style={{ color: C.muted3 }}>
+          I agree to the{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold underline" style={{ color: C.teal }}>
+            Privacy Policy
+          </a>{" "}
+          and consent to my health data being stored to provide the app.
+        </span>
+      </label>
     </div>
   );
 }

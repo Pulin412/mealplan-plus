@@ -16,5 +16,10 @@ class UserController(private val userService: UserService) : UsersApi {
     override fun updateMe(userUpdateRequest: UserUpdateRequest): ResponseEntity<UserResponse> =
         ResponseEntity.ok(userService.update(currentUid(), userUpdateRequest))
 
+    override fun deleteMe(): ResponseEntity<Unit> {
+        userService.deleteMe(currentUid())
+        return ResponseEntity.noContent().build()
+    }
+
     private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

@@ -5,7 +5,7 @@ import { getMe, updateMe, type UserResponse, type UserUpdateRequest } from "@/li
 import { useAuth } from "@/hooks/useAuth";
 
 export function useProfile() {
-  const { signOut } = useAuth();
+  const { signOut, deleteAccount } = useAuth();
   const [user, setUser] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,5 +23,5 @@ export function useProfile() {
     finally { setSaving(false); }
   }, []);
 
-  return { user, loading, error, saving, patch, signOut };
+  return { user, loading, error, saving, patch, signOut, deleteAccount };
 }

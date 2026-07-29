@@ -50,6 +50,9 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
+    // Real-Postgres integration tests (versions from the Spring Boot BOM).
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
 }
 
 // ── OpenAPI code generation ───────────────────────────────────────────────────
