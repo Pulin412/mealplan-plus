@@ -15,6 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -79,9 +81,15 @@ fun AppRoot() {
         return
     }
     // Signed in: gate the app (no bottom nav) behind first-run onboarding until it's done/skipped.
+    // Completion is server-authoritative (once per account); wait for the check before showing it.
     val onboardingViewModel: OnboardingViewModel = hiltViewModel()
     val onboardingDone by onboardingViewModel.done.collectAsState()
-    if (!onboardingDone) OnboardingScreen(onboardingViewModel) else MealPlanNavHost()
+    val checkingOnboarding by onboardingViewModel.checking.collectAsState()
+    when {
+        checkingOnboarding -> Box(Modifier.fillMaxSize())
+        !onboardingDone    -> OnboardingScreen(onboardingViewModel)
+        else               -> MealPlanNavHost()
+    }
 }
 
 @Composable

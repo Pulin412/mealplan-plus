@@ -46,6 +46,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import com.mealplanplus.Legal
 import com.mealplanplus.data.generated.model.UserResponse
 import com.mealplanplus.data.generated.model.UserUpdateRequest
 import com.mealplanplus.ui.theme.AppBg
@@ -83,6 +87,9 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
     val state by viewModel.state.collectAsState()
     var editor by remember { mutableStateOf<Editor?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
+    val ctx = LocalContext.current
 
     Column(Modifier.fillMaxSize().background(AppBg)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
@@ -134,8 +141,16 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
                         Text("Log out", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
                             modifier = Modifier.fillMaxWidth().clickable { viewModel.signOut() }.padding(horizontal = 12.dp, vertical = 13.dp))
                         Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                        Text("Privacy Policy", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Legal.PRIVACY_POLICY_URL))) }
+                                .padding(horizontal = 12.dp, vertical = 13.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
                         Text("Clear all data", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Danger,
                             modifier = Modifier.fillMaxWidth().clickable { confirmClear = true }.padding(horizontal = 12.dp, vertical = 13.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                        Text("Delete my account", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Danger,
+                            modifier = Modifier.fillMaxWidth().clickable { deleteError = null; confirmDelete = true }.padding(horizontal = 12.dp, vertical = 13.dp))
                     }
                     Text("Signed in as ${u.email ?: "—"}", fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 12.dp, start = 4.dp))
                     Spacer(Modifier.height(32.dp))
@@ -146,6 +161,12 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
 
     editor?.let { EditSheet(it, onClose = { editor = null }) }
     if (confirmClear) ConfirmClear(onConfirm = { confirmClear = false; viewModel.clearAllData() }, onDismiss = { confirmClear = false })
+    if (confirmDelete) ConfirmDelete(
+        deleting = state.saving,
+        error = deleteError,
+        onConfirm = { viewModel.deleteAccount(onError = { deleteError = it }) },
+        onDismiss = { if (!state.saving) confirmDelete = false },
+    )
 }
 
 @Composable
@@ -274,6 +295,24 @@ private fun ConfirmClear(onConfirm: () -> Unit, onDismiss: () -> Unit) {
                 Text("Clear & sign out", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnAccent)
             }
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clickable(onClick = onDismiss).padding(vertical = 12.dp)) {
+                Text("Cancel", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MutedDark)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConfirmDelete(deleting: Boolean, error: String?, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+            Text("Delete your account?", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text("This permanently deletes your account and all your data — meals, diets, health metrics, workouts and plans — from our servers. This cannot be undone.", fontSize = 12.sp, color = MutedLight, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
+            error?.let { Text(it, fontSize = 12.sp, color = Danger, modifier = Modifier.padding(bottom = 12.dp)) }
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Danger).clickable(enabled = !deleting, onClick = onConfirm).padding(vertical = 13.dp)) {
+                Text(if (deleting) "Deleting…" else "Delete everything", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnAccent)
+            }
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clickable(enabled = !deleting, onClick = onDismiss).padding(vertical = 12.dp)) {
                 Text("Cancel", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MutedDark)
             }
         }

@@ -8,6 +8,7 @@ import com.mealplanplus.data.local.dao.DietDao
 import com.mealplanplus.data.local.dao.FoodDao
 import com.mealplanplus.data.local.dao.MealDao
 import com.mealplanplus.data.sync.SyncCursorStore
+import com.mealplanplus.ui.onboarding.OnboardingStore
 import java.time.Instant
 import com.mealplanplus.data.generated.model.UserResponse
 import com.mealplanplus.data.generated.model.UserUpdateRequest
@@ -32,6 +33,7 @@ class ProfileViewModel @Inject constructor(
     private val mealDao: MealDao,
     private val dietDao: DietDao,
     private val cursor: SyncCursorStore,
+    private val onboardingStore: OnboardingStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileUiState())
@@ -73,6 +75,30 @@ class ProfileViewModel @Inject constructor(
                 cursor.set(Instant.EPOCH)
             }
             authRepo.signOut()
+        }
+    }
+
+    /**
+     * Right-to-erasure: delete all server data, wipe the local cache + onboarding flag, delete the
+     * Firebase auth account (option A), then sign out. [onError] fires only if the server delete
+     * fails (nothing is signed out in that case).
+     */
+    fun deleteAccount(onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true)
+            val resp = runCatching { usersApi.deleteMe() }.getOrNull()
+            if (resp == null || !resp.isSuccessful) {
+                _state.value = _state.value.copy(saving = false)
+                onError(resp?.let { "Delete failed (${it.code()})" } ?: "Network error — please try again")
+                return@launch
+            }
+            runCatching {
+                foodDao.deleteAll(); mealDao.deleteAll(); dietDao.deleteAll()
+                cursor.set(Instant.EPOCH)
+                onboardingStore.reset()
+            }
+            runCatching { authRepo.deleteCurrentUser() }   // non-fatal: server data already erased
+            authRepo.signOut()                              // authState → null → back to login
         }
     }
 }

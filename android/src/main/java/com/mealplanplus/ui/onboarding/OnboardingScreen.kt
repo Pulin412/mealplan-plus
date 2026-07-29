@@ -18,8 +18,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -37,7 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.Legal
 import com.mealplanplus.data.generated.model.UserUpdateRequest
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderCool
@@ -59,6 +65,7 @@ import com.mealplanplus.ui.theme.Teal
 fun OnboardingScreen(vm: OnboardingViewModel = hiltViewModel()) {
     val saving by vm.saving.collectAsState()
     var step by remember { mutableStateOf(0) }
+    var consented by remember { mutableStateOf(false) }
 
     // required details
     var name by remember { mutableStateOf("") }
@@ -98,7 +105,7 @@ fun OnboardingScreen(vm: OnboardingViewModel = hiltViewModel()) {
             verticalArrangement = Arrangement.Center,
         ) {
             when (step) {
-                0 -> WelcomeStep()
+                0 -> WelcomeStep(consented) { consented = it }
                 1 -> DetailsStep(name, { name = it }, age, { age = it }, sex, { sex = it }, height, { height = it }, weight, { weight = it })
                 2 -> TargetsStep(goal, { goal = it }, kcal, { kcal = it }, protein, { protein = it }, carbs, { carbs = it }, fat, { fat = it })
                 else -> TipsStep()
@@ -107,7 +114,7 @@ fun OnboardingScreen(vm: OnboardingViewModel = hiltViewModel()) {
 
         Column(Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
             when (step) {
-                0 -> PrimaryButton("Get started") { step = 1 }
+                0 -> PrimaryButton("Get started", enabled = consented) { step = 1 }
                 1 -> PrimaryButton("Continue", enabled = detailsValid && !saving, loading = saving) {
                     vm.saveDetails(name.trim(), age.toInt(), sex!!, height.toDouble(), weight.toDouble()) { step = 2 }
                 }
@@ -126,7 +133,8 @@ fun OnboardingScreen(vm: OnboardingViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun WelcomeStep() {
+private fun WelcomeStep(consented: Boolean, onConsent: (Boolean) -> Unit) {
+    val ctx = LocalContext.current
     Column {
         Column(Modifier.fillMaxWidth().padding(bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row {
@@ -145,6 +153,26 @@ private fun WelcomeStep() {
                 Text(icon, fontSize = 24.sp)
                 Spacer(Modifier.width(12.dp))
                 Text(title, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        // Consent gate — must accept before continuing (health data is stored).
+        Row(Modifier.fillMaxWidth().padding(top = 28.dp), verticalAlignment = Alignment.Top) {
+            Checkbox(
+                checked = consented, onCheckedChange = onConsent,
+                colors = CheckboxDefaults.colors(checkedColor = Teal),
+            )
+            Spacer(Modifier.width(4.dp))
+            Column(Modifier.padding(top = 12.dp)) {
+                Text(
+                    "I agree to the Privacy Policy and consent to my health data being stored to provide the app.",
+                    color = MutedDark, fontSize = 12.sp, lineHeight = 16.sp,
+                )
+                Text(
+                    "Read the Privacy Policy", color = Teal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp).clickable {
+                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Legal.PRIVACY_POLICY_URL)))
+                    },
+                )
             }
         }
     }
