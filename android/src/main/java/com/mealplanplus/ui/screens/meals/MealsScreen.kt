@@ -45,6 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -771,27 +772,37 @@ private fun com.mealplanplus.data.generated.model.FoodDto.toBuildItem(id: String
 
 /** Numeric quantity input with the food's unit label; user types any value. */
 @Composable private fun QtyField(id: String, quantity: Double, unit: String, onChange: (Double) -> Unit) {
+    val step = if (unit in setOf("PIECE", "CUP", "TBSP", "TSP")) 0.5 else 10.0
+    val canDec = quantity - step >= 0.0
+    // Editable value in the middle; +/- adjust it. Local text state keeps partial input (e.g. "1.") stable.
     var text by remember(id) { mutableStateOf(fmtQty(quantity)) }
+    LaunchedEffect(quantity) {
+        val f = fmtQty(quantity)
+        if (f != text && text.toDoubleOrNull() != quantity) text = f
+    }
     Row(verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp)) {
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp))) {
+        Box(Modifier.size(30.dp).clickable(enabled = canDec) { onChange((quantity - step).coerceAtLeast(0.0)) }, contentAlignment = Alignment.Center) {
+            Text("−", color = if (canDec) Teal else BorderCool, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        }
         androidx.compose.foundation.text.BasicTextField(
             value = text,
             onValueChange = { s ->
-                val filtered = s.filter { it.isDigit() || it == '.' }.let { v ->
-                    if (v.count { it == '.' } > 1) text else v   // keep at most one dot
-                }
-                text = filtered
-                filtered.toDoubleOrNull()?.let(onChange)
+                val f = s.filter { it.isDigit() || it == '.' }.let { v -> if (v.count { it == '.' } > 1) text else v }
+                text = f
+                f.toDoubleOrNull()?.let(onChange)
             },
-            textStyle = androidx.compose.ui.text.TextStyle(fontFamily = DmMono, fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold, color = Ink, textAlign = androidx.compose.ui.text.style.TextAlign.End),
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.widthIn(min = 34.dp).width(46.dp),
+            textStyle = androidx.compose.ui.text.TextStyle(fontFamily = DmMono, fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold, color = Ink, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(Teal),
+            modifier = Modifier.widthIn(min = 30.dp).width(44.dp),
         )
-        Spacer(Modifier.width(5.dp))
-        Text(unitLabel(unit), fontFamily = DmMono, fontSize = 11.sp, color = MutedFaint)
+        Box(Modifier.size(30.dp).clickable { onChange(quantity + step) }, contentAlignment = Alignment.Center) {
+            Text("+", color = Teal, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        }
+        Text(unitLabel(unit), fontFamily = DmMono, fontSize = 11.sp, color = MutedFaint, modifier = Modifier.padding(end = 8.dp))
     }
 }
 

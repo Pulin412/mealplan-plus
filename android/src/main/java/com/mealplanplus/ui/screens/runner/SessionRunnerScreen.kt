@@ -228,25 +228,17 @@ private fun RepsStepper(value: Int, onChange: (Int) -> Unit) {
 
 @Composable
 private fun WeightField(weightKg: Double?, onChange: (Double?) -> Unit) {
-    val text = weightKg?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
-    Row(verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.width(74.dp).clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 6.dp)) {
-        Box(Modifier.weight(1f)) {
-            if (text.isEmpty()) Text("–", fontSize = 12.sp, color = MutedLight)
-            BasicTextField(
-                value = text,
-                onValueChange = { raw ->
-                    val cleaned = raw.filter { it.isDigit() || it == '.' }
-                    onChange(if (cleaned.isBlank()) null else cleaned.toDoubleOrNull() ?: weightKg)
-                },
-                singleLine = true,
-                textStyle = TextStyle(fontSize = 12.sp, color = Ink, fontFamily = DmMono),
-                cursorBrush = SolidColor(Teal),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        Text("kg", fontSize = 9.5.sp, color = MutedFaint)
+    val v = weightKg ?: 0.0
+    fun fmt(x: Double) = if (x % 1.0 == 0.0) x.toInt().toString() else x.toString()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        StepBtn("−") { onChange((v - 2.5).coerceAtLeast(0.0).takeIf { it > 0.0 }) }
+        Text(
+            if (weightKg == null) "–" else fmt(v),
+            fontFamily = DmMono, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+            modifier = Modifier.width(40.dp), textAlign = TextAlign.Center,
+        )
+        StepBtn("+") { onChange(v + 2.5) }
+        Text("kg", fontSize = 9.5.sp, color = MutedFaint, modifier = Modifier.padding(start = 2.dp))
     }
 }
 

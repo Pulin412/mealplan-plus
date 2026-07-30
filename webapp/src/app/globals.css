@@ -19,6 +19,8 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: system-ui, sans-serif;
+  /* Keep content clear of the notch/Dynamic Island in a standalone PWA (0 in a normal browser). */
+  padding-top: env(safe-area-inset-top);
 }
 
 @layer utilities {

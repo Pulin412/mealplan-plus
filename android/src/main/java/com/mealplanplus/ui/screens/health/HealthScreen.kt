@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.LaunchedEffect
+import com.mealplanplus.ui.components.Stepper
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -342,8 +344,8 @@ private fun LogSheet(state: HealthUiState, vm: HealthViewModel) {
                 modifier = Modifier.padding(bottom = 16.dp))
             if (log.isDual) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.weight(1f)) { LabeledField("Systolic", log.value, vm::setLogValue, "120") }
-                    Box(Modifier.weight(1f)) { LabeledField("Diastolic", log.secondary, vm::setLogSecondary, "80") }
+                    Box(Modifier.weight(1f)) { StepperField("Systolic", log.value, vm::setLogValue, 120) }
+                    Box(Modifier.weight(1f)) { StepperField("Diastolic", log.secondary, vm::setLogSecondary, 80) }
                 }
             } else {
                 LabeledField("Reading · ${log.tab.unit}", log.value, vm::setLogValue, "Enter value", decimal = true)
@@ -357,6 +359,16 @@ private fun LogSheet(state: HealthUiState, vm: HealthViewModel) {
                 Text("Save reading", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (log.canSave) OnAccent else MutedLight)
             }
         }
+    }
+}
+
+@Composable
+private fun StepperField(label: String, value: String, onChange: (String) -> Unit, default: Int) {
+    // Whole-number vitals (BP) — pre-fill a sensible default so a tap-to-save works.
+    LaunchedEffect(Unit) { if (value.isBlank()) onChange(default.toString()) }
+    Column {
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
+        Stepper(value.toIntOrNull() ?: default, { onChange(it.toString()) }, min = 0, max = 400, step = 1, modifier = Modifier.fillMaxWidth())
     }
 }
 

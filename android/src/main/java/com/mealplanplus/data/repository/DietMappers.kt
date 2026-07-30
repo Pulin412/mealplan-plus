@@ -72,7 +72,10 @@ data class DietEntryUi(
     val name: String,
     val kcal: Int,
     val meta: String,
+    val mealFoods: List<MealFoodLine> = emptyList(),   // foods inside a MEAL entry — shown when expanded
 )
+
+data class MealFoodLine(val name: String, val meta: String)
 
 private class Macros { var kcal = 0.0; var p = 0.0; var c = 0.0; var f = 0.0 }
 
@@ -90,7 +93,8 @@ fun Diet.resolve(mealsById: Map<String, MealUi>, foodsById: Map<String, Food>): 
                 m.c = (meal?.totalCarbs ?: 0.0) * q
                 m.f = (meal?.totalFat ?: 0.0) * q
                 DietEntryUi(e.kind, meal?.meal?.name ?: "Unknown meal", m.kcal.roundToInt(),
-                    "meal · ${m.kcal.roundToInt()} kcal")
+                    "meal · ${m.kcal.roundToInt()} kcal",
+                    mealFoods = meal?.items?.map { MealFoodLine(it.name, it.meta) } ?: emptyList())
             }
             DietEntryKind.FOOD -> {
                 val food = foodsById[e.refServerId]

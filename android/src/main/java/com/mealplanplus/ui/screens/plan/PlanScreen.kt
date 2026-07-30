@@ -351,15 +351,43 @@ private fun DietSlots(diet: DietSummary) {
                 Spacer(Modifier.weight(1f))
                 Text("${slot.kcal} kcal", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
             }
-            slot.lines.forEach { line ->
-                Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth().padding(top = if (line.header) 4.dp else 2.dp, start = if (line.header) 0.dp else 8.dp)) {
-                    Text(line.name, fontSize = if (line.header) 12.5.sp else 11.sp,
-                        fontWeight = if (line.header) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (line.header) Ink else MutedDark, modifier = Modifier.weight(1f))
-                    Text(line.meta, fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
-                }
+            // Group each meal header with the food lines that follow it; render meals expandable.
+            mealBlocks(slot.lines).forEach { block ->
+                if (block.first != null) ExpandableMeal(block.first!!, block.second)
+                else block.second.forEach { FoodLineRow(it) }
             }
         }
+    }
+}
+
+private fun mealBlocks(lines: List<DietLine>): List<Pair<DietLine?, List<DietLine>>> {
+    val out = mutableListOf<Pair<DietLine?, MutableList<DietLine>>>()
+    lines.forEach { line ->
+        if (line.header) out.add(line to mutableListOf())
+        else if (out.isNotEmpty() && out.last().first != null) out.last().second.add(line)
+        else out.add(null to mutableListOf(line))   // a direct food with no meal
+    }
+    return out
+}
+
+@Composable
+private fun ExpandableMeal(header: DietLine, foods: List<DietLine>) {
+    var open by remember(header.name) { mutableStateOf(false) }
+    val expandable = foods.isNotEmpty()
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().then(if (expandable) Modifier.clickable { open = !open } else Modifier).padding(top = 4.dp)) {
+        Text(header.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.weight(1f))
+        if (expandable) Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
+        Text(header.meta, fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
+    }
+    if (open) foods.forEach { FoodLineRow(it) }
+}
+
+@Composable
+private fun FoodLineRow(line: DietLine) {
+    Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth().padding(top = 2.dp, start = 8.dp)) {
+        Text("• ${line.name}", fontSize = 11.sp, color = MutedDark, modifier = Modifier.weight(1f))
+        Text(line.meta, fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
     }
 }
 
