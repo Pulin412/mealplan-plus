@@ -125,11 +125,12 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
     var sheet by remember { mutableStateOf<HomeSheet>(HomeSheet.None) }
     var expandedSlots by remember { mutableStateOf(setOf<String>()) }
 
-    // Reload today's workout status when returning to Home (e.g. after finishing the runner).
+    // Refresh Today whenever we return to Home (e.g. after planning a diet in Plan, or finishing the
+    // runner). load() also refreshes the meal slots + calorie ring, which reflect the planned diet.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) { viewModel.loadWorkouts(); viewModel.loadActivity() }
+            if (event == Lifecycle.Event.ON_RESUME) { viewModel.load(); viewModel.loadWorkouts(); viewModel.loadActivity() }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }

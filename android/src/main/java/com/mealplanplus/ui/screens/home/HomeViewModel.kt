@@ -158,14 +158,29 @@ class HomeViewModel @Inject constructor(
 
     private fun today(): LocalDate = _state.value.dashboard?.date ?: LocalDate.now()
 
-    /** Toggle a planned slot's logged state; the dashboard totals recompute on reload. */
+    /**
+     * Toggle a planned slot's logged state. The checkmark flips **optimistically** so the tap feels
+     * instant (previously it waited for a network write + a full dashboard reload). We fire the
+     * toggle in the background, then silently reload to reconcile the ring/macros; on failure we
+     * revert the flip.
+     */
     fun toggleSlot(slot: String) {
+        val current = _state.value.dashboard ?: return
+        fun flip(d: DashboardDto) = d.copy(
+            slots = d.slots.map { if (it.slot == slot) it.copy(isLogged = !it.isLogged) else it },
+        )
+        _state.update { it.copy(dashboard = flip(current), togglingSlot = slot) }
         viewModelScope.launch {
-            _state.update { it.copy(togglingSlot = slot) }
-            runCatching { loggingApi.toggleMealSlot(today(), slot) }
-                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            val ok = runCatching { loggingApi.toggleMealSlot(today(), slot) }
+                .map { it.isSuccessful }.getOrDefault(false)
+            if (ok) {
+                load()   // dashboard != null → silent reload (no spinner); refreshes ring + macros
+            } else {
+                _state.update { st ->
+                    st.copy(dashboard = st.dashboard?.let(::flip), error = "Couldn't update — check your connection")
+                }
+            }
             _state.update { it.copy(togglingSlot = null) }
-            load()
         }
     }
 
