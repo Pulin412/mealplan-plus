@@ -11,12 +11,22 @@ export const metadata: Metadata = {
   title: "MealPlan+",
   description: "Offline-first meal planning & food logging",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    // iOS ignores SVG here — must be a PNG.
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: { capable: true, title: "MealPlan+", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
   themeColor: "#2f8f9d",
+  // Let the standalone PWA draw under the status bar / home indicator; screens pad with safe-area insets.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
