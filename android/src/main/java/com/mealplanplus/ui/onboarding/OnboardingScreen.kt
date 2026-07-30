@@ -43,7 +43,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.LaunchedEffect
 import com.mealplanplus.Legal
+import com.mealplanplus.ui.components.RulerPicker
+import com.mealplanplus.ui.components.Stepper
 import com.mealplanplus.data.generated.model.UserUpdateRequest
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderCool
@@ -196,12 +199,28 @@ private fun DetailsStep(
             listOf(UserUpdateRequest.Gender.MALE to "Male", UserUpdateRequest.Gender.FEMALE to "Female", UserUpdateRequest.Gender.OTHER to "Other")
                 .forEach { (v, label) -> Chip(label, sex == v, Modifier.weight(1f)) { onSex(v) } }
         }
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Field("Age", age, onAge, Modifier.weight(1f))
-            Field("Height (cm)", height, onHeight, Modifier.weight(1f))
-            Field("Weight (kg)", weight, onWeight, Modifier.weight(1f))
-        }
+        Spacer(Modifier.height(8.dp))
+        MetricRuler("Age", age, onAge, 5..120, 30, "years")
+        MetricRuler("Height", height, onHeight, 100..250, 170, "cm")
+        MetricRuler("Weight", weight, onWeight, 20..300, 70, "kg")
+    }
+}
+
+@Composable
+private fun MetricRuler(label: String, value: String, onChange: (String) -> Unit, range: IntRange, default: Int, suffix: String) {
+    // Pre-fill the (required) field with a sensible default so the shown value is also the state.
+    LaunchedEffect(Unit) { if (value.isBlank()) onChange(default.toString()) }
+    Column(Modifier.padding(top = 12.dp)) {
+        Text(label, color = Muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
+        RulerPicker(value.toIntOrNull()?.coerceIn(range.first, range.last) ?: default, { onChange(it.toString()) }, range, suffix = suffix)
+    }
+}
+
+@Composable
+private fun StepperRow(label: String, value: String, onChange: (String) -> Unit, step: Int, suffix: String) {
+    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Stepper(value.toIntOrNull() ?: 0, { onChange(it.toString()) }, step = step, suffix = suffix, modifier = Modifier.width(170.dp))
     }
 }
 
@@ -220,13 +239,11 @@ private fun TargetsStep(
             listOf(UserUpdateRequest.GoalType.LOSE to "Lose", UserUpdateRequest.GoalType.MAINTAIN to "Maintain", UserUpdateRequest.GoalType.GAIN to "Gain")
                 .forEach { (v, label) -> Chip(label, goal == v, Modifier.weight(1f)) { onGoal(v) } }
         }
-        Spacer(Modifier.height(12.dp))
-        Field("Calories (kcal)", kcal, onKcal)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Field("Protein (g)", protein, onProtein, Modifier.weight(1f))
-            Field("Carbs (g)", carbs, onCarbs, Modifier.weight(1f))
-            Field("Fat (g)", fat, onFat, Modifier.weight(1f))
-        }
+        Spacer(Modifier.height(4.dp))
+        StepperRow("Calories", kcal, onKcal, 10, "kcal")
+        StepperRow("Protein", protein, onProtein, 5, "g")
+        StepperRow("Carbs", carbs, onCarbs, 5, "g")
+        StepperRow("Fat", fat, onFat, 5, "g")
     }
 }
 
