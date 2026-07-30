@@ -20,7 +20,7 @@ const teal = "oklch(0.62 0.09 210)";
 export function NutritionNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 flex" style={{ background: "#fff", borderTop: "1px solid #eaeef0" }}>
+    <nav className="fixed bottom-0 inset-x-0 z-30 flex" style={{ background: "#fff", borderTop: "1px solid #eaeef0", paddingBottom: "env(safe-area-inset-bottom)" }}>
       {TABS.map((t) => {
         const active = t.href === "/misc" ? MISC_PAGES.includes(pathname) : pathname === t.href;
         return (

@@ -66,15 +66,17 @@ object NetworkModule {
                 level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
                         else HttpLoggingInterceptor.Level.NONE
             })
-            // Force a short cache window on GETs. The backend (Spring Security) sends no-store,
-            // which would forbid caching, so we override it for our own private on-device cache.
-            // Kept short so a just-written change isn't hidden for long.
+            // Store GET responses so the OFFLINE fallback (getWithRetry) can serve them, but force
+            // revalidation while online so a just-written change is never served stale. The backend
+            // sends no-store (which forbids caching), so we override it: "no-cache" keeps the entry
+            // in the cache yet always refetches when online — writes (e.g. plan/unplan) reflect
+            // immediately, while the week-long only-if-cached fallback still works offline.
             .addNetworkInterceptor { chain ->
                 val response = chain.proceed(chain.request())
                 if (chain.request().method == "GET") {
                     response.newBuilder()
                         .removeHeader("Pragma")
-                        .header("Cache-Control", "private, max-age=$ONLINE_MAX_AGE")
+                        .header("Cache-Control", "no-cache")
                         .build()
                 } else response
             }
@@ -112,7 +114,6 @@ object NetworkModule {
     }
 
     private const val HTTP_CACHE_BYTES = 5L * 1024 * 1024        // 5 MB on-device response cache
-    private const val ONLINE_MAX_AGE = 5                         // seconds a cached GET is reused while online
     private const val OFFLINE_MAX_STALE = 7 * 24 * 60 * 60       // serve cache up to a week old when offline
     private const val MAX_GET_RETRIES = 2                        // extra tries for a GET (3 attempts total)
     private const val RETRY_BACKOFF_MS = 400L                    // per-attempt backoff, multiplied by attempt #

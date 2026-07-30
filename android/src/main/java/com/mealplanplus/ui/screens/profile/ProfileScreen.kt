@@ -65,11 +65,13 @@ import com.mealplanplus.ui.theme.OnAccent
 import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
+import com.mealplanplus.ui.components.RulerPicker
+import com.mealplanplus.ui.components.Stepper
 import kotlin.math.roundToInt
 
 private sealed interface Editor {
     val label: String
-    data class Num(override val label: String, val value: String, val hint: String, val keyboard: KeyboardType, val onSave: (String) -> Unit) : Editor
+    data class Num(override val label: String, val value: String, val hint: String, val keyboard: KeyboardType, val ruler: IntRange? = null, val step: Int = 0, val onSave: (String) -> Unit) : Editor
     data class Opt(override val label: String, val current: String, val options: List<Pair<String, String>>, val onSave: (String) -> Unit) : Editor
     /** Weight, edited in the current unit (kg or lb), saved as kg. */
     data class Weight(val kg: Double?, val imperial: Boolean, val onSaveKg: (Double?) -> Unit) : Editor {
@@ -110,17 +112,17 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
                         Row2("Name", u.displayName ?: "—") { editor = Editor.Num("Name", u.displayName ?: "", "Your name", KeyboardType.Text) { v -> viewModel.patch(UserUpdateRequest(displayName = v.ifBlank { null })) } }
                         Row2("Height", heightDisplay(u.heightCm, imperial)) { editor = Editor.Height(u.heightCm, imperial) { cm -> viewModel.patch(UserUpdateRequest(heightCm = cm)) } }
                         Row2("Weight", weightDisplay(u.weightKg, imperial)) { editor = Editor.Weight(u.weightKg, imperial) { kg -> viewModel.patch(UserUpdateRequest(weightKg = kg)) } }
-                        Row2("Age", u.age?.toString() ?: "—") { editor = Editor.Num("Age", u.age?.toString() ?: "", "years", KeyboardType.Number) { v -> viewModel.patch(UserUpdateRequest(age = v.toIntOrNull())) } }
+                        Row2("Age", u.age?.toString() ?: "—") { editor = Editor.Num("Age", u.age?.toString() ?: "", "years", KeyboardType.Number, ruler = 5..120) { v -> viewModel.patch(UserUpdateRequest(age = v.toIntOrNull())) } }
                         Row2("Sex", genderLabel(u.gender)) { editor = Editor.Opt("Sex", u.gender?.value ?: "", GENDERS) { v -> viewModel.patch(UserUpdateRequest(gender = UserUpdateRequest.Gender.entries.firstOrNull { it.value == v })) } }
                         Row2("Activity", activityLabel(u.activityLevel), last = true) { editor = Editor.Opt("Activity level", u.activityLevel?.value ?: "", ACTIVITIES) { v -> viewModel.patch(UserUpdateRequest(activityLevel = UserUpdateRequest.ActivityLevel.entries.firstOrNull { it.value == v })) } }
                     }
 
                     Section("Goal & targets") {
                         Row2("Goal", goalLabel(u.goalType)) { editor = Editor.Opt("Goal", u.goalType?.value ?: "", GOALS) { v -> viewModel.patch(UserUpdateRequest(goalType = UserUpdateRequest.GoalType.entries.firstOrNull { it.value == v })) } }
-                        Row2("Calorie target", u.targetCalories?.let { "$it kcal" } ?: "—") { editor = Editor.Num("Calorie target (kcal)", u.targetCalories?.toString() ?: "", "e.g. 2200", KeyboardType.Number) { v -> viewModel.patch(UserUpdateRequest(targetCalories = v.toIntOrNull())) } }
-                        Row2("Protein", u.targetProtein?.let { "$it g" } ?: "—") { editor = Editor.Num("Protein target (g)", u.targetProtein?.toString() ?: "", "g", KeyboardType.Number) { v -> viewModel.patch(UserUpdateRequest(targetProtein = v.toIntOrNull())) } }
-                        Row2("Carbs", u.targetCarbs?.let { "$it g" } ?: "—") { editor = Editor.Num("Carbs target (g)", u.targetCarbs?.toString() ?: "", "g", KeyboardType.Number) { v -> viewModel.patch(UserUpdateRequest(targetCarbs = v.toIntOrNull())) } }
-                        Row2("Fat", u.targetFat?.let { "$it g" } ?: "—", last = true) { editor = Editor.Num("Fat target (g)", u.targetFat?.toString() ?: "", "g", KeyboardType.Number) { v -> viewModel.patch(UserUpdateRequest(targetFat = v.toIntOrNull())) } }
+                        Row2("Calorie target", u.targetCalories?.let { "$it kcal" } ?: "—") { editor = Editor.Num("Calorie target", u.targetCalories?.toString() ?: "", "kcal", KeyboardType.Number, step = 10) { v -> viewModel.patch(UserUpdateRequest(targetCalories = v.toIntOrNull())) } }
+                        Row2("Protein", u.targetProtein?.let { "$it g" } ?: "—") { editor = Editor.Num("Protein target", u.targetProtein?.toString() ?: "", "g", KeyboardType.Number, step = 5) { v -> viewModel.patch(UserUpdateRequest(targetProtein = v.toIntOrNull())) } }
+                        Row2("Carbs", u.targetCarbs?.let { "$it g" } ?: "—") { editor = Editor.Num("Carbs target", u.targetCarbs?.toString() ?: "", "g", KeyboardType.Number, step = 5) { v -> viewModel.patch(UserUpdateRequest(targetCarbs = v.toIntOrNull())) } }
+                        Row2("Fat", u.targetFat?.let { "$it g" } ?: "—", last = true) { editor = Editor.Num("Fat target", u.targetFat?.toString() ?: "", "g", KeyboardType.Number, step = 5) { v -> viewModel.patch(UserUpdateRequest(targetFat = v.toIntOrNull())) } }
                     }
 
                     Section("Energy") {
@@ -226,17 +228,29 @@ private fun EditSheet(editor: Editor, onClose: () -> Unit) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Text(editor.label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.padding(bottom = 12.dp))
             when (editor) {
-                is Editor.Num -> {
-                    var text by remember { mutableStateOf(editor.value) }
-                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(11.dp)).padding(horizontal = 12.dp, vertical = 12.dp)) {
-                        if (text.isEmpty()) Text(editor.hint, fontSize = 14.sp, color = MutedLight)
-                        BasicTextField(text, { text = it }, singleLine = true, cursorBrush = SolidColor(Teal),
-                            keyboardOptions = KeyboardOptions(keyboardType = editor.keyboard),
-                            textStyle = TextStyle(fontSize = 14.sp, color = Ink), modifier = Modifier.fillMaxWidth())
+                is Editor.Num -> when {
+                    editor.ruler != null -> {
+                        var v by remember { mutableStateOf(editor.value.toIntOrNull()?.coerceIn(editor.ruler.first, editor.ruler.last) ?: ((editor.ruler.first + editor.ruler.last) / 2)) }
+                        RulerPicker(v, { v = it }, editor.ruler, suffix = editor.hint)
+                        Spacer(Modifier.height(14.dp))
+                        SaveBtn { editor.onSave(v.toString()); onClose() }
                     }
-                    Spacer(Modifier.height(14.dp))
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Teal).clickable { editor.onSave(text.trim()); onClose() }.padding(vertical = 13.dp)) {
-                        Text("Save", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnAccent)
+                    editor.step > 0 -> {
+                        var v by remember { mutableStateOf(editor.value.toIntOrNull() ?: 0) }
+                        Stepper(v, { v = it }, min = 0, max = 100_000, step = editor.step, suffix = editor.hint, modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(14.dp))
+                        SaveBtn { editor.onSave(v.toString()); onClose() }
+                    }
+                    else -> {
+                        var text by remember { mutableStateOf(editor.value) }
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(11.dp)).padding(horizontal = 12.dp, vertical = 12.dp)) {
+                            if (text.isEmpty()) Text(editor.hint, fontSize = 14.sp, color = MutedLight)
+                            BasicTextField(text, { text = it }, singleLine = true, cursorBrush = SolidColor(Teal),
+                                keyboardOptions = KeyboardOptions(keyboardType = editor.keyboard),
+                                textStyle = TextStyle(fontSize = 14.sp, color = Ink), modifier = Modifier.fillMaxWidth())
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        SaveBtn { editor.onSave(text.trim()); onClose() }
                     }
                 }
                 is Editor.Opt -> {
@@ -249,13 +263,16 @@ private fun EditSheet(editor: Editor, onClose: () -> Unit) {
                     }
                 }
                 is Editor.Weight -> {
-                    val initial = editor.kg?.let { if (editor.imperial) (it * 2.20462).round1() else it.trimNum() } ?: ""
-                    var text by remember { mutableStateOf(initial) }
-                    NumField(text, { text = it }, if (editor.imperial) "lb" else "kg")
-                    Spacer(Modifier.height(14.dp))
-                    SaveBtn {
-                        val n = text.trim().toDoubleOrNull()
-                        editor.onSaveKg(n?.let { if (editor.imperial) it / 2.20462 else it }); onClose()
+                    if (editor.imperial) {
+                        var text by remember { mutableStateOf(editor.kg?.let { (it * 2.20462).round1() } ?: "") }
+                        NumField(text, { text = it }, "lb")
+                        Spacer(Modifier.height(14.dp))
+                        SaveBtn { editor.onSaveKg(text.trim().toDoubleOrNull()?.let { it / 2.20462 }); onClose() }
+                    } else {
+                        var v by remember { mutableStateOf(editor.kg?.roundToInt()?.coerceIn(20, 300) ?: 70) }
+                        RulerPicker(v, { v = it }, 20..300, suffix = "kg")
+                        Spacer(Modifier.height(14.dp))
+                        SaveBtn { editor.onSaveKg(v.toDouble()); onClose() }
                     }
                 }
                 is Editor.Height -> {
@@ -273,10 +290,10 @@ private fun EditSheet(editor: Editor, onClose: () -> Unit) {
                             editor.onSaveCm(f?.let { ((it * 12 + i) * 2.54) }); onClose()
                         }
                     } else {
-                        var text by remember { mutableStateOf(editor.cm?.trimNum() ?: "") }
-                        NumField(text, { text = it }, "cm")
+                        var v by remember { mutableStateOf(editor.cm?.roundToInt()?.coerceIn(100, 250) ?: 170) }
+                        RulerPicker(v, { v = it }, 100..250, suffix = "cm")
                         Spacer(Modifier.height(14.dp))
-                        SaveBtn { editor.onSaveCm(text.trim().toDoubleOrNull()); onClose() }
+                        SaveBtn { editor.onSaveCm(v.toDouble()); onClose() }
                     }
                 }
             }
