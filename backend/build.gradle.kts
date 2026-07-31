@@ -38,6 +38,12 @@ dependencies {
     // Firebase JWT validation (JWKS/RS256, no Admin SDK)
     implementation("com.nimbusds:nimbus-jose-jwt:9.37.3")
 
+    // Web Push (VAPID) for PWA reminders — standards-based, NOT Firebase FCM (guardrail-safe).
+    // web-push uses Apache HttpClient 4 (transitive) but does NOT bundle BouncyCastle, which it
+    // needs for the EC/JOSE crypto — so add the BC provider explicitly.
+    implementation("nl.martijndwars:web-push:5.1.1")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+
     // OpenAPI / Swagger UI
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 

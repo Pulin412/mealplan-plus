@@ -846,6 +846,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a Web Push subscription for the current user
+         * @description Stores the browser's Web Push subscription so the server can send "you haven't logged yet"
+         *     reminders. Idempotent — upserts on `endpoint`. Presence of a subscription = reminders on.
+         */
+        post: operations["subscribePush"];
+        /**
+         * Remove a Web Push subscription
+         * @description Deletes the subscription for this `endpoint` (turns reminders off for this device).
+         */
+        delete: operations["unsubscribePush"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/internal/reminders/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send due "you haven't logged yet" reminders (scheduler-triggered)
+         * @description Called by a scheduled job (GitHub Actions cron), **not** by end users. Evaluates every stored
+         *     push subscription and sends a reminder to users who have not logged any food today. Authenticated
+         *     with a shared secret in the `X-Reminder-Token` header instead of a Firebase JWT.
+         */
+        post: operations["runReminders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1607,6 +1654,31 @@ export interface components {
              * @description Server clock at response time — use as `since` on next pull
              */
             serverTime: string;
+        };
+        /** @description A browser Web Push subscription (as returned by `PushManager.subscribe`). */
+        PushSubscriptionRequest: {
+            /** @description Push service endpoint URL — unique per browser subscription */
+            endpoint: string;
+            keys: components["schemas"]["PushSubscriptionKeys"];
+            /** @description Optional UA string, to help the user recognise the device */
+            userAgent?: string | null;
+        };
+        /** @description Encryption keys from the browser subscription. */
+        PushSubscriptionKeys: {
+            p256dh: string;
+            auth: string;
+        };
+        PushUnsubscribeRequest: {
+            endpoint: string;
+        };
+        /** @description Result of a scheduler-triggered reminder run. */
+        ReminderRunResponse: {
+            /** @description Subscriptions evaluated */
+            checked: number;
+            /** @description Reminders sent */
+            sent: number;
+            /** @description Stale subscriptions removed (push service returned 404/410) */
+            pruned: number;
         };
     };
     responses: {
@@ -3434,6 +3506,81 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    subscribePush: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Subscription stored */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    unsubscribePush: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushUnsubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Subscription removed (or already absent) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    runReminders: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Reminder-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reminder run completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReminderRunResponse"];
+                };
+            };
+            /** @description Missing or invalid reminder token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

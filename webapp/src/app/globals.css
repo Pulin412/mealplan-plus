@@ -26,3 +26,14 @@ body {
 @layer utilities {
   .text-balance { text-wrap: balance; }
 }
+
+/* iOS Safari zooms the whole page in when a focused field's font-size is < 16px, and the zoom
+   sticks across navigations. Force every editable control to 16px on touch devices so tapping an
+   input never zooms the app. Desktop (fine pointer) keeps the design's compact sizes. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

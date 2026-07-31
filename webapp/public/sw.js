@@ -3,7 +3,7 @@
 // - Page navigations: network-first with an offline fallback.
 // Cross-origin requests (Firebase auth, the Cloud Run API) are never touched — no
 // user data or authed API responses are cached here.
-const VERSION = "mp-v1";
+const VERSION = "mp-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
 
@@ -60,3 +60,42 @@ async function networkFirst(req) {
     return (await cache.match(req)) || (await cache.match("/")) || Response.error();
   }
 }
+
+// ── Web Push: "you haven't logged yet" reminders ─────────────────────────────
+// Payload is JSON: { title, body, url }. Sent by the backend via VAPID.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "MealPlan+";
+  const options = {
+    body: data.body || "Reminder",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: "mp-reminder", // collapse repeats into one notification
+    data: { url: data.url || "/today" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/today";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if (c.url.includes(target) && "focus" in c) return c.focus();
+      }
+      for (const c of clients) {
+        if ("focus" in c) {
+          if ("navigate" in c) c.navigate(target);
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
+  );
+});
