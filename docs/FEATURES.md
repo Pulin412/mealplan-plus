@@ -16,7 +16,7 @@ What the app does today, and what's planned. Both clients are at parity unless n
 | **Groceries** | Aisle-grouped shopping list generated from the plan over a date range; editable, reconciling refresh; saved lists |
 | **Exercises / Workouts** | Exercise library, workout templates, session runner, logs + calendar |
 | **Health** | Glucose / Weight / Blood Pressure metrics with binned trend charts |
-| **Settings** | Export CSV (both) · Notifications (Android) · Health Connect (Android) |
+| **Settings** | Export CSV (both) · Notifications (Android local + Webapp Web Push reminders) · Health Connect (Android) |
 | **Auth** | Firebase (Google + email/password), per-user data |
 | **Sync** | Foods/Meals/Diets offline-first on Android; webapp online-first |
 
@@ -28,8 +28,8 @@ Navigation: bottom nav = **Today · Plan · Exercises · Health · More** (More 
 |---|---|
 | **AI agent** | Natural-language food logging ("2 eggs and 80g oats" → logged). Server-side, pgvector + Claude. See `docs/agents/`. |
 | **Android offline-first refactor** | Move all writes behind a single background sync worker (target design; currently per-operation write-through) |
-| **Webapp push notifications** | iOS PWA reminders need server-sent Web Push (VAPID) — deferred pending a Flyway + API-contract + Cloud Scheduler sign-off |
 | **Play Store release** | Needs an upload keystore + signed AAB (workflow placeholder exists); decide final `applicationId` before first upload |
+| **Per-user reminder time / timezone** | Web Push reminders currently fire from a single daily cron at server (UTC) time for anyone who hasn't logged; add per-user reminder hour + timezone later |
 
 ## Dropped
 

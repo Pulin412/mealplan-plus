@@ -1649,6 +1649,68 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/v1/push/subscriptions:
+    post:
+      tags: [Push]
+      summary: Register a Web Push subscription for the current user
+      description: |
+        Stores the browser's Web Push subscription so the server can send "you haven't logged yet"
+        reminders. Idempotent — upserts on `endpoint`. Presence of a subscription = reminders on.
+      operationId: subscribePush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription stored
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Push]
+      summary: Remove a Web Push subscription
+      description: Deletes the subscription for this `endpoint` (turns reminders off for this device).
+      operationId: unsubscribePush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushUnsubscribeRequest'
+      responses:
+        '204':
+          description: Subscription removed (or already absent)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/internal/reminders/run:
+    post:
+      tags: [Internal]
+      summary: Send due "you haven't logged yet" reminders (scheduler-triggered)
+      description: |
+        Called by a scheduled job (GitHub Actions cron), **not** by end users. Evaluates every stored
+        push subscription and sends a reminder to users who have not logged any food today. Authenticated
+        with a shared secret in the `X-Reminder-Token` header instead of a Firebase JWT.
+      operationId: runReminders
+      security: []
+      parameters:
+        - name: X-Reminder-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reminder run completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderRunResponse'
+        '401':
+          description: Missing or invalid reminder token
+
 # ─────────────────────────────────────────────────────────────────────────────
 # COMPONENTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -3058,3 +3120,50 @@ components:
           format: date-time
           description: Server clock at response time — use as `since` on next pull
       required: [foods, meals, diets, healthMetrics, groceryLists, dailyLogs, exercises, workoutSessions, dayPlans, loggedMealSlots, tombstones, serverTime]
+
+    PushSubscriptionRequest:
+      type: object
+      description: A browser Web Push subscription (as returned by `PushManager.subscribe`).
+      properties:
+        endpoint:
+          type: string
+          description: Push service endpoint URL — unique per browser subscription
+        keys:
+          $ref: '#/components/schemas/PushSubscriptionKeys'
+        userAgent:
+          type: string
+          nullable: true
+          description: Optional UA string, to help the user recognise the device
+      required: [endpoint, keys]
+
+    PushSubscriptionKeys:
+      type: object
+      description: Encryption keys from the browser subscription.
+      properties:
+        p256dh:
+          type: string
+        auth:
+          type: string
+      required: [p256dh, auth]
+
+    PushUnsubscribeRequest:
+      type: object
+      properties:
+        endpoint:
+          type: string
+      required: [endpoint]
+
+    ReminderRunResponse:
+      type: object
+      description: Result of a scheduler-triggered reminder run.
+      properties:
+        checked:
+          type: integer
+          description: Subscriptions evaluated
+        sent:
+          type: integer
+          description: Reminders sent
+        pruned:
+          type: integer
+          description: Stale subscriptions removed (push service returned 404/410)
+      required: [checked, sent, pruned]

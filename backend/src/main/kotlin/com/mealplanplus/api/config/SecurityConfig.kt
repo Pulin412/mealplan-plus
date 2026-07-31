@@ -108,6 +108,7 @@ class SecurityConfig(private val firebaseTokenFilter: FirebaseTokenFilter) {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/h2-console/**",
+                        "/api/v1/internal/reminders/run", // scheduler-triggered; authed by X-Reminder-Token in-controller
                     ).permitAll()
                     .anyRequest().authenticated()
             }

@@ -26,5 +26,7 @@ export async function apiFetch<T>(
     throw new Error(`${res.status}: ${text}`);
   }
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  // Some endpoints (e.g. 201 Created with no body) return an empty response — don't choke on JSON.parse.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
