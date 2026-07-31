@@ -1,20 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { collectExportData, downloadCsv } from "@/lib/export/collectExport";
 import { buildCsv } from "@/lib/export/csvExporter";
+import { pushSupported, isIos, isStandalone, remindersEnabled, enableReminders, disableReminders } from "@/lib/push";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
   border: "#eaeef0", borderMuted: "#e4e8eb", surface: "#ffffff", bg: "#f7f9fa", bgAlt: "#f2f4f5",
   teal: "oklch(0.62 0.09 210)", success: "#4da876",
 };
-
-// Notifications intentionally omitted on web/PWA — iOS reminders require server-sent Web Push
-// (no on-device scheduler). See docs/FEATURES.md → Planned: "Webapp push notifications".
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -36,6 +34,64 @@ function ValueRow({ label, value, labelColor = C.ink }: { label: string; value: 
       <span style={{ marginLeft: "auto", font: "600 13.5px system-ui", color: C.ink }}>{value}</span>
       <span style={{ marginLeft: 4, color: "#c4ccd1", fontSize: 15 }}>›</span>
     </div>
+  );
+}
+
+// Web Push reminders. On web, a "you haven't logged yet" nudge that fires when the app is closed can
+// only come from the server (no on-device scheduler like Android's AlarmManager) — enabling this
+// stores a browser push subscription; a scheduled backend job sends the reminder. iOS additionally
+// requires the PWA be installed to the Home Screen.
+function RemindersSection() {
+  const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const supported = pushSupported();
+
+  useEffect(() => {
+    remindersEnabled().then(setEnabled).catch(() => {});
+    if (isIos() && !isStandalone()) {
+      setHint("On iPhone/iPad, add MealPlan+ to your Home Screen first (Share → Add to Home Screen) to turn on reminders.");
+    }
+  }, []);
+
+  async function toggle() {
+    if (busy || !supported) return;
+    setBusy(true);
+    setHint(null);
+    try {
+      if (enabled) {
+        await disableReminders();
+        setEnabled(false);
+      } else {
+        const r = await enableReminders();
+        setEnabled(r.ok);
+        if (!r.ok) {
+          setHint(
+            r.reason === "ios-not-installed" ? "Add MealPlan+ to your Home Screen first (Share → Add to Home Screen), then turn on reminders."
+            : r.reason === "denied" ? "Notifications are blocked — allow them in your browser settings, then try again."
+            : r.reason === "unsupported" ? "This browser doesn't support notifications."
+            : r.reason === "no-key" ? "Reminders aren't configured on this deployment yet."
+            : (r.message || "Couldn't turn on reminders."),
+          );
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <SectionLabel text="Reminders" />
+      <div style={{ ...cardStyle, display: "flex", alignItems: "center", padding: 14, opacity: supported ? 1 : 0.6 }}>
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🔔</div>
+        <div style={{ marginLeft: 11, flex: 1 }}>
+          <div style={{ font: "600 14.5px system-ui", color: C.ink }}>Daily log reminder</div>
+        </div>
+        <Toggle on={enabled} onToggle={toggle} />
+      </div>
+      {hint && <div style={{ font: "400 11.5px system-ui", color: C.muted3, margin: "8px 4px 0", lineHeight: 1.4 }}>{hint}</div>}
+    </>
   );
 }
 
@@ -68,6 +124,8 @@ function SettingsInner() {
       <div className="flex-1 overflow-y-auto" style={{ padding: "0 16px 40px" }}>
         {/* Backup & restore intentionally omitted — redundant with backend sync (data lives in
             Postgres keyed to the Firebase UID; a reinstall re-syncs). See docs/FEATURES.md → Dropped. */}
+
+        <RemindersSection />
 
         {/* Health Connect */}
         <SectionLabel text="Health Connect" />

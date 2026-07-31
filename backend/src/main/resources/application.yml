@@ -57,6 +57,17 @@ app:
     user: ${SWAGGER_USER:dev}
     password: ${SWAGGER_PASSWORD:dev}
 
+# Web Push (VAPID) for PWA reminders. Keys/token are secrets — set via env in Cloud Run; blank
+# locally disables sending (subscriptions are still stored). Generate a VAPID keypair with:
+#   npx web-push generate-vapid-keys
+push:
+  vapid:
+    public-key:  ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
+    subject:     ${VAPID_SUBJECT:mailto:reminders@mealplan.plus}
+  # Shared secret the scheduler sends as X-Reminder-Token to POST /api/v1/internal/reminders/run.
+  reminder-token: ${REMINDER_TOKEN:}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
