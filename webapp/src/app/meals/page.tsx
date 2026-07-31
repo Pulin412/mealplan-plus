@@ -5,6 +5,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { useMeals, type BuildItem, type MealView } from "@/hooks/useMeals";
 import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, type FoodDto } from "@/lib/nutrition";
+import { Stepper } from "@/components/ui/Stepper";
 import type { MealDto } from "@/lib/api/meals";
 import type { MealSort } from "@/types/meal";
 
@@ -74,15 +75,8 @@ function MealCard({ v, expanded, compact, isLast, onToggle, onFav, onEdit, onDel
 
 // ── Qty input ───────────────────────────────────────────────────────────────
 function QtyInput({ value, unit, onChange }: { value: number; unit: string; onChange: (n: number) => void }) {
-  const [text, setText] = useState(num(value));
-  return (
-    <div className="flex items-center gap-1 rounded-[8px] px-[8px] py-[3px]" style={{ border: `1px solid #dfe6e8` }}>
-      <input value={text} inputMode="decimal"
-        onChange={(e) => { const t = e.target.value.replace(/[^0-9.]/g, ""); setText(t); const n = parseFloat(t); if (!isNaN(n)) onChange(n); }}
-        className="w-[42px] bg-transparent border-none outline-none text-right text-[12px] font-semibold" style={{ color: C.ink, fontFamily: mono }} />
-      <span className="text-[10px]" style={{ color: C.muted2, fontFamily: mono }}>{unitLabel(unit)}</span>
-    </div>
-  );
+  const gramLike = unit === "GRAM" || unit === "ML";
+  return <Stepper value={value} onChange={onChange} min={0} step={gramLike ? 5 : 1} decimals={1} suffix={unitLabel(unit)} dense />;
 }
 
 // ── Full-screen builder ────────────────────────────────────────────────────────
