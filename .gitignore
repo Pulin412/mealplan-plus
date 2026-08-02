@@ -42,3 +42,8 @@ scripts/dev-seed-h2.py
 # Python bytecode cache (from running local scripts)
 __pycache__/
 *.pyc
+
+# Android signing keystore — NEVER commit (leaked signing keys let anyone sign APKs as this app)
+keystore/
+*.jks
+*.keystore

@@ -2,13 +2,16 @@ name: Android Release (manual)
 
 # Build a versioned, installable APK on demand and publish it to a GitHub Release.
 #
-# WHY debug-signed for now: there is no Play Store account and no upload keystore yet, so this
-# builds a DEBUG-signed, NON-minified APK pointed at the PROD backend. It installs on any device
-# (sideload / adb install) without Play, and skips the R8 keep-rule work a real release needs.
+# Builds a RELEASE-signed (appId com.mealplanplus), NON-minified APK pointed at the PROD backend.
+# Release-signed with a STABLE keystore (from the ANDROID_KEYSTORE_* secrets) whose SHA-1/SHA-256 are
+# registered in Firebase — that's what makes Google sign-in work. Installs on any device via sideload
+# / `adb install`. Minify stays off until proguard-rules.pro has real keep rules (see build.gradle.kts).
 #
-# WHEN Play creds exist: switch to a signed release AAB and enable the "Upload to Play" step below
-# (see the placeholder at the bottom). Prereqs then: ANDROID_KEYSTORE_BASE64, keystore passwords,
-# PLAY_SERVICE_ACCOUNT_JSON secrets + R8 keep-rules in proguard-rules.pro.
+# Required repo secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+# ANDROID_KEY_PASSWORD.
+#
+# WHEN Play creds exist: switch to a signed `:android:bundleRelease` (AAB) and enable the "Upload to
+# Play" placeholder below; add PLAY_SERVICE_ACCOUNT_JSON.
 
 on:
   workflow_dispatch:
@@ -44,19 +47,29 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build APK (debug-signed, prod backend)
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK (prod backend)
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: >
-          ./gradlew :android:assembleDebug
+          ./gradlew :android:assembleRelease
           -PversionName=${{ github.event.inputs.versionName }}
           -PversionCode=${{ github.event.inputs.versionCode || github.run_number }}
-          -PapiBaseUrl=https://mealplan-api-rfo22lhanq-ez.a.run.app
           -PsingleAbi=arm64-v8a
           --no-daemon --build-cache
 
       - name: Rename APK with version
         id: rename
         run: |
-          SRC=$(find android/build/outputs/apk/debug -name "*.apk" | head -1)
+          SRC=$(find android/build/outputs/apk/release -name "*.apk" | head -1)
           OUT="mealplanplus-${{ github.event.inputs.versionName }}.apk"
           cp "$SRC" "$OUT"
           echo "apk=$OUT" >> "$GITHUB_OUTPUT"
@@ -75,8 +88,8 @@ jobs:
           tag_name: android-v${{ github.event.inputs.versionName }}
           name: Android v${{ github.event.inputs.versionName }}
           body: |
-            Installable debug-signed APK (prod backend). Sideload / `adb install`.
-            appId `com.mealplanplus.dev` · versionCode ${{ github.event.inputs.versionCode || github.run_number }}
+            Installable release-signed APK (prod backend). Sideload / `adb install`.
+            appId `com.mealplanplus` · versionCode ${{ github.event.inputs.versionCode || github.run_number }}
 
             ${{ github.event.inputs.notes }}
           files: ${{ steps.rename.outputs.apk }}

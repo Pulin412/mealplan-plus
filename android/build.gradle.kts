@@ -35,6 +35,19 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            // Credentials come from CI env (decoded from GitHub secrets). Absent locally → storeFile
+            // stays null and the release build falls back to debug signing (see below).
+            System.getenv("ANDROID_KEYSTORE_FILE")?.let { ks ->
+                storeFile = file(ks)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".dev"
@@ -51,12 +64,16 @@ android {
             )
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // Minify OFF for now: proguard-rules.pro has no keep rules, so R8 shrinking would strip
+            // Firebase/Retrofit/Gson/Room reflection and crash at runtime. This ships a non-minified
+            // release (like the working debug APK), just cleanly packaged (com.mealplanplus) and
+            // properly signed. Re-enable with real keep rules once tested on-device.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            // Sign with the release keystore when CI supplies it; locally (no keystore) fall back to
+            // the debug key so `assembleRelease` still produces an installable APK for testing.
+            signingConfig = signingConfigs.getByName("release").takeIf { it.storeFile != null }
+                ?: signingConfigs.getByName("debug")
         }
     }
 
