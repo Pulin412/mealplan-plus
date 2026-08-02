@@ -130,7 +130,30 @@ def build_food_payloads(catalog, only_names=None):
 
 
 def build_meals_and_diets(diets, resolve):
-    """resolve(name)->serverId or None. Returns (meals, diet_payloads, unresolved set)."""
+    """resolve(name)->serverId or None. Returns (meals, diet_payloads, unresolved set).
+
+    The backend upserts meals by (user, NAME), so a name must be unique per user. But the seed reuses
+    a name (e.g. "Mix Fruit Bowl") for genuinely-different ingredient sets across diets — those must
+    NOT collapse. So each distinct composition gets a unique display name: the first keeps the base
+    name, later ones get " 2", " 3", ... (deterministic by first appearance). Identical compositions
+    (same name AND same items) still share one meal.
+    """
+    def sig_of(items):
+        return tuple((norm(i["food"]), i["quantity"], i["unit"]) for i in items)
+
+    # First pass: distinct item-signatures per name, in first-seen order → the suffix index.
+    variants = {}
+    for d in diets:
+        for _s, meal in d.get("meals", {}).items():
+            sigs = variants.setdefault(meal["name"], [])
+            sg = sig_of(meal.get("items", []))
+            if sg not in sigs:
+                sigs.append(sg)
+
+    def unique_name(name, items):
+        idx = variants[name].index(sig_of(items))
+        return name if idx == 0 else f"{name} {idx + 1}"
+
     meals_by_sid = {}
     diet_payloads = []
     unresolved = set()
@@ -139,7 +162,8 @@ def build_meals_and_diets(diets, resolve):
         diet_meals = []
         for s, meal in d.get("meals", {}).items():
             items = meal.get("items", [])
-            sid = meal_sid(meal["name"], items)
+            uname = unique_name(meal["name"], items)
+            sid = meal_sid(uname, items)
             if sid not in meals_by_sid:
                 mitems = []
                 for it in items:
@@ -150,7 +174,7 @@ def build_meals_and_diets(diets, resolve):
                     mitems.append({"foodId": 0, "foodServerId": fsid,
                                    "quantity": it["quantity"], "unit": unit(it["unit"])})
                 meals_by_sid[sid] = {
-                    "serverId": sid, "name": meal["name"], "slots": [slot(s)],
+                    "serverId": sid, "name": uname, "slots": [slot(s)],
                     "items": mitems, "isFavorite": False, "updatedAt": UPDATED_AT,
                 }
             diet_meals.append({"mealId": 0, "mealServerId": sid, "dayOfWeek": 0, "slot": slot(s)})
