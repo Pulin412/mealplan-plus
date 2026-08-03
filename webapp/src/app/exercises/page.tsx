@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useExercises, type LibTab, type BuilderItem } from "@/hooks/useExercises";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
@@ -48,7 +49,7 @@ function TagToggle({ name, on, onClick }: { name: string; on: boolean; onClick: 
   const c = exerciseTagColor(name);
   return (
     <button onClick={onClick}
-      className="rounded-[20px] px-3 py-[7px] text-[12px] font-semibold transition-colors"
+      className="shrink-0 rounded-[20px] px-3 py-[7px] text-[12px] font-semibold transition-colors"
       style={{
         color: on ? "#fff" : c,
         background: on ? c : "transparent",
@@ -102,9 +103,10 @@ function ExerciseCard({ e, tagName, onClick }: { e: ExerciseDto; tagName: Map<nu
   );
 }
 
-function WorkoutCard({ w, onClick }: { w: WorkoutTemplateDto; onClick: () => void }) {
+function WorkoutCard({ w, tagName, onClick }: { w: WorkoutTemplateDto; tagName: Map<number, string>; onClick: () => void }) {
   const items = w.exercises ?? [];
   const totalSets = items.reduce((sum, it) => sum + (it.sets?.length ?? 0), 0);
+  const tagNames = (w.tagIds ?? []).map((id) => tagName.get(id)).filter(Boolean) as string[];
   return (
     <div onClick={onClick} className="cursor-pointer rounded-[12px] mb-2 px-3 py-[11px]"
       style={{ background: C.surface, border: `1px solid ${C.border}` }}>
@@ -117,6 +119,11 @@ function WorkoutCard({ w, onClick }: { w: WorkoutTemplateDto; onClick: () => voi
           {items.length > 0 && (
             <div className="text-[10px] truncate mt-[3px]" style={{ color: C.faint }}>
               {items.map((it) => it.exerciseName ?? "Exercise").join(", ")}
+            </div>
+          )}
+          {tagNames.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {tagNames.slice(0, 4).map((n) => <TagChip key={n} name={n} />)}
             </div>
           )}
         </div>
@@ -160,6 +167,41 @@ function PrimaryButton({ label, enabled, onClick }: { label: string; enabled: bo
   );
 }
 
+/** Shared tag assignment: toggle existing tags + create a new one inline. Used by the exercise
+ *  editor and the workout builder so tagging works the same everywhere. */
+function TagAssignSection({
+  tags, selected, onToggle, onCreate,
+}: {
+  tags: TagDto[];
+  selected: Set<number>;
+  onToggle: (id: number) => void;
+  onCreate: (name: string) => void;
+}) {
+  const [newTag, setNewTag] = useState("");
+  const submit = () => { const n = newTag.trim(); if (n) { onCreate(n); setNewTag(""); } };
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 mt-1.5">
+        {tags.length === 0
+          ? <span className="text-[12px]" style={{ color: C.faint }}>No tags yet — add one below.</span>
+          : tags.map((t) => (
+              <TagToggle key={t.id} name={t.name} on={selected.has(t.id)} onClick={() => onToggle(t.id)} />
+            ))}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <input value={newTag} onChange={(e) => setNewTag(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
+          placeholder="New tag…"
+          className="flex-1 rounded-[10px] px-3 py-2 text-[13px] outline-none"
+          style={{ background: C.bgAlt, color: C.ink }} />
+        <button onClick={submit} disabled={!newTag.trim()}
+          className="rounded-[10px] px-4 text-[13px] font-semibold"
+          style={{ background: newTag.trim() ? C.ink : C.bgAlt, color: newTag.trim() ? "#fff" : C.muted2 }}>Add</button>
+      </div>
+    </>
+  );
+}
+
 // ─── Exercise editor (full-screen overlay) ─────────────────────────────────────
 function ExerciseEditorOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
   const ed = ex.editor!;
@@ -179,15 +221,7 @@ function ExerciseEditorOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) 
           style={{ background: C.bgAlt, color: C.ink }} />
 
         <FieldLabel>Tags</FieldLabel>
-        {ex.tags.length === 0 ? (
-          <div className="text-[12px] mt-1" style={{ color: C.faint }}>No tags available.</div>
-        ) : (
-          <div className="flex flex-wrap gap-2 mt-1.5">
-            {ex.tags.map((t: TagDto) => (
-              <TagToggle key={t.id} name={t.name} on={ed.tagIds.has(t.id)} onClick={() => ex.toggleEditorTag(t.id)} />
-            ))}
-          </div>
-        )}
+        <TagAssignSection tags={ex.tags} selected={ed.tagIds} onToggle={ex.toggleEditorTag} onCreate={(n) => void ex.createEditorTag(n)} />
 
         {ex.error && <div className="text-[12px] mt-3" style={{ color: C.danger }}>{ex.error}</div>}
 
@@ -278,6 +312,9 @@ function WorkoutBuilderOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) 
         <input value={b.name} onChange={(e) => ex.setBuilderName(e.target.value)} placeholder="e.g. Push Day"
           className="w-full rounded-[12px] px-[14px] py-[13px] text-[14px] outline-none"
           style={{ background: C.bgAlt, color: C.ink }} />
+
+        <FieldLabel>Tags</FieldLabel>
+        <TagAssignSection tags={ex.workoutTags} selected={b.tagIds} onToggle={ex.toggleBuilderTag} onCreate={(n) => void ex.createBuilderTag(n)} />
 
         <div className="flex items-center mt-[18px] mb-2">
           <span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Exercises</span>
@@ -527,11 +564,33 @@ function ExercisesPageInner() {
         ) : ex.tab === "exercises" ? (
           ex.exercises.length === 0
             ? <EmptyState glyph="🏋️" title="No exercises yet" sub="Tap + to add an exercise with tags." />
-            : ex.exercises.map((e) => <ExerciseCard key={e.id} e={e} tagName={ex.tagName} onClick={() => ex.openEditExercise(e)} />)
+            : <>
+                {ex.filterTags.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-2 mb-0.5">
+                    <TagToggle name="All" on={ex.exerciseTagFilter === null} onClick={() => ex.setExerciseTagFilter(null)} />
+                    {ex.filterTags.map((t) => (
+                      <TagToggle key={t.id} name={t.name} on={ex.exerciseTagFilter === t.id}
+                        onClick={() => ex.setExerciseTagFilter(ex.exerciseTagFilter === t.id ? null : t.id)} />
+                    ))}
+                  </div>
+                )}
+                {ex.filteredExercises.map((e) => <ExerciseCard key={e.id} e={e} tagName={ex.tagName} onClick={() => ex.openEditExercise(e)} />)}
+              </>
         ) : ex.tab === "workouts" ? (
           ex.workouts.length === 0
             ? <EmptyState glyph="📋" title="No workouts yet" sub="Tap + to build a workout from your exercises." />
-            : ex.workouts.map((w) => <WorkoutCard key={w.id} w={w} onClick={() => ex.openEditWorkout(w)} />)
+            : <>
+                {ex.workoutFilterTags.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-2 mb-0.5">
+                    <TagToggle name="All" on={ex.workoutTagFilter === null} onClick={() => ex.setWorkoutTagFilter(null)} />
+                    {ex.workoutFilterTags.map((t) => (
+                      <TagToggle key={t.id} name={t.name} on={ex.workoutTagFilter === t.id}
+                        onClick={() => ex.setWorkoutTagFilter(ex.workoutTagFilter === t.id ? null : t.id)} />
+                    ))}
+                  </div>
+                )}
+                {ex.filteredWorkouts.map((w) => <WorkoutCard key={w.id} w={w} tagName={ex.workoutTagName} onClick={() => ex.openEditWorkout(w)} />)}
+              </>
         ) : (
           <LogsTab ex={ex} />
         )}
