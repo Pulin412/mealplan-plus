@@ -795,6 +795,14 @@ paths:
       tags: [Workout Templates]
       summary: List workout templates
       operationId: listWorkoutTemplates
+      parameters:
+        - name: tagId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+          description: Filter to templates tagged with this tag ID.
       responses:
         '200':
           description: List of workout templates
@@ -1754,7 +1762,7 @@ components:
 
     TagEntityType:
       type: string
-      enum: [DIET, EXERCISE, MEAL, FOOD]
+      enum: [DIET, EXERCISE, MEAL, FOOD, WORKOUT]
       description: Which entity type a tag belongs to
 
     FoodUnit:
@@ -2534,6 +2542,20 @@ components:
           items:
             $ref: '#/components/schemas/TemplateExerciseDto'
           default: []
+        tagIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          default: []
+          description: IDs of WORKOUT-type tags assigned to this template
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagDto'
+          default: []
+          readOnly: true
+          description: Full tag objects (read-only; send tagIds to assign)
       required: [name]
 
     # ── Workout Sessions ──────────────────────────────────────────────────────
