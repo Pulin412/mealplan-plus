@@ -2,6 +2,8 @@ package com.mealplanplus.ui.screens.exercises
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.cache.ResponseCache
+import com.mealplanplus.data.cache.render
 import com.mealplanplus.data.generated.model.ExerciseDto
 import com.mealplanplus.data.generated.model.TagDto
 import com.mealplanplus.data.generated.model.TemplateExerciseDto
@@ -13,12 +15,22 @@ import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.data.repository.WorkoutSessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class LibTab { EXERCISES, WORKOUTS, LOGS }
+
+/** The whole library screen's server data, cached as one payload for instant paint on cold open. */
+private data class ExercisesSnapshot(
+    val exercises: List<ExerciseDto>,
+    val workouts: List<WorkoutTemplateDto>,
+    val logs: List<WorkoutSessionDto>,
+    val tags: List<TagDto>,
+)
 
 /** Open exercise editor: create (id null) or edit (id set). */
 data class ExerciseEditor(
@@ -79,6 +91,7 @@ class ExercisesViewModel @Inject constructor(
     private val exerciseRepo: ExerciseRepository,
     private val workoutRepo: WorkoutRepository,
     private val sessionRepo: WorkoutSessionRepository,
+    private val responseCache: ResponseCache,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExercisesUiState())
@@ -86,20 +99,36 @@ class ExercisesViewModel @Inject constructor(
 
     init { load() }
 
+    /**
+     * Read-through cached load: paints the last-known library instantly on a cold open, then
+     * refreshes exercises / workouts / logs / tags from the server in the background.
+     */
     private fun load() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
-            val exercises = async { exerciseRepo.list() }
-            val workouts = async { workoutRepo.list() }
-            val logs = async { sessionRepo.list() }
-            val tags = async { exerciseRepo.listTags() }
-            _state.value = _state.value.copy(
-                loading = false,
-                exercises = exercises.await(),
-                workouts = workouts.await(),
-                logs = logs.await(),
-                tags = tags.await(),
-            )
+            responseCache.stream<ExercisesSnapshot>("exercises.snapshot") {
+                coroutineScope {
+                    val exercises = async { exerciseRepo.list() }
+                    val workouts = async { workoutRepo.list() }
+                    val logs = async { sessionRepo.list() }
+                    val tags = async { exerciseRepo.listTags() }
+                    ExercisesSnapshot(exercises.await(), workouts.await(), logs.await(), tags.await())
+                }
+            }.collect { res ->
+                _state.update { st ->
+                    val has = st.exercises.isNotEmpty() || st.workouts.isNotEmpty() ||
+                        st.logs.isNotEmpty() || st.tags.isNotEmpty()
+                    val r = res.render(hasContent = has)
+                    if (r.keep) st.copy(loading = r.loading, error = r.error)
+                    else st.copy(
+                        exercises = r.value?.exercises ?: st.exercises,
+                        workouts = r.value?.workouts ?: st.workouts,
+                        logs = r.value?.logs ?: st.logs,
+                        tags = r.value?.tags ?: st.tags,
+                        loading = r.loading,
+                        error = r.error,
+                    )
+                }
+            }
         }
     }
 
