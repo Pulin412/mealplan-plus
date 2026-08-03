@@ -2,6 +2,8 @@ package com.mealplanplus.ui.screens.plan
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.cache.ResponseCache
+import com.mealplanplus.data.cache.render
 import com.mealplanplus.data.generated.api.DietsApi
 import com.mealplanplus.data.generated.api.FoodsApi
 import com.mealplanplus.data.generated.api.MealsApi
@@ -17,6 +19,7 @@ import com.mealplanplus.data.repository.unitLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -64,10 +67,15 @@ class PlanViewModel @Inject constructor(
     private val mealsApi: MealsApi,
     private val foodsApi: FoodsApi,
     private val workoutsApi: WorkoutTemplatesApi,
+    private val responseCache: ResponseCache,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlanUiState())
     val state: StateFlow<PlanUiState> = _state
+
+    /** Range key currently reflected in [PlanUiState.plansByDate] — lets a month switch paint that
+     *  month's cache immediately, while a same-range silent reload keeps what's shown (no flicker). */
+    private var shownRange: String? = null
 
     init {
         loadDiets()
@@ -77,32 +85,56 @@ class PlanViewModel @Inject constructor(
 
     private fun loadWorkouts() {
         viewModelScope.launch {
-            runCatching { workoutsApi.listWorkoutTemplates().body().orEmpty() }
-                .onSuccess { _state.value = _state.value.copy(workouts = it) }
+            responseCache.stream<List<WorkoutTemplateDto>>("plan.workouts") {
+                workoutsApi.listWorkoutTemplates().body().orEmpty()
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.workouts.isNotEmpty())
+                    if (r.keep) st else st.copy(workouts = r.value ?: st.workouts)
+                }
+            }
         }
     }
 
     private fun loadDiets() {
         viewModelScope.launch {
-            runCatching {
+            responseCache.stream<List<DietSummary>>("plan.diets") {
                 val diets = dietsApi.listDiets(false).body().orEmpty()
                 val foods = foodsApi.listFoods(false).body().orEmpty().associateBy { it.id }
                 val meals = mealsApi.listMeals(false).body().orEmpty().associateBy { it.id }
                 diets.mapNotNull { d -> d.id?.let { resolveDiet(it, d, meals, foods) } }
-            }.onSuccess { _state.value = _state.value.copy(diets = it) }
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.diets.isNotEmpty())
+                    if (r.keep) st else st.copy(diets = r.value ?: st.diets)
+                }
+            }
         }
     }
 
     fun loadPlans() {
+        val m = _state.value.month
+        val today = _state.value.today
+        val from = minOf(m.atDay(1), today)
+        val to = maxOf(m.atEndOfMonth(), today.plusDays(6))
+        val range = "$from|$to"
+        val sameRange = range == shownRange
         viewModelScope.launch {
-            _state.value = _state.value.copy(loading = _state.value.plansByDate.isEmpty(), error = null)
-            val m = _state.value.month
-            val today = _state.value.today
-            val from = minOf(m.atDay(1), today)
-            val to = maxOf(m.atEndOfMonth(), today.plusDays(6))
-            runCatching { plansApi.listPlans(from, to).body().orEmpty() }
-                .onSuccess { plans -> _state.value = _state.value.copy(loading = false, plansByDate = plans.associateBy { it.date }) }
-                .onFailure { e -> _state.value = _state.value.copy(loading = false, error = e.message) }
+            responseCache.stream<List<DayPlanDto>>("plan.plans", range) {
+                plansApi.listPlans(from, to).body().orEmpty()
+            }.collect { res ->
+                _state.update { st ->
+                    // Only a *same-range* reload keeps the shown plans; a month switch paints the
+                    // new range's cache right away.
+                    val r = res.render(hasContent = sameRange && st.plansByDate.isNotEmpty())
+                    st.copy(
+                        plansByDate = if (r.keep) st.plansByDate else r.value?.associateBy { it.date } ?: st.plansByDate,
+                        loading = r.loading,
+                        error = r.error,
+                    )
+                }
+            }
+            shownRange = range
         }
     }
 
