@@ -13,3 +13,19 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         db.execSQL("ALTER TABLE `foods` ADD COLUMN `category` TEXT")
     }
 }
+
+/**
+ * v9 → v10: add the `cached_response` table — a generic read-through cache for server-computed
+ * read-models (Home/Today dashboard, Plan, Groceries …) so those screens paint instantly from
+ * disk on open instead of blocking on a Cloud Run cold start. Additive: no existing table or row
+ * is touched. Column shape matches Room's generated schema for [com.mealplanplus.data.model.CachedResponse].
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `cached_response` (" +
+                "`key` TEXT NOT NULL, `payload` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`key`))"
+        )
+    }
+}

@@ -14,6 +14,8 @@ import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.generated.model.FoodUnit
 import com.mealplanplus.data.generated.model.PlannedWorkoutDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import com.mealplanplus.data.cache.Resource
+import com.mealplanplus.data.cache.ResponseCache
 import com.mealplanplus.data.healthconnect.HealthConnectManager
 import com.mealplanplus.data.healthconnect.HealthConnectSummary
 import com.mealplanplus.data.repository.ExerciseRepository
@@ -63,6 +65,7 @@ class HomeViewModel @Inject constructor(
     private val exerciseRepo: ExerciseRepository,
     private val healthConnect: HealthConnectManager,
     private val themeStore: ThemeStore,
+    private val responseCache: ResponseCache,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -83,16 +86,41 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Read-through cached load: paints the cached dashboard instantly on a cold open (no spinner,
+     * no waiting on a Cloud Run cold start), then refreshes from the server in the background. The
+     * cache only *fills* an empty screen — once a dashboard is shown (including an optimistic slot
+     * flip) [Resource.Loading] leaves it untouched, so a silent reload never flickers stale data.
+     */
     fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(loading = it.dashboard == null, error = null) }
-            runCatching { dashboardApi.getDashboard(null) }
-                .onSuccess { resp ->
-                    val body = resp.body()
-                    if (resp.isSuccessful && body != null) _state.update { it.copy(loading = false, dashboard = body) }
-                    else _state.update { it.copy(loading = false, error = "Couldn't load today (${resp.code()})") }
+            responseCache.stream("dashboard", LocalDate.now().toString()) {
+                dashboardApi.getDashboard(null).let { resp ->
+                    resp.body().takeIf { resp.isSuccessful }
+                        ?: throw IllegalStateException("Couldn't load today (${resp.code()})")
                 }
-                .onFailure { e -> _state.update { it.copy(loading = false, error = e.message) } }
+            }.collect { res ->
+                when (res) {
+                    is Resource.Loading -> _state.update {
+                        it.copy(
+                            dashboard = it.dashboard ?: res.data,
+                            loading = it.dashboard == null && res.data == null,
+                            error = null,
+                        )
+                    }
+                    is Resource.Success -> _state.update {
+                        it.copy(loading = false, dashboard = res.data, error = null)
+                    }
+                    is Resource.Error -> _state.update {
+                        val shown = it.dashboard ?: res.data
+                        it.copy(
+                            loading = false,
+                            dashboard = shown,
+                            error = if (shown == null) (res.error.message ?: "Couldn't load today") else null,
+                        )
+                    }
+                }
+            }
         }
     }
 

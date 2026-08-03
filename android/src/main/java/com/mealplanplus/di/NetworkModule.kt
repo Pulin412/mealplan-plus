@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import com.mealplanplus.BuildConfig
+import com.google.gson.Gson
 import com.mealplanplus.data.remote.OpenFoodFactsApi
 import com.mealplanplus.data.remote.apiGson
 import dagger.Module
@@ -82,12 +83,17 @@ object NetworkModule {
             }
             .build()
 
+    /** Single Gson shared by Retrofit and the read-through [com.mealplanplus.data.cache.ResponseCache],
+     *  so cached payloads serialize identically to live API traffic (ISO dates etc.). */
     @Provides @Singleton
-    fun provideRetrofit(client: OkHttpClient): Retrofit =
+    fun provideApiGson(): Gson = apiGson()
+
+    @Provides @Singleton
+    fun provideRetrofit(client: OkHttpClient, gson: Gson): Retrofit =
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create(apiGson()))
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
 
     @Provides @Singleton
