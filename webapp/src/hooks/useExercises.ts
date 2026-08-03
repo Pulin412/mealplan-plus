@@ -8,7 +8,7 @@ import {
   listWorkouts, createWorkout, updateWorkout, deleteWorkout,
   type WorkoutTemplateDto, type TemplateExerciseDto,
 } from "@/lib/api/workouts";
-import { listExerciseTags, type TagDto } from "@/lib/api/tags";
+import { listExerciseTags, createExerciseTag, listWorkoutTags, createWorkoutTag, type TagDto } from "@/lib/api/tags";
 import { listWorkoutSessions, type WorkoutSessionDto } from "@/lib/api/sessions";
 import { isoOf } from "@/lib/api/plans";
 
@@ -40,6 +40,7 @@ export interface WorkoutBuilder {
   id: number | null;
   name: string;
   items: BuilderItem[];
+  tagIds: Set<number>;
   pickerOpen: boolean;
   pickerSearch: string;
 }
@@ -52,8 +53,11 @@ export function useExercises() {
   const [workouts, setWorkouts]   = useState<WorkoutTemplateDto[]>([]);
   const [logs, setLogs]           = useState<WorkoutSessionDto[]>([]);
   const [tags, setTags]           = useState<TagDto[]>([]);
+  const [workoutTags, setWorkoutTags] = useState<TagDto[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
+  const [exerciseTagFilter, setExerciseTagFilter] = useState<number | null>(null);
+  const [workoutTagFilter, setWorkoutTagFilter]   = useState<number | null>(null);
 
   const [editor, setEditor]   = useState<ExerciseEditor | null>(null);
   const [builder, setBuilder] = useState<WorkoutBuilder | null>(null);
@@ -69,11 +73,12 @@ export function useExercises() {
     setLoading(true);
     setError(null);
     try {
-      const [ex, wk, sess, tg] = await Promise.all([listExercises(), listWorkouts(), listWorkoutSessions(), listExerciseTags()]);
+      const [ex, wk, sess, tg, wtg] = await Promise.all([listExercises(), listWorkouts(), listWorkoutSessions(), listExerciseTags(), listWorkoutTags()]);
       setExercises(ex);
       setWorkouts(wk);
       setLogs([...sess].sort((a, b) => (b.date ? isoOf(b.date) : "").localeCompare(a.date ? isoOf(a.date) : "")));
       setTags(tg);
+      setWorkoutTags(wtg);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -91,6 +96,37 @@ export function useExercises() {
   const exerciseName = useMemo(
     () => new Map(exercises.filter((e) => e.id != null).map((e) => [e.id!, e.name])),
     [exercises],
+  );
+
+  /** Tags used by at least one exercise, alphabetical — the filter chips. */
+  const filterTags = useMemo(
+    () => tags.filter((t) => exercises.some((e) => (e.tagIds ?? []).includes(t.id)))
+             .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
+    [tags, exercises],
+  );
+
+  /** Exercises after the active tag filter (all when none selected). */
+  const filteredExercises = useMemo(
+    () => exerciseTagFilter == null
+      ? exercises
+      : exercises.filter((e) => (e.tagIds ?? []).includes(exerciseTagFilter)),
+    [exercises, exerciseTagFilter],
+  );
+
+  const workoutTagName = useMemo(() => new Map(workoutTags.map((t) => [t.id, t.name])), [workoutTags]);
+
+  /** WORKOUT tags used by at least one template, alphabetical — the Workouts filter chips. */
+  const workoutFilterTags = useMemo(
+    () => workoutTags.filter((t) => workouts.some((w) => (w.tagIds ?? []).includes(t.id)))
+             .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
+    [workoutTags, workouts],
+  );
+
+  const filteredWorkouts = useMemo(
+    () => workoutTagFilter == null
+      ? workouts
+      : workouts.filter((w) => (w.tagIds ?? []).includes(workoutTagFilter)),
+    [workouts, workoutTagFilter],
   );
 
   // ── Exercise editor ──────────────────────────────────────────────────────────
@@ -113,6 +149,18 @@ export function useExercises() {
       if (next.has(tagId)) next.delete(tagId); else next.add(tagId);
       return { ...ed, tagIds: next };
     });
+  }, []);
+  /** Create a new EXERCISE tag and immediately assign it to the open editor. */
+  const createEditorTag = useCallback(async (name: string) => {
+    const n = name.trim();
+    if (!n) return;
+    try {
+      const t = await createExerciseTag(n);
+      setTags((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
+      setEditor((ed) => ed && { ...ed, tagIds: new Set(ed.tagIds).add(t.id) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create tag");
+    }
   }, []);
 
   const saveExercise = useCallback(async () => {
@@ -141,11 +189,12 @@ export function useExercises() {
 
   // ── Workout builder ──────────────────────────────────────────────────────────
   const openNewWorkout = useCallback(() => {
-    setBuilder({ id: null, name: "", items: [], pickerOpen: false, pickerSearch: "" });
+    setBuilder({ id: null, name: "", items: [], tagIds: new Set(), pickerOpen: false, pickerSearch: "" });
   }, []);
   const openEditWorkout = useCallback((w: WorkoutTemplateDto) => {
     setBuilder({
       id: w.id ?? null, name: w.name, pickerOpen: false, pickerSearch: "",
+      tagIds: new Set(w.tagIds ?? []),
       items: (w.exercises ?? []).map((te) => {
         const sets = [...(te.sets ?? [])]
           .sort((a, b) => a.setNumber - b.setNumber)
@@ -173,6 +222,26 @@ export function useExercises() {
   }, []);
   const removeFromBuilder = useCallback((exerciseId: number) => {
     setBuilder((b) => b && { ...b, items: b.items.filter((it) => it.exerciseId !== exerciseId) });
+  }, []);
+  const toggleBuilderTag = useCallback((tagId: number) => {
+    setBuilder((b) => {
+      if (!b) return b;
+      const next = new Set(b.tagIds);
+      if (next.has(tagId)) next.delete(tagId); else next.add(tagId);
+      return { ...b, tagIds: next };
+    });
+  }, []);
+  /** Create a new WORKOUT tag and immediately assign it to the open builder. */
+  const createBuilderTag = useCallback(async (name: string) => {
+    const n = name.trim();
+    if (!n) return;
+    try {
+      const t = await createWorkoutTag(n);
+      setWorkoutTags((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
+      setBuilder((b) => b && { ...b, tagIds: new Set(b.tagIds).add(t.id) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create tag");
+    }
   }, []);
 
   // ── Per-set editing ──────────────────────────────────────────────────────────
@@ -226,8 +295,9 @@ export function useExercises() {
       sets: item.sets.map((s, i) => ({ setNumber: i, reps: s.reps, weightKg: s.weightKg })),
     }));
     try {
-      if (builder.id == null) await createWorkout(builder.name, entries);
-      else await updateWorkout(builder.id, builder.name, entries);
+      const tagIds = Array.from(builder.tagIds);
+      if (builder.id == null) await createWorkout(builder.name, entries, tagIds);
+      else await updateWorkout(builder.id, builder.name, entries, tagIds);
       setBuilder(null);
       await load();
     } catch (e) {
@@ -271,14 +341,17 @@ export function useExercises() {
   return {
     tab, setTab,
     exercises, workouts, logs, tags, tagName, exerciseName, loading, error,
+    filterTags, filteredExercises, exerciseTagFilter, setExerciseTagFilter,
+    workoutTags, workoutTagName, workoutFilterTags, filteredWorkouts, workoutTagFilter, setWorkoutTagFilter,
     openLog, openLogDetail, closeLogDetail,
     logsMonth, prevLogsMonth, nextLogsMonth, todayIso, logsByDate,
     // exercise editor
     editor, openNewExercise, openEditExercise, closeEditor,
-    setEditorName, setEditorDescription, toggleEditorTag, saveExercise, removeExercise,
+    setEditorName, setEditorDescription, toggleEditorTag, createEditorTag, saveExercise, removeExercise,
     // workout builder
     builder, openNewWorkout, openEditWorkout, closeBuilder, setBuilderName,
     openPicker, closePicker, setPickerSearch, addToBuilder, removeFromBuilder,
+    toggleBuilderTag, createBuilderTag,
     duplicateSet, removeSet, setReps, setWeight,
     pickerCandidates, canSaveWorkout, saveWorkout, removeWorkout,
   };

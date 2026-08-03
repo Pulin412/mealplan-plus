@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -32,11 +33,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.generated.model.ExerciseDto
+import com.mealplanplus.data.generated.model.TagDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.ui.components.AppCard
 import com.mealplanplus.ui.theme.AppBg
@@ -145,13 +151,43 @@ private fun ExercisesTab(state: ExercisesUiState, vm: ExercisesViewModel) {
     when {
         state.loading -> LoadingOrEmpty("Loading…")
         state.exercises.isEmpty() -> EmptyState("🏋️", "No exercises yet", "Tap + to add an exercise with tags.")
-        else -> LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
-            items(state.exercises, key = { it.id ?: it.name.hashCode().toLong() }) { e ->
-                ExerciseCard(e, state.tagName) { vm.openEditExercise(e) }
-                Spacer(Modifier.height(8.dp))
+        else -> Column {
+            val filterTags = state.exerciseFilterTags
+            if (filterTags.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    item { ExerciseFilterChip("All", state.exerciseTagFilter == null) { vm.setExerciseTagFilter(null) } }
+                    items(filterTags, key = { it.id }) { t ->
+                        ExerciseFilterChip(t.name, state.exerciseTagFilter == t.id, exerciseTagColor(t.name)) {
+                            vm.setExerciseTagFilter(if (state.exerciseTagFilter == t.id) null else t.id)
+                        }
+                    }
+                }
+            }
+            LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+                items(state.filteredExercises, key = { it.id ?: it.name.hashCode().toLong() }) { e ->
+                    ExerciseCard(e, state.tagName) { vm.openEditExercise(e) }
+                    Spacer(Modifier.height(8.dp))
+                }
             }
         }
     }
+}
+
+/** A selectable exercise-tag filter chip: filled in the tag colour when active, tint otherwise. */
+@Composable
+private fun ExerciseFilterChip(name: String, on: Boolean, color: Color = Color(0xFF5B666E), onClick: () -> Unit) {
+    Text(
+        name, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold,
+        color = if (on) Color.White else color,
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (on) color else color.copy(alpha = 0.12f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }
 
 @Composable
@@ -179,19 +215,36 @@ private fun WorkoutsTab(state: ExercisesUiState, vm: ExercisesViewModel) {
     when {
         state.loading -> LoadingOrEmpty("Loading…")
         state.workouts.isEmpty() -> EmptyState("📋", "No workouts yet", "Tap + to build a workout from your exercises.")
-        else -> LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
-            items(state.workouts, key = { it.id ?: it.name.hashCode().toLong() }) { w ->
-                WorkoutCard(w) { vm.openEditWorkout(w) }
-                Spacer(Modifier.height(8.dp))
+        else -> Column {
+            val filterTags = state.workoutFilterTags
+            if (filterTags.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    item { ExerciseFilterChip("All", state.workoutTagFilter == null) { vm.setWorkoutTagFilter(null) } }
+                    items(filterTags, key = { it.id }) { t ->
+                        ExerciseFilterChip(t.name, state.workoutTagFilter == t.id, exerciseTagColor(t.name)) {
+                            vm.setWorkoutTagFilter(if (state.workoutTagFilter == t.id) null else t.id)
+                        }
+                    }
+                }
+            }
+            LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+                items(state.filteredWorkouts, key = { it.id ?: it.name.hashCode().toLong() }) { w ->
+                    WorkoutCard(w, state.workoutTagName) { vm.openEditWorkout(w) }
+                    Spacer(Modifier.height(8.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun WorkoutCard(w: WorkoutTemplateDto, onClick: () -> Unit) {
+private fun WorkoutCard(w: WorkoutTemplateDto, tagName: Map<Long, String>, onClick: () -> Unit) {
     val items = w.exercises ?: emptyList()
     val totalSets = items.sumOf { it.sets?.size ?: 0 }
+    val tagNames = (w.tagIds ?: emptyList()).mapNotNull { tagName[it] }
     AppCard(modifier = Modifier.clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
@@ -203,6 +256,11 @@ private fun WorkoutCard(w: WorkoutTemplateDto, onClick: () -> Unit) {
                     Text(items.joinToString(", ") { it.exerciseName ?: "Exercise" },
                         fontSize = 10.sp, color = MutedFaint, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 3.dp))
+                }
+                if (tagNames.isNotEmpty()) {
+                    FlowTags(Modifier.padding(top = 5.dp)) {
+                        tagNames.take(4).forEach { ExerciseTagChip(it) }
+                    }
                 }
             }
             Text("›", fontSize = 20.sp, color = MutedLight)
@@ -390,15 +448,7 @@ private fun ExerciseEditorScreen(state: ExercisesUiState, vm: ExercisesViewModel
 
             Spacer(Modifier.height(18.dp))
             Label("Tags")
-            if (state.tags.isEmpty()) {
-                Text("No tags available.", fontSize = 12.sp, color = MutedFaint, modifier = Modifier.padding(top = 4.dp))
-            } else {
-                FlowTags(Modifier.padding(top = 6.dp)) {
-                    state.tags.forEach { tag ->
-                        TagToggle(tag.name, tag.id in ed.tagIds) { vm.toggleEditorTag(tag.id) }
-                    }
-                }
-            }
+            TagAssignBlock(state.tags, ed.tagIds, vm::toggleEditorTag, vm::createEditorTag)
 
             state.error?.let { Text(it, color = Danger, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp)) }
 
@@ -428,6 +478,31 @@ private fun TagToggle(name: String, on: Boolean, onClick: () -> Unit) {
     )
 }
 
+/** Shared tag assignment: toggle existing tags + create a new one inline. Used by the exercise
+ *  editor and the workout builder so tagging works the same everywhere. */
+@Composable
+private fun TagAssignBlock(tags: List<TagDto>, selected: Set<Long>, onToggle: (Long) -> Unit, onCreate: (String) -> Unit) {
+    var newTag by remember { mutableStateOf("") }
+    Column {
+        if (tags.isEmpty()) {
+            Text("No tags yet — add one below.", fontSize = 12.sp, color = MutedFaint, modifier = Modifier.padding(top = 4.dp))
+        } else {
+            FlowTags(Modifier.padding(top = 6.dp)) {
+                tags.forEach { tag -> TagToggle(tag.name, tag.id in selected) { onToggle(tag.id) } }
+            }
+        }
+        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { NameField(newTag, { newTag = it }, "New tag…") }
+            Spacer(Modifier.width(8.dp))
+            val enabled = newTag.isNotBlank()
+            Text("Add", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) Surface else MutedDark,
+                modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (enabled) Ink else SurfaceMuted)
+                    .clickable(enabled = enabled) { onCreate(newTag.trim()); newTag = "" }
+                    .padding(horizontal = 16.dp, vertical = 13.dp))
+        }
+    }
+}
+
 // ── Workout builder (full-screen) ──────────────────────────────────────────────
 @Composable
 private fun WorkoutBuilderScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
@@ -438,6 +513,10 @@ private fun WorkoutBuilderScreen(state: ExercisesUiState, vm: ExercisesViewModel
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Label("Name")
             NameField(b.name, vm::setBuilderName, "e.g. Push Day")
+
+            Spacer(Modifier.height(18.dp))
+            Label("Tags")
+            TagAssignBlock(state.workoutTags, b.tagIds, vm::toggleBuilderTag, vm::createBuilderTag)
 
             Spacer(Modifier.height(18.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

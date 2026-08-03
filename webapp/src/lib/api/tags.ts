@@ -18,3 +18,22 @@ export function createDietTag(name: string): Promise<TagDto> {
 export function listExerciseTags(): Promise<TagDto[]> {
   return apiFetch<TagDto[]>("/api/v1/tags?entityType=EXERCISE");
 }
+
+export function createExerciseTag(name: string): Promise<TagDto> {
+  return apiFetch<TagDto>("/api/v1/tags", {
+    method: "POST",
+    body: JSON.stringify({ name: name.trim(), entityType: "EXERCISE" }),
+  });
+}
+
+/** WORKOUT-type tags (e.g. Push/Pull/Legs, Beginner/Advanced) assignable to workout templates. */
+export function listWorkoutTags(): Promise<TagDto[]> {
+  return apiFetch<TagDto[]>("/api/v1/tags?entityType=WORKOUT");
+}
+
+export function createWorkoutTag(name: string): Promise<TagDto> {
+  return apiFetch<TagDto>("/api/v1/tags", {
+    method: "POST",
+    body: JSON.stringify({ name: name.trim(), entityType: "WORKOUT" }),
+  });
+}

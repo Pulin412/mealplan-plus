@@ -4,7 +4,7 @@ import com.mealplanplus.api.domain.SyncableEntity
 import jakarta.persistence.*
 import java.io.Serializable
 
-enum class TagEntityType { DIET, EXERCISE, MEAL, FOOD }
+enum class TagEntityType { DIET, EXERCISE, MEAL, FOOD, WORKOUT }
 
 @Entity
 @Table(name = "diets")

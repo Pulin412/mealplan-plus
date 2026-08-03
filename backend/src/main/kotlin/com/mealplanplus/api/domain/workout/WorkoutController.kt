@@ -38,8 +38,8 @@ class ExerciseController(private val service: WorkoutService) : ExercisesApi {
 @RestController
 class WorkoutTemplateController(private val service: WorkoutService) : WorkoutTemplatesApi {
 
-    override fun listWorkoutTemplates(): ResponseEntity<List<WorkoutTemplateDto>> =
-        ResponseEntity.ok(service.listTemplates(currentUid()))
+    override fun listWorkoutTemplates(tagId: Long?): ResponseEntity<List<WorkoutTemplateDto>> =
+        ResponseEntity.ok(service.listTemplates(currentUid(), tagId))
 
     override fun getWorkoutTemplate(id: Long): ResponseEntity<WorkoutTemplateDto> =
         ResponseEntity.ok(service.getTemplate(id))
