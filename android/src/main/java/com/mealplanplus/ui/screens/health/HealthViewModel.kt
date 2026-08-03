@@ -2,6 +2,8 @@ package com.mealplanplus.ui.screens.health
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.data.cache.ResponseCache
+import com.mealplanplus.data.cache.render
 import com.mealplanplus.data.generated.model.HealthMetricDto
 import com.mealplanplus.data.repository.HealthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -50,6 +52,7 @@ data class HealthUiState(
 @HiltViewModel
 class HealthViewModel @Inject constructor(
     private val repo: HealthRepository,
+    private val responseCache: ResponseCache,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HealthUiState())
@@ -57,13 +60,27 @@ class HealthViewModel @Inject constructor(
 
     init { load() }
 
+    /**
+     * Read-through cached load: paints the last-known readings instantly on a cold open, then
+     * refreshes all three metric types from the server in the background. The cache is keyed by
+     * type string ([HealthTab.type]) so Gson never has to serialize enum map keys.
+     */
     private fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null) }
-            // Load all three metric types concurrently; use update{} so parallel writes can't clobber.
-            val loaded = HealthTab.entries.map { tab -> async { tab to repo.list(tab.type) } }
-                .awaitAll().toMap()
-            _state.update { it.copy(loading = false, readings = loaded) }
+            responseCache.stream<Map<String, List<HealthMetricDto>>>("health.readings") {
+                HealthTab.entries.map { tab -> async { tab.type to repo.list(tab.type) } }
+                    .awaitAll().toMap()
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.readings.isNotEmpty())
+                    st.copy(
+                        readings = if (r.keep) st.readings
+                        else r.value?.let { m -> HealthTab.entries.associateWith { m[it.type].orEmpty() } } ?: st.readings,
+                        loading = r.loading,
+                        error = r.error,
+                    )
+                }
+            }
         }
     }
 

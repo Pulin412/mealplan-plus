@@ -3,9 +3,12 @@ package com.mealplanplus.data.cache
 import app.cash.turbine.test
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.mealplanplus.data.generated.model.HealthMetricDto
 import com.mealplanplus.data.local.dao.CachedResponseDao
 import com.mealplanplus.data.model.CachedResponse
 import com.mealplanplus.data.remote.apiGson
+import java.time.Instant
+import java.util.UUID
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
@@ -79,6 +82,27 @@ class ResponseCacheTest {
             assertEquals(SampleDto(1, "old"), err.data)   // still usable offline
             assertSame(boom, err.error)
             awaitComplete()
+        }
+    }
+
+    @Test
+    fun roundTrips_realDtoWithInstantAndUuid_throughCache() = runTest {
+        // The exact payload shape Health caches: type -> readings, DTOs carry java.time + UUID.
+        val reading = HealthMetricDto(
+            type = "WEIGHT", value = 72.5, unit = "kg",
+            recordedAt = Instant.parse("2026-08-03T10:15:30Z"),
+            serverId = UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            updatedAt = Instant.parse("2026-08-03T10:15:31Z"),
+        )
+        val payload = mapOf("WEIGHT" to listOf(reading))
+
+        cache.stream("health.readings", fetch = { payload }).test {
+            awaitItem(); awaitItem(); awaitComplete()   // miss → success persists it
+        }
+        // Next open: the cache-hit payload must deserialize back to an equal object (adapters intact).
+        cache.stream("health.readings", fetch = { emptyMap<String, List<HealthMetricDto>>() }).test {
+            assertEquals(payload, (awaitItem() as Resource.Loading).data)
+            awaitItem(); awaitComplete()
         }
     }
 
