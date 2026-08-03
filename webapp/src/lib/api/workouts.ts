@@ -19,17 +19,17 @@ export function getWorkout(id: number): Promise<WorkoutTemplateDto> {
   return apiFetch<WorkoutTemplateDto>(`/api/v1/workout-templates/${id}`);
 }
 
-export function createWorkout(name: string, exercises: TemplateExerciseDto[]): Promise<WorkoutTemplateDto> {
+export function createWorkout(name: string, exercises: TemplateExerciseDto[], tagIds: number[] = []): Promise<WorkoutTemplateDto> {
   return apiFetch<WorkoutTemplateDto>("/api/v1/workout-templates", {
     method: "POST",
-    body: JSON.stringify({ name: name.trim(), exercises: reindex(exercises) }),
+    body: JSON.stringify({ name: name.trim(), exercises: reindex(exercises), tagIds }),
   });
 }
 
-export function updateWorkout(id: number, name: string, exercises: TemplateExerciseDto[]): Promise<WorkoutTemplateDto> {
+export function updateWorkout(id: number, name: string, exercises: TemplateExerciseDto[], tagIds: number[] = []): Promise<WorkoutTemplateDto> {
   return apiFetch<WorkoutTemplateDto>(`/api/v1/workout-templates/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ id, name: name.trim(), exercises: reindex(exercises) }),
+    body: JSON.stringify({ id, name: name.trim(), exercises: reindex(exercises), tagIds }),
   });
 }
 

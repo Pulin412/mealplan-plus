@@ -901,7 +901,7 @@ export interface components {
          * @description Which entity type a tag belongs to
          * @enum {string}
          */
-        TagEntityType: "DIET" | "EXERCISE" | "MEAL" | "FOOD";
+        TagEntityType: "DIET" | "EXERCISE" | "MEAL" | "FOOD" | "WORKOUT";
         /**
          * @default GRAM
          * @enum {string}
@@ -1343,6 +1343,16 @@ export interface components {
             notes?: string | null;
             /** @default [] */
             exercises: components["schemas"]["TemplateExerciseDto"][];
+            /**
+             * @description IDs of WORKOUT-type tags assigned to this template
+             * @default []
+             */
+            tagIds: number[];
+            /**
+             * @description Full tag objects (read-only; send tagIds to assign)
+             * @default []
+             */
+            readonly tags: components["schemas"]["TagDto"][];
         };
         /** @description Actual reps and weight logged for one set of one exercise. */
         WorkoutSetDto: {
@@ -2528,7 +2538,10 @@ export interface operations {
     };
     listWorkoutTemplates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter to templates tagged with this tag ID. */
+                tagId?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;

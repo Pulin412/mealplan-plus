@@ -164,15 +164,35 @@ class WorkoutService(
         templateExerciseRepo.deleteByTemplateId(templateId)
     }
 
+    // ── Workout-template tag helpers (mirror exercises; entity_tags with WORKOUT type) ──
+    private fun tagsForTemplate(templateId: Long): List<TagDto> {
+        val tagIds = entityTagRepo
+            .findByEntityTypeAndEntityId(TagEntityType.WORKOUT, templateId)
+            .map { it.tagId }
+        return if (tagIds.isEmpty()) emptyList()
+        else tagRepo.findAllById(tagIds).map { it.toDto() }
+    }
+
+    private fun saveTemplateTags(templateId: Long, tagIds: List<Long>) {
+        entityTagRepo.deleteByEntityTypeAndEntityId(TagEntityType.WORKOUT, templateId)
+        tagIds.forEach { tagId ->
+            entityTagRepo.save(EntityTag(tagId = tagId, entityType = TagEntityType.WORKOUT, entityId = templateId))
+        }
+    }
+
     private fun WorkoutTemplate.toFullDto(): WorkoutTemplateDto {
         val texs = templateExerciseRepo.findByTemplateIdOrderByOrderIndex(id)
         val exercisesById = exerciseRepo.findAllById(texs.map { it.exerciseId }.toSet()).associateBy { it.id }
         val setsByTeId = setsByTemplateExerciseId(texs)
-        return toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId], setsByTeId[te.id] ?: emptyList()) })
+        return toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId], setsByTeId[te.id] ?: emptyList()) }, tagsForTemplate(id))
     }
 
-    fun listTemplates(firebaseUid: String): List<WorkoutTemplateDto> {
-        val templates = templateRepo.findByFirebaseUid(firebaseUid)
+    fun listTemplates(firebaseUid: String, tagId: Long? = null): List<WorkoutTemplateDto> {
+        var templates = templateRepo.findByFirebaseUid(firebaseUid)
+        if (tagId != null) {
+            val ids = entityTagRepo.findByEntityTypeAndTagId(TagEntityType.WORKOUT, tagId).map { it.entityId }.toSet()
+            templates = templates.filter { it.id in ids }
+        }
         if (templates.isEmpty()) return emptyList()
         val allTexs = templateExerciseRepo.findByTemplateIdIn(templates.map { it.id })
         val texsByTemplateId = allTexs.groupBy { it.templateId }
@@ -180,9 +200,16 @@ class WorkoutService(
         val exercisesById = if (exerciseIds.isEmpty()) emptyMap()
                             else exerciseRepo.findAllById(exerciseIds).associateBy { it.id }
         val setsByTeId = setsByTemplateExerciseId(allTexs)
+        // Batch-load tags for all templates in one query, mirroring the exercise-list path.
+        val entityTags = entityTagRepo.findByEntityTypeAndEntityIdIn(TagEntityType.WORKOUT, templates.map { it.id })
+        val tagIdSet   = entityTags.map { it.tagId }.toSet()
+        val tagsById   = if (tagIdSet.isEmpty()) emptyMap()
+                         else tagRepo.findAllById(tagIdSet).associateBy { it.id }
+        val tagsByTemplateId = entityTags.groupBy { it.entityId }
         return templates.map { template ->
             val texs = (texsByTemplateId[template.id] ?: emptyList()).sortedBy { it.orderIndex }
-            template.toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId], setsByTeId[te.id] ?: emptyList()) })
+            val tags = (tagsByTemplateId[template.id] ?: emptyList()).mapNotNull { tagsById[it.tagId] }.map { it.toDto() }
+            template.toDto(texs.map { te -> te.toDto(exercisesById[te.exerciseId], setsByTeId[te.id] ?: emptyList()) }, tags)
         }
     }
 
@@ -194,6 +221,7 @@ class WorkoutService(
         val template = WorkoutTemplate(firebaseUid = firebaseUid, name = dto.name, notes = dto.notes)
         val saved = templateRepo.save(template)
         saveTemplateExercises(saved.id, dto.exercises ?: emptyList())
+        saveTemplateTags(saved.id, dto.tagIds ?: emptyList())
         return saved.toFullDto()
     }
 
@@ -208,6 +236,7 @@ class WorkoutService(
         val saved = templateRepo.save(updated)
         deleteTemplateExercises(id)
         saveTemplateExercises(saved.id, dto.exercises ?: emptyList())
+        saveTemplateTags(saved.id, dto.tagIds ?: emptyList())
         return saved.toFullDto()
     }
 
@@ -217,6 +246,7 @@ class WorkoutService(
         if (template.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         deleteTemplateExercises(id)
+        entityTagRepo.deleteByEntityTypeAndEntityId(TagEntityType.WORKOUT, id)
         templateRepo.delete(template)
     }
 
@@ -385,12 +415,13 @@ fun TemplateExercise.toDto(exercise: Exercise?, sets: List<TemplateExerciseSet>)
     exerciseName = exercise?.name ?: ""
 )
 
-fun WorkoutTemplate.toDto(exercises: List<TemplateExerciseDto>) = WorkoutTemplateDto(
+fun WorkoutTemplate.toDto(exercises: List<TemplateExerciseDto>, tags: List<TagDto> = emptyList()) = WorkoutTemplateDto(
     id          = id,
     firebaseUid = firebaseUid,
     name        = name,
     notes       = notes,
-    exercises   = exercises
+    exercises   = exercises,
+    tagIds      = tags.map { it.id }
 )
 
 fun Exercise.toDto(tags: List<TagDto> = emptyList()) = ExerciseDto(

@@ -30,6 +30,7 @@ private data class ExercisesSnapshot(
     val workouts: List<WorkoutTemplateDto>,
     val logs: List<WorkoutSessionDto>,
     val tags: List<TagDto>,
+    val workoutTags: List<TagDto>,
 )
 
 /** Open exercise editor: create (id null) or edit (id set). */
@@ -58,6 +59,7 @@ data class WorkoutBuilder(
     val id: Long? = null,
     val name: String = "",
     val items: List<BuilderItem> = emptyList(),
+    val tagIds: Set<Long> = emptySet(),
     val pickerOpen: Boolean = false,
     val pickerSearch: String = "",
 ) {
@@ -70,6 +72,7 @@ data class ExercisesUiState(
     val workouts: List<WorkoutTemplateDto> = emptyList(),
     val logs: List<WorkoutSessionDto> = emptyList(),
     val tags: List<TagDto> = emptyList(),
+    val workoutTags: List<TagDto> = emptyList(),
     val loading: Boolean = true,
     val error: String? = null,
     val editor: ExerciseEditor? = null,
@@ -77,9 +80,30 @@ data class ExercisesUiState(
     val openLog: WorkoutSessionDto? = null,
     val today: java.time.LocalDate = java.time.LocalDate.now(),
     val logsMonth: java.time.YearMonth = java.time.YearMonth.now(),
+    val exerciseTagFilter: Long? = null,
+    val workoutTagFilter: Long? = null,
 ) {
     val tagName: Map<Long, String> get() = tags.associate { it.id to it.name }
+    val workoutTagName: Map<Long, String> get() = workoutTags.associate { it.id to it.name }
     val exerciseName: Map<Long, String> get() = exercises.associate { (it.id ?: -1L) to it.name }
+
+    /** Tags actually used by at least one exercise, alphabetical — the filter chips. */
+    val exerciseFilterTags: List<TagDto>
+        get() = tags.filter { t -> exercises.any { t.id in (it.tagIds ?: emptyList()) } }
+            .sortedBy { it.name.lowercase() }
+
+    /** Exercises after applying the active tag filter (all when none selected). */
+    val filteredExercises: List<ExerciseDto>
+        get() = exerciseTagFilter?.let { id -> exercises.filter { id in (it.tagIds ?: emptyList()) } } ?: exercises
+
+    /** WORKOUT tags actually used by at least one template, alphabetical — the Workouts filter chips. */
+    val workoutFilterTags: List<TagDto>
+        get() = workoutTags.filter { t -> workouts.any { t.id in (it.tagIds ?: emptyList()) } }
+            .sortedBy { it.name.lowercase() }
+
+    /** Workout templates after applying the active tag filter. */
+    val filteredWorkouts: List<WorkoutTemplateDto>
+        get() = workoutTagFilter?.let { id -> workouts.filter { id in (it.tagIds ?: emptyList()) } } ?: workouts
 
     /** Sessions grouped by their logged date, most recent set-count first within a day. */
     val logsByDate: Map<java.time.LocalDate, List<WorkoutSessionDto>>
@@ -111,7 +135,8 @@ class ExercisesViewModel @Inject constructor(
                     val workouts = async { workoutRepo.list() }
                     val logs = async { sessionRepo.list() }
                     val tags = async { exerciseRepo.listTags() }
-                    ExercisesSnapshot(exercises.await(), workouts.await(), logs.await(), tags.await())
+                    val workoutTags = async { workoutRepo.listTags() }
+                    ExercisesSnapshot(exercises.await(), workouts.await(), logs.await(), tags.await(), workoutTags.await())
                 }
             }.collect { res ->
                 _state.update { st ->
@@ -124,6 +149,7 @@ class ExercisesViewModel @Inject constructor(
                         workouts = r.value?.workouts ?: st.workouts,
                         logs = r.value?.logs ?: st.logs,
                         tags = r.value?.tags ?: st.tags,
+                        workoutTags = r.value?.workoutTags ?: st.workoutTags,
                         loading = r.loading,
                         error = r.error,
                     )
@@ -133,6 +159,12 @@ class ExercisesViewModel @Inject constructor(
     }
 
     fun setTab(tab: LibTab) { _state.value = _state.value.copy(tab = tab) }
+
+    /** Filter the exercise list by a tag id (tapping the active one clears it). */
+    fun setExerciseTagFilter(id: Long?) { _state.update { it.copy(exerciseTagFilter = id) } }
+
+    /** Filter the workout list by a tag id (tapping the active one clears it). */
+    fun setWorkoutTagFilter(id: Long?) { _state.update { it.copy(workoutTagFilter = id) } }
 
     // ── Logs (read-only) ──────────────────────────────────────────────────────────
     fun openLog(session: WorkoutSessionDto) { _state.value = _state.value.copy(openLog = session) }
@@ -155,6 +187,18 @@ class ExercisesViewModel @Inject constructor(
         val ed = _state.value.editor ?: return
         val next = if (tagId in ed.tagIds) ed.tagIds - tagId else ed.tagIds + tagId
         _state.value = _state.value.copy(editor = ed.copy(tagIds = next))
+    }
+
+    /** Create a new EXERCISE tag and immediately assign it to the open editor. */
+    fun createEditorTag(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val tag = exerciseRepo.createTag(name) ?: return@launch
+            _state.update { st ->
+                val tags = if (st.tags.any { it.id == tag.id }) st.tags else st.tags + tag
+                st.copy(tags = tags, editor = st.editor?.let { it.copy(tagIds = it.tagIds + tag.id) })
+            }
+        }
     }
 
     fun saveExercise() {
@@ -182,6 +226,7 @@ class ExercisesViewModel @Inject constructor(
         _state.value = _state.value.copy(
             builder = WorkoutBuilder(
                 id = w.id, name = w.name,
+                tagIds = (w.tagIds ?: emptyList()).toSet(),
                 items = (w.exercises ?: emptyList()).map { te ->
                     val sets = (te.sets ?: emptyList()).sortedBy { it.setNumber }
                         .map { BuilderSet(reps = it.reps, weightKg = it.weightKg) }
@@ -205,6 +250,24 @@ class ExercisesViewModel @Inject constructor(
     fun removeFromBuilder(exerciseId: Long) {
         val b = _state.value.builder ?: return
         _state.value = _state.value.copy(builder = b.copy(items = b.items.filterNot { it.exerciseId == exerciseId }))
+    }
+
+    fun toggleBuilderTag(tagId: Long) {
+        val b = _state.value.builder ?: return
+        val next = if (tagId in b.tagIds) b.tagIds - tagId else b.tagIds + tagId
+        _state.value = _state.value.copy(builder = b.copy(tagIds = next))
+    }
+
+    /** Create a new WORKOUT tag and immediately assign it to the open builder. */
+    fun createBuilderTag(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val tag = workoutRepo.createTag(name) ?: return@launch
+            _state.update { st ->
+                val wt = if (st.workoutTags.any { it.id == tag.id }) st.workoutTags else st.workoutTags + tag
+                st.copy(workoutTags = wt, builder = st.builder?.let { it.copy(tagIds = it.tagIds + tag.id) })
+            }
+        }
     }
 
     // ── Per-set editing ──────────────────────────────────────────────────────────
@@ -251,9 +314,10 @@ class ExercisesViewModel @Inject constructor(
                 sets = item.sets.mapIndexed { i, s -> TemplateSetDto(setNumber = i, reps = s.reps, weightKg = s.weightKg) },
             )
         }
+        val tagIds = b.tagIds.toList()
         viewModelScope.launch {
-            val result = if (b.id == null) workoutRepo.create(b.name, entries)
-            else workoutRepo.update(b.id, b.name, entries)
+            val result = if (b.id == null) workoutRepo.create(b.name, entries, tagIds)
+            else workoutRepo.update(b.id, b.name, entries, tagIds)
             result.onSuccess { closeBuilder(); load() }
                 .onFailure { _state.value = _state.value.copy(error = it.message) }
         }
