@@ -429,37 +429,67 @@ function LogCard({ s, onClick }: { s: WorkoutSessionDto; onClick: () => void }) 
 function LogDetailOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
   const s = ex.openLog!;
   const sets = s.sets ?? [];
-  // Group sets by exercise, preserving first-seen order.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(() => sets.map((st) => ({ reps: st.reps != null ? String(st.reps) : "", weight: st.weightKg != null ? String(st.weightKg) : "" })));
+
+  // Group set indices by exercise, preserving first-seen order.
   const order: number[] = [];
-  const byExercise = new Map<number, typeof sets>();
-  sets.forEach((set) => {
-    if (!byExercise.has(set.exerciseId)) { byExercise.set(set.exerciseId, []); order.push(set.exerciseId); }
-    byExercise.get(set.exerciseId)!.push(set);
+  const idxByExercise = new Map<number, number[]>();
+  sets.forEach((set, gi) => {
+    if (!idxByExercise.has(set.exerciseId)) { idxByExercise.set(set.exerciseId, []); order.push(set.exerciseId); }
+    idxByExercise.get(set.exerciseId)!.push(gi);
   });
+
+  const save = () => {
+    const newSets = sets.map((st, gi) => ({ ...st, reps: draft[gi].reps ? parseInt(draft[gi].reps, 10) : null, weightKg: draft[gi].weight ? parseFloat(draft[gi].weight) : null }));
+    void ex.updateLog({ ...s, sets: newSets });
+    setEditing(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.bg }}>
-      <OverlayHeader title={s.name} onBack={ex.closeLogDetail} />
+      <div className="flex items-center px-3 py-1.5">
+        <button onClick={ex.closeLogDetail} className="text-[20px] px-2" style={{ color: C.ink }}>‹</button>
+        <span className="flex-1 text-[17px] font-bold" style={{ color: C.ink }}>{s.name}</span>
+        {editing
+          ? <button onClick={save} className="text-[13px] font-semibold px-2" style={{ color: C.teal }}>Save</button>
+          : <button onClick={() => setEditing(true)} className="text-[13px] font-semibold px-2" style={{ color: C.teal }}>Edit</button>}
+      </div>
       <div className="flex-1 overflow-y-auto px-4 pt-1 pb-6">
         <div className="text-[11px] mb-1.5" style={{ color: C.muted2 }}>{logMeta(s)}</div>
         {s.notes && <div className="text-[12px] mb-2" style={{ color: C.muted3 }}>{s.notes}</div>}
-        {order.map((exId) => {
-          const rows = byExercise.get(exId)!.slice().sort((a, b) => a.setNumber - b.setNumber);
-          return (
-            <div key={exId} className="rounded-[14px] mb-2 p-[14px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-              <div className="text-[12.5px] font-bold" style={{ color: C.ink }}>{ex.exerciseName.get(exId) ?? "Exercise"}</div>
+        {order.map((exId) => (
+          <div key={exId} className="rounded-[14px] mb-2 p-[14px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <div className="text-[12.5px] font-bold" style={{ color: C.ink }}>{ex.exerciseName.get(exId) ?? "Exercise"}</div>
+            {!editing && (
               <div className="flex mt-2 mb-0.5 text-[9.5px] font-semibold" style={{ color: C.faint }}>
                 <span className="w-12">Set</span><span className="w-16">Reps</span><span>Weight</span>
               </div>
-              {rows.map((set, i) => (
-                <div key={i} className="flex items-center py-[3px] text-[12px] tabular-nums" style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }}>
-                  <span className="w-12" style={{ color: C.muted3 }}>{i + 1}</span>
-                  <span className="w-16">{set.reps ?? "–"}</span>
-                  <span>{set.weightKg != null ? `${set.weightKg} kg` : "–"}</span>
+            )}
+            {idxByExercise.get(exId)!.map((gi, n) => (
+              editing ? (
+                <div key={gi} className="flex items-center gap-2 py-1">
+                  <span className="w-14 text-[11px]" style={{ color: C.muted2 }}>Set {n + 1}</span>
+                  <input inputMode="numeric" value={draft[gi].reps} placeholder="reps"
+                    onChange={(e) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, reps: e.target.value.replace(/[^0-9]/g, "") } : x)))}
+                    className="w-[80px] rounded-[8px] px-2 py-[6px] text-[12px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
+                  <input inputMode="decimal" value={draft[gi].weight} placeholder="kg"
+                    onChange={(e) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, weight: e.target.value.replace(/[^0-9.]/g, "") } : x)))}
+                    className="w-[80px] rounded-[8px] px-2 py-[6px] text-[12px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
                 </div>
-              ))}
-            </div>
-          );
-        })}
+              ) : (
+                <div key={gi} className="flex items-center py-[3px] text-[12px] tabular-nums" style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }}>
+                  <span className="w-12" style={{ color: C.muted3 }}>{n + 1}</span>
+                  <span className="w-16">{sets[gi].reps ?? "–"}</span>
+                  <span>{sets[gi].weightKg != null ? `${sets[gi].weightKg} kg` : "–"}</span>
+                </div>
+              )
+            ))}
+          </div>
+        ))}
+        {s.id != null && (
+          <button onClick={() => void ex.deleteLog(s.id!)} className="w-full text-[13px] font-semibold py-3 mt-1" style={{ color: C.danger, background: "none", border: "none", cursor: "pointer" }}>✕ Delete this log</button>
+        )}
       </div>
     </div>
   );
@@ -513,6 +543,7 @@ function LogsCalendar({ ex }: { ex: ReturnType<typeof useExercises> }) {
 }
 
 function LogsTab({ ex }: { ex: ReturnType<typeof useExercises> }) {
+  const [confirmClear, setConfirmClear] = useState(false);
   // Recent sessions capped to the last 7 days (ISO strings sort lexicographically).
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 7);
@@ -524,10 +555,24 @@ function LogsTab({ ex }: { ex: ReturnType<typeof useExercises> }) {
       <div className="flex items-end mb-2.5 px-0.5">
         <span className="text-[13px] font-semibold" style={{ color: C.ink }}>Recent sessions</span>
         <span className="text-[10.5px] ml-1.5" style={{ color: C.faint }}>· last 7 days</span>
+        <span className="flex-1" />
+        {ex.logs.length > 0 && <button onClick={() => setConfirmClear(true)} className="text-[11.5px] font-semibold" style={{ color: C.danger, background: "none", border: "none", cursor: "pointer" }}>Clear all</button>}
       </div>
       {recent.length === 0
         ? <div className="text-center py-6 text-[12px]" style={{ color: C.muted2 }}>No sessions in the last 7 days.</div>
         : recent.map((s) => <LogCard key={s.id} s={s} onClick={() => ex.openLogDetail(s)} />)}
+      {confirmClear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,.4)" }} onClick={() => setConfirmClear(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="rounded-[14px] p-5 mx-6" style={{ background: C.surface, maxWidth: 320 }}>
+            <div className="text-[15px] font-bold mb-2" style={{ color: C.ink }}>Clear all logs?</div>
+            <div className="text-[12.5px] mb-4" style={{ color: C.muted3 }}>This permanently deletes every logged session. This can’t be undone.</div>
+            <div className="flex justify-end gap-4">
+              <button onClick={() => setConfirmClear(false)} className="text-[13px] font-semibold" style={{ color: C.muted3, background: "none", border: "none", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { setConfirmClear(false); void ex.clearAllLogs(); }} className="text-[13px] font-semibold" style={{ color: C.danger, background: "none", border: "none", cursor: "pointer" }}>Clear all</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

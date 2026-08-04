@@ -207,7 +207,6 @@ function ProfileInner() {
               <a href="/privacy" style={{ display: "block", width: "100%", textAlign: "left", padding: "13px 12px", font: "600 12.5px system-ui", color: C.ink, textDecoration: "none", borderTop: `1px solid ${C.bgAlt}` }}>Privacy Policy</a>
               <button onClick={() => setConfirmDelete(true)} style={{ width: "100%", textAlign: "left", padding: "13px 12px", font: "600 12.5px system-ui", color: C.danger, background: "none", border: "none", borderTop: `1px solid ${C.bgAlt}`, cursor: "pointer" }}>Delete my account</button>
             </Section>
-            <div style={{ font: "400 10px system-ui", color: C.muted2, margin: "12px 0 0 4px" }}>Signed in as {u.email ?? "—"}</div>
           </>
         )}
       </div>

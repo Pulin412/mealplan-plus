@@ -634,6 +634,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logging/days/{date}/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Toggle a day's completed state
+         * @description Flips whether the given day is marked complete. A completed day is the unit counted by the
+         *     streak — a day with logged meals but not marked complete does not count. Returns the new state.
+         */
+        post: operations["toggleDayComplete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logging/days": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List completed days in a range
+         * @description Returns the dates marked complete within [from, to], for the Plan calendar dots.
+         */
+        get: operations["getCompletedDays"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logging/foods": {
         parameters: {
             query?: never;
@@ -979,6 +1020,12 @@ export interface components {
             /** @description Send true when first-run onboarding is finished/skipped; the server stamps onboardingCompletedAt = now(). */
             onboardingCompleted?: boolean | null;
         };
+        /** @description A day's completion state (the unit counted by the streak). */
+        DayCompletionDto: {
+            /** Format: date */
+            date: string;
+            completed: boolean;
+        };
         /** @description Full Today / Home screen payload. */
         DashboardDto: {
             /** Format: date */
@@ -993,6 +1040,8 @@ export interface components {
             /** @description Foods added individually via FAB (outside the slot plan) */
             additionalFoods: components["schemas"]["LoggedFoodResponseDto"][];
             streak: components["schemas"]["StreakDto"];
+            /** @description Whether the user has marked this day complete (drives the Home tick + streak). */
+            dayCompleted?: boolean;
             /**
              * Format: double
              * @description Steps from Health Connect (Android) or HealthKit (iOS)
@@ -3054,6 +3103,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoggedMealSlotDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    toggleDayComplete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated completion state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayCompletionDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getCompletedDays: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed dates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
             401: components["responses"]["Unauthorized"];
