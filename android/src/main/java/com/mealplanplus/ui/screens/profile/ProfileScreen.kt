@@ -105,7 +105,7 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
                 val u = state.user!!
                 val imperial = u.units == UserResponse.Units.IMPERIAL
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-                    IdentityHeader(u)
+                    IdentityHeader(u, state.accountEmail)
                     Spacer(Modifier.height(16.dp))
 
                     Section("Body") {
@@ -154,7 +154,6 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
                         Text("Delete my account", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Danger,
                             modifier = Modifier.fillMaxWidth().clickable { deleteError = null; confirmDelete = true }.padding(horizontal = 12.dp, vertical = 13.dp))
                     }
-                    Text("Signed in as ${u.email ?: "—"}", fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 12.dp, start = 4.dp))
                     Spacer(Modifier.height(32.dp))
                 }
             }
@@ -172,7 +171,7 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
 }
 
 @Composable
-private fun IdentityHeader(u: UserResponse) {
+private fun IdentityHeader(u: UserResponse, fallbackEmail: String?) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(14.dp)).padding(14.dp)) {
         Box(Modifier.size(52.dp).clip(CircleShape).background(Teal), contentAlignment = Alignment.Center) {
             Icon(Icons.Default.Person, null, tint = OnAccent, modifier = Modifier.size(28.dp))
@@ -180,7 +179,7 @@ private fun IdentityHeader(u: UserResponse) {
         Spacer(Modifier.width(12.dp))
         Column {
             Text(u.displayName ?: "Set your name", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
-            Text(u.email ?: "—", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+            Text(u.email ?: fallbackEmail ?: "—", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
         }
     }
 }

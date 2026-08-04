@@ -169,6 +169,33 @@ class ExercisesViewModel @Inject constructor(
     // ── Logs (read-only) ──────────────────────────────────────────────────────────
     fun openLog(session: WorkoutSessionDto) { _state.value = _state.value.copy(openLog = session) }
     fun closeLog() { _state.value = _state.value.copy(openLog = null) }
+
+    /** Save edits (reps/weight) to a logged session, then refresh. */
+    fun updateLog(session: WorkoutSessionDto) {
+        viewModelScope.launch {
+            sessionRepo.update(session)
+            _state.value = _state.value.copy(openLog = session)
+            load()
+        }
+    }
+
+    /** Delete a single logged session, then refresh. */
+    fun deleteLog(id: Long) {
+        viewModelScope.launch {
+            sessionRepo.delete(id)
+            _state.value = _state.value.copy(openLog = null, logs = _state.value.logs.filterNot { it.id == id })
+            load()
+        }
+    }
+
+    /** Delete every logged session. */
+    fun clearAllLogs() {
+        viewModelScope.launch {
+            _state.value.logs.mapNotNull { it.id }.forEach { sessionRepo.delete(it) }
+            _state.value = _state.value.copy(openLog = null, logs = emptyList())
+            load()
+        }
+    }
     fun prevLogsMonth() { _state.value = _state.value.copy(logsMonth = _state.value.logsMonth.minusMonths(1)) }
     fun nextLogsMonth() { _state.value = _state.value.copy(logsMonth = _state.value.logsMonth.plusMonths(1)) }
 

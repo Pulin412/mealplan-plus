@@ -11,7 +11,7 @@ import type { WorkoutTemplateDto } from "@/lib/api/workouts";
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e",
   border: "#eaeef0", surface: "#ffffff", bg: "#f7f9fa", bgAlt: "#f2f4f5",
-  teal: "oklch(0.62 0.09 210)", green: "oklch(0.66 0.13 150)", danger: "#b23b3b",
+  teal: "oklch(0.62 0.09 210)", green: "oklch(0.66 0.13 150)", danger: "#b23b3b", blue: "oklch(0.60 0.11 255)",
 };
 const mono = "'DM Mono', monospace";
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -39,13 +39,19 @@ function Calendar({ p }: { p: ReturnType<typeof usePlan> }) {
           const dIso = iso(year, month, day);
           const plan = p.plans[dIso];
           const isToday = dIso === p.todayIso;
+          // Meal dot: green = marked complete · blue = planned (today/upcoming) · red = planned but
+          // the day passed without completing. Workout dot: always blue.
+          const completed = p.completedDays.has(dIso);
+          const past = dIso < p.todayIso;
+          const planned = plan?.dietId != null;
+          const mealColor = completed ? C.green : planned && past ? C.danger : planned ? C.blue : null;
           return (
             <div key={i} style={{ aspectRatio: "1", display: "flex", justifyContent: "center", alignItems: "center" }}>
               <div onClick={() => p.setSelected(dIso)} style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", background: isToday ? C.teal : "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ font: `${isToday ? 700 : 500} 12px system-ui`, color: isToday ? "#fff" : C.ink }}>{day}</span>
                 <div style={{ display: "flex", gap: 2, marginTop: 1 }}>
-                  {plan?.dietId != null && <Dot color={isToday ? "#fff" : C.teal} />}
-                  {plan?.plannedWorkouts && plan.plannedWorkouts.length > 0 && <Dot color={isToday ? "#fff" : C.green} />}
+                  {mealColor && <Dot color={isToday ? "#fff" : mealColor} />}
+                  {plan?.plannedWorkouts && plan.plannedWorkouts.length > 0 && <Dot color={isToday ? "#fff" : C.blue} />}
                 </div>
               </div>
             </div>
@@ -99,10 +105,30 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
         <div style={{ display: "flex", alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
             <div style={{ font: "700 16px system-ui", color: C.ink }}>{dt.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}</div>
-            <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: 2 }}>Set the diet and workout for this day.</div>
           </div>
           {plan && <button onClick={() => p.clearDay(dateIso)} style={{ font: "600 12px system-ui", color: C.danger, background: "none", border: "none", cursor: "pointer" }}>Clear day</button>}
         </div>
+
+        {/* Past-day recap: whether the day was marked complete and which meal slots were logged. */}
+        {dateIso < p.todayIso && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <span style={{ font: "600 11px system-ui", color: C.muted2 }}>This day</span>
+              <span style={{ flex: 1 }} />
+              <span style={{ font: "600 11.5px system-ui", color: p.completedDays.has(dateIso) ? C.green : C.muted2 }}>{p.completedDays.has(dateIso) ? "Completed" : "Not completed"}</span>
+            </div>
+            {p.selectedSlots.length > 0 && (
+              <div style={{ marginTop: 6 }}>
+                {p.selectedSlots.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", padding: "2px 0" }}>
+                    <span style={{ width: 20, font: "700 12px system-ui", color: s.isLogged ? C.green : C.danger }}>{s.isLogged ? "✓" : "✗"}</span>
+                    <span style={{ font: "400 12px system-ui", color: s.isLogged ? C.ink : C.muted2 }}>{s.slot}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: "flex", alignItems: "center", margin: "16px 0 4px" }}>
           <span style={{ font: "600 11px system-ui", color: C.muted2 }}>Diet plan</span>

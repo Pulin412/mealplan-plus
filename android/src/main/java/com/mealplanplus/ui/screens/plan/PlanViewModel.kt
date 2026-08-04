@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.cache.ResponseCache
 import com.mealplanplus.data.cache.render
 import com.mealplanplus.data.generated.api.DietsApi
+import com.mealplanplus.data.generated.api.LoggingApi
+import com.mealplanplus.data.generated.model.LoggedMealSlotDto
 import com.mealplanplus.data.generated.api.FoodsApi
 import com.mealplanplus.data.generated.api.MealsApi
 import com.mealplanplus.data.generated.api.PlansApi
@@ -52,6 +54,8 @@ data class PlanUiState(
     val workouts: List<WorkoutTemplateDto> = emptyList(),
     val workoutPickerOpen: Boolean = false,
     val openWorkout: WorkoutTemplateDto? = null,
+    val completedDays: Set<LocalDate> = emptySet(),
+    val selectedDaySlots: List<LoggedMealSlotDto> = emptyList(),
 ) {
     val allTags: List<String> get() = diets.flatMap { it.tags }.distinct().sorted()
     val filteredDiets: List<DietSummary> get() = diets.filter { d ->
@@ -67,6 +71,7 @@ class PlanViewModel @Inject constructor(
     private val mealsApi: MealsApi,
     private val foodsApi: FoodsApi,
     private val workoutsApi: WorkoutTemplatesApi,
+    private val loggingApi: LoggingApi,
     private val responseCache: ResponseCache,
 ) : ViewModel() {
 
@@ -136,11 +141,34 @@ class PlanViewModel @Inject constructor(
             }
             shownRange = range
         }
+        loadCompletions(from, to, range)
+    }
+
+    /** Days marked complete in the visible range — drives the green (done) / red (missed) dots. */
+    private fun loadCompletions(from: LocalDate, to: LocalDate, range: String) {
+        viewModelScope.launch {
+            responseCache.stream<List<LocalDate>>("plan.completions", range) {
+                loggingApi.getCompletedDays(from, to).body().orEmpty()
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.completedDays.isNotEmpty())
+                    if (r.keep) st else st.copy(completedDays = r.value?.toSet() ?: st.completedDays)
+                }
+            }
+        }
     }
 
     fun prevMonth() { _state.value = _state.value.copy(month = _state.value.month.minusMonths(1)); loadPlans() }
     fun nextMonth() { _state.value = _state.value.copy(month = _state.value.month.plusMonths(1)); loadPlans() }
-    fun selectDay(date: LocalDate?) { _state.value = _state.value.copy(selectedDate = date, pickerOpen = false, workoutPickerOpen = false, openWorkout = null) }
+    fun selectDay(date: LocalDate?) {
+        _state.value = _state.value.copy(selectedDate = date, selectedDaySlots = emptyList(),
+            pickerOpen = false, workoutPickerOpen = false, openWorkout = null)
+        // Past-day view: fetch which meal slots were logged so the sheet can show done / not-done.
+        if (date != null) viewModelScope.launch {
+            val slots = runCatching { loggingApi.getLoggedSlots(date).body().orEmpty() }.getOrDefault(emptyList())
+            _state.update { if (it.selectedDate == date) it.copy(selectedDaySlots = slots) else it }
+        }
+    }
 
     fun openPicker() { _state.value = _state.value.copy(pickerOpen = true, pickerSearch = "", pickerTag = null) }
     fun closePicker() { _state.value = _state.value.copy(pickerOpen = false) }

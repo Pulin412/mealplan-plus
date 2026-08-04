@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { getDashboard, toggleMealSlot, addLoggedFood, removeLoggedFood, isoDate, type DashboardDto } from "@/lib/api/dashboard";
-import { listFoods, type FoodDto } from "@/lib/api/foods";
+import { getDashboard, toggleMealSlot, toggleDayComplete as apiToggleDayComplete, addLoggedFood, removeLoggedFood, isoDate, type DashboardDto } from "@/lib/api/dashboard";
+import { listFoods, createFoodFromDto, type FoodDto } from "@/lib/api/foods";
 import type { FoodUnit } from "@/lib/nutrition";
 
 export function useToday() {
@@ -51,10 +51,32 @@ export function useToday() {
     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
   }, [date, reload]);
 
+  const reloadFoods = useCallback(() => { listFoods().then(setFoods).catch(() => {}); }, []);
+
+  /** Persist an Open Food Facts result as a food (server assigns an id), then log it to today. */
+  const addOnlineFood = useCallback(async (dto: FoodDto, slot: string, quantity: number, unit: FoodUnit) => {
+    if (!date) return;
+    try {
+      const created = await createFoodFromDto(dto);
+      if (created.id != null) {
+        reloadFoods();                 // so "Added today" can resolve the new food's calories
+        await addLoggedFood(date, created.id, slot, quantity, unit);
+        await reload();
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+  }, [date, reload, reloadFoods]);
+
+  /** Mark today complete / not-complete; only completed days count toward the streak. */
+  const toggleDayComplete = useCallback(async () => {
+    if (!date) return;
+    try { await apiToggleDayComplete(date); await reload(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+  }, [date, reload]);
+
   const removeFood = useCallback(async (id: number) => {
     try { await removeLoggedFood(id); await reload(); }
     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
   }, [reload]);
 
-  return { dashboard, foods, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, removeFood };
+  return { dashboard, foods, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, toggleDayComplete, removeFood };
 }

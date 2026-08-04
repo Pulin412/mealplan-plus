@@ -44,3 +44,8 @@ export function lastForExercise(exerciseId: number): Promise<WorkoutSetDto[]> {
     .then((r) => r.sets ?? [])
     .catch(() => []);
 }
+
+/** Delete a logged session. */
+export function deleteSession(id: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/workout-sessions/${id}`, { method: "DELETE" });
+}

@@ -26,6 +26,7 @@ function SectionLabel({ text }: { text: string }) {
   return <div style={{ font: "700 10.5px system-ui", letterSpacing: 0.6, textTransform: "uppercase", color: C.faint, margin: "22px 0 8px 4px" }}>{text}</div>;
 }
 const cardStyle: React.CSSProperties = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16 };
+const APP_VERSION = "0.1.0"; // webapp package version (separate from the Android release)
 function Divider() { return <div style={{ height: 1, background: C.border, margin: "0 14px" }} />; }
 function ValueRow({ label, value, labelColor = C.ink }: { label: string; value: string; labelColor?: string }) {
   return (
@@ -170,6 +171,8 @@ function SettingsInner() {
             <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
           </a>
         </div>
+
+        <div style={{ textAlign: "center", font: "400 11px system-ui", color: "#9aa4aa", margin: "24px 0" }}>© MealPlan+ · v{APP_VERSION}</div>
       </div>
     </div>
   );

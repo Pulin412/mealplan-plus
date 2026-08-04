@@ -50,6 +50,7 @@ import com.mealplanplus.data.generated.model.DayPlanDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.CardBorder
+import com.mealplanplus.ui.theme.Carbs
 import com.mealplanplus.ui.theme.Danger
 import com.mealplanplus.ui.theme.DmMono
 import com.mealplanplus.ui.theme.Ink
@@ -147,9 +148,20 @@ private fun DayCell(date: LocalDate, state: PlanUiState, onDay: (LocalDate) -> U
             .clickable { onDay(date) }, verticalArrangement = Arrangement.Center) {
         Text("${date.dayOfMonth}", fontSize = 12.sp, fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
             color = if (isToday) OnAccent else Ink)
+        // Meal dot: green = marked complete · blue = planned (today/upcoming) · red = planned but the
+        // day passed without completing. Workout dot: always blue.
+        val completed = date in state.completedDays
+        val past = date.isBefore(state.today)
+        val planned = plan?.dietId != null
+        val mealDot = when {
+            completed -> Success
+            planned && past -> Danger
+            planned -> Carbs
+            else -> null
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.padding(top = 1.dp)) {
-            if (plan?.dietId != null) Dot(if (isToday) OnAccent else Teal)
-            if (!plan?.plannedWorkouts.isNullOrEmpty()) Dot(if (isToday) OnAccent else Success)
+            mealDot?.let { Dot(if (isToday) OnAccent else it) }
+            if (!plan?.plannedWorkouts.isNullOrEmpty()) Dot(if (isToday) OnAccent else Carbs)
         }
     }
 }
@@ -196,9 +208,30 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) {
                     Text(date.format(DateTimeFormatter.ofPattern("EEEE, d MMM")), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
-                    Text("Set the diet and workout for this day.", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
                 }
                 if (plan != null) Text("Clear day", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Danger, modifier = Modifier.clickable(onClick = onClear))
+            }
+
+            // Past-day recap: whether the day was marked complete and which meal slots were logged.
+            if (date.isBefore(state.today)) {
+                val completed = date in state.completedDays
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    Text("This day", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                    Spacer(Modifier.weight(1f))
+                    Text(if (completed) "Completed" else "Not completed", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (completed) Success else MutedFaint)
+                }
+                if (state.selectedDaySlots.isNotEmpty()) {
+                    Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                        state.selectedDaySlots.forEach { s ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                                Text(if (s.isLogged) "✓" else "✗", fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    color = if (s.isLogged) Success else Danger, modifier = Modifier.width(20.dp))
+                                Text(s.slot, fontSize = 12.sp, color = if (s.isLogged) Ink else MutedLight)
+                            }
+                        }
+                    }
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp)) {
@@ -235,7 +268,6 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddWorkout).padding(vertical = 11.dp)) {
                 Text("＋ Add from library", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
             }
-            Text("Log a session from the Exercises → Logs tab to see it in your history.", fontSize = 9.5.sp, color = MutedFaint, modifier = Modifier.padding(top = 8.dp))
         }
     }
 }

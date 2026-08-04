@@ -48,6 +48,10 @@ class WorkoutSessionRepository @Inject constructor(
         api.finishWorkoutSession(id).body()!!
     }
 
+    /** Delete a logged session. Returns true on success. */
+    suspend fun delete(id: Long): Boolean =
+        runCatching { api.deleteWorkoutSession(id).isSuccessful }.getOrDefault(false)
+
     /** Sets from the most recent completed session containing this exercise ("Last time" / Copy last). */
     suspend fun lastForExercise(exerciseId: Long): List<WorkoutSetDto> =
         runCatching { api.lastSetsForExercise(exerciseId).body()?.sets.orEmpty() }.getOrDefault(emptyList())
