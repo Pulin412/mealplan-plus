@@ -53,3 +53,6 @@ logging:
     org.springframework: WARN
     org.springframework.security: WARN
     root: INFO
+
+sentry:
+  environment: prod

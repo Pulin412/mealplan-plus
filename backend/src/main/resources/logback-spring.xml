@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logging config. Package levels still come from application*.yml (logging.level.*).
+    - non-prod (dev/local/docker): human-readable console, incl. the [requestId] MDC value.
+    - prod (Cloud Run): one JSON object per line to stdout. Cloud Logging parses it into
+      jsonPayload; `severity` maps entries to log levels; `requestId` correlates a request's lines.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProfile name="!prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%X{requestId:-}] %cyan(%logger{36}) - %msg%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- Rename fields to what Cloud Logging understands; drop noise. -->
+                <fieldNames>
+                    <timestamp>time</timestamp>
+                    <level>severity</level>
+                    <logger>logger</logger>
+                    <thread>thread</thread>
+                    <version>[ignore]</version>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+                <includeMdc>true</includeMdc>
+                <customFields>{"service":"mealplan-api"}</customFields>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+</configuration>
