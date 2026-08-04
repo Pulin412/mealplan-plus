@@ -16,6 +16,7 @@ import com.mealplanplus.data.generated.model.PlannedWorkoutDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.data.cache.Resource
 import com.mealplanplus.data.cache.ResponseCache
+import com.mealplanplus.data.cache.render
 import com.mealplanplus.data.healthconnect.HealthConnectManager
 import com.mealplanplus.data.healthconnect.HealthConnectSummary
 import com.mealplanplus.data.repository.ExerciseRepository
@@ -36,6 +37,21 @@ enum class WorkoutStatus { PLANNED, IN_PROGRESS, DONE }
  * single exercise (planned or already logged). Status is resolved against today's sessions.
  */
 data class HomeWorkout(val templateId: Long?, val exerciseId: Long?, val name: String, val status: WorkoutStatus)
+
+/**
+ * Yesterday's cached dashboard reshaped as today's empty shell (see `DashboardShellTest`): keeps the
+ * layout, targets, streak and diet context so a new day's first open paints instantly, but resets
+ * every logged value so we never flash yesterday's checkmarks / full ring before the refresh lands.
+ */
+fun DashboardDto.shellFor(today: LocalDate): DashboardDto =
+    if (date == today) this
+    else copy(
+        date = today,
+        calorieRing = calorieRing.copy(consumed = 0.0, remaining = calorieRing.target.toDouble(), isOver = false),
+        macros = macros.copy(consumedProtein = 0.0, consumedCarbs = 0.0, consumedFat = 0.0),
+        slots = slots.map { it.copy(isLogged = false) },
+        additionalFoods = emptyList(),
+    )
 
 data class HomeUiState(
     val loading: Boolean = true,
@@ -91,28 +107,32 @@ class HomeViewModel @Inject constructor(
      * no waiting on a Cloud Run cold start), then refreshes from the server in the background. The
      * cache only *fills* an empty screen — once a dashboard is shown (including an optimistic slot
      * flip) [Resource.Loading] leaves it untouched, so a silent reload never flickers stale data.
+     *
+     * One stable key (not per-day) so the first open of a *new* day still has yesterday's snapshot to
+     * paint from — reshaped via [shellFor] into today's empty layout so nothing stale (checkmarks, a
+     * full ring) flashes before the fresh dashboard lands. Server [Resource.Success] is today's real
+     * data, so it's shown as-is.
      */
     fun load() {
         viewModelScope.launch {
-            responseCache.stream("dashboard", LocalDate.now().toString()) {
+            responseCache.stream("dashboard") {
                 dashboardApi.getDashboard(null).let { resp ->
                     resp.body().takeIf { resp.isSuccessful }
                         ?: throw IllegalStateException("Couldn't load today (${resp.code()})")
                 }
             }.collect { res ->
+                val today = LocalDate.now()
+                fun cached(d: DashboardDto?): DashboardDto? = d?.shellFor(today)
                 when (res) {
                     is Resource.Loading -> _state.update {
-                        it.copy(
-                            dashboard = it.dashboard ?: res.data,
-                            loading = it.dashboard == null && res.data == null,
-                            error = null,
-                        )
+                        val shown = it.dashboard ?: cached(res.data)
+                        it.copy(dashboard = shown, loading = shown == null, error = null)
                     }
                     is Resource.Success -> _state.update {
                         it.copy(loading = false, dashboard = res.data, error = null)
                     }
                     is Resource.Error -> _state.update {
-                        val shown = it.dashboard ?: res.data
+                        val shown = it.dashboard ?: cached(res.data)
                         it.copy(
                             loading = false,
                             dashboard = shown,
@@ -126,8 +146,16 @@ class HomeViewModel @Inject constructor(
 
     private fun loadFoods() {
         viewModelScope.launch {
-            runCatching { foodsApi.listFoods(false).body() }.getOrNull()
-                ?.let { foods -> _state.update { it.copy(foods = foods) } }
+            responseCache.stream<List<FoodDto>>("home.foods") {
+                foodsApi.listFoods(false).let { r ->
+                    r.body().takeIf { r.isSuccessful } ?: throw IllegalStateException("foods ${r.code()}")
+                }
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.foods.isNotEmpty())
+                    st.copy(foods = if (r.keep) st.foods else r.value ?: st.foods)
+                }
+            }
         }
     }
 
@@ -139,18 +167,27 @@ class HomeViewModel @Inject constructor(
     fun loadWorkouts() {
         viewModelScope.launch {
             val date = today()
-            val planned = runCatching { plansApi.getPlan(date).body()?.plannedWorkouts }.getOrNull().orEmpty()
-            val sessions = sessionRepo.listForDate(date)
-            val plannedRows = planned.map { pw ->
-                val session = sessions.firstOrNull { it.name == pw.activityName }
-                HomeWorkout(pw.workoutTemplateId, session?.sets?.firstOrNull()?.exerciseId, pw.activityName, statusOf(session))
+            // Cache the planned list so the workout rows paint instantly on a cold open; the local
+            // sessions (already on-device) are merged live on every emission to resolve status.
+            responseCache.stream<List<PlannedWorkoutDto>>("home.plan") {
+                plansApi.getPlan(date).let { r ->
+                    (r.body()?.plannedWorkouts.orEmpty()).takeIf { r.isSuccessful }
+                        ?: throw IllegalStateException("plan ${r.code()}")
+                }
+            }.collect { res ->
+                val planned = res.data ?: return@collect     // nothing known yet → keep current rows
+                val sessions = sessionRepo.listForDate(date)
+                val plannedRows = planned.map { pw ->
+                    val session = sessions.firstOrNull { it.name == pw.activityName }
+                    HomeWorkout(pw.workoutTemplateId, session?.sets?.firstOrNull()?.exerciseId, pw.activityName, statusOf(session))
+                }
+                // Ad-hoc sessions not backed by a planned workout (single exercises started from Home).
+                val plannedNames = planned.map { it.activityName }.toSet()
+                val adHocRows = sessions.filter { it.name !in plannedNames }.map { s ->
+                    HomeWorkout(null, s.sets?.firstOrNull()?.exerciseId, s.name, statusOf(s))
+                }
+                _state.update { it.copy(workouts = plannedRows + adHocRows) }
             }
-            // Ad-hoc sessions not backed by a planned workout (single exercises started from Home).
-            val plannedNames = planned.map { it.activityName }.toSet()
-            val adHocRows = sessions.filter { it.name !in plannedNames }.map { s ->
-                HomeWorkout(null, s.sets?.firstOrNull()?.exerciseId, s.name, statusOf(s))
-            }
-            _state.update { it.copy(workouts = plannedRows + adHocRows) }
         }
     }
 
@@ -162,8 +199,16 @@ class HomeViewModel @Inject constructor(
 
     private fun loadWorkoutTemplates() {
         viewModelScope.launch {
-            runCatching { workoutsApi.listWorkoutTemplates().body() }.getOrNull()
-                ?.let { templates -> _state.update { it.copy(workoutTemplates = templates) } }
+            responseCache.stream<List<WorkoutTemplateDto>>("home.templates") {
+                workoutsApi.listWorkoutTemplates().let { r ->
+                    r.body().takeIf { r.isSuccessful } ?: throw IllegalStateException("templates ${r.code()}")
+                }
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.workoutTemplates.isNotEmpty())
+                    st.copy(workoutTemplates = if (r.keep) st.workoutTemplates else r.value ?: st.workoutTemplates)
+                }
+            }
         }
     }
 
