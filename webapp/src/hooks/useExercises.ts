@@ -9,7 +9,7 @@ import {
   type WorkoutTemplateDto, type TemplateExerciseDto,
 } from "@/lib/api/workouts";
 import { listExerciseTags, createExerciseTag, listWorkoutTags, createWorkoutTag, type TagDto } from "@/lib/api/tags";
-import { listWorkoutSessions, type WorkoutSessionDto } from "@/lib/api/sessions";
+import { listWorkoutSessions, updateSession, deleteSession, type WorkoutSessionDto } from "@/lib/api/sessions";
 import { isoOf } from "@/lib/api/plans";
 
 export type LibTab = "exercises" | "workouts" | "logs";
@@ -318,6 +318,25 @@ export function useExercises() {
   // ── Logs (read-only) ──────────────────────────────────────────────────────────
   const openLogDetail = useCallback((s: WorkoutSessionDto) => setOpenLog(s), []);
   const closeLogDetail = useCallback(() => setOpenLog(null), []);
+
+  /** Save edits (reps/weight) to a logged session, then refresh. */
+  const updateLog = useCallback(async (session: WorkoutSessionDto) => {
+    if (session.id == null) return;
+    try { await updateSession(session.id, session); setOpenLog(session); await load(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+  }, [load]);
+
+  /** Delete a single logged session, then refresh. */
+  const deleteLog = useCallback(async (id: number) => {
+    try { await deleteSession(id); setOpenLog(null); await load(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
+  }, [load]);
+
+  /** Delete every logged session. */
+  const clearAllLogs = useCallback(async () => {
+    try { await Promise.all(logs.map((s) => (s.id != null ? deleteSession(s.id) : Promise.resolve()))); setOpenLog(null); await load(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed to clear"); }
+  }, [logs, load]);
   const prevLogsMonth = useCallback(() => setLogsMonth((m) => (m.month === 1 ? { year: m.year - 1, month: 12 } : { ...m, month: m.month - 1 })), []);
   const nextLogsMonth = useCallback(() => setLogsMonth((m) => (m.month === 12 ? { year: m.year + 1, month: 1 } : { ...m, month: m.month + 1 })), []);
 
@@ -343,7 +362,7 @@ export function useExercises() {
     exercises, workouts, logs, tags, tagName, exerciseName, loading, error,
     filterTags, filteredExercises, exerciseTagFilter, setExerciseTagFilter,
     workoutTags, workoutTagName, workoutFilterTags, filteredWorkouts, workoutTagFilter, setWorkoutTagFilter,
-    openLog, openLogDetail, closeLogDetail,
+    openLog, openLogDetail, closeLogDetail, updateLog, deleteLog, clearAllLogs,
     logsMonth, prevLogsMonth, nextLogsMonth, todayIso, logsByDate,
     // exercise editor
     editor, openNewExercise, openEditExercise, closeEditor,

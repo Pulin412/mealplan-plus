@@ -29,3 +29,10 @@ export function addLoggedFood(date: string, foodId: number, mealSlot: string, qu
 export function removeLoggedFood(id: number): Promise<void> {
   return apiFetch<void>(`/api/v1/logging/foods/${id}`, { method: "DELETE" });
 }
+
+export type DayCompletionDto = components["schemas"]["DayCompletionDto"];
+
+/** Toggle whether a day is marked complete (the unit the streak counts). Returns the new state. */
+export function toggleDayComplete(date: string): Promise<DayCompletionDto> {
+  return apiFetch<DayCompletionDto>(`/api/v1/logging/days/${date}/toggle`, { method: "POST" });
+}

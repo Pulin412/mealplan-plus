@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, isoOf, type DayPlanDto } from "@/lib/api/plans";
+import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, getCompletedDays, getLoggedSlots, isoOf, type DayPlanDto, type LoggedMealSlotDto } from "@/lib/api/plans";
 import { listDiets, type DietDto } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
@@ -54,6 +54,8 @@ export function usePlan() {
   const today = useMemo(() => new Date(), []);
   const [ym, setYm] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 }); // month 1-12
   const [plans, setPlans] = useState<Record<string, DayPlanDto>>({});
+  const [completedDays, setCompletedDays] = useState<Set<string>>(new Set());
+  const [selectedSlots, setSelectedSlots] = useState<LoggedMealSlotDto[]>([]);
   const [diets, setDiets] = useState<DietSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,9 +89,16 @@ export function usePlan() {
       const map: Record<string, DayPlanDto> = {};
       list.forEach((p) => { map[isoOf(p.date)] = p; });
       setPlans(map);
+      getCompletedDays(lo, hi).then((cd) => setCompletedDays(new Set(cd.map((d) => isoOf(d))))).catch(() => {});
     } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
     finally { setLoading(false); }
   }, [today, todayIso]);
+
+  // Past-day recap: load which meal slots were logged on the selected day.
+  useEffect(() => {
+    if (!selected) { setSelectedSlots([]); return; }
+    getLoggedSlots(selected).then(setSelectedSlots).catch(() => setSelectedSlots([]));
+  }, [selected]);
 
   useEffect(() => {
     Promise.all([listDiets(), listMeals(), listFoods()]).then(([ds, ms, fs]) => {
@@ -143,7 +152,7 @@ export function usePlan() {
   const closeWorkoutDetail = useCallback(() => setOpenWorkout(null), []);
 
   return {
-    ym, setYm, plans, diets, loading, error, todayIso, today, selected, setSelected,
+    ym, setYm, plans, completedDays, selectedSlots, diets, loading, error, todayIso, today, selected, setSelected,
     prevMonth, nextMonth, setDiet, clearDay,
     pickerOpen, pickerSearch, setPickerSearch, pickerTag, setPickerTag, allTags, filteredDiets,
     openPicker, closePicker, chooseDiet,

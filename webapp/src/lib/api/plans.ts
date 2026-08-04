@@ -38,3 +38,15 @@ export function addPlannedWorkout(date: string, workoutTemplateId: number, activ
 export function removePlannedWorkout(date: string, workoutId: number): Promise<void> {
   return apiFetch<void>(`/api/v1/plans/${date}/workouts/${workoutId}`, { method: "DELETE" });
 }
+
+export type LoggedMealSlotDto = components["schemas"]["LoggedMealSlotDto"];
+
+/** Dates marked complete in [from, to] — for the Plan calendar dots. */
+export function getCompletedDays(from: string, to: string): Promise<string[]> {
+  return apiFetch<string[]>(`/api/v1/logging/days?from=${from}&to=${to}`);
+}
+
+/** Which meal slots were logged on a date — for the past-day recap. */
+export function getLoggedSlots(date: string): Promise<LoggedMealSlotDto[]> {
+  return apiFetch<LoggedMealSlotDto[]>(`/api/v1/logging/slots?date=${date}`);
+}

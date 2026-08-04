@@ -64,6 +64,8 @@ data class HomeUiState(
     val togglingSlot: String? = null,
     val hcConnected: Boolean = false,               // Health Connect granted
     val hcSummary: HealthConnectSummary = HealthConnectSummary(),
+    val onlineResults: List<FoodDto> = emptyList(),  // Open Food Facts search results in the add sheet
+    val onlineSearching: Boolean = false,
 )
 
 /**
@@ -254,6 +256,46 @@ class HomeViewModel @Inject constructor(
                 }
             }
             _state.update { it.copy(togglingSlot = null) }
+        }
+    }
+
+    /**
+     * Mark today complete / not-complete. A day can be marked done even if not every meal is logged;
+     * only completed days count toward the streak. Optimistic flip, then reload to reconcile the
+     * streak (and authoritative completion state) from the server.
+     */
+    fun toggleDayComplete() {
+        val current = _state.value.dashboard ?: return
+        val was = current.dayCompleted ?: false
+        _state.update { it.copy(dashboard = it.dashboard?.copy(dayCompleted = !was)) }
+        viewModelScope.launch {
+            val ok = runCatching { loggingApi.toggleDayComplete(today()) }.map { it.isSuccessful }.getOrDefault(false)
+            if (ok) load()   // refresh streak + authoritative dayCompleted (dashboard != null → silent reload)
+            else _state.update { it.copy(dashboard = it.dashboard?.copy(dayCompleted = was), error = "Couldn't update — check your connection") }
+        }
+    }
+
+    /** Search Open Food Facts (public API) for the add-to-today sheet. */
+    fun searchOnlineFoods(query: String) {
+        val q = query.trim()
+        if (q.isBlank()) { _state.update { it.copy(onlineResults = emptyList(), onlineSearching = false) }; return }
+        viewModelScope.launch {
+            _state.update { it.copy(onlineSearching = true) }
+            val results = runCatching { foodsApi.searchFoodsOnline(q).body() }.getOrNull().orEmpty()
+            _state.update { it.copy(onlineResults = results, onlineSearching = false) }
+        }
+    }
+
+    fun clearOnlineResults() = _state.update { it.copy(onlineResults = emptyList(), onlineSearching = false) }
+
+    /** Persist an Open Food Facts result as a food (server assigns an id), then log it to today. */
+    fun addOnlineFood(dto: FoodDto, slot: String, quantity: Double, unit: FoodUnit) {
+        viewModelScope.launch {
+            val id = runCatching { foodsApi.createFood(dto).body()?.id }.getOrNull()
+            if (id != null) {
+                loadFoods()   // pull the new food into state.foods so "Added today" can show its calories
+                addFood(id, slot, quantity, unit)
+            } else _state.update { it.copy(error = "Couldn't add that food") }
         }
     }
 

@@ -21,7 +21,7 @@ class User(
     @Column(unique = true, nullable = false)
     val firebaseUid: String = "",
 
-    val email: String? = null,
+    var email: String? = null,
     var displayName: String? = null,
 
     var age: Int? = null,

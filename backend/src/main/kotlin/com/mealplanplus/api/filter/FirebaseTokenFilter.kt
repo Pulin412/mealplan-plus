@@ -65,6 +65,8 @@ class FirebaseTokenFilter(
             val auth = UsernamePasswordAuthenticationToken(
                 claims.subject, null, emptyList()
             )
+            // Carry the token's email so getMe can persist it on the user record.
+            auth.details = claims.getStringClaim("email")
             SecurityContextHolder.getContext().authentication = auth
         } catch (e: Exception) {
             log.debug("Firebase JWT validation failed: ${e.message}")

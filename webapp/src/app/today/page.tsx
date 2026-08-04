@@ -11,6 +11,7 @@ import type { DashboardDto, SlotStatusDto } from "@/lib/api/dashboard";
 import type { WorkoutTemplateDto } from "@/lib/api/workouts";
 import type { ExerciseDto } from "@/lib/api/exercises";
 import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, type FoodDto, type FoodUnit } from "@/lib/nutrition";
+import { searchFoodsOnline } from "@/lib/api/foods";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
@@ -79,14 +80,14 @@ function SlotBadge({ slot }: { slot: string }) {
   return <span style={{ font: "600 8.5px system-ui", color: C.teal, background: "oklch(0.62 0.09 210 / .12)", borderRadius: 5, padding: "2px 6px" }}>{slot.toUpperCase()}</span>;
 }
 
-function SlotRow({ slot, busy, expanded, onToggle, onExpand, isLast }: {
-  slot: SlotStatusDto; busy: boolean; expanded: boolean; onToggle: () => void; onExpand: () => void; isLast: boolean;
+function SlotRow({ slot, busy, locked, expanded, onToggle, onExpand, isLast }: {
+  slot: SlotStatusDto; busy: boolean; locked: boolean; expanded: boolean; onToggle: () => void; onExpand: () => void; isLast: boolean;
 }) {
   return (
     <div style={{ borderBottom: isLast ? "none" : `1px solid ${C.bgAlt}` }}>
       <div onClick={onExpand} style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "11px 12px", gap: 9 }}>
-        <button onClick={(e) => { e.stopPropagation(); if (!busy) onToggle(); }}
-          style={{ flex: "none", width: 22, height: 22, borderRadius: "50%", border: `1.5px solid ${slot.isLogged ? C.teal : "#dfe6e8"}`,
+        <button onClick={(e) => { e.stopPropagation(); if (!busy && !locked) onToggle(); }}
+          style={{ flex: "none", width: 22, height: 22, borderRadius: "50%", border: `1.5px solid ${slot.isLogged ? C.teal : "#dfe6e8"}`, cursor: locked ? "not-allowed" : "pointer",
             background: slot.isLogged ? C.teal : "transparent", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
           {slot.isLogged ? "✓" : ""}
         </button>
@@ -149,13 +150,21 @@ function StreakCard({ d }: { d: DashboardDto }) {
   );
 }
 
-function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onClose }: {
+function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onAddOnline, onClose }: {
   open: boolean; foods: FoodDto[]; plannedSlots: string[];
-  onAdd: (foodId: number, slot: string, qty: number, unit: FoodUnit) => void; onClose: () => void;
+  onAdd: (foodId: number, slot: string, qty: number, unit: FoodUnit) => void;
+  onAddOnline: (dto: FoodDto, slot: string, qty: number, unit: FoodUnit) => void; onClose: () => void;
 }) {
   const [slot, setSlot] = useState(plannedSlots[0] ?? MEAL_SLOTS[1]);
   const [query, setQuery] = useState("");
+  const [online, setOnline] = useState<FoodDto[]>([]);
+  const [searching, setSearching] = useState(false);
   const list = foods.filter((f) => !query || f.name.toLowerCase().includes(query.toLowerCase()));
+  const searchOnline = async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    try { setOnline(await searchFoodsOnline(query.trim())); } catch { /* ignore */ } finally { setSearching(false); }
+  };
   return (
     <BottomSheet open={open} onClose={onClose} title="Add to today">
       <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: -8, marginBottom: 10 }}>Log an unplanned food into a slot</div>
@@ -168,11 +177,11 @@ function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onClose }: {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.bgAlt, borderRadius: 11, padding: "10px 12px", marginBottom: 8 }}>
         <span style={{ color: C.muted2 }}>⌕</span>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your foods…"
+        <input value={query} onChange={(e) => { setQuery(e.target.value); setOnline([]); }} placeholder="Search foods…"
           style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 13, color: C.ink }} />
       </div>
       <div style={{ maxHeight: 260, overflowY: "auto" }}>
-        {list.length === 0 && <p style={{ textAlign: "center", font: "400 12px system-ui", color: C.muted2, padding: 12 }}>No foods.</p>}
+        {list.length === 0 && !query && <p style={{ textAlign: "center", font: "400 12px system-ui", color: C.muted2, padding: 12 }}>No foods.</p>}
         {list.map((f) => (
           <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.bgAlt}` }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -180,6 +189,23 @@ function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onClose }: {
               <div style={{ font: "400 10.5px system-ui", color: C.muted }}>{f.caloriesPer100} kcal / 100g</div>
             </div>
             <button onClick={() => { const u = f.unit ?? "GRAM"; if (f.id != null) { onAdd(f.id, slot, defaultQtyFor(u), u); onClose(); } }}
+              style={{ font: "600 11.5px system-ui", color: C.teal, border: "1.5px solid #dfe6e8", borderRadius: 9, padding: "7px 12px" }}>+ Add</button>
+          </div>
+        ))}
+        {/* Search the public food database (Open Food Facts) for anything not in your foods. */}
+        {query.trim() && (
+          <div onClick={searchOnline} style={{ display: "flex", alignItems: "center", cursor: "pointer", padding: "10px 0", borderBottom: `1px solid ${C.bgAlt}` }}>
+            <span style={{ flex: 1, font: "600 12px system-ui", color: C.teal }}>⌕ Search online for “{query.trim()}”</span>
+            {searching && <span style={{ font: "400 11px system-ui", color: C.muted2 }}>…</span>}
+          </div>
+        )}
+        {online.map((f, i) => (
+          <div key={`online-${i}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.bgAlt}` }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{f.name}</div>
+              <div style={{ font: "400 10.5px system-ui", color: C.muted }}>{Math.round(f.caloriesPer100)} kcal / 100g · online</div>
+            </div>
+            <button onClick={() => { const u = f.unit ?? "GRAM"; onAddOnline(f, slot, defaultQtyFor(u), u); onClose(); }}
               style={{ font: "600 11.5px system-ui", color: C.teal, border: "1.5px solid #dfe6e8", borderRadius: 9, padding: "7px 12px" }}>+ Add</button>
           </div>
         ))}
@@ -315,7 +341,6 @@ function TodayInner() {
         <div style={{ display: "flex", alignItems: "center" }}>
           <button onClick={() => router.push("/settings")} title="Settings" style={{ fontSize: 20, color: C.ink, padding: "0 8px", cursor: "pointer" }}>⚙</button>
           <span style={{ flex: 1 }} />
-          <button style={{ fontSize: 18, color: C.muted3, padding: "0 8px" }}>🔔</button>
           <div onClick={() => router.push("/profile")} style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>●</div>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", paddingLeft: 10, marginTop: 2 }}>
@@ -332,13 +357,24 @@ function TodayInner() {
         {d && (
           <>
             <CalorieCard d={d} />
-            <div style={{ font: "600 12.5px system-ui", color: C.ink, margin: "16px 0 8px 2px" }}>Today&apos;s meals</div>
+            {/* Header carries a Complete Day toggle — a day can be marked done even if not every meal
+                is logged, and only completed days count toward the streak. When complete the slots are
+                read-only (un-complete the day to edit). */}
+            <div style={{ display: "flex", alignItems: "center", margin: "16px 0 8px 2px" }}>
+              <span style={{ font: "600 12.5px system-ui", color: C.ink }}>Today&apos;s meals</span>
+              <span style={{ flex: 1 }} />
+              <button onClick={() => void t.toggleDayComplete()} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "3px 6px", borderRadius: 8 }}>
+                <span style={{ width: 20, height: 20, borderRadius: "50%", border: `1.5px solid ${d.dayCompleted ? C.green : C.muted2}`,
+                  background: d.dayCompleted ? C.green : "transparent", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{d.dayCompleted ? "✓" : ""}</span>
+                <span style={{ font: "600 11px system-ui", color: d.dayCompleted ? C.green : C.muted3 }}>{d.dayCompleted ? "Completed" : "Complete Day"}</span>
+              </button>
+            </div>
             {d.slots.length === 0 ? (
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "22px", textAlign: "center", font: "400 12px system-ui", color: C.muted2 }}>No diet planned for today.</div>
             ) : (
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
                 {d.slots.map((slot, i) => (
-                  <SlotRow key={slot.slot} slot={slot} busy={t.busySlot === slot.slot} expanded={t.expanded.has(slot.slot)}
+                  <SlotRow key={slot.slot} slot={slot} busy={t.busySlot === slot.slot} locked={d.dayCompleted ?? false} expanded={t.expanded.has(slot.slot)}
                     onToggle={() => t.toggleSlot(slot.slot)} onExpand={() => t.toggleExpand(slot.slot)} isLast={i === d.slots.length - 1} />
                 ))}
               </div>
@@ -381,7 +417,7 @@ function TodayInner() {
         <button onClick={() => setAddOpen(true)} className="fixed bottom-[68px] right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white text-[28px] font-light shadow-lg"
           style={{ background: C.teal, boxShadow: "0 6px 18px oklch(0.62 0.09 210 / .45)" }}>+</button>
       )}
-      {d && <AddToTodaySheet open={addOpen} foods={t.foods} plannedSlots={d.slots.map((s) => s.slot)} onAdd={t.addFood} onClose={() => setAddOpen(false)} />}
+      {d && <AddToTodaySheet open={addOpen} foods={t.foods} plannedSlots={d.slots.map((s) => s.slot)} onAdd={t.addFood} onAddOnline={t.addOnlineFood} onClose={() => setAddOpen(false)} />}
       {d && <DietSheet open={dietOpen} d={d} onClose={() => setDietOpen(false)} />}
       <AddWorkoutSheet open={addWorkoutOpen} templates={tw.templates} exercises={tw.exercises}
         onPickWorkout={(w) => { setAddWorkoutOpen(false); void tw.addWorkout(w); }}

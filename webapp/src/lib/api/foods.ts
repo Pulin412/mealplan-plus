@@ -54,3 +54,8 @@ export async function deleteFood(id: number): Promise<void> {
 export async function toggleFavorite(id: number): Promise<FoodDto> {
   return apiFetch<FoodDto>(`/api/v1/foods/${id}/favorite`, { method: "PATCH" });
 }
+
+/** Persist an online (Open Food Facts) search result as the user's food; backend assigns an id. */
+export async function createFoodFromDto(dto: FoodDto): Promise<FoodDto> {
+  return apiFetch<FoodDto>("/api/v1/foods", { method: "POST", body: JSON.stringify(dto) });
+}

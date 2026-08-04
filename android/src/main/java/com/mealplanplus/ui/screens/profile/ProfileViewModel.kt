@@ -27,6 +27,7 @@ data class ProfileUiState(
     val user: UserResponse? = null,
     val error: String? = null,
     val saving: Boolean = false,
+    val accountEmail: String? = null,   // Firebase sign-in email; fallback when the profile has none
 )
 
 @HiltViewModel
@@ -39,9 +40,10 @@ class ProfileViewModel @Inject constructor(
     private val cursor: SyncCursorStore,
     private val onboardingStore: OnboardingStore,
     private val responseCache: ResponseCache,
+    private val auth: com.google.firebase.auth.FirebaseAuth,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(ProfileUiState())
+    private val _state = MutableStateFlow(ProfileUiState(accountEmail = auth.currentUser?.email))
     val state: StateFlow<ProfileUiState> = _state
 
     /** The in-flight background refresh, so a local edit ([patch]) can cancel it before writing. */

@@ -189,7 +189,7 @@ function HealthPageInner() {
   const dual = h.meta.id === "BLOOD_PRESSURE";
 
   // delta vs range start (green when lower / improving)
-  let deltaLabel = "No readings yet"; let improving: boolean | null = null;
+  let deltaLabel = "—"; let improving: boolean | null = null;
   if (latest) {
     if (!start || window.length < 2 || start === latest) deltaLabel = `First reading in ${h.range}`;
     else {
@@ -265,9 +265,7 @@ function HealthPageInner() {
             {/* Recent readings */}
             <div className="text-[13px] font-semibold mb-2.5" style={{ color: C.ink }}>Recent readings</div>
             {all.length === 0 ? (
-              <div className="text-[12px] pb-5" style={{ color: C.muted2 }}>
-                No readings yet. Tap ＋ to log your first {h.meta.metricLabel.toLowerCase()}.
-              </div>
+              <div className="text-[12px] pb-5" style={{ color: C.muted2 }}>—</div>
             ) : (
               [...all].reverse().slice(0, 8).map((m) => (
                 <div key={m.id} className="flex items-center justify-between rounded-[11px] mb-[7px] px-3 py-[11px]"

@@ -104,6 +104,10 @@ private val DIET_SLOTS = listOf(
     "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
 )
 
+/** Diet slots in canonical [DIET_SLOTS] order; unknown slot names fall to the end. */
+private fun List<DietSlotUi>.inSlotOrder(): List<DietSlotUi> =
+    sortedBy { DIET_SLOTS.indexOf(it.slot).let { i -> if (i < 0) Int.MAX_VALUE else i } }
+
 @Composable
 fun DietsScreen(
     onBack: () -> Unit = {},
@@ -309,7 +313,7 @@ private fun DietListCard(
         }
         AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column(Modifier.fillMaxWidth().padding(top = 9.dp)) {
-                d.slots.forEach { SlotGroup(it) }
+                d.slots.inSlotOrder().forEach { SlotGroup(it) }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     MacroText(d.totalProtein, d.totalCarbs, d.totalFat, fontSize = 10.5.sp)
                     Spacer(Modifier.weight(1f))
@@ -391,7 +395,7 @@ private fun DietCompactRow(
         }
         AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                d.slots.forEach { SlotGroup(it) }
+                d.slots.inSlotOrder().forEach { SlotGroup(it) }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 5.dp)) {
                     MacroText(d.totalProtein, d.totalCarbs, d.totalFat, fontSize = 9.5.sp)
                     Spacer(Modifier.weight(1f))

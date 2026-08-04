@@ -30,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -88,6 +87,8 @@ import com.mealplanplus.ui.theme.MutedDark
 import com.mealplanplus.ui.theme.MutedFaint
 import com.mealplanplus.ui.theme.MutedLight
 import com.mealplanplus.ui.theme.OnAccent
+import com.mealplanplus.ui.theme.OnlineAdd
+import androidx.compose.material3.CircularProgressIndicator
 import com.mealplanplus.ui.theme.Protein
 import com.mealplanplus.ui.theme.StreakFlame
 import com.mealplanplus.ui.theme.Surface
@@ -152,6 +153,8 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
                         CalorieCard(d)
                         Spacer(Modifier.height(16.dp))
                         MealsChecklist(d.slots, state.togglingSlot, expandedSlots,
+                            dayCompleted = d.dayCompleted ?: false,
+                            onToggleDayComplete = viewModel::toggleDayComplete,
                             onToggle = viewModel::toggleSlot,
                             onToggleExpand = { s -> expandedSlots = if (s in expandedSlots) expandedSlots - s else expandedSlots + s })
                         if (d.additionalFoods.isNotEmpty()) {
@@ -188,8 +191,14 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
 
     when (sheet) {
         is HomeSheet.Diet -> state.dashboard?.let { DietDetailSheet(it) { sheet = HomeSheet.None } }
-        is HomeSheet.AddToday -> AddToTodaySheet(state.foods, state.dashboard?.slots.orEmpty().map { it.slot },
-            onAdd = { foodId, slot, qty, unit -> viewModel.addFood(foodId, slot, qty, unit); sheet = HomeSheet.None }) { sheet = HomeSheet.None }
+        is HomeSheet.AddToday -> AddToTodaySheet(
+            state.foods, state.dashboard?.slots.orEmpty().map { it.slot },
+            onlineResults = state.onlineResults, onlineSearching = state.onlineSearching,
+            onSearchOnline = viewModel::searchOnlineFoods, onClearOnline = viewModel::clearOnlineResults,
+            onAdd = { foodId, slot, qty, unit -> viewModel.addFood(foodId, slot, qty, unit); viewModel.clearOnlineResults(); sheet = HomeSheet.None },
+            onAddOnline = { dto, s, qty, unit -> viewModel.addOnlineFood(dto, s, qty, unit); viewModel.clearOnlineResults(); sheet = HomeSheet.None },
+            onClose = { viewModel.clearOnlineResults(); sheet = HomeSheet.None },
+        )
         is HomeSheet.AddWorkout -> AddWorkoutSheet(state.workoutTemplates, state.exercises,
             onPickWorkout = { viewModel.addWorkout(it); sheet = HomeSheet.None },
             onPickExercise = { ex -> sheet = HomeSheet.None; ex.id?.let { onOpenExerciseRunner(it, ex.name) } },
@@ -342,7 +351,6 @@ private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, on
             Box(Modifier.size(34.dp).clip(CircleShape).clickable(onClick = onToggleTheme), contentAlignment = Alignment.Center) {
                 Text(if (isDark) "☀️" else "🌙", fontSize = 16.sp)
             }
-            IconButton(onClick = {}) { Icon(Icons.Default.Notifications, "Notifications", tint = MutedDark, modifier = Modifier.size(20.dp)) }
             Box(Modifier.size(34.dp).clip(CircleShape).background(Teal).clickable(onClick = onProfile), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.Person, "Profile", tint = OnAccent, modifier = Modifier.size(18.dp))
             }
@@ -418,8 +426,31 @@ private fun MacroBar(label: String, consumed: Double, target: Int?, color: Color
 
 // ── Meals checklist ────────────────────────────────────────────────────────────
 @Composable
-private fun MealsChecklist(slots: List<SlotStatusDto>, toggling: String?, expanded: Set<String>, onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit) {
-    Text("Today's meals", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+private fun MealsChecklist(
+    slots: List<SlotStatusDto>, toggling: String?, expanded: Set<String>,
+    dayCompleted: Boolean, onToggleDayComplete: () -> Unit,
+    onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit,
+) {
+    // Header carries a "Mark done" toggle — a day can be marked complete even if not every meal is
+    // logged, and only marked-complete days count toward the streak.
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 8.dp)) {
+        Text("Today's meals", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+        Spacer(Modifier.weight(1f))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onToggleDayComplete).padding(horizontal = 6.dp, vertical = 3.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(20.dp).clip(CircleShape)
+                    .background(if (dayCompleted) Success else Color.Transparent)
+                    .border(1.5.dp, if (dayCompleted) Success else MutedLight, CircleShape),
+            ) { if (dayCompleted) Icon(Icons.Default.Check, "Day complete", tint = OnAccent, modifier = Modifier.size(13.dp)) }
+            Spacer(Modifier.width(6.dp))
+            Text(if (dayCompleted) "Completed" else "Complete Day", fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                color = if (dayCompleted) Success else MutedDark)
+        }
+    }
     if (slots.isEmpty()) {
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp)).padding(vertical = 22.dp), Alignment.Center) {
             Text("No diet planned for today.", fontSize = 12.sp, color = MutedLight)
@@ -428,18 +459,19 @@ private fun MealsChecklist(slots: List<SlotStatusDto>, toggling: String?, expand
     }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))) {
         slots.forEachIndexed { i, slot ->
-            SlotRow(slot, toggling == slot.slot, slot.slot in expanded, onToggle, onToggleExpand)
+            // When the day is marked complete the slots are read-only — un-complete the day to edit.
+            SlotRow(slot, toggling == slot.slot, slot.slot in expanded, dayCompleted, onToggle, onToggleExpand)
             if (i < slots.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
         }
     }
 }
 
 @Composable
-private fun SlotRow(slot: SlotStatusDto, busy: Boolean, expanded: Boolean, onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit) {
+private fun SlotRow(slot: SlotStatusDto, busy: Boolean, expanded: Boolean, locked: Boolean, onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit) {
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onToggleExpand(slot.slot) }.padding(horizontal = 12.dp, vertical = 11.dp)) {
             // Check circle is its own tap target — logs/unlogs; the rest of the row expands/collapses.
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp).clip(CircleShape).clickable(enabled = !busy) { onToggle(slot.slot) }) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp).clip(CircleShape).clickable(enabled = !busy && !locked) { onToggle(slot.slot) }) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(22.dp).clip(CircleShape)
                     .background(if (slot.isLogged) Teal else Color.Transparent)
                     .border(1.5.dp, if (slot.isLogged) Teal else BorderCool, CircleShape)) {
@@ -574,7 +606,14 @@ private fun DietDetailSheet(d: DashboardDto, onClose: () -> Unit) {
 // ── Add to today (unplanned food → slot) ────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun AddToTodaySheet(foods: List<FoodDto>, plannedSlots: List<String>, onAdd: (Long, String, Double, FoodUnit) -> Unit, onClose: () -> Unit) {
+private fun AddToTodaySheet(
+    foods: List<FoodDto>, plannedSlots: List<String>,
+    onlineResults: List<FoodDto>, onlineSearching: Boolean,
+    onSearchOnline: (String) -> Unit, onClearOnline: () -> Unit,
+    onAdd: (Long, String, Double, FoodUnit) -> Unit,
+    onAddOnline: (FoodDto, String, Double, FoodUnit) -> Unit,
+    onClose: () -> Unit,
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var slot by remember { mutableStateOf(plannedSlots.firstOrNull() ?: HOME_SLOTS[1]) }
     var query by remember { mutableStateOf("") }
@@ -597,13 +636,13 @@ private fun AddToTodaySheet(foods: List<FoodDto>, plannedSlots: List<String>, on
                 Spacer(Modifier.width(8.dp))
                 Box(Modifier.weight(1f)) {
                     if (query.isEmpty()) Text("Search your foods…", fontSize = 13.sp, color = MutedLight)
-                    BasicTextField(query, { query = it }, singleLine = true, cursorBrush = SolidColor(Teal),
+                    BasicTextField(query, { query = it; onClearOnline() }, singleLine = true, cursorBrush = SolidColor(Teal),
                         textStyle = TextStyle(fontSize = 13.sp, color = Ink), modifier = Modifier.fillMaxWidth())
                 }
             }
             Spacer(Modifier.height(8.dp))
             LazyColumn(Modifier.weight(1f)) {
-                items(list, key = { it.id ?: it.name.hashCode().toLong() }) { food ->
+                items(list, key = { "local-${it.id ?: it.name.hashCode()}" }) { food ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
                         Column(Modifier.weight(1f)) {
                             Text(food.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
@@ -615,6 +654,30 @@ private fun AddToTodaySheet(foods: List<FoodDto>, plannedSlots: List<String>, on
                                 .clickable { food.id?.let { onAdd(it, slot, defaultQtyFor(unit.value), unit) } }.padding(horizontal = 12.dp, vertical = 7.dp))
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                }
+                // Search the public food database (Open Food Facts) for anything not in your foods.
+                if (query.isNotBlank()) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)
+                            .clickable { onSearchOnline(query) }) {
+                            Text("⌕ Search online for \"$query\"", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.weight(1f))
+                            if (onlineSearching) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp, color = Teal)
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                    }
+                    items(onlineResults, key = { "online-${it.name.hashCode()}-${it.caloriesPer100}" }) { food ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text(food.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                                Text("${food.caloriesPer100.toInt()} kcal / 100g · online", fontSize = 10.5.sp, color = MutedLight)
+                            }
+                            val unit = food.unit ?: FoodUnit.GRAM
+                            Text("+ Add", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = OnlineAdd,
+                                modifier = Modifier.clip(RoundedCornerShape(9.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(9.dp))
+                                    .clickable { onAddOnline(food, slot, defaultQtyFor(unit.value), unit) }.padding(horizontal = 12.dp, vertical = 7.dp))
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                    }
                 }
             }
         }
