@@ -64,6 +64,8 @@ import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.Ink
 import com.mealplanplus.ui.theme.MutedDark
 import com.mealplanplus.ui.theme.MutedFaint
+import com.mealplanplus.BuildConfig
+import androidx.compose.ui.text.style.TextAlign
 import com.mealplanplus.ui.theme.MutedLight
 import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
@@ -174,6 +176,11 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                 // ── Notifications (collapsible) ────────────────────────────────────
                 NotificationsSection(notifSettings, onToggleNotif, viewModel::setQuietHours)
                 Spacer(Modifier.height(28.dp))
+                Text(
+                    "© MealPlan+ · v${BuildConfig.VERSION_NAME}",
+                    fontSize = 11.sp, color = MutedFaint, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                )
             }
         }
     }

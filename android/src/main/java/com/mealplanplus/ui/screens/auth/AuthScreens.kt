@@ -45,6 +45,8 @@ import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.Danger
 import com.mealplanplus.ui.theme.Ink
+import com.mealplanplus.ui.theme.MutedDark
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.mealplanplus.ui.theme.Muted
 import com.mealplanplus.ui.theme.OnAccent
 import com.mealplanplus.ui.theme.Surface
@@ -80,7 +82,7 @@ fun AuthScreen(vm: AuthViewModel, onForgotPassword: () -> Unit) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("MealPlan+", color = Teal, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
-                Text(if (register) "Create account" else "Welcome back", color = Muted, fontSize = 13.sp)
+                Text(if (register) "Create account" else "Welcome back", color = MutedDark, fontSize = 13.sp)
             }
             Spacer(Modifier.height(24.dp))
 
@@ -132,7 +134,7 @@ fun AuthScreen(vm: AuthViewModel, onForgotPassword: () -> Unit) {
 
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                Text(if (register) "Already have an account?  " else "Need an account?  ", color = Muted, fontSize = 12.sp)
+                Text(if (register) "Already have an account?  " else "Need an account?  ", color = MutedDark, fontSize = 12.sp)
                 Text(
                     if (register) "Sign in" else "Create one",
                     color = Teal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
@@ -226,7 +228,7 @@ private fun LabeledField(
     visual: VisualTransformation = VisualTransformation.None,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, color = Muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(label, color = MutedDark, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         OutlinedTextField(
             value = value, onValueChange = onValueChange,
             singleLine = true,
@@ -234,6 +236,11 @@ private fun LabeledField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Ink, unfocusedTextColor = Ink,
+                focusedBorderColor = Teal, unfocusedBorderColor = MutedDark,
+                cursorColor = Teal,
+            ),
         )
     }
 }

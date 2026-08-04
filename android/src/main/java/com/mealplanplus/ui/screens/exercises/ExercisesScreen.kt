@@ -34,6 +34,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -274,6 +281,18 @@ private fun LogsTab(state: ExercisesUiState, vm: ExercisesViewModel) {
     if (state.loading) { LoadingOrEmpty("Loading…"); return }
     // Recent sessions capped to the last 7 days.
     val recent = state.logs.filter { s -> s.date?.let { !it.isBefore(state.today.minusDays(7)) } ?: true }
+    var confirmClear by remember { mutableStateOf(false) }
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Clear all logs?") },
+            text = { Text("This permanently deletes every logged session. This can't be undone.") },
+            confirmButton = { Text("Clear all", color = Danger, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { confirmClear = false; vm.clearAllLogs() }.padding(8.dp)) },
+            dismissButton = { Text("Cancel", color = MutedDark,
+                modifier = Modifier.clickable { confirmClear = false }.padding(8.dp)) },
+        )
+    }
     LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
         item {
             LogsCalendar(state, onPrev = vm::prevLogsMonth, onNext = vm::nextLogsMonth,
@@ -283,6 +302,10 @@ private fun LogsTab(state: ExercisesUiState, vm: ExercisesViewModel) {
                 Text("Recent sessions", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.width(6.dp))
                 Text("· last 7 days", fontSize = 10.5.sp, color = MutedFaint)
+                Spacer(Modifier.weight(1f))
+                if (state.logs.isNotEmpty())
+                    Text("Clear all", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Danger,
+                        modifier = Modifier.clickable { confirmClear = true })
             }
         }
         if (recent.isEmpty()) {
@@ -390,45 +413,89 @@ private fun logMeta(s: com.mealplanplus.data.generated.model.WorkoutSessionDto, 
     return parts.joinToString(" · ")
 }
 
-// ── Log detail (full-screen, read-only) ────────────────────────────────────────
+// ── Log detail (full-screen; view + inline edit of reps/weight) ─────────────────
 @Composable
 private fun LogDetailScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
     val s = state.openLog ?: return
     val exName = state.exerciseName
-    // Group sets by exercise, preserving first-seen order.
     val grouped = (s.sets ?: emptyList()).groupBy { it.exerciseId }
+    var editing by remember(s.id) { mutableStateOf(false) }
+    // Editable buffers as raw strings (no input loss on partial "12." etc.), parallel to the sets.
+    val baseSets = remember(s.id) { (s.sets ?: emptyList()).sortedBy { it.setNumber } }
+    val repsStr = remember(s.id) { mutableStateListOf<String>().also { l -> baseSets.forEach { l.add(it.reps?.toString() ?: "") } } }
+    val weightStr = remember(s.id) { mutableStateListOf<String>().also { l -> baseSets.forEach { l.add(it.weightKg?.let(::fmtKgPlain) ?: "") } } }
+
     Column(Modifier.fillMaxSize().background(AppBg)) {
-        EditorHeader(s.name, onBack = vm::closeLog)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+            IconButton(onClick = vm::closeLog) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Ink) }
+            Text(s.name, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
+            if (editing) {
+                Text("Save", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable {
+                    val newSets = baseSets.mapIndexed { i, set -> set.copy(reps = repsStr[i].toIntOrNull(), weightKg = weightStr[i].toDoubleOrNull()) }
+                    vm.updateLog(s.copy(sets = newSets)); editing = false
+                }.padding(8.dp))
+            } else {
+                Text("Edit", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable { editing = true }.padding(8.dp))
+            }
+        }
         LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
             item {
-                Text(logMeta(s, grouped.size, (s.sets ?: emptyList()).size), fontSize = 11.sp, color = MutedLight,
-                    modifier = Modifier.padding(bottom = 6.dp))
-                s.notes?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, fontSize = 12.sp, color = MutedDark, modifier = Modifier.padding(bottom = 6.dp))
-                }
+                Text(logMeta(s, grouped.size, (s.sets ?: emptyList()).size), fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(bottom = 6.dp))
+                s.notes?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 12.sp, color = MutedDark, modifier = Modifier.padding(bottom = 6.dp)) }
                 Spacer(Modifier.height(4.dp))
             }
-            items(grouped.entries.toList(), key = { it.key }) { (exId, sets) ->
-                AppCard {
-                    Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
-                        Text("Set", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(48.dp))
-                        Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
-                        Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
-                    }
-                    sets.sortedBy { it.setNumber }.forEachIndexed { i, set ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                            Text("${i + 1}", fontSize = 11.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(48.dp))
-                            Text(set.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
-                            Text(set.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+            if (editing) {
+                // Group the editable sets by exercise (like the read-only view), tracking each set's
+                // index into the reps/weight buffers so edits map back correctly.
+                val editGroups = baseSets.indices.groupBy { baseSets[it].exerciseId }
+                items(editGroups.entries.toList(), key = { it.key ?: 0L }) { (exId, idxs) ->
+                    AppCard {
+                        Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        idxs.forEachIndexed { n, i ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                                Text("Set ${n + 1}", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.width(56.dp))
+                                OutlinedTextField(repsStr[i], { repsStr[i] = it.filter(Char::isDigit) }, label = { Text("reps", fontSize = 10.sp) },
+                                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(92.dp))
+                                Spacer(Modifier.width(10.dp))
+                                OutlinedTextField(weightStr[i], { weightStr[i] = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("kg", fontSize = 10.sp) },
+                                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(96.dp))
+                            }
                         }
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
-                Spacer(Modifier.height(8.dp))
+            } else {
+                items(grouped.entries.toList(), key = { it.key }) { (exId, sets) ->
+                    AppCard {
+                        Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
+                            Text("Set", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(48.dp))
+                            Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
+                            Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                        }
+                        sets.sortedBy { it.setNumber }.forEachIndexed { i, set ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                                Text("${i + 1}", fontSize = 11.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(48.dp))
+                                Text(set.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
+                                Text(set.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            item {
+                Spacer(Modifier.height(4.dp))
+                s.id?.let { id ->
+                    Text("✕ Delete this log", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Danger,
+                        modifier = Modifier.fillMaxWidth().clickable { vm.deleteLog(id) }.padding(vertical = 12.dp))
+                }
             }
         }
     }
 }
+
+private fun fmtKgPlain(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()
 
 private fun fmtKg(v: Double): String = (if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()) + " kg"
 

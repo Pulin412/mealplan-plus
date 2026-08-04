@@ -124,8 +124,7 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
                 Spacer(Modifier.height(18.dp))
                 Text("Recent readings", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(bottom = 10.dp))
                 if (all.isEmpty()) {
-                    Text("No readings yet. Tap ＋ to log your first ${tab.metricLabel.lowercase()}.",
-                        fontSize = 12.sp, color = MutedLight, modifier = Modifier.padding(bottom = 20.dp))
+                    Text("—", fontSize = 12.sp, color = MutedLight, modifier = Modifier.padding(bottom = 20.dp))
                 } else {
                     all.asReversed().take(8).forEach { RecentRow(tab, it) }
                 }
@@ -430,7 +429,7 @@ private fun valueText(tab: HealthTab, m: HealthMetricDto): String =
  * `improving` flag (true = lower than start → shown green; null = no delta to show).
  */
 private fun deltaLabel(tab: HealthTab, latest: HealthMetricDto?, start: HealthMetricDto?, range: RangeWindow, count: Int): Pair<String, Boolean?> {
-    if (latest == null) return "No readings yet" to null
+    if (latest == null) return "—" to null
     if (start == null || count < 2 || start === latest) return "First reading in ${range.label}" to null
     val d = latest.value - start.value
     val arrow = if (d < 0) "▼" else if (d > 0) "▲" else "•"
