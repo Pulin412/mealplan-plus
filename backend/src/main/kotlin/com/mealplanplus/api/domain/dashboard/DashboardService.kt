@@ -141,7 +141,12 @@ class DashboardService(
         val foodsById   = if (foodIds.isEmpty()) emptyMap()
                           else foodRepo.findAllById(foodIds).associateBy { it.id }
 
-        return dietMeals.map { dm ->
+        // Emit slots in canonical display order — the Today screen (both clients) renders
+        // dashboard.slots in server order without re-sorting, so ordering is authoritative here.
+        // Unknown slot names sort to the end, preserving their relative DB order.
+        return dietMeals
+            .sortedBy { CANONICAL_SLOTS.indexOf(it.slot).let { i -> if (i < 0) Int.MAX_VALUE else i } }
+            .map { dm ->
             val meal  = mealsById[dm.mealId]
             val rawItems = itemsByMealId[dm.mealId] ?: emptyList()
             val items = rawItems.mapNotNull { item ->
@@ -225,5 +230,13 @@ class DashboardService(
         "TBSP"  -> quantity * (food.gramsPerTbsp ?: 1.0)
         "TSP"   -> quantity * (food.gramsPerTsp ?: 1.0)
         else    -> quantity   // GRAM, ML (density ~1)
+    }
+
+    private companion object {
+        /** The 11 canonical meal slots in display order — mirrors clients' MEAL_SLOTS/DIET_SLOTS. */
+        val CANONICAL_SLOTS = listOf(
+            "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
+            "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
+        )
     }
 }
