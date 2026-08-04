@@ -18,6 +18,11 @@ class UserService(private val userRepository: UserRepository) {
     fun getOrCreate(firebaseUid: String, email: String? = null, displayName: String? = null): UserResponse {
         val user = userRepository.findByFirebaseUid(firebaseUid)
             ?: userRepository.save(User(firebaseUid = firebaseUid, email = email, displayName = displayName))
+        // Backfill the email once we learn it from the token (rows created before we captured it).
+        if (user.email.isNullOrBlank() && !email.isNullOrBlank()) {
+            user.email = email
+            userRepository.save(user)
+        }
         return user.toResponse()
     }
 

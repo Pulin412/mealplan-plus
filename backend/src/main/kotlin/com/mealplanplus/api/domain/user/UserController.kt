@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class UserController(private val userService: UserService) : UsersApi {
 
-    override fun getMe(): ResponseEntity<UserResponse> =
-        ResponseEntity.ok(userService.getOrCreate(currentUid()))
+    override fun getMe(): ResponseEntity<UserResponse> {
+        val auth = SecurityContextHolder.getContext().authentication
+        return ResponseEntity.ok(userService.getOrCreate(auth.name, auth.details as? String))
+    }
 
     override fun updateMe(userUpdateRequest: UserUpdateRequest): ResponseEntity<UserResponse> =
         ResponseEntity.ok(userService.update(currentUid(), userUpdateRequest))
