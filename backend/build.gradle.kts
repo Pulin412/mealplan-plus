@@ -47,6 +47,12 @@ dependencies {
     // OpenAPI / Swagger UI
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 
+    // Observability
+    // Structured JSON logs on the prod profile → Cloud Logging parses stdout JSON (see logback-spring.xml).
+    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
+    // Backend error tracking. Dormant until SENTRY_DSN is set (free tier); empty DSN = SDK disabled.
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.14.0")
+
     // DB drivers
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.h2database:h2")
