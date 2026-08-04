@@ -1263,6 +1263,63 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/v1/logging/days/{date}/toggle:
+    post:
+      tags: [Logging]
+      summary: Toggle a day's completed state
+      description: |
+        Flips whether the given day is marked complete. A completed day is the unit counted by the
+        streak — a day with logged meals but not marked complete does not count. Returns the new state.
+      operationId: toggleDayComplete
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Updated completion state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayCompletionDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/logging/days:
+    get:
+      tags: [Logging]
+      summary: List completed days in a range
+      description: Returns the dates marked complete within [from, to], for the Plan calendar dots.
+      operationId: getCompletedDays
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Completed dates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: date
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/logging/foods:
     get:
       tags: [Logging]
@@ -1918,6 +1975,17 @@ components:
 
     # ── Dashboard ─────────────────────────────────────────────────────────────
 
+    DayCompletionDto:
+      type: object
+      description: A day's completion state (the unit counted by the streak).
+      properties:
+        date:
+          type: string
+          format: date
+        completed:
+          type: boolean
+      required: [date, completed]
+
     DashboardDto:
       type: object
       description: Full Today / Home screen payload.
@@ -1948,6 +2016,9 @@ components:
           description: Foods added individually via FAB (outside the slot plan)
         streak:
           $ref: '#/components/schemas/StreakDto'
+        dayCompleted:
+          type: boolean
+          description: Whether the user has marked this day complete (drives the Home tick + streak).
         todaySteps:
           type: number
           format: double

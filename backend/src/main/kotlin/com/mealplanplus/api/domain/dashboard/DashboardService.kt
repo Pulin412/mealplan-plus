@@ -39,6 +39,7 @@ class DashboardService(
     private val mealRepo: MealRepository,
     private val mealFoodItemRepo: MealFoodItemRepository,
     private val userRepo: UserRepository,
+    private val dayCompletionRepo: com.mealplanplus.api.domain.log.DayCompletionRepository,
 ) {
     fun get(firebaseUid: String, clientDate: LocalDate? = null): DashboardDto {
         val today = clientDate ?: LocalDate.now()
@@ -118,6 +119,7 @@ class DashboardService(
             slots               = slots,
             additionalFoods     = additionalFoods,
             streak              = streak,
+            dayCompleted        = dayCompletionRepo.findByFirebaseUidAndDate(firebaseUid, today) != null,
             todaySteps          = todaySteps,
             todayCaloriesBurned = todayCaloriesBurned,
             latestWeight        = latestWeight,
@@ -173,23 +175,25 @@ class DashboardService(
 
     private fun computeStreak(firebaseUid: String, today: LocalDate): StreakDto {
         val since  = today.minusDays(89)
-        val allSlots = slotRepo.findByFirebaseUidAndDateBetween(firebaseUid, since, today)
-        val datesWithLog = allSlots.filter { it.isLogged }.map { it.date }.toSet()
+        // A day counts only if explicitly marked complete (not merely logged).
+        val completed = dayCompletionRepo.findByFirebaseUidAndDateBetween(firebaseUid, since, today)
+            .map { it.date }.toSet()
 
-        // Current streak — walk back from today
+        // Current streak — walk back from today. Today left un-ticked doesn't break the run until the
+        // day passes, so start from yesterday when today isn't yet complete.
         var current = 0
-        var cursor  = today
-        while (cursor >= since && cursor in datesWithLog) { current++; cursor = cursor.minusDays(1) }
+        var cursor  = if (today in completed) today else today.minusDays(1)
+        while (cursor >= since && cursor in completed) { current++; cursor = cursor.minusDays(1) }
 
         // Best streak in the 90-day window
         var best = 0; var run = 0
         for (offset in 0L..89L) {
             val d = since.plusDays(offset)
-            if (d in datesWithLog) { run++; if (run > best) best = run } else run = 0
+            if (d in completed) { run++; if (run > best) best = run } else run = 0
         }
 
         // 7-day dots (index 0 = 6 days ago, index 6 = today)
-        val dots = (6 downTo 0).map { today.minusDays(it.toLong()) in datesWithLog }
+        val dots = (6 downTo 0).map { today.minusDays(it.toLong()) in completed }
 
         return StreakDto(current = current, best = best, dots = dots)
     }

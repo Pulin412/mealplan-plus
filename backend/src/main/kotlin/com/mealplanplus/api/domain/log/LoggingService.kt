@@ -16,8 +16,27 @@ import java.time.ZoneOffset
 class LoggingService(
     private val slotRepo: LoggedMealSlotRepository,
     private val logRepo: DailyLogRepository,
-    private val foodRepo: LoggedFoodRepository
+    private val foodRepo: LoggedFoodRepository,
+    private val dayCompletionRepo: DayCompletionRepository,
 ) {
+    // ── Day completion (streak unit) ──────────────────────────────────────────
+
+    /** Flip whether [date] is marked complete; returns the new state (true = completed). */
+    @Transactional
+    fun toggleDayComplete(firebaseUid: String, date: LocalDate): Boolean {
+        val existing = dayCompletionRepo.findByFirebaseUidAndDate(firebaseUid, date)
+        return if (existing != null) {
+            dayCompletionRepo.deleteByFirebaseUidAndDate(firebaseUid, date); false
+        } else {
+            dayCompletionRepo.save(DayCompletion(firebaseUid = firebaseUid, date = date)); true
+        }
+    }
+
+    /** Dates marked complete within [from, to] (inclusive) — for the Plan calendar. */
+    fun getCompletedDays(firebaseUid: String, from: LocalDate, to: LocalDate): List<LocalDate> =
+        dayCompletionRepo.findByFirebaseUidAndDateBetween(firebaseUid, from, to).map { it.date }
+
+
     // ── Slot toggle ───────────────────────────────────────────────────────────
 
     fun getSlots(firebaseUid: String, date: LocalDate): List<LoggedMealSlotDto> =
