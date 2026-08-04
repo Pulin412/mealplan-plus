@@ -38,7 +38,10 @@ data class DietSummary(
     val tags: List<String> = emptyList(),
 )
 
-private val SLOT_ORDER = listOf("BREAKFAST", "LUNCH", "DINNER", "SNACK")
+private val SLOT_ORDER = listOf(
+    "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
+    "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
+)
 
 data class PlanUiState(
     val loading: Boolean = true,

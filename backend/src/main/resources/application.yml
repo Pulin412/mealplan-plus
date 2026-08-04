@@ -87,3 +87,12 @@ logging:
   level:
     com.mealplanplus: DEBUG
     org.springframework.security: INFO
+
+# Backend error tracking. Disabled unless SENTRY_DSN is set (blank locally + in tests → no-op).
+# traces-sample-rate 0 = errors only, no performance sampling (keeps it firmly in the free tier);
+# send-default-pii false = never attach request headers / user IP / cookies.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:local}
+  send-default-pii: false
+  traces-sample-rate: 0.0
