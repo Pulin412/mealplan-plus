@@ -85,6 +85,11 @@ import java.time.format.DateTimeFormatter
 /** Diastolic line colour (design spec: violet on the BP chart). */
 private val Diastolic = Color(0xFFC7A4DD)
 private val DateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")
+/** Recent-readings list shows the full date incl. year (chart axis keeps the short DateFmt). */
+private val RowDateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy")
+
+/** How many recent readings to reveal per "Load more" tap. */
+private const val READINGS_PAGE = 10
 
 @Composable
 fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
@@ -126,7 +131,21 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
                 if (all.isEmpty()) {
                     Text("—", fontSize = 12.sp, color = MutedLight, modifier = Modifier.padding(bottom = 20.dp))
                 } else {
-                    all.asReversed().take(8).forEach { RecentRow(tab, it) }
+                    // Paginated "Load more" — reveal READINGS_PAGE at a time, newest first.
+                    // Reset the page count whenever the tab changes.
+                    var shown by remember(tab) { mutableStateOf(READINGS_PAGE) }
+                    val reversed = all.asReversed()
+                    reversed.take(shown).forEach { RecentRow(tab, it) }
+                    if (shown < reversed.size) {
+                        val remaining = reversed.size - shown
+                        Box(contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 4.dp)
+                                .clip(RoundedCornerShape(11.dp)).border(1.dp, CardBorder, RoundedCornerShape(11.dp))
+                                .clickable { shown += READINGS_PAGE }.padding(vertical = 11.dp)) {
+                            Text("Load more · $remaining left", fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold, color = Teal)
+                        }
+                    }
                 }
                 Spacer(Modifier.height(90.dp))
             }
@@ -323,7 +342,7 @@ private fun RecentRow(tab: HealthTab, m: HealthMetricDto) {
         modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp)
             .clip(RoundedCornerShape(11.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(11.dp))
             .padding(horizontal = 12.dp, vertical = 11.dp)) {
-        Text(dateOf(m).format(DateFmt), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MutedDark)
+        Text(dateOf(m).format(RowDateFmt), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MutedDark)
         Spacer(Modifier.weight(1f))
         Text(valueText(tab, m), fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = DmMono, color = Ink)
         Spacer(Modifier.width(4.dp))
