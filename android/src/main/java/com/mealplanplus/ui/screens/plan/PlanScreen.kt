@@ -49,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.generated.model.DayPlanDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.ui.theme.AppBg
+import com.mealplanplus.ui.theme.AppText
 import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.Carbs
 import com.mealplanplus.ui.theme.Danger
@@ -381,7 +382,7 @@ private fun DietSlots(diet: DietSummary) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
                 SlotBadge(slot.slot)
                 Spacer(Modifier.weight(1f))
-                Text("${slot.kcal} kcal", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
+                Text("${slot.kcal} kcal", fontFamily = DmMono, fontSize = AppText.meta, color = MutedFaint)
             }
             // Group each meal header with the food lines that follow it; render meals expandable.
             mealBlocks(slot.lines).forEach { block ->
@@ -408,9 +409,9 @@ private fun ExpandableMeal(header: DietLine, foods: List<DietLine>) {
     val expandable = foods.isNotEmpty()
     Row(verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().then(if (expandable) Modifier.clickable { open = !open } else Modifier).padding(top = 4.dp)) {
-        Text(header.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.weight(1f))
+        Text(header.name, fontSize = AppText.itemName, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.weight(1f))
         if (expandable) Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
-        Text(header.meta, fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
+        Text(header.meta, fontSize = AppText.meta, color = MutedFaint, fontFamily = DmMono)
     }
     if (open) foods.forEach { FoodLineRow(it) }
 }
@@ -418,14 +419,14 @@ private fun ExpandableMeal(header: DietLine, foods: List<DietLine>) {
 @Composable
 private fun FoodLineRow(line: DietLine) {
     Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth().padding(top = 2.dp, start = 8.dp)) {
-        Text("• ${line.name}", fontSize = 11.sp, color = MutedDark, modifier = Modifier.weight(1f))
-        Text(line.meta, fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
+        Text("• ${line.name}", fontSize = AppText.subItem, color = MutedDark, modifier = Modifier.weight(1f))
+        Text(line.meta, fontSize = AppText.meta, color = MutedFaint, fontFamily = DmMono)
     }
 }
 
 @Composable
 private fun SlotBadge(slot: String) =
-    Text(slot.uppercase(), fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+    Text(slot.uppercase(), fontSize = AppText.slotLabel, fontWeight = FontWeight.SemiBold, color = Teal,
         modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f)).padding(horizontal = 6.dp, vertical = 2.dp))
 
 @Composable
