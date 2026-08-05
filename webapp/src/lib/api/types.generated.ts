@@ -934,10 +934,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit in-app feedback */
+        post: operations["submitFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FeedbackRequestDto: {
+            /** @description The user's feedback message */
+            message: string;
+            /** @description Client app version (e.g. versionName "2.2.7") */
+            appVersion?: string | null;
+            /** @description Client platform (e.g. "android") */
+            platform?: string | null;
+        };
+        FeedbackDto: {
+            /** Format: int64 */
+            id?: number;
+            message?: string;
+            appVersion?: string | null;
+            platform?: string | null;
+            /** Format: date-time */
+            readonly createdAt?: string;
+        };
         /**
          * @description Which entity type a tag belongs to
          * @enum {string}
@@ -3690,6 +3724,31 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    submitFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequestDto"];
+            };
+        };
+        responses: {
+            /** @description Feedback recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
 }
