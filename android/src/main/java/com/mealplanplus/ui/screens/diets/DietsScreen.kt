@@ -327,11 +327,10 @@ private fun DietListCard(
 private fun SlotGroup(slot: DietSlotUi) {
     Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 2.dp)) {
+            // Per-slot kcal intentionally omitted — each ingredient row already shows its calories.
             Text(slot.slot.uppercase(), fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
                 modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f))
                     .padding(horizontal = 6.dp, vertical = 2.dp))
-            Spacer(Modifier.weight(1f))
-            Text("${slot.kcal} kcal", fontFamily = DmMono, fontSize = 9.5.sp, color = MutedFaint)
         }
         slot.entries.forEach { e ->
             val expandable = e.kind == DietEntryKind.MEAL && e.mealFoods.isNotEmpty()
