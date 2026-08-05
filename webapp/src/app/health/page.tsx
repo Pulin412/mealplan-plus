@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -27,6 +27,13 @@ const fmtLabel = (iso: string) => {
   const [y, mo, d] = iso.split("-").map(Number);
   return new Date(y, mo - 1, d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
+// Recent-readings rows show the full date incl. year (the chart axis keeps fmtLabel).
+const fmtRowDate = (iso: string) => {
+  const [y, mo, d] = iso.split("-").map(Number);
+  return new Date(y, mo - 1, d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+};
+// How many recent readings to reveal per "Load more" click.
+const READINGS_PAGE = 10;
 const fmtNum = (v: number) => (v % 1 === 0 ? String(Math.round(v)) : v.toFixed(1));
 const valueText = (dual: boolean, m: HealthMetricDto) =>
   dual ? `${fmtNum(m.value)}/${fmtNum(m.secondaryValue ?? 0)}` : fmtNum(m.value);
@@ -188,6 +195,10 @@ function HealthPageInner() {
   const start = window.length ? window[0] : null;
   const dual = h.meta.id === "BLOOD_PRESSURE";
 
+  // Paginated "Load more" for the readings list; reset to the first page on tab change.
+  const [shown, setShown] = useState(READINGS_PAGE);
+  useEffect(() => setShown(READINGS_PAGE), [h.meta.id]);
+
   // delta vs range start (green when lower / improving)
   let deltaLabel = "—"; let improving: boolean | null = null;
   if (latest) {
@@ -267,15 +278,24 @@ function HealthPageInner() {
             {all.length === 0 ? (
               <div className="text-[12px] pb-5" style={{ color: C.muted2 }}>—</div>
             ) : (
-              [...all].reverse().slice(0, 8).map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-[11px] mb-[7px] px-3 py-[11px]"
-                  style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                  <span className="text-[12px] font-medium" style={{ color: C.muted3 }}>{fmtLabel(dateOf(m))}</span>
-                  <span className="text-[13px] font-bold" style={{ fontFamily: mono, color: C.ink }}>
-                    {valueText(dual, m)} <span className="text-[10px] font-normal" style={{ color: C.faint }}>{h.meta.unit}</span>
-                  </span>
-                </div>
-              ))
+              <>
+                {[...all].reverse().slice(0, shown).map((m) => (
+                  <div key={m.id} className="flex items-center justify-between rounded-[11px] mb-[7px] px-3 py-[11px]"
+                    style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                    <span className="text-[12px] font-medium" style={{ color: C.muted3 }}>{fmtRowDate(dateOf(m))}</span>
+                    <span className="text-[13px] font-bold" style={{ fontFamily: mono, color: C.ink }}>
+                      {valueText(dual, m)} <span className="text-[10px] font-normal" style={{ color: C.faint }}>{h.meta.unit}</span>
+                    </span>
+                  </div>
+                ))}
+                {shown < all.length && (
+                  <button onClick={() => setShown((n) => n + READINGS_PAGE)}
+                    className="w-full rounded-[11px] mb-[7px] px-3 py-[11px] text-[12px] font-semibold"
+                    style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.teal }}>
+                    Load more · {all.length - shown} left
+                  </button>
+                )}
+              </>
             )}
           </>
         )}
