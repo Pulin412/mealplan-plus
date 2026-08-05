@@ -98,11 +98,9 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JTextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.mealplanplus.data.model.MEAL_SLOTS
 
-private val HOME_SLOTS = listOf(
-    "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
-    "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
-)
+private val HOME_SLOTS = MEAL_SLOTS
 
 private val CardDark = Color(0xFF14181B)
 private val CardDarkText = Color(0xFFEDF1F2)

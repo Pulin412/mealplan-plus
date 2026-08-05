@@ -6,10 +6,10 @@ export type FoodUnit = components["schemas"]["FoodUnit"];
 
 export const FOOD_UNITS: FoodUnit[] = ["GRAM", "ML", "PIECE", "CUP", "TBSP", "TSP"];
 
-/** The 11 canonical meal slots, in display order. */
+/** Canonical meal slots, in display order — mirrors backend CANONICAL_SLOTS / android MEAL_SLOTS. */
 export const MEAL_SLOTS = [
-  "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
-  "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
+  "Early Morning", "Breakfast", "Noon", "Lunch", "Evening",
+  "Pre-Workout", "Post-Workout", "Dinner", "Post-Dinner",
 ];
 
 export function unitLabel(unit: string): string {

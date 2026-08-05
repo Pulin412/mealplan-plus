@@ -98,11 +98,9 @@ import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
 import kotlin.math.roundToInt
+import com.mealplanplus.data.model.MEAL_SLOTS
 
-private val DIET_SLOTS = listOf(
-    "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
-    "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
-)
+private val DIET_SLOTS = MEAL_SLOTS
 
 /** Diet slots in canonical [DIET_SLOTS] order; unknown slot names fall to the end. */
 private fun List<DietSlotUi>.inSlotOrder(): List<DietSlotUi> =
