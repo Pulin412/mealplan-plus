@@ -233,10 +233,10 @@ class DashboardService(
     }
 
     private companion object {
-        /** The 11 canonical meal slots in display order — mirrors clients' MEAL_SLOTS/DIET_SLOTS. */
+        /** Canonical meal slots in display order — mirrors clients' MEAL_SLOTS. Exact DB strings. */
         val CANONICAL_SLOTS = listOf(
-            "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
-            "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
+            "Early Morning", "Breakfast", "Noon", "Lunch", "Evening",
+            "Pre-Workout", "Post-Workout", "Dinner", "Post-Dinner",
         )
     }
 }

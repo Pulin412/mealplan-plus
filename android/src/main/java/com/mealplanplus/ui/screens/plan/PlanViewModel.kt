@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.cache.ResponseCache
 import com.mealplanplus.data.cache.render
+import com.mealplanplus.data.model.MEAL_SLOTS
 import com.mealplanplus.data.generated.api.DietsApi
 import com.mealplanplus.data.generated.api.LoggingApi
 import com.mealplanplus.data.generated.model.LoggedMealSlotDto
@@ -38,10 +39,7 @@ data class DietSummary(
     val tags: List<String> = emptyList(),
 )
 
-private val SLOT_ORDER = listOf(
-    "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
-    "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
-)
+private val SLOT_ORDER = MEAL_SLOTS
 
 data class PlanUiState(
     val loading: Boolean = true,

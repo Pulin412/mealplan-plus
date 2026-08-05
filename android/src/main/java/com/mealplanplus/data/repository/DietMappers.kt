@@ -9,6 +9,7 @@ import com.mealplanplus.data.model.DietEntry
 import com.mealplanplus.data.model.DietEntryKind
 import com.mealplanplus.data.model.DietTag
 import com.mealplanplus.data.model.Food
+import com.mealplanplus.data.model.MEAL_SLOTS
 import java.time.Instant
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -125,15 +126,10 @@ fun Diet.resolve(mealsById: Map<String, MealUi>, foodsById: Map<String, Food>): 
 }
 
 /** Canonical slot order for the slots present, unknowns appended in first-seen order. */
-private val CANONICAL_SLOTS = listOf(
-    "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
-    "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
-)
-
 private fun DIET_SLOT_ORDER(present: List<String>): List<String> {
     val distinct = present.distinct()
-    val known = CANONICAL_SLOTS.filter { it in distinct }
-    val unknown = distinct.filter { it !in CANONICAL_SLOTS }
+    val known = MEAL_SLOTS.filter { it in distinct }
+    val unknown = distinct.filter { it !in MEAL_SLOTS }
     return known + unknown
 }
 

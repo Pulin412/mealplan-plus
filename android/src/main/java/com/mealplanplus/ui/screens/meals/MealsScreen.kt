@@ -98,6 +98,7 @@ import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
 import kotlin.math.roundToInt
+import com.mealplanplus.data.model.MEAL_SLOTS
 import kotlinx.coroutines.launch
 
 @Composable
@@ -430,10 +431,7 @@ private fun EmptyState(icon: String, title: String, subtitle: String) {
 }
 
 // ── New meal builder (design-exact) ──────────────────────────────────────────
-private val MEAL_SLOTS = listOf(
-    "Early Breakfast", "Breakfast", "Noon", "Pre-Lunch", "Post-Lunch", "Evening",
-    "Pre-workout", "Post-workout", "Pre-dinner", "Dinner", "Post Dinner",
-)
+// Slot vocabulary is the shared MEAL_SLOTS (data.model) — see import above.
 
 private enum class AddMode { NONE, SEARCH, ONLINE, MANUAL }
 
