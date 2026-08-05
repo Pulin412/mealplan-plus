@@ -31,11 +31,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -98,6 +101,11 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
             }
         }
     }
+    LaunchedEffect(Unit) {
+        viewModel.feedbackResult.collect { msg -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
+    }
+    var showFeedback by remember { mutableStateOf(false) }
+    var feedbackText by remember { mutableStateOf("") }
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Row(
@@ -175,6 +183,26 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
 
                 // ── Notifications (collapsible) ────────────────────────────────────
                 NotificationsSection(notifSettings, onToggleNotif, viewModel::setQuietHours)
+
+                // ── Feedback ───────────────────────────────────────────────────────
+                SectionLabel("Feedback")
+                Card {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { showFeedback = true }.padding(horizontal = 14.dp, vertical = 12.dp),
+                    ) {
+                        Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFDFEAF6)), Alignment.Center) {
+                            Text("💬", fontSize = 16.sp)
+                        }
+                        Spacer(Modifier.width(11.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Send feedback", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                            Text("Report a bug or suggest an improvement", fontSize = 11.5.sp, color = MutedLight)
+                        }
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MutedFaint, modifier = Modifier.size(18.dp))
+                    }
+                }
+
                 Spacer(Modifier.height(28.dp))
                 Text(
                     "© MealPlan+ · v${BuildConfig.VERSION_NAME}",
@@ -183,6 +211,42 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                 )
             }
         }
+    }
+
+    if (showFeedback) {
+        val submitting by viewModel.feedbackSubmitting.collectAsState()
+        AlertDialog(
+            onDismissRequest = { if (!submitting) showFeedback = false },
+            containerColor = Surface,
+            title = { Text("Send feedback", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink) },
+            text = {
+                Column {
+                    Text(
+                        "Tell us what's working or what's not. Your app version is included automatically.",
+                        fontSize = 12.5.sp, color = MutedLight,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = feedbackText,
+                        onValueChange = { feedbackText = it },
+                        modifier = Modifier.fillMaxWidth().height(140.dp),
+                        placeholder = { Text("Your feedback…", color = MutedFaint) },
+                        enabled = !submitting,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.sendFeedback(feedbackText); feedbackText = ""; showFeedback = false },
+                    enabled = !submitting && feedbackText.isNotBlank(),
+                ) { Text("Send", color = Teal, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFeedback = false }, enabled = !submitting) {
+                    Text("Cancel", color = MutedDark)
+                }
+            },
+        )
     }
 }
 
