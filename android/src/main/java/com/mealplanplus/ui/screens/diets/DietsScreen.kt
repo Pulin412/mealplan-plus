@@ -81,6 +81,7 @@ import com.mealplanplus.ui.components.FavoriteStar
 import com.mealplanplus.ui.components.MacroText
 import com.mealplanplus.ui.components.SegmentedControl
 import com.mealplanplus.ui.theme.AppBg
+import com.mealplanplus.ui.theme.AppText
 import com.mealplanplus.ui.theme.BorderCool
 import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.Danger
@@ -328,7 +329,7 @@ private fun SlotGroup(slot: DietSlotUi) {
     Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 2.dp)) {
             // Per-slot kcal intentionally omitted — each ingredient row already shows its calories.
-            Text(slot.slot.uppercase(), fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+            Text(slot.slot.uppercase(), fontSize = AppText.slotLabel, fontWeight = FontWeight.SemiBold, color = Teal,
                 modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f))
                     .padding(horizontal = 6.dp, vertical = 2.dp))
         }
@@ -343,20 +344,20 @@ private fun SlotGroup(slot: DietSlotUi) {
                         .padding(vertical = 2.dp),
                 ) {
                     Text((if (e.kind == DietEntryKind.MEAL) "🍲 " else "") + e.name,
-                        fontSize = 11.5.sp, fontWeight = FontWeight.Medium, color = MealItemName,
+                        fontSize = AppText.itemName, fontWeight = FontWeight.Medium, color = MealItemName,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (expandable) Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
                     Spacer(Modifier.width(8.dp))
-                    Text(e.meta, fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
+                    Text(e.meta, fontFamily = DmMono, fontSize = AppText.meta, color = MutedFaint)
                 }
                 if (expandable && open) {
                     Column(Modifier.fillMaxWidth().padding(start = 18.dp, top = 1.dp, bottom = 3.dp)) {
                         e.mealFoods.forEach { f ->
                             Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("• ${f.name}", fontSize = 10.5.sp, color = MutedLight,
+                                Text("• ${f.name}", fontSize = AppText.subItem, color = MutedLight,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                 Spacer(Modifier.width(6.dp))
-                                Text(f.meta, fontFamily = DmMono, fontSize = 9.5.sp, color = MutedFaint)
+                                Text(f.meta, fontFamily = DmMono, fontSize = AppText.meta, color = MutedFaint)
                             }
                         }
                     }
