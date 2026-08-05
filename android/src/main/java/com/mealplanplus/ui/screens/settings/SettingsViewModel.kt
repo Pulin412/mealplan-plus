@@ -2,8 +2,10 @@ package com.mealplanplus.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mealplanplus.BuildConfig
 import com.mealplanplus.data.export.CsvExporter
 import com.mealplanplus.data.export.ExportRepository
+import com.mealplanplus.data.repository.FeedbackRepository
 import com.mealplanplus.data.healthconnect.HealthConnectManager
 import com.mealplanplus.data.healthconnect.HealthConnectSummary
 import com.mealplanplus.data.notifications.NotificationScheduler
@@ -36,6 +38,7 @@ data class HealthConnectUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val exportRepository: ExportRepository,
+    private val feedbackRepository: FeedbackRepository,
     private val notificationStore: NotificationStore,
     private val notificationScheduler: NotificationScheduler,
     private val healthConnect: HealthConnectManager,
@@ -102,6 +105,29 @@ class SettingsViewModel @Inject constructor(
             result.fold(
                 onSuccess = { csv -> _events.emit(ExportEvent.Share("mealplan-export-${LocalDate.now()}.csv", csv)) },
                 onFailure = { _events.emit(ExportEvent.Error(it.message ?: "Export failed")) },
+            )
+        }
+    }
+
+    // ── Feedback ────────────────────────────────────────────────────────────────
+    private val _feedbackSubmitting = MutableStateFlow(false)
+    val feedbackSubmitting: StateFlow<Boolean> = _feedbackSubmitting.asStateFlow()
+
+    /** One-shot toast text after a submit attempt (success or failure). */
+    private val _feedbackResult = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val feedbackResult: SharedFlow<String> = _feedbackResult
+
+    /** POST the message with this build's version so feedback can be triaged by release. */
+    fun sendFeedback(message: String) {
+        val text = message.trim()
+        if (text.isEmpty() || _feedbackSubmitting.value) return
+        viewModelScope.launch {
+            _feedbackSubmitting.value = true
+            val result = feedbackRepository.submit(text, appVersion = BuildConfig.VERSION_NAME)
+            _feedbackSubmitting.value = false
+            _feedbackResult.emit(
+                if (result.isSuccess) "Thanks for your feedback!"
+                else "Couldn't send feedback — please try again",
             )
         }
     }

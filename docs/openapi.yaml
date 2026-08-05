@@ -61,6 +61,8 @@ tags:
     description: Shopping lists, optionally linked to a diet
   - name: Sync
     description: Delta sync — push local changes, pull server changes since a timestamp
+  - name: Feedback
+    description: In-app user feedback submissions
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PATHS
@@ -1776,6 +1778,27 @@ paths:
         '401':
           description: Missing or invalid reminder token
 
+  /api/v1/feedback:
+    post:
+      tags: [Feedback]
+      summary: Submit in-app feedback
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequestDto'
+      responses:
+        '201':
+          description: Feedback recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
 # ─────────────────────────────────────────────────────────────────────────────
 # COMPONENTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1814,6 +1837,42 @@ components:
       description: Resource not found
 
   schemas:
+
+    FeedbackRequestDto:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          maxLength: 5000
+          description: The user's feedback message
+        appVersion:
+          type: string
+          nullable: true
+          description: Client app version (e.g. versionName "2.2.7")
+        platform:
+          type: string
+          nullable: true
+          description: Client platform (e.g. "android")
+
+    FeedbackDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        message:
+          type: string
+        appVersion:
+          type: string
+          nullable: true
+        platform:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
 
     # ── Enums ─────────────────────────────────────────────────────────────────
 
