@@ -22,3 +22,21 @@ val Typography = Typography(
     bodyMedium = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp),
     labelSmall = TextStyle(fontWeight = FontWeight.Medium, fontSize = 11.sp)
 )
+
+/**
+ * Semantic font-size tokens — the single place to tune text sizes for list/detail
+ * content across screens. Screens reference these instead of hardcoding `sp`, so a
+ * readability change is one edit here. Any individual `Text` may still pass its own
+ * `fontSize = …` to override a token locally where a screen needs something different.
+ *
+ * Bumped up from the previous inline literals (slot labels were 8.5, metas 9.5–10,
+ * item names 11.5–12) for legibility on the Plan and Diets screens.
+ */
+object AppText {
+    val slotLabel = 10.sp   // slot header chips (BREAKFAST, LUNCH, …)
+    val meta      = 11.sp   // kcal / macro / secondary numeric rows
+    val subItem   = 11.5.sp // nested foods listed under a meal
+    val itemName  = 13.sp   // meal & ingredient names
+    val section   = 13.sp   // section titles ("Plan", "Today's meals")
+    val body      = 13.sp   // default body copy
+}
