@@ -44,9 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.LaunchedEffect
 import com.mealplanplus.Legal
-import com.mealplanplus.ui.components.RulerPicker
 import com.mealplanplus.ui.components.Stepper
 import com.mealplanplus.data.generated.model.UserUpdateRequest
 import com.mealplanplus.ui.theme.AppBg
@@ -205,20 +203,12 @@ private fun DetailsStep(
             listOf(UserUpdateRequest.Gender.MALE to "Male", UserUpdateRequest.Gender.FEMALE to "Female", UserUpdateRequest.Gender.OTHER to "Other")
                 .forEach { (v, label) -> Chip(label, sex == v, Modifier.weight(1f)) { onSex(v) } }
         }
-        Spacer(Modifier.height(8.dp))
-        MetricRuler("Age", age, onAge, 5..120, 30, "years")
-        MetricRuler("Height", height, onHeight, 100..250, 170, "cm")
-        MetricRuler("Weight", weight, onWeight, 20..300, 70, "kg")
-    }
-}
-
-@Composable
-private fun MetricRuler(label: String, value: String, onChange: (String) -> Unit, range: IntRange, default: Int, suffix: String) {
-    // Pre-fill the (required) field with a sensible default so the shown value is also the state.
-    LaunchedEffect(Unit) { if (value.isBlank()) onChange(default.toString()) }
-    Column(Modifier.padding(top = 12.dp)) {
-        Text(label, color = Muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
-        RulerPicker(value.toIntOrNull()?.coerceIn(range.first, range.last) ?: default, { onChange(it.toString()) }, range, suffix = suffix)
+        Spacer(Modifier.height(12.dp))
+        // Plain stacked numeric fields (like the login form) — the old horizontal ruler picker
+        // overflowed the screen on smaller devices.
+        Field("Age (years)", age, onAge)
+        Field("Height (cm)", height, onHeight)
+        Field("Weight (kg)", weight, onWeight)
     }
 }
 
