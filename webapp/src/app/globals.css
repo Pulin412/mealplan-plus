@@ -64,3 +64,15 @@ body {
   color: #8a949b;
   font: 400 12px system-ui;
 }
+
+/* Guided tour — explicit Skip button on the left of the footer (mirrors Android). */
+.driver-popover.mp-tour .driver-popover-footer { display: flex; align-items: center; }
+.driver-popover.mp-tour .mp-tour-skip {
+  background: transparent;
+  border: none;
+  color: #8a949b;
+  font: 600 13px system-ui;
+  cursor: pointer;
+  margin-right: auto;
+  padding: 7px 4px;
+}

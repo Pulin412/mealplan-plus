@@ -76,6 +76,16 @@ export async function startTour(router: RouterLike): Promise<void> {
       d.moveNext();
     },
     onCloseClick: () => { d.destroy(); },
+    // Inject an explicit "Skip" into the footer (like Android) — Driver.js only shows a corner X.
+    // Hidden on the last step, where the primary button is already "Done".
+    onPopoverRender: (popover) => {
+      if (d.isLastStep()) return;
+      const skip = document.createElement("button");
+      skip.innerText = "Skip";
+      skip.className = "mp-tour-skip";
+      skip.addEventListener("click", () => d.destroy());
+      popover.footer.insertBefore(skip, popover.footer.firstChild);
+    },
   });
   d.drive();
 }
