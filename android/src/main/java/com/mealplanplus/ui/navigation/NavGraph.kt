@@ -13,11 +13,18 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import com.mealplanplus.ui.tour.LocalTourController
+import com.mealplanplus.ui.tour.TourOverlay
+import com.mealplanplus.ui.tour.TourViewModel
+import com.mealplanplus.ui.tour.rememberTourController
+import com.mealplanplus.ui.tour.tourTarget
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -110,12 +117,27 @@ fun MealPlanNavHost() {
     // Persistent bottom nav on every in-app screen, except the full-screen Session Runner.
     val showBottomBar = currentDest?.route?.startsWith("runner") != true
 
+    // First-run guided tour: a spotlight overlay drawn above the Scaffold (so it can dim the bottom
+    // nav). The controller holds live target bounds, provided to inner screens via LocalTourController.
+    val tourViewModel: TourViewModel = hiltViewModel()
+    val tourSeen by tourViewModel.seen.collectAsState()
+    val tour = rememberTourController()
+    LaunchedEffect(Unit) {
+        // TEMP (debug only): always launch the tour on app start so it can be tested repeatedly.
+        // The release build still respects the once-per-device flag. Also replayable from Settings.
+        // TODO: remove the BuildConfig.DEBUG bypass before the next release build.
+        if (com.mealplanplus.BuildConfig.DEBUG || !tourSeen) tour.start()
+    }
+
+    CompositionLocalProvider(LocalTourController provides tour) {
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
                     bottomNavItems.forEach { (screen, icon) ->
                         NavigationBarItem(
+                            modifier = Modifier.tourTarget("nav_${screen.route}", tour),
                             selected = currentDest?.hierarchy?.any { it.route == screen.route } == true,
                             onClick  = {
                                 // Tapping a tab returns to that top-level screen, clearing any
@@ -191,5 +213,11 @@ fun MealPlanNavHost() {
                 GroceryScreen(onMenu = { navController.popBackStack() })
             }
         }
+    }
+
+        if (tour.running) {
+            TourOverlay(tour, navController, onFinish = { tourViewModel.markSeen() })
+        }
+    }
     }
 }
