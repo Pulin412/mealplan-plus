@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { startTour } from "@/lib/tour";
+import { submitFeedback } from "@/lib/api/feedback";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { collectExportData, downloadCsv } from "@/lib/export/collectExport";
 import { buildCsv } from "@/lib/export/csvExporter";
@@ -103,6 +104,26 @@ function SettingsInner() {
   const [connected, setConnected] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [sendingFeedback, setSendingFeedback] = useState(false);
+
+  async function handleSendFeedback() {
+    const text = feedbackText.trim();
+    if (!text || sendingFeedback) return;
+    setSendingFeedback(true);
+    try {
+      await submitFeedback(text, APP_VERSION);
+      setFeedbackText("");
+      setFeedbackOpen(false);
+      alert("Thanks for your feedback!");
+    } catch {
+      alert("Couldn't send feedback — please try again.");
+    } finally {
+      setSendingFeedback(false);
+    }
+  }
+
   async function handleExport() {
     if (exporting) return;
     setExporting(true);
@@ -154,6 +175,20 @@ function SettingsInner() {
           </div>
         </div>
 
+        {/* Feedback */}
+        <SectionLabel text="Feedback" />
+        <div style={cardStyle}>
+          <div onClick={() => setFeedbackOpen(true)}
+            style={{ display: "flex", alignItems: "center", padding: "12px 14px", cursor: "pointer" }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#dfeaf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>💬</div>
+            <div style={{ marginLeft: 11, flex: 1 }}>
+              <div style={{ font: "600 14px system-ui", color: C.ink }}>Send feedback</div>
+              <div style={{ font: "400 11.5px system-ui", color: C.muted2 }}>Report a bug or suggest an improvement</div>
+            </div>
+            <span style={{ color: "#c4ccd1", fontSize: 15 }}>›</span>
+          </div>
+        </div>
+
         {/* Help */}
         <SectionLabel text="Help" />
         <div style={cardStyle}>
@@ -180,6 +215,31 @@ function SettingsInner() {
 
         <div style={{ textAlign: "center", font: "400 11px system-ui", color: "#9aa4aa", margin: "24px 0" }}>© MealPlan+ · v{APP_VERSION}</div>
       </div>
+
+      {feedbackOpen && (
+        <div onClick={() => !sendingFeedback && setFeedbackOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 380, background: C.surface, borderRadius: 14, padding: 18 }}>
+            <div style={{ font: "700 17px system-ui", color: C.ink }}>Send feedback</div>
+            <div style={{ font: "400 12.5px system-ui", color: C.muted2, marginTop: 6 }}>Tell us what&apos;s working or what&apos;s not. Your app version is included automatically.</div>
+            <textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              disabled={sendingFeedback}
+              placeholder="Your feedback…"
+              rows={5}
+              style={{ width: "100%", marginTop: 12, padding: 10, border: `1px solid ${C.border}`, borderRadius: 10, font: "400 14px system-ui", color: C.ink, resize: "vertical", outline: "none" }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <button onClick={() => setFeedbackOpen(false)} disabled={sendingFeedback}
+                style={{ border: "none", background: "transparent", color: C.muted3, font: "600 13px system-ui", padding: "8px 12px", cursor: "pointer" }}>Cancel</button>
+              <button onClick={handleSendFeedback} disabled={sendingFeedback || !feedbackText.trim()}
+                style={{ border: "none", background: C.teal, color: "#fff", font: "600 13px system-ui", borderRadius: 8, padding: "8px 18px", cursor: sendingFeedback || !feedbackText.trim() ? "default" : "pointer", opacity: sendingFeedback || !feedbackText.trim() ? 0.6 : 1 }}>{sendingFeedback ? "Sending…" : "Send"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
