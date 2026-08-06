@@ -41,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.ui.components.AppCard
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderCool
+import com.mealplanplus.ui.components.Stepper
 import com.mealplanplus.ui.theme.Danger
 import com.mealplanplus.ui.theme.DmMono
 import com.mealplanplus.ui.theme.Ink
@@ -119,9 +120,12 @@ private fun ActivePhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
                     ex.sets.forEachIndexed { i, s ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                             Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
-                            RepsStepper(s.reps ?: 0) { vm.setReps(ex.exerciseId, i, it) }
-                            Spacer(Modifier.width(10.dp))
-                            WeightField(s.weightKg) { vm.setWeight(ex.exerciseId, i, it) }
+                            // Uniform +/- and directly-editable controls (weight steps by 0.5).
+                            Stepper(value = s.reps ?: 0, onChange = { vm.setReps(ex.exerciseId, i, it) },
+                                min = 0, max = 100, modifier = Modifier.width(100.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Stepper(value = s.weightKg ?: 0.0, onChange = { vm.setWeight(ex.exerciseId, i, it.takeIf { w -> w > 0.0 }) },
+                                min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(120.dp))
                             Spacer(Modifier.weight(1f))
                             if (ex.sets.size > 1)
                                 Text("✕", fontSize = 12.sp, color = MutedLight, modifier = Modifier.clickable { vm.removeSet(ex.exerciseId, i) }.padding(start = 8.dp))
@@ -215,40 +219,6 @@ private fun setSummary(reps: Int?, weightKg: Double?): String {
 }
 
 private fun fmtKg(v: Double): String = (if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()) + "kg"
-
-@Composable
-private fun RepsStepper(value: Int, onChange: (Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        StepBtn("−") { onChange((value - 1).coerceAtLeast(0)) }
-        Text("$value", fontFamily = DmMono, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink,
-            modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
-        StepBtn("+") { onChange(value + 1) }
-    }
-}
-
-@Composable
-private fun WeightField(weightKg: Double?, onChange: (Double?) -> Unit) {
-    val v = weightKg ?: 0.0
-    fun fmt(x: Double) = if (x % 1.0 == 0.0) x.toInt().toString() else x.toString()
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        StepBtn("−") { onChange((v - 2.5).coerceAtLeast(0.0).takeIf { it > 0.0 }) }
-        Text(
-            if (weightKg == null) "–" else fmt(v),
-            fontFamily = DmMono, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink,
-            modifier = Modifier.width(40.dp), textAlign = TextAlign.Center,
-        )
-        StepBtn("+") { onChange(v + 2.5) }
-        Text("kg", fontSize = 9.5.sp, color = MutedFaint, modifier = Modifier.padding(start = 2.dp))
-    }
-}
-
-@Composable
-private fun StepBtn(sign: String, onClick: () -> Unit) {
-    Box(contentAlignment = Alignment.Center,
-        modifier = Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp)).clickable(onClick = onClick)) {
-        Text(sign, fontSize = 16.sp, color = Ink)
-    }
-}
 
 @Composable
 private fun Footer(content: @Composable () -> Unit) {

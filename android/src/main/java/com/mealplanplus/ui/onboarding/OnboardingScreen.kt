@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -43,9 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.LaunchedEffect
 import com.mealplanplus.Legal
-import com.mealplanplus.ui.components.RulerPicker
 import com.mealplanplus.ui.components.Stepper
 import com.mealplanplus.data.generated.model.UserUpdateRequest
 import com.mealplanplus.ui.theme.AppBg
@@ -87,7 +86,12 @@ fun OnboardingScreen(vm: OnboardingViewModel = hiltViewModel()) {
     val detailsValid = name.isNotBlank() && (age.toIntOrNull() ?: 0) > 0 && sex != null &&
         (height.toDoubleOrNull() ?: 0.0) > 0 && (weight.toDoubleOrNull() ?: 0.0) > 0
 
-    Column(Modifier.fillMaxSize().background(AppBg).padding(horizontal = 24.dp)) {
+    // Onboarding renders outside the app's Scaffold (NavGraph), and the app is edge-to-edge, so the
+    // content must inset itself away from the status/nav bars — otherwise the top "Skip" hides under
+    // the status bar and the bottom "Skip for now" hides under the navigation bar (untappable on
+    // devices with a 3-button nav bar / smaller screens). background() stays edge-to-edge; only the
+    // content is inset — matching what Scaffold does for the rest of the app.
+    Column(Modifier.fillMaxSize().background(AppBg).systemBarsPadding().padding(horizontal = 24.dp)) {
         // top bar: progress dots + global skip (only past the required step)
         Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             repeat(4) { i ->
@@ -199,20 +203,12 @@ private fun DetailsStep(
             listOf(UserUpdateRequest.Gender.MALE to "Male", UserUpdateRequest.Gender.FEMALE to "Female", UserUpdateRequest.Gender.OTHER to "Other")
                 .forEach { (v, label) -> Chip(label, sex == v, Modifier.weight(1f)) { onSex(v) } }
         }
-        Spacer(Modifier.height(8.dp))
-        MetricRuler("Age", age, onAge, 5..120, 30, "years")
-        MetricRuler("Height", height, onHeight, 100..250, 170, "cm")
-        MetricRuler("Weight", weight, onWeight, 20..300, 70, "kg")
-    }
-}
-
-@Composable
-private fun MetricRuler(label: String, value: String, onChange: (String) -> Unit, range: IntRange, default: Int, suffix: String) {
-    // Pre-fill the (required) field with a sensible default so the shown value is also the state.
-    LaunchedEffect(Unit) { if (value.isBlank()) onChange(default.toString()) }
-    Column(Modifier.padding(top = 12.dp)) {
-        Text(label, color = Muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
-        RulerPicker(value.toIntOrNull()?.coerceIn(range.first, range.last) ?: default, { onChange(it.toString()) }, range, suffix = suffix)
+        Spacer(Modifier.height(12.dp))
+        // Plain stacked numeric fields (like the login form) — the old horizontal ruler picker
+        // overflowed the screen on smaller devices.
+        Field("Age (years)", age, onAge)
+        Field("Height (cm)", height, onHeight)
+        Field("Weight (kg)", weight, onWeight)
     }
 }
 

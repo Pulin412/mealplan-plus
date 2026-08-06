@@ -186,11 +186,10 @@ function Details(p: {
         })}
       </div>
 
-      <div className="flex gap-[10px]">
-        <Field label="Age" value={p.age} onChange={p.setAge} className="flex-1" />
-        <Field label="Height (cm)" value={p.height} onChange={p.setHeight} className="flex-1" />
-        <Field label="Weight (kg)" value={p.weight} onChange={p.setWeight} className="flex-1" />
-      </div>
+      {/* Stacked full-width fields (like the login form) — three-across overflowed narrow screens. */}
+      <Field label="Age (years)" value={p.age} onChange={p.setAge} />
+      <Field label="Height (cm)" value={p.height} onChange={p.setHeight} />
+      <Field label="Weight (kg)" value={p.weight} onChange={p.setWeight} />
     </div>
   );
 }
@@ -222,11 +221,9 @@ function Targets(p: {
       </div>
 
       <Field label="Calories (kcal)" value={p.kcal} onChange={p.setKcal} />
-      <div className="flex gap-[10px]">
-        <Field label="Protein (g)" value={p.protein} onChange={p.setProtein} className="flex-1" />
-        <Field label="Carbs (g)" value={p.carbs} onChange={p.setCarbs} className="flex-1" />
-        <Field label="Fat (g)" value={p.fat} onChange={p.setFat} className="flex-1" />
-      </div>
+      <Field label="Protein (g)" value={p.protein} onChange={p.setProtein} />
+      <Field label="Carbs (g)" value={p.carbs} onChange={p.setCarbs} />
+      <Field label="Fat (g)" value={p.fat} onChange={p.setFat} />
     </div>
   );
 }

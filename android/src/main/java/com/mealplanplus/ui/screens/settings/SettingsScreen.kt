@@ -73,6 +73,7 @@ import com.mealplanplus.ui.theme.MutedLight
 import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
+import com.mealplanplus.ui.tour.LocalTourController
 
 /** UI-only Settings screen (matches design 13a). Toggles/collapse flip locally; buttons + dropdowns
  *  are placeholders — functionality (backup, Health Connect, export, notifications) comes next. */
@@ -200,6 +201,31 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                             Text("Report a bug or suggest an improvement", fontSize = 11.5.sp, color = MutedLight)
                         }
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MutedFaint, modifier = Modifier.size(18.dp))
+                    }
+                }
+
+                // ── Help ───────────────────────────────────────────────────────────
+                val tourController = LocalTourController.current
+                if (tourController != null) {
+                    SectionLabel("Help")
+                    Card {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                onBack()               // leave Settings so the tour is seen over the app
+                                tourController.start()
+                            }.padding(horizontal = 14.dp, vertical = 12.dp),
+                        ) {
+                            Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFDFF2E7)), Alignment.Center) {
+                                Text("🧭", fontSize = 16.sp)
+                            }
+                            Spacer(Modifier.width(11.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Replay app tour", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                                Text("Walk through the app's sections again", fontSize = 11.5.sp, color = MutedLight)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MutedFaint, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
 

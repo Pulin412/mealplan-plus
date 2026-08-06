@@ -33,6 +33,7 @@ import com.mealplanplus.ui.theme.MutedFaint
 import com.mealplanplus.ui.theme.MutedLight
 import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
+import com.mealplanplus.ui.tour.tourTarget
 
 /** The "More" tab — links to the secondary library pages. */
 @Composable
@@ -51,22 +52,24 @@ fun MiscScreen(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface)
                     .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
             ) {
-                MiscRow("🍎", "Foods", "Your food library", onFoods)
+                MiscRow("🍎", "Foods", "Your food library", onFoods, tourKey = "misc_foods")
                 Divider()
-                MiscRow("🍲", "Meals", "Reusable meals", onMeals)
+                MiscRow("🍲", "Meals", "Reusable meals", onMeals, tourKey = "misc_meals")
                 Divider()
-                MiscRow("🥗", "Diets", "Day-plan templates", onDiets)
+                MiscRow("🥗", "Diets", "Day-plan templates", onDiets, tourKey = "misc_diets")
                 Divider()
-                MiscRow("🛒", "Groceries", "Shopping lists from your plan", onGroceries)
+                MiscRow("🛒", "Groceries", "Shopping lists from your plan", onGroceries, tourKey = "misc_groceries")
             }
         }
     }
 }
 
 @Composable
-private fun MiscRow(emoji: String, title: String, subtitle: String, onClick: () -> Unit) {
+private fun MiscRow(emoji: String, title: String, subtitle: String, onClick: () -> Unit, tourKey: String? = null) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth()
+            .then(if (tourKey != null) Modifier.tourTarget(tourKey) else Modifier)
+            .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(SurfaceMuted), Alignment.Center) {
