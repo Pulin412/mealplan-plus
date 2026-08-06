@@ -23,7 +23,7 @@ function MiscInner() {
       <div className="flex-1 overflow-y-auto" style={{ padding: "12px 16px", paddingBottom: 120 }}>
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
           {LINKS.map((l, i) => (
-            <Link key={l.href} href={l.href} style={{ display: "flex", alignItems: "center", padding: "12px 14px", textDecoration: "none", borderBottom: i < LINKS.length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <Link key={l.href} href={l.href} data-tour={`misc-${l.href.slice(1)}`} style={{ display: "flex", alignItems: "center", padding: "12px 14px", textDecoration: "none", borderBottom: i < LINKS.length - 1 ? `1px solid ${C.border}` : "none" }}>
               <div style={{ width: 38, height: 38, borderRadius: "50%", background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{l.icon}</div>
               <div style={{ marginLeft: 12, flex: 1 }}>
                 <div style={{ font: "600 15px system-ui", color: C.ink }}>{l.title}</div>

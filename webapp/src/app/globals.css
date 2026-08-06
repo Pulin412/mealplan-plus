@@ -37,3 +37,30 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* Guided tour (Driver.js) — match the app's teal accent + rounded card. */
+.driver-popover.mp-tour {
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.driver-popover.mp-tour .driver-popover-title {
+  font: 700 16px system-ui;
+  color: var(--color-ink, #14181b);
+}
+.driver-popover.mp-tour .driver-popover-description {
+  font: 400 13px/1.4 system-ui;
+  color: #55606a;
+}
+.driver-popover.mp-tour .driver-popover-next-btn {
+  background: var(--color-primary, oklch(0.62 0.09 210));
+  color: #fff;
+  text-shadow: none;
+  border: none;
+  border-radius: 8px;
+  font: 600 13px system-ui;
+  padding: 7px 16px;
+}
+.driver-popover.mp-tour .driver-popover-progress-text {
+  color: #8a949b;
+  font: 400 12px system-ui;
+}

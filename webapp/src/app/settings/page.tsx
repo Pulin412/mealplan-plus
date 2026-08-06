@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { startTour } from "@/lib/tour";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { collectExportData, downloadCsv } from "@/lib/export/collectExport";
 import { buildCsv } from "@/lib/export/csvExporter";
@@ -156,9 +157,14 @@ function SettingsInner() {
         {/* Help */}
         <SectionLabel text="Help" />
         <div style={cardStyle}>
+          <div onClick={() => { void startTour(router); }}
+            style={{ display: "flex", alignItems: "center", padding: "13px 14px", cursor: "pointer", borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ font: "500 13.5px system-ui", color: C.ink }}>Replay app tour</span>
+            <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
+          </div>
           <div onClick={() => { ob.reset(); router.push("/today"); }}
             style={{ display: "flex", alignItems: "center", padding: "13px 14px", cursor: "pointer" }}>
-            <span style={{ font: "500 13.5px system-ui", color: C.ink }}>Replay setup / tutorial</span>
+            <span style={{ font: "500 13.5px system-ui", color: C.ink }}>Replay setup / onboarding</span>
             <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
           </div>
         </div>

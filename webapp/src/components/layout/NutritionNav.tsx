@@ -25,6 +25,7 @@ export function NutritionNav() {
         const active = t.href === "/misc" ? MISC_PAGES.includes(pathname) : pathname === t.href;
         return (
           <Link key={t.href} href={t.href}
+            data-tour={`nav-${t.href.slice(1)}`}
             className="flex-1 flex flex-col items-center justify-center gap-0.5 py-[7px] text-[10.5px] font-semibold"
             style={{ color: active ? teal : "#8a949b" }}>
             <span className="text-[16px] leading-none">{t.icon}</span>
