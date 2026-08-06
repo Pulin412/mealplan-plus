@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -87,7 +88,12 @@ fun OnboardingScreen(vm: OnboardingViewModel = hiltViewModel()) {
     val detailsValid = name.isNotBlank() && (age.toIntOrNull() ?: 0) > 0 && sex != null &&
         (height.toDoubleOrNull() ?: 0.0) > 0 && (weight.toDoubleOrNull() ?: 0.0) > 0
 
-    Column(Modifier.fillMaxSize().background(AppBg).padding(horizontal = 24.dp)) {
+    // Onboarding renders outside the app's Scaffold (NavGraph), and the app is edge-to-edge, so the
+    // content must inset itself away from the status/nav bars — otherwise the top "Skip" hides under
+    // the status bar and the bottom "Skip for now" hides under the navigation bar (untappable on
+    // devices with a 3-button nav bar / smaller screens). background() stays edge-to-edge; only the
+    // content is inset — matching what Scaffold does for the rest of the app.
+    Column(Modifier.fillMaxSize().background(AppBg).systemBarsPadding().padding(horizontal = 24.dp)) {
         // top bar: progress dots + global skip (only past the required step)
         Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             repeat(4) { i ->

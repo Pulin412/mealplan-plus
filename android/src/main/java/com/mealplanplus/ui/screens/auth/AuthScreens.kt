@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -73,7 +74,9 @@ fun AuthScreen(vm: AuthViewModel, onForgotPassword: () -> Unit) {
     val enabled = email.isNotBlank() && password.length >= 6 && !ui.isLoading
 
     Column(
-        modifier = Modifier.fillMaxSize().background(AppBg).padding(20.dp),
+        // Edge-to-edge + rendered outside the app Scaffold → inset from the status/nav bars so
+        // top/bottom controls stay tappable (see OnboardingScreen for the same fix).
+        modifier = Modifier.fillMaxSize().background(AppBg).systemBarsPadding().padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -158,7 +161,7 @@ fun ForgotPasswordScreen(vm: AuthViewModel, onBack: () -> Unit) {
     var email by remember { mutableStateOf("") }
     val sent = ui.resetSentTo
 
-    Column(Modifier.fillMaxSize().background(AppBg)) {
+    Column(Modifier.fillMaxSize().background(AppBg).systemBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { vm.resetUiState(); onBack() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Ink)
