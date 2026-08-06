@@ -60,6 +60,7 @@ import com.mealplanplus.data.generated.model.ExerciseDto
 import com.mealplanplus.data.generated.model.TagDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.ui.components.AppCard
+import com.mealplanplus.ui.components.Stepper
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderCool
 import com.mealplanplus.ui.theme.CardBorder
@@ -453,12 +454,15 @@ private fun LogDetailScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
                         Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
                         idxs.forEachIndexed { n, i ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                                Text("Set ${n + 1}", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.width(56.dp))
-                                OutlinedTextField(repsStr[i], { repsStr[i] = it.filter(Char::isDigit) }, label = { Text("reps", fontSize = 10.sp) },
-                                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(92.dp))
-                                Spacer(Modifier.width(10.dp))
-                                OutlinedTextField(weightStr[i], { weightStr[i] = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("kg", fontSize = 10.sp) },
-                                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(96.dp))
+                                Text("Set ${n + 1}", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.width(50.dp))
+                                // Uniform +/- and directly-editable controls (weight steps by 0.5), backed
+                                // by the same reps/weight string buffers the Save handler parses.
+                                Stepper(value = repsStr[i].toIntOrNull() ?: 0, onChange = { repsStr[i] = it.toString() },
+                                    min = 0, max = 100, modifier = Modifier.width(100.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Stepper(value = weightStr[i].toDoubleOrNull() ?: 0.0,
+                                    onChange = { weightStr[i] = if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() },
+                                    min = 0.0, max = 1000.0, step = 0.5, decimals = 1, suffix = "kg", modifier = Modifier.width(126.dp))
                             }
                         }
                     }
@@ -657,9 +661,11 @@ private fun BuilderRow(
         item.sets.forEachIndexed { i, s ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                 Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(40.dp))
-                RepsStepper(s.reps ?: 0) { onReps(i, it) }
-                Spacer(Modifier.width(10.dp))
-                WeightField(s.weightKg) { onWeight(i, it) }
+                // Uniform +/- and directly-editable controls (weight steps by 0.5).
+                Stepper(value = s.reps ?: 0, onChange = { onReps(i, it) }, min = 1, max = 100, modifier = Modifier.width(98.dp))
+                Spacer(Modifier.width(8.dp))
+                Stepper(value = s.weightKg ?: 0.0, onChange = { onWeight(i, it.takeIf { w -> w > 0.0 }) },
+                    min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(116.dp))
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy set", tint = MutedLight,
                     modifier = Modifier.size(15.dp).clickable { onDuplicateSet(i) })
@@ -669,51 +675,6 @@ private fun BuilderRow(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun RepsStepper(value: Int, onChange: (Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        StepBtn("−") { onChange((value - 1).coerceAtLeast(1)) }
-        Text("$value", fontFamily = DmMono, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink,
-            modifier = Modifier.width(30.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        StepBtn("+") { onChange(value + 1) }
-    }
-}
-
-/** Optional target weight (kg). Blank = no target. Stores canonical kg. */
-@Composable
-private fun WeightField(weightKg: Double?, onChange: (Double?) -> Unit) {
-    val text = weightKg?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
-    Row(verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.width(74.dp).clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 6.dp)) {
-        Box(Modifier.weight(1f)) {
-            if (text.isEmpty()) Text("–", fontSize = 12.sp, color = MutedLight)
-            BasicTextField(
-                value = text,
-                onValueChange = { raw ->
-                    val cleaned = raw.filter { it.isDigit() || it == '.' }
-                    onChange(if (cleaned.isBlank()) null else cleaned.toDoubleOrNull() ?: weightKg)
-                },
-                singleLine = true,
-                textStyle = TextStyle(fontSize = 12.sp, color = Ink, fontFamily = DmMono),
-                cursorBrush = SolidColor(Teal),
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        Text("kg", fontSize = 9.5.sp, color = MutedFaint)
-    }
-}
-
-@Composable
-private fun StepBtn(sign: String, onClick: () -> Unit) {
-    Box(contentAlignment = Alignment.Center,
-        modifier = Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).border(1.dp, BorderCool, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)) {
-        Text(sign, fontSize = 16.sp, color = Ink)
     }
 }
 
