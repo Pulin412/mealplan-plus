@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
+import { TourAutostart } from "@/components/tour/TourAutostart";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useToday } from "@/hooks/useToday";
 import { useTodayWorkouts, type HomeWorkout, type WorkoutStatus } from "@/hooks/useTodayWorkouts";
@@ -434,5 +435,5 @@ function isoOf(date: unknown): string {
 }
 
 export default function TodayPage() {
-  return <AuthGuard><TodayInner /></AuthGuard>;
+  return <AuthGuard><TodayInner /><TourAutostart /></AuthGuard>;
 }

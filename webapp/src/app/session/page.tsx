@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { Stepper } from "@/components/ui/Stepper";
 import { useSession, type RunExercise, type RunSet } from "@/hooks/useSession";
 
 const C = {
@@ -38,28 +39,6 @@ function ColHeaders({ actions }: { actions: boolean }) {
 
 function Desc({ text }: { text: string | null }) {
   return text ? <div className="text-[10.5px] mt-[3px]" style={{ color: C.muted }}>{text}</div> : null;
-}
-
-function RepsStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const btn = "w-7 h-7 rounded-[8px] flex items-center justify-center text-[16px] leading-none";
-  return (
-    <div className="flex items-center">
-      <button onClick={() => onChange(Math.max(0, value - 1))} className={btn} style={{ border: `1px solid ${C.borderCool}`, color: C.ink }}>−</button>
-      <span className="w-[30px] text-center text-[13px] font-semibold tabular-nums" style={{ color: C.ink, fontFamily: mono }}>{value}</span>
-      <button onClick={() => onChange(value + 1)} className={btn} style={{ border: `1px solid ${C.borderCool}`, color: C.ink }}>+</button>
-    </div>
-  );
-}
-
-function WeightField({ weightKg, onChange }: { weightKg: number | null; onChange: (v: number | null) => void }) {
-  return (
-    <div className="flex items-center gap-1 w-[74px] rounded-[8px] px-2 py-[6px]" style={{ border: `1px solid ${C.borderCool}` }}>
-      <input value={weightKg == null ? "" : String(weightKg)} inputMode="decimal" placeholder="–"
-        onChange={(e) => { const c = e.target.value.replace(/[^0-9.]/g, ""); onChange(c === "" ? null : (Number.isNaN(parseFloat(c)) ? weightKg : parseFloat(c))); }}
-        className="flex-1 min-w-0 bg-transparent outline-none text-[12px] tabular-nums" style={{ color: C.ink, fontFamily: mono }} />
-      <span className="text-[9.5px]" style={{ color: C.muted3 }}>kg</span>
-    </div>
-  );
 }
 
 function PrimaryButton({ label, enabled, onClick }: { label: string; enabled: boolean; onClick: () => void }) {
@@ -127,8 +106,8 @@ function ActivePhase({ s }: { s: ReturnType<typeof useSession> }) {
             {ex.sets.map((set, i) => (
               <div key={i} className="flex items-center py-[3px]">
                 <span className="w-11 text-[10.5px]" style={{ color: C.muted3, fontFamily: mono }}>Set {i + 1}</span>
-                <div className="w-[100px]"><RepsStepper value={set.reps ?? 0} onChange={(v) => s.setReps(ex.exerciseId, i, v)} /></div>
-                <div className="ml-[10px]"><WeightField weightKg={set.weightKg} onChange={(v) => s.setWeight(ex.exerciseId, i, v)} /></div>
+                <Stepper value={set.reps ?? 0} onChange={(v) => s.setReps(ex.exerciseId, i, v)} min={0} max={100} dense />
+                <div className="ml-[8px]"><Stepper value={set.weightKg ?? 0} onChange={(v) => s.setWeight(ex.exerciseId, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
                 <span className="flex-1" />
                 {ex.sets.length > 1 && <button onClick={() => s.removeSet(ex.exerciseId, i)} className="text-[12px] pl-2" style={{ color: C.muted2 }}>✕</button>}
               </div>

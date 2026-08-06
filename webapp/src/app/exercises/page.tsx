@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useExercises, type LibTab, type BuilderItem } from "@/hooks/useExercises";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
+import { Stepper } from "@/components/ui/Stepper";
 import { exerciseTagColor } from "@/lib/exerciseTags";
 import type { ExerciseDto } from "@/lib/api/exercises";
 import type { WorkoutTemplateDto } from "@/lib/api/workouts";
@@ -241,35 +242,6 @@ function ExerciseEditorOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) 
 }
 
 // ─── Workout builder (full-screen overlay) ─────────────────────────────────────
-function RepsStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const btn = "w-7 h-7 rounded-[8px] flex items-center justify-center text-[16px] leading-none";
-  return (
-    <div className="flex items-center">
-      <button onClick={() => onChange(Math.max(1, value - 1))} className={btn}
-        style={{ border: `1px solid ${C.borderCool}`, color: C.ink }}>−</button>
-      <span className="w-[30px] text-center text-[13px] font-semibold tabular-nums" style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }}>{value}</span>
-      <button onClick={() => onChange(value + 1)} className={btn}
-        style={{ border: `1px solid ${C.borderCool}`, color: C.ink }}>+</button>
-    </div>
-  );
-}
-
-function WeightField({ weightKg, onChange }: { weightKg: number | null; onChange: (v: number | null) => void }) {
-  const text = weightKg == null ? "" : String(weightKg);
-  return (
-    <div className="flex items-center gap-1 w-[74px] rounded-[8px] px-2 py-[6px]" style={{ border: `1px solid ${C.borderCool}` }}>
-      <input value={text} inputMode="decimal" placeholder="–"
-        onChange={(e) => {
-          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
-          onChange(cleaned === "" ? null : (Number.isNaN(parseFloat(cleaned)) ? weightKg : parseFloat(cleaned)));
-        }}
-        className="flex-1 min-w-0 bg-transparent outline-none text-[12px] tabular-nums"
-        style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }} />
-      <span className="text-[9.5px]" style={{ color: C.muted3 }}>kg</span>
-    </div>
-  );
-}
-
 function BuilderRow({ item, ex }: { item: BuilderItem; ex: ReturnType<typeof useExercises> }) {
   const id = item.exerciseId;
   return (
@@ -288,8 +260,8 @@ function BuilderRow({ item, ex }: { item: BuilderItem; ex: ReturnType<typeof use
       {item.sets.map((s, i) => (
         <div key={i} className="flex items-center py-[3px]">
           <span className="w-[40px] text-[10.5px]" style={{ color: C.muted3, fontFamily: "'DM Mono', monospace" }}>Set {i + 1}</span>
-          <div className="w-[96px]"><RepsStepper value={s.reps ?? 0} onChange={(v) => ex.setReps(id, i, v)} /></div>
-          <div className="ml-[10px]"><WeightField weightKg={s.weightKg} onChange={(v) => ex.setWeight(id, i, v)} /></div>
+          <Stepper value={s.reps ?? 0} onChange={(v) => ex.setReps(id, i, v)} min={1} max={100} dense />
+          <div className="ml-[8px]"><Stepper value={s.weightKg ?? 0} onChange={(v) => ex.setWeight(id, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
           <span className="flex-1" />
           <button onClick={() => ex.duplicateSet(id, i)} title="Copy set"
             className="text-[13px] leading-none" style={{ color: C.muted2 }}>⧉</button>
@@ -469,13 +441,11 @@ function LogDetailOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
             {idxByExercise.get(exId)!.map((gi, n) => (
               editing ? (
                 <div key={gi} className="flex items-center gap-2 py-1">
-                  <span className="w-14 text-[11px]" style={{ color: C.muted2 }}>Set {n + 1}</span>
-                  <input inputMode="numeric" value={draft[gi].reps} placeholder="reps"
-                    onChange={(e) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, reps: e.target.value.replace(/[^0-9]/g, "") } : x)))}
-                    className="w-[80px] rounded-[8px] px-2 py-[6px] text-[12px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
-                  <input inputMode="decimal" value={draft[gi].weight} placeholder="kg"
-                    onChange={(e) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, weight: e.target.value.replace(/[^0-9.]/g, "") } : x)))}
-                    className="w-[80px] rounded-[8px] px-2 py-[6px] text-[12px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
+                  <span className="w-12 text-[11px]" style={{ color: C.muted2 }}>Set {n + 1}</span>
+                  <Stepper value={draft[gi].reps ? parseInt(draft[gi].reps, 10) : 0} min={0} max={100} dense
+                    onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, reps: String(v) } : x)))} />
+                  <Stepper value={draft[gi].weight ? parseFloat(draft[gi].weight) : 0} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense
+                    onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, weight: v > 0 ? String(v) : "" } : x)))} />
                 </div>
               ) : (
                 <div key={gi} className="flex items-center py-[3px] text-[12px] tabular-nums" style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }}>
