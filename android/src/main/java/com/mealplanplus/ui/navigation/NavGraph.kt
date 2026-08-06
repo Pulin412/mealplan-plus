@@ -122,12 +122,7 @@ fun MealPlanNavHost() {
     val tourViewModel: TourViewModel = hiltViewModel()
     val tourSeen by tourViewModel.seen.collectAsState()
     val tour = rememberTourController()
-    LaunchedEffect(Unit) {
-        // TEMP (debug only): always launch the tour on app start so it can be tested repeatedly.
-        // The release build still respects the once-per-device flag. Also replayable from Settings.
-        // TODO: remove the BuildConfig.DEBUG bypass before the next release build.
-        if (com.mealplanplus.BuildConfig.DEBUG || !tourSeen) tour.start()
-    }
+    LaunchedEffect(Unit) { if (!tourSeen) tour.start() }
 
     CompositionLocalProvider(LocalTourController provides tour) {
     Box(Modifier.fillMaxSize()) {
