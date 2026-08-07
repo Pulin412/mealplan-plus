@@ -23,6 +23,9 @@ enum class RunPhase { LOADING, READY, ACTIVE, DONE }
 /** One target/logged set: reps + optional weight (kg). */
 data class RunSet(val reps: Int?, val weightKg: Double?)
 
+/** A library exercise offered by the "Add exercise" picker during logging. */
+data class LibExercise(val id: Long, val name: String, val description: String?)
+
 /** One exercise in the runner with its editable sets, template targets, and last-session sets. */
 data class RunExercise(
     val exerciseId: Long,
@@ -38,6 +41,7 @@ data class RunnerUiState(
     val workoutName: String = "",
     val sessionId: Long? = null,
     val exercises: List<RunExercise> = emptyList(),
+    val library: List<LibExercise> = emptyList(),   // for the "Add exercise" picker
     val error: String? = null,
     val busy: Boolean = false,
 )
@@ -78,6 +82,7 @@ class SessionRunnerViewModel @Inject constructor(
             val lib = exerciseRepo.list()
             descById = lib.associate { (it.id ?: -1L) to it.description }
             libNames = lib.associate { (it.id ?: -1L) to it.name }
+            _state.update { it.copy(library = lib.mapNotNull { e -> e.id?.let { id -> LibExercise(id, e.name, e.description) } }) }
             val existing = sessionRepo.listForDate(today).firstOrNull { it.name == activityName }
             if (existing != null) {
                 val exercises = exercisesFromSession(existing)
@@ -129,7 +134,7 @@ class SessionRunnerViewModel @Inject constructor(
     private fun loadLastTimes() {
         viewModelScope.launch {
             val ex = _state.value.exercises
-            val last = ex.map { e -> async { e.exerciseId to sessionRepo.lastForExercise(e.exerciseId).map { RunSet(it.reps, it.weightKg) } } }
+            val last = ex.map { e -> async { e.exerciseId to sessionRepo.lastForExercise(e.exerciseId, activityName).map { RunSet(it.reps, it.weightKg) } } }
                 .map { it.await() }.toMap()
             _state.update { s -> s.copy(exercises = s.exercises.map { it.copy(lastTime = last[it.exerciseId] ?: it.lastTime) }) }
         }
@@ -173,6 +178,23 @@ class SessionRunnerViewModel @Inject constructor(
     /** Fill this exercise's sets from the last logged session. */
     fun copyLast(exId: Long) = editExercise(exId) {
         if (it.lastTime.isEmpty()) it else it.copy(sets = it.lastTime.map { s -> s.copy() })
+    }
+
+    /**
+     * Add a library exercise to THIS session's log on the fly (default 3 × 10). It's persisted to the
+     * session only — the workout template is never touched. No-op if already present.
+     */
+    fun addExercise(exerciseId: Long) {
+        if (_state.value.exercises.any { it.exerciseId == exerciseId }) return
+        val lib = _state.value.library.firstOrNull { it.id == exerciseId } ?: return
+        val sets = List(3) { RunSet(10, null) }
+        _state.update { s -> s.copy(exercises = s.exercises + RunExercise(exerciseId, lib.name, sets = sets, description = lib.description)) }
+        persist()
+        viewModelScope.launch {
+            val last = sessionRepo.lastForExercise(exerciseId, activityName).map { RunSet(it.reps, it.weightKg) }
+            if (last.isNotEmpty())
+                _state.update { s -> s.copy(exercises = s.exercises.map { if (it.exerciseId == exerciseId) it.copy(lastTime = last) else it }) }
+        }
     }
 
     private fun editSet(exId: Long, index: Int, f: (RunSet) -> RunSet) = editExercise(exId) {

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { listDiets, createDiet, updateDiet, deleteDiet, toggleDietFavorite, type DietDto, type DietEntryInput } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
+import { naturalCompare } from "@/lib/utils/naturalCompare";
 import { listDietTags, createDietTag, type TagDto } from "@/lib/api/tags";
 import { foodMacros, MEAL_SLOTS, type Macros } from "@/lib/nutrition";
 import type { DietSort, DietViewMode } from "@/types/diet";
@@ -112,7 +113,7 @@ export function useDiets() {
     if (favOnly) list = list.filter((v) => v.diet.isFavorite);
     if (tagFilter) list = list.filter((v) => v.tagNames.includes(tagFilter));
     switch (sort) {
-      case "name": return [...list].sort((a, b) => a.diet.name.localeCompare(b.diet.name));
+      case "name": return [...list].sort((a, b) => naturalCompare(a.diet.name, b.diet.name));
       case "calories": return [...list].sort((a, b) => b.totalKcal - a.totalKcal);
       case "protein": return [...list].sort((a, b) => b.totalP - a.totalP);
       default: return list;

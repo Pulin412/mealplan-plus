@@ -10,6 +10,7 @@ import {
 
 export type RunPhase = "loading" | "ready" | "active" | "done";
 export interface RunSet { reps: number | null; weightKg: number | null }
+export interface LibExercise { id: number; name: string; description: string | null }
 export interface RunExercise {
   exerciseId: number;
   name: string;
@@ -29,6 +30,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const [phase, setPhase] = useState<RunPhase>("loading");
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [exercises, setExercises] = useState<RunExercise[]>([]);
+  const [library, setLibrary] = useState<LibExercise[]>([]);   // for the "Add exercise" picker
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,10 +68,11 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   }, []);
 
   const loadLastTimes = useCallback(async (list: RunExercise[]) => {
-    const entries = await Promise.all(list.map(async (e) => [e.exerciseId, await lastForExercise(e.exerciseId)] as const));
+    // Scope "last time" to this same workout (by name) — the last time you did *this* workout.
+    const entries = await Promise.all(list.map(async (e) => [e.exerciseId, await lastForExercise(e.exerciseId, name)] as const));
     const map = new Map(entries.map(([id, sets]) => [id, sets.map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null }))]));
     setExercises((prev) => prev.map((e) => ({ ...e, lastTime: map.get(e.exerciseId) ?? e.lastTime })));
-  }, []);
+  }, [name]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +85,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       templateRef.current = tpl;
       descRef.current = new Map(lib.filter((e) => e.id != null).map((e) => [e.id!, e.description ?? null]));
       libNameRef.current = new Map(lib.filter((e) => e.id != null).map((e) => [e.id!, e.name]));
+      setLibrary(lib.filter((e) => e.id != null).map((e) => ({ id: e.id!, name: e.name, description: e.description ?? null })));
 
       const sessions = await listSessionsForDate(today).catch(() => []);
       if (cancelled) return;
@@ -131,6 +135,22 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const copyLast = (exId: number) =>
     mutate((list) => list.map((ex) => ex.exerciseId === exId && ex.lastTime.length ? { ...ex, sets: ex.lastTime.map((s) => ({ ...s })) } : ex));
 
+  // Add a library exercise to THIS session's log on the fly (default 3 × 10). Persisted to the
+  // session only — the workout template is never touched. No-op if already present.
+  const addExercise = (exId: number) => {
+    const lib = library.find((l) => l.id === exId);
+    if (!lib) return;
+    mutate((list) => list.some((e) => e.exerciseId === exId) ? list : [
+      ...list,
+      { exerciseId: exId, name: lib.name, description: lib.description, sets: [0, 1, 2].map(() => ({ reps: 10, weightKg: null })), templateSets: [], lastTime: [] },
+    ]);
+    void lastForExercise(exId, name).then((sets) => {
+      if (!sets.length) return;
+      setExercises((prev) => prev.map((e) => e.exerciseId === exId
+        ? { ...e, lastTime: sets.map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })) } : e));
+    }).catch(() => {});
+  };
+
   // ── phase transitions ────────────────────────────────────────────────────────
   const start = useCallback(async () => {
     setBusy(true); setError(null);
@@ -161,8 +181,8 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const edit = useCallback(() => setPhase("active"), []);
 
   return {
-    phase, workoutName: name, exercises, busy, error,
+    phase, workoutName: name, exercises, library, busy, error,
     start, finish, edit,
-    setReps, setWeight, addSet, removeSet, copyLast,
+    setReps, setWeight, addSet, removeSet, copyLast, addExercise,
   };
 }

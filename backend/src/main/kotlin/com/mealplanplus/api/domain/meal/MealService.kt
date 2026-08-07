@@ -127,7 +127,8 @@ class MealService(
             itemRepo.findByMealId(existing.id).let { return existing.toDto(it, foodServerIds(it)) }
         itemRepo.deleteByMealId(existing.id)
         val updated = Meal(id = existing.id, firebaseUid = existing.firebaseUid,
-            name = dto.name, isFavorite = existing.isFavorite, slots = dto.slots ?: existing.slots)
+            // Honour the client's favourite flag (sync-push is the only path clients use to toggle it).
+            name = dto.name, isFavorite = dto.isFavorite ?: existing.isFavorite, slots = dto.slots ?: existing.slots)
             .also { it.serverId = existing.serverId }
         val saved = mealRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { listFoods, createFood, updateFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
 import { createScannedFood, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
+import { naturalCompare } from "@/lib/utils/naturalCompare";
 
 const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "", unit: "GRAM", gramsPerUnit: "" };
 
@@ -56,7 +57,7 @@ export function useFoods() {
       );
     }
     switch (sort) {
-      case "name":     return [...result].sort((a, b) => a.name.localeCompare(b.name));
+      case "name":     return [...result].sort((a, b) => naturalCompare(a.name, b.name));
       case "calories": return [...result].sort((a, b) => b.caloriesPer100 - a.caloriesPer100);
       case "protein":  return [...result].sort((a, b) => b.proteinPer100 - a.proteinPer100);
       default:         return result;
