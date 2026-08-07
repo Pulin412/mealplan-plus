@@ -7,6 +7,7 @@ import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
 import com.mealplanplus.data.generated.model.WorkoutSessionDto
 import com.mealplanplus.data.generated.model.WorkoutSetDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import com.mealplanplus.data.local.SessionProgressStore
 import com.mealplanplus.data.repository.ExerciseRepository
 import com.mealplanplus.data.repository.WorkoutSessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,6 +43,7 @@ data class RunnerUiState(
     val sessionId: Long? = null,
     val exercises: List<RunExercise> = emptyList(),
     val library: List<LibExercise> = emptyList(),   // for the "Add exercise" picker
+    val doneExerciseIds: Set<Long> = emptySet(),     // exercises checked off this session (persisted locally)
     val error: String? = null,
     val busy: Boolean = false,
 )
@@ -56,6 +58,7 @@ class SessionRunnerViewModel @Inject constructor(
     private val workoutsApi: WorkoutTemplatesApi,
     private val sessionRepo: WorkoutSessionRepository,
     private val exerciseRepo: ExerciseRepository,
+    private val progressStore: SessionProgressStore,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -92,6 +95,7 @@ class SessionRunnerViewModel @Inject constructor(
                         phase = if (active) RunPhase.ACTIVE else RunPhase.DONE,
                         sessionId = existing.id,
                         exercises = exercises,
+                        doneExerciseIds = if (active) existing.id?.let { id -> progressStore.getDone(id) }.orEmpty() else emptySet(),
                     )
                 }
                 if (active) loadLastTimes()
@@ -150,7 +154,8 @@ class SessionRunnerViewModel @Inject constructor(
             result
                 .onSuccess { session ->
                     val exercises = mergeLastTimes(exercisesFromSession(session))
-                    _state.update { it.copy(busy = false, phase = RunPhase.ACTIVE, sessionId = session.id, exercises = exercises) }
+                    _state.update { it.copy(busy = false, phase = RunPhase.ACTIVE, sessionId = session.id, exercises = exercises,
+                        doneExerciseIds = session.id?.let { id -> progressStore.getDone(id) }.orEmpty()) }
                 }
                 .onFailure { e -> _state.update { it.copy(busy = false, error = e.message) } }
         }
@@ -175,6 +180,14 @@ class SessionRunnerViewModel @Inject constructor(
     fun removeSet(exId: Long, index: Int) = editExercise(exId) {
         if (it.sets.size <= 1) it else it.copy(sets = it.sets.filterIndexed { i, _ -> i != index })
     }
+    /** Check/uncheck an exercise as done for this session — locks its sets read-only; persisted locally. */
+    fun toggleExerciseDone(exId: Long) {
+        val id = _state.value.sessionId ?: return
+        val next = _state.value.doneExerciseIds.let { if (exId in it) it - exId else it + exId }
+        progressStore.setDone(id, next)
+        _state.update { it.copy(doneExerciseIds = next) }
+    }
+
     /** Fill this exercise's sets from the last logged session. */
     fun copyLast(exId: Long) = editExercise(exId) {
         if (it.lastTime.isEmpty()) it else it.copy(sets = it.lastTime.map { s -> s.copy() })

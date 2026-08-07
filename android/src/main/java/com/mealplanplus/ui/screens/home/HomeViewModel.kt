@@ -36,7 +36,7 @@ enum class WorkoutStatus { PLANNED, IN_PROGRESS, DONE }
  * A workout row on Home. [templateId] set = a planned template workout; [exerciseId] set = an ad-hoc
  * single exercise (planned or already logged). Status is resolved against today's sessions.
  */
-data class HomeWorkout(val templateId: Long?, val exerciseId: Long?, val name: String, val status: WorkoutStatus)
+data class HomeWorkout(val templateId: Long?, val exerciseId: Long?, val name: String, val status: WorkoutStatus, val plannedId: Long? = null)
 
 /**
  * Yesterday's cached dashboard reshaped as today's empty shell (see `DashboardShellTest`): keeps the
@@ -181,7 +181,7 @@ class HomeViewModel @Inject constructor(
                 val sessions = sessionRepo.listForDate(date)
                 val plannedRows = planned.map { pw ->
                     val session = sessions.firstOrNull { it.name == pw.activityName }
-                    HomeWorkout(pw.workoutTemplateId, session?.sets?.firstOrNull()?.exerciseId, pw.activityName, statusOf(session))
+                    HomeWorkout(pw.workoutTemplateId, session?.sets?.firstOrNull()?.exerciseId, pw.activityName, statusOf(session), plannedId = pw.id)
                 }
                 // Ad-hoc sessions not backed by a planned workout (single exercises started from Home).
                 val plannedNames = planned.map { it.activityName }.toSet()
@@ -227,6 +227,29 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { plansApi.addPlannedWorkout(today(), PlannedWorkoutDto(workoutTemplateId = id, activityName = template.name)) }
                 .onFailure { e -> _state.update { s -> s.copy(error = e.message) } }
+            loadWorkouts()
+        }
+    }
+
+    /**
+     * Remove a workout from Home: drops its planned-workout entry (so it leaves the Plan too) and
+     * deletes any started-but-unfinished session for it. Completed logs are kept — only offered for
+     * planned/in-progress rows.
+     */
+    fun removeWorkout(hw: HomeWorkout) {
+        // Optimistically drop the row so it disappears immediately (the read-through plan cache would
+        // otherwise re-emit the stale list first and make the tap look like a no-op).
+        _state.update { s -> s.copy(workouts = s.workouts.filterNot { it.name == hw.name && it.plannedId == hw.plannedId }) }
+        viewModelScope.launch {
+            val date = today()
+            hw.plannedId?.let { id ->
+                runCatching { plansApi.removePlannedWorkout(date, id) }
+                    .onFailure { e -> _state.update { s -> s.copy(error = e.message) } }
+            }
+            val session = sessionRepo.listForDate(date).firstOrNull { it.name == hw.name && it.isCompleted != true }
+            session?.id?.let { sessionRepo.delete(it) }
+            // Refresh the plan cache from the server so it stays correct after the optimistic removal.
+            responseCache.clear()
             loadWorkouts()
         }
     }

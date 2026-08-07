@@ -12,6 +12,7 @@ import com.mealplanplus.data.generated.api.FoodsApi
 import com.mealplanplus.data.generated.api.MealsApi
 import com.mealplanplus.data.generated.api.PlansApi
 import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
+import com.mealplanplus.data.repository.WorkoutSessionRepository
 import com.mealplanplus.data.generated.model.DayPlanDto
 import com.mealplanplus.data.generated.model.DietDto
 import com.mealplanplus.data.generated.model.FoodDto
@@ -73,6 +74,7 @@ class PlanViewModel @Inject constructor(
     private val foodsApi: FoodsApi,
     private val workoutsApi: WorkoutTemplatesApi,
     private val loggingApi: LoggingApi,
+    private val sessionRepo: WorkoutSessionRepository,
     private val responseCache: ResponseCache,
 ) : ViewModel() {
 
@@ -197,10 +199,20 @@ class PlanViewModel @Inject constructor(
 
     fun removePlannedWorkout(date: LocalDate, workoutId: Long) {
         viewModelScope.launch {
+            // Grab its name before removing, so we can also drop a started-but-unfinished session for it
+            // (otherwise it lingers on Home as an "ad-hoc" workout once the plan link is gone).
+            val name = _state.value.plansByDate[date]?.plannedWorkouts?.firstOrNull { it.id == workoutId }?.activityName
             runCatching { plansApi.removePlannedWorkout(date, workoutId) }
                 .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            if (name != null) deleteIncompleteSession(date, name)
             loadPlans()
         }
+    }
+
+    /** Delete the in-progress session (if any) for a workout on [date]; completed logs are kept. */
+    private suspend fun deleteIncompleteSession(date: LocalDate, name: String) {
+        val session = sessionRepo.listForDate(date).firstOrNull { it.name == name && it.isCompleted != true }
+        session?.id?.let { sessionRepo.delete(it) }
     }
     fun setPickerSearch(q: String) { _state.value = _state.value.copy(pickerSearch = q) }
     fun setPickerTag(t: String?) { _state.value = _state.value.copy(pickerTag = t) }

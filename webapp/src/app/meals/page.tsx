@@ -4,10 +4,12 @@ import { useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { useMeals, type BuildItem, type MealView } from "@/hooks/useMeals";
-import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, type FoodDto } from "@/lib/nutrition";
+import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, FOOD_UNITS, isCountUnit, type FoodDto } from "@/lib/nutrition";
 import { Stepper } from "@/components/ui/Stepper";
+import { createFood } from "@/lib/api/foods";
 import type { MealDto } from "@/lib/api/meals";
 import type { MealSort } from "@/types/meal";
+import type { ManualFoodForm } from "@/types/food";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e",
@@ -79,6 +81,63 @@ function QtyInput({ value, unit, onChange }: { value: number; unit: string; onCh
   return <Stepper value={value} onChange={onChange} min={0} step={gramLike ? 5 : 1} decimals={1} suffix={unitLabel(unit)} dense />;
 }
 
+// ── Inline "create a food" while building a meal ────────────────────────────────
+function FForm({ label, value, onChange, placeholder, numeric, wrap = "mb-[11px]" }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; numeric?: boolean; wrap?: string;
+}) {
+  return (
+    <div className={wrap}>
+      <label className="block text-[11px] font-semibold mb-[5px]" style={{ color: C.muted3 }}>{label}</label>
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} inputMode={numeric ? "decimal" : undefined}
+        className="w-full border rounded-[10px] px-3 py-[9px] text-[13px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
+    </div>
+  );
+}
+
+function NewFoodForm({ onCancel, onCreate }: { onCancel: () => void; onCreate: (form: ManualFoodForm) => Promise<void> }) {
+  const [f, setF] = useState<ManualFoodForm>({ name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "", unit: "GRAM", gramsPerUnit: "" });
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof ManualFoodForm, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const gpuOk = !isCountUnit(f.unit) || (parseFloat(f.gramsPerUnit) || 0) > 0;
+  const ok = f.name.trim() !== "" && f.kcal.trim() !== "" && gpuOk;
+  const submit = async () => { if (!ok || saving) return; setSaving(true); try { await onCreate(f); } finally { setSaving(false); } };
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <button onClick={onCancel} className="text-[18px] leading-none" style={{ color: C.ink }}>‹</button>
+        <span className="text-[13px] font-semibold" style={{ color: C.ink }}>New food</span>
+      </div>
+      <FForm label="Name" value={f.name} onChange={(v) => set("name", v)} placeholder="e.g. Overnight oats" />
+      <div className="mb-[11px]">
+        <label className="block text-[11px] font-semibold mb-[6px]" style={{ color: C.muted3 }}>Measured in</label>
+        <div className="flex flex-wrap gap-[6px]">
+          {FOOD_UNITS.map((u) => {
+            const on = f.unit === u;
+            return (
+              <button key={u} type="button" onClick={() => set("unit", u)} className="rounded-full px-3 py-[6px] text-[12px] font-semibold"
+                style={{ background: on ? C.teal : "transparent", color: on ? "#fff" : C.muted3, border: `1.5px solid ${on ? C.teal : "#dfe6e8"}` }}>
+                {unitLabel(u)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {isCountUnit(f.unit) && (
+        <FForm label={`Grams per ${unitLabel(f.unit)}`} value={f.gramsPerUnit} onChange={(v) => set("gramsPerUnit", v)} placeholder="e.g. 50" numeric />
+      )}
+      <FForm label="Serving size" value={f.servingLabel} onChange={(v) => set("servingLabel", v)} placeholder="e.g. 250 g" />
+      <FForm label="Calories /100g" value={f.kcal} onChange={(v) => set("kcal", v)} placeholder="0" numeric />
+      <div className="flex gap-[10px] mb-3">
+        <FForm label="Protein" value={f.protein} onChange={(v) => set("protein", v)} placeholder="g" numeric wrap="flex-1" />
+        <FForm label="Carbs" value={f.carbs} onChange={(v) => set("carbs", v)} placeholder="g" numeric wrap="flex-1" />
+        <FForm label="Fat" value={f.fat} onChange={(v) => set("fat", v)} placeholder="g" numeric wrap="flex-1" />
+      </div>
+      <button onClick={submit} disabled={!ok || saving} className="w-full rounded-[10px] py-[11px] text-[12.5px] font-semibold"
+        style={{ background: ok ? C.teal : C.bgAlt, color: ok ? "#fff" : C.muted2 }}>{saving ? "Adding…" : "Add to meal"}</button>
+    </div>
+  );
+}
+
 // ── Full-screen builder ────────────────────────────────────────────────────────
 function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onClose }: {
   editing: MealDto | null; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
@@ -92,9 +151,14 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickQuery, setPickQuery] = useState("");
+  const [pickMode, setPickMode] = useState<"search" | "new">("search");
+  // Foods created inline while building this meal — merged into lookups so they render immediately
+  // (the parent's foods list only refreshes on next load).
+  const [localFoods, setLocalFoods] = useState<Map<number, FoodDto>>(new Map());
+  const getFood = (id: number) => localFoods.get(id) ?? foodsById.get(id);
 
   const totals = items.reduce((acc, it) => {
-    const m = foodMacros(foodsById.get(it.foodId), it.quantity, it.unit);
+    const m = foodMacros(getFood(it.foodId), it.quantity, it.unit);
     return { kcal: acc.kcal + m.kcal, p: acc.p + m.protein, c: acc.c + m.carbs, f: acc.f + m.fat };
   }, { kcal: 0, p: 0, c: 0, f: 0 });
 
@@ -145,7 +209,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
           <div className="rounded-[12px] text-center text-[11.5px] py-[18px] mb-2" style={{ border: "1.5px dashed #cdd7da", color: C.muted2 }}>No items yet — add food to build this meal.</div>
         ) : (
           items.map((it) => {
-            const food = foodsById.get(it.foodId);
+            const food = getFood(it.foodId);
             const kcal = Math.round(foodMacros(food, it.quantity, it.unit).kcal);
             return (
               <div key={it.foodId} className="flex items-center gap-2 py-[8px]" style={{ borderBottom: `1px solid ${C.bgAlt}` }}>
@@ -164,30 +228,45 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
           <button onClick={() => setPickerOpen(true)} className="w-full rounded-[12px] py-[12px] text-[12.5px] font-semibold mt-3" style={{ border: "1.5px dashed #cdd7da", color: C.teal }}>＋ Add food item</button>
         ) : (
           <div className="rounded-[12px] mt-3 p-3" style={{ border: `1px solid ${C.border}`, background: C.surface }}>
-            <div className="flex items-center gap-2 rounded-[10px] px-3 py-[9px] mb-2" style={{ background: C.bgAlt }}>
-              <span style={{ color: C.muted2 }}>⌕</span>
-              <input value={pickQuery} onChange={(e) => setPickQuery(e.target.value)} placeholder="Search your foods…"
-                className="flex-1 bg-transparent border-none outline-none text-[13px]" style={{ color: C.ink }} />
-              {/* Clear the search → empties the box and shows all foods again. */}
-              {pickQuery && <button onClick={() => setPickQuery("")} className="text-[13px] leading-none" style={{ color: C.muted2 }}>✕</button>}
-            </div>
-            <div className="max-h-[240px] overflow-y-auto">
-              {pickList.length === 0 && <p className="text-center text-[12px] py-3" style={{ color: C.muted2 }}>No foods. Create some on the Foods tab.</p>}
-              {pickList.map((f) => {
-                const added = items.some((it) => it.foodId === f.id);
-                return (
-                  <div key={f.id} className="flex items-center gap-2 py-[9px]" style={{ borderBottom: `1px solid ${C.bgAlt}` }}>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[12.5px] font-semibold truncate" style={{ color: C.ink }}>{f.name}</div>
-                      <div className="text-[10.5px]" style={{ color: C.muted }}>{f.caloriesPer100} kcal / 100g</div>
-                    </div>
-                    <button onClick={() => addFood(f)} disabled={added} className="rounded-[9px] px-3 py-[7px] text-[11.5px] font-semibold"
-                      style={{ border: `1.5px solid #dfe6e8`, color: added ? C.muted2 : C.tealDim }}>{added ? "✓ Added" : "+ Add"}</button>
-                  </div>
-                );
-              })}
-            </div>
-            <button onClick={() => { setPickerOpen(false); setPickQuery(""); }} className="w-full rounded-[10px] py-[10px] text-[12px] font-semibold mt-2" style={{ background: C.teal, color: "#fff" }}>Done · {items.length} added</button>
+            {pickMode === "search" ? (
+              <>
+                <div className="flex items-center gap-2 rounded-[10px] px-3 py-[9px] mb-2" style={{ background: C.bgAlt }}>
+                  <span style={{ color: C.muted2 }}>⌕</span>
+                  <input value={pickQuery} onChange={(e) => setPickQuery(e.target.value)} placeholder="Search your foods…"
+                    className="flex-1 bg-transparent border-none outline-none text-[13px]" style={{ color: C.ink }} />
+                  {/* Clear the search → empties the box and shows all foods again. */}
+                  {pickQuery && <button onClick={() => setPickQuery("")} className="text-[13px] leading-none" style={{ color: C.muted2 }}>✕</button>}
+                </div>
+                {/* Create a new food inline while building the meal — added to this meal only (also saved to your foods). */}
+                <button onClick={() => setPickMode("new")} className="w-full rounded-[10px] py-[9px] text-[12px] font-bold mb-2" style={{ border: `1.5px solid ${C.teal}`, color: C.teal }}>＋ New food</button>
+                <div className="max-h-[240px] overflow-y-auto">
+                  {pickList.length === 0 && <p className="text-center text-[12px] py-3" style={{ color: C.muted2 }}>No foods yet — tap “＋ New food” to create one.</p>}
+                  {pickList.map((f) => {
+                    const added = items.some((it) => it.foodId === f.id);
+                    return (
+                      <div key={f.id} className="flex items-center gap-2 py-[9px]" style={{ borderBottom: `1px solid ${C.bgAlt}` }}>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12.5px] font-semibold truncate" style={{ color: C.ink }}>{f.name}</div>
+                          <div className="text-[10.5px]" style={{ color: C.muted }}>{f.caloriesPer100} kcal / 100g</div>
+                        </div>
+                        <button onClick={() => addFood(f)} disabled={added} className="rounded-[9px] px-3 py-[7px] text-[11.5px] font-semibold"
+                          style={{ border: `1.5px solid #dfe6e8`, color: added ? C.muted2 : C.tealDim }}>{added ? "✓ Added" : "+ Add"}</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button onClick={() => { setPickerOpen(false); setPickQuery(""); }} className="w-full rounded-[10px] py-[10px] text-[12px] font-semibold mt-2" style={{ background: C.teal, color: "#fff" }}>Done · {items.length} added</button>
+              </>
+            ) : (
+              <NewFoodForm
+                onCancel={() => setPickMode("search")}
+                onCreate={async (form) => {
+                  const dto = await createFood(form);
+                  if (dto.id != null) { setLocalFoods((prev) => new Map(prev).set(dto.id!, dto)); addFood(dto); }
+                  setPickMode("search");
+                }}
+              />
+            )}
           </div>
         )}
 
