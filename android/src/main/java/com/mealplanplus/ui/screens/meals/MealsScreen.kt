@@ -606,20 +606,23 @@ private fun AddFoodPanel(
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-            Text("‹", fontSize = 22.sp, color = Ink, modifier = Modifier.clickable { onModeChange(AddMode.NONE) })
+            // Back steps to the previous stage: Online/New-food → food search, food search → close.
+            val backTarget = if (mode == AddMode.SEARCH) AddMode.NONE else AddMode.SEARCH
+            Text("‹", fontSize = 22.sp, color = Ink, modifier = Modifier.clickable { onModeChange(backTarget) })
             Spacer(Modifier.width(8.dp))
             Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Ink)
             Spacer(Modifier.weight(1f))
             if (mode == AddMode.SEARCH) {
                 ModeIcon("⌕") { onModeChange(AddMode.ONLINE) }
-                Spacer(Modifier.width(6.dp))
-                ModeIcon("✎") { onModeChange(AddMode.MANUAL) }
             }
         }
 
         when (mode) {
             AddMode.SEARCH -> {
                 SearchField(query, { query = it }, "Search your foods…")
+                // Prominent create-food action (replaces the old top-right pen icon); it sits in the
+                // layout flow above the list, so it never covers the last food row.
+                NewFoodButton { onModeChange(AddMode.MANUAL) }
                 val list = foods.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
                 LazyColumn(Modifier.weight(1f)) {
                     items(list, key = { it.id }) { food ->
@@ -748,9 +751,22 @@ private fun com.mealplanplus.data.generated.model.FoodDto.toBuildItem(id: String
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Ink), singleLine = true,
                 modifier = Modifier.fillMaxWidth())
         }
+        // Clear the search → empties the box and shows all foods again.
+        if (value.isNotEmpty()) {
+            Spacer(Modifier.width(8.dp))
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(20.dp).clip(CircleShape).clickable { onChange("") }) {
+                Text("✕", fontSize = 12.sp, color = MutedLight)
+            }
+        }
     }
     Spacer(Modifier.height(12.dp))
 }
+
+@Composable private fun NewFoodButton(onClick: () -> Unit) =
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+        .clip(RoundedCornerShape(11.dp)).border(1.5.dp, Teal, RoundedCornerShape(11.dp)).clickable(onClick = onClick).padding(vertical = 11.dp)) {
+        Text("＋  New food", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Teal)
+    }
 
 @Composable private fun PickRow(name: String, meta: String, added: BuildItem?, onAdd: () -> Unit, onQty: (Double) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
