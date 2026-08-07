@@ -246,7 +246,7 @@ function WorkoutStatusLabel({ status }: { status: WorkoutStatus }) {
   return <div style={{ font: `${status === "done" ? 600 : 400} 10.5px system-ui`, color, marginTop: 1 }}>{text}</div>;
 }
 
-function WorkoutSection({ workouts, onOpen, onAdd }: { workouts: HomeWorkout[]; onOpen: (w: HomeWorkout) => void; onAdd: () => void }) {
+function WorkoutSection({ workouts, onOpen, onRemove, onAdd }: { workouts: HomeWorkout[]; onOpen: (w: HomeWorkout) => void; onRemove: (w: HomeWorkout) => void; onAdd: () => void }) {
   return (
     <>
       <div style={{ font: "600 12.5px system-ui", color: C.ink, margin: "16px 0 8px 2px" }}>Today&apos;s workout</div>
@@ -263,6 +263,10 @@ function WorkoutSection({ workouts, onOpen, onAdd }: { workouts: HomeWorkout[]; 
                 <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{w.name}</div>
                 <WorkoutStatusLabel status={w.status} />
               </div>
+              {/* Remove a planned/in-progress workout → drops it from the plan + clears its started session. */}
+              {w.status !== "done" && (
+                <button onClick={(e) => { e.stopPropagation(); onRemove(w); }} style={{ fontSize: 13, color: C.muted2, padding: "0 6px" }}>✕</button>
+              )}
               <span style={{ fontSize: 20, color: C.muted2 }}>›</span>
             </div>
           ))}
@@ -407,7 +411,7 @@ function TodayInner() {
               </>
             )}
 
-            <WorkoutSection workouts={tw.workouts} onOpen={openWorkout} onAdd={() => setAddWorkoutOpen(true)} />
+            <WorkoutSection workouts={tw.workouts} onOpen={openWorkout} onRemove={tw.removeWorkout} onAdd={() => setAddWorkoutOpen(true)} />
 
             <div style={{ marginTop: 16 }}><StreakCard d={d} /></div>
           </>
