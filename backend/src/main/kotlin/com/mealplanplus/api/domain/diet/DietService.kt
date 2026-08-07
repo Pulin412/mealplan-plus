@@ -261,7 +261,9 @@ class DietService(
             name = dto.name, description = dto.description,
             targetCalories = dto.targetCalories, targetProtein = dto.targetProtein,
             targetCarbs = dto.targetCarbs, targetFat = dto.targetFat,
-            isFavorite = existing.isFavorite
+            // Honour the client's favourite flag (sync-push is the only path clients use to toggle it);
+            // fall back to the stored value when the payload omits it.
+            isFavorite = dto.isFavorite ?: existing.isFavorite
         ).also { it.serverId = existing.serverId }
         val saved = dietRepo.save(updated)
         saveMealsAndItems(saved.id, dto)
