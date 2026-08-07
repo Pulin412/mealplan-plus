@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Stepper } from "@/components/ui/Stepper";
-import { useSession, type RunExercise, type RunSet } from "@/hooks/useSession";
+import { useSession, type RunExercise, type RunSet, type LibExercise } from "@/hooks/useSession";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
@@ -89,37 +89,81 @@ function ReadyPhase({ s }: { s: ReturnType<typeof useSession> }) {
   );
 }
 
+/**
+ * One exercise while logging: a tappable header (name + description) that expands to its sets — the
+ * familiar rows with Copy last, per-set reps/weight steppers, ✕ remove, and Add set.
+ */
+function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExercise }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <div className="flex items-center cursor-pointer" onClick={() => setOpen((o) => !o)}>
+        <div className="flex-1">
+          <div className="text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</div>
+          <Desc text={ex.description} />
+          {!open && <div className="text-[10.5px] mt-0.5" style={{ color: C.faint }}>{ex.sets.length} set{ex.sets.length === 1 ? "" : "s"}</div>}
+        </div>
+        <span className="text-[13px] pl-2" style={{ color: C.muted2 }}>{open ? "▾" : "▸"}</span>
+      </div>
+      {open && (
+        <>
+          {ex.lastTime.length > 0 && (
+            <button onClick={() => s.copyLast(ex.exerciseId)} className="block w-full text-right text-[11px] font-semibold mt-1.5" style={{ color: C.teal }}>Copy last</button>
+          )}
+          <ColHeaders actions />
+          {ex.sets.map((set, i) => (
+            <div key={i} className="flex items-center py-[3px]">
+              <span className="w-11 text-[10.5px]" style={{ color: C.muted3, fontFamily: mono }}>Set {i + 1}</span>
+              <Stepper value={set.reps ?? 0} onChange={(v) => s.setReps(ex.exerciseId, i, v)} min={0} max={100} dense />
+              <div className="ml-[8px]"><Stepper value={set.weightKg ?? 0} onChange={(v) => s.setWeight(ex.exerciseId, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
+              <span className="flex-1" />
+              {ex.sets.length > 1 && <button onClick={() => s.removeSet(ex.exerciseId, i)} className="text-[12px] pl-2" style={{ color: C.muted2 }}>✕</button>}
+            </div>
+          ))}
+          <button onClick={() => s.addSet(ex.exerciseId)} className="text-[11.5px] font-semibold mt-1.5" style={{ color: C.teal }}>＋ Add set</button>
+        </>
+      )}
+    </Card>
+  );
+}
+
+// Pick a library exercise to add to the current session on the fly (not saved to the template).
+function ExercisePicker({ options, onPick, onDismiss }: { options: LibExercise[]; onPick: (id: number) => void; onDismiss: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: "rgba(0,0,0,0.35)" }} onClick={onDismiss}>
+      <div className="rounded-t-2xl max-h-[70vh] overflow-y-auto p-5" style={{ background: C.surface }} onClick={(e) => e.stopPropagation()}>
+        <div className="text-[16px] font-bold" style={{ color: C.ink }}>Add exercise</div>
+        <div className="text-[11px] mt-0.5 mb-2" style={{ color: C.faint }}>Logged to this workout only — not saved to the template.</div>
+        {options.length === 0 ? (
+          <div className="text-[12px] py-3" style={{ color: C.muted }}>No more exercises to add.</div>
+        ) : options.map((o) => (
+          <div key={o.id} onClick={() => onPick(o.id)} className="py-2.5 cursor-pointer" style={{ borderBottom: `1px solid ${C.bgAlt}` }}>
+            <div className="text-[13px] font-semibold" style={{ color: C.ink }}>{o.name}</div>
+            {o.description && <div className="text-[10.5px] truncate" style={{ color: C.muted }}>{o.description}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ActivePhase({ s }: { s: ReturnType<typeof useSession> }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const present = new Set(s.exercises.map((e) => e.exerciseId));
   return (
     <>
       <div className="flex-1 overflow-y-auto px-[14px] pt-1.5 pb-2">
-        {s.exercises.map((ex: RunExercise) => (
-          <Card key={ex.exerciseId}>
-            <div className="flex items-center gap-2">
-              <span className="flex-1 text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</span>
-              {ex.lastTime.length > 0 && (
-                <button onClick={() => s.copyLast(ex.exerciseId)} className="text-[11px] font-semibold" style={{ color: C.teal }}>Copy last</button>
-              )}
-            </div>
-            <Desc text={ex.description} />
-            <ColHeaders actions />
-            {ex.sets.map((set, i) => (
-              <div key={i} className="flex items-center py-[3px]">
-                <span className="w-11 text-[10.5px]" style={{ color: C.muted3, fontFamily: mono }}>Set {i + 1}</span>
-                <Stepper value={set.reps ?? 0} onChange={(v) => s.setReps(ex.exerciseId, i, v)} min={0} max={100} dense />
-                <div className="ml-[8px]"><Stepper value={set.weightKg ?? 0} onChange={(v) => s.setWeight(ex.exerciseId, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
-                <span className="flex-1" />
-                {ex.sets.length > 1 && <button onClick={() => s.removeSet(ex.exerciseId, i)} className="text-[12px] pl-2" style={{ color: C.muted2 }}>✕</button>}
-              </div>
-            ))}
-            <button onClick={() => s.addSet(ex.exerciseId)} className="text-[11.5px] font-semibold mt-1.5" style={{ color: C.teal }}>＋ Add set</button>
-          </Card>
-        ))}
+        {s.exercises.map((ex: RunExercise) => <ExerciseCard key={ex.exerciseId} s={s} ex={ex} />)}
+        {/* Add an exercise on the fly — logged to THIS session only, never the template. */}
+        <button onClick={() => setPickerOpen(true)} className="w-full rounded-[10px] py-3 text-[12.5px] font-semibold" style={{ border: `1px solid ${C.borderCool}`, color: C.teal }}>＋  Add exercise</button>
       </div>
       <div className="flex-none px-5 pt-2 pb-4" style={{ borderTop: `1px solid ${C.border}` }}>
         {s.error && <div className="text-[12px] mb-2" style={{ color: C.danger }}>{s.error}</div>}
         <PrimaryButton label={s.busy ? "Finishing…" : "✓  Finish workout"} enabled={!s.busy} onClick={s.finish} />
       </div>
+      {pickerOpen && (
+        <ExercisePicker options={s.library.filter((l) => !present.has(l.id))} onPick={(id) => { s.addExercise(id); setPickerOpen(false); }} onDismiss={() => setPickerOpen(false)} />
+      )}
     </>
   );
 }

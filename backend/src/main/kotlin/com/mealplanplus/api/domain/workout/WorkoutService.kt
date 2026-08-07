@@ -331,9 +331,21 @@ class WorkoutService(
         return sessionRepo.save(finished).toDto(setRepo.findBySessionId(session.id))
     }
 
-    /** Returns the most recent completed sets for a given exercise — used by Session Runner "Last time". */
-    fun lastSetsForExercise(firebaseUid: String, exerciseId: Long): LastSetsDto {
-        val sets = setRepo.findLastSetsForExercise(firebaseUid, exerciseId)
+    /**
+     * Sets for the Session Runner "Last time" / "Copy last" panel. When [workout] is given, anchors on
+     * the most recent completed session of that same workout (matched by name) — the last time you did
+     * *this* workout — and reads the exercise's sets from it (empty if it wasn't logged there). Without
+     * [workout], falls back to the exercise's most recent appearance in any workout. Either way it's a
+     * single session's sets, never an aggregate across sessions.
+     */
+    fun lastSetsForExercise(firebaseUid: String, exerciseId: Long, workout: String? = null): LastSetsDto {
+        val sessionId = if (!workout.isNullOrBlank())
+            sessionRepo.findCompletedSessionIdsByName(firebaseUid, workout).firstOrNull()
+        else
+            sessionRepo.findCompletedSessionIdsForExercise(firebaseUid, exerciseId).firstOrNull()
+        val sets = sessionId
+            ?.let { setRepo.findBySessionIdAndExerciseId(it, exerciseId).sortedBy { s -> s.setNumber } }
+            ?: emptyList()
         return LastSetsDto(exerciseId = exerciseId, sets = sets.map { it.toDto() })
     }
 

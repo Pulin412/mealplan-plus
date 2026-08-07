@@ -12,6 +12,23 @@ interface WorkoutSessionRepository : JpaRepository<WorkoutSession, Long> {
     fun findByFirebaseUidAndDateAndName(firebaseUid: String, date: LocalDate, name: String): WorkoutSession?
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<WorkoutSession>
     fun findByServerId(serverId: UUID): WorkoutSession?
+
+    /** Completed sessions of a given workout (matched by name), most-recent first; take the first for "last time". */
+    @Query("""
+        SELECT s.id FROM WorkoutSession s
+        WHERE s.firebaseUid = :firebaseUid AND s.isCompleted = true AND s.name = :name
+        ORDER BY s.date DESC, s.id DESC
+    """)
+    fun findCompletedSessionIdsByName(firebaseUid: String, name: String): List<Long>
+
+    /** Completed sessions that contain the exercise, most-recent first (fallback when no workout given). */
+    @Query("""
+        SELECT s.id FROM WorkoutSession s
+        WHERE s.firebaseUid = :firebaseUid AND s.isCompleted = true
+          AND EXISTS (SELECT 1 FROM WorkoutSet ws WHERE ws.sessionId = s.id AND ws.exerciseId = :exerciseId)
+        ORDER BY s.date DESC, s.id DESC
+    """)
+    fun findCompletedSessionIdsForExercise(firebaseUid: String, exerciseId: Long): List<Long>
 }
 
 interface WorkoutSetRepository : JpaRepository<WorkoutSet, Long> {
@@ -19,18 +36,6 @@ interface WorkoutSetRepository : JpaRepository<WorkoutSet, Long> {
     fun findBySessionIdIn(sessionIds: Collection<Long>): List<WorkoutSet>
     fun findBySessionIdAndExerciseId(sessionId: Long, exerciseId: Long): List<WorkoutSet>
     fun deleteBySessionId(sessionId: Long)
-
-    @Query("""
-        SELECT ws FROM WorkoutSet ws
-        WHERE ws.exerciseId = :exerciseId
-          AND ws.sessionId IN (
-            SELECT s.id FROM WorkoutSession s
-            WHERE s.firebaseUid = :firebaseUid AND s.isCompleted = true
-            ORDER BY s.date DESC
-          )
-        ORDER BY ws.setNumber ASC
-    """)
-    fun findLastSetsForExercise(firebaseUid: String, exerciseId: Long): List<WorkoutSet>
 }
 
 interface WorkoutTemplateRepository : JpaRepository<WorkoutTemplate, Long> {

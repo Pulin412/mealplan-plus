@@ -52,7 +52,10 @@ class WorkoutSessionRepository @Inject constructor(
     suspend fun delete(id: Long): Boolean =
         runCatching { api.deleteWorkoutSession(id).isSuccessful }.getOrDefault(false)
 
-    /** Sets from the most recent completed session containing this exercise ("Last time" / Copy last). */
-    suspend fun lastForExercise(exerciseId: Long): List<WorkoutSetDto> =
-        runCatching { api.lastSetsForExercise(exerciseId).body()?.sets.orEmpty() }.getOrDefault(emptyList())
+    /**
+     * Sets for "Last time" / Copy last. [workoutName] scopes it to the most recent completed session
+     * of the same workout (the last time you did *this* workout); null falls back to any workout.
+     */
+    suspend fun lastForExercise(exerciseId: Long, workoutName: String? = null): List<WorkoutSetDto> =
+        runCatching { api.lastSetsForExercise(exerciseId, workoutName).body()?.sets.orEmpty() }.getOrDefault(emptyList())
 }

@@ -39,8 +39,9 @@ export function finishSession(id: number): Promise<WorkoutSessionDto> {
 }
 
 /** Sets from the most recent completed session containing this exercise ("Last time" / Copy last). */
-export function lastForExercise(exerciseId: number): Promise<WorkoutSetDto[]> {
-  return apiFetch<LastSetsDto>(`/api/v1/workout-sessions/last-for-exercise/${exerciseId}`)
+export function lastForExercise(exerciseId: number, workout?: string): Promise<WorkoutSetDto[]> {
+  const qs = workout ? `?workout=${encodeURIComponent(workout)}` : "";
+  return apiFetch<LastSetsDto>(`/api/v1/workout-sessions/last-for-exercise/${exerciseId}${qs}`)
     .then((r) => r.sets ?? [])
     .catch(() => []);
 }
