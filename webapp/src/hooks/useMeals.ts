@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { listMeals, createMeal, updateMeal, deleteMeal, toggleMealFavorite, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { foodMacros, defaultQtyFor, type FoodUnit } from "@/lib/nutrition";
+import { naturalCompare } from "@/lib/utils/naturalCompare";
 import type { MealSort, MealViewMode } from "@/types/meal";
 
 export interface BuildItem { foodId: number; quantity: number; unit: FoodUnit }
@@ -77,7 +78,7 @@ export function useMeals() {
     if (favOnly) list = list.filter((v) => v.meal.isFavorite);
     if (slotFilter) list = list.filter((v) => (v.meal.slots ?? []).includes(slotFilter));
     switch (sort) {
-      case "name": return [...list].sort((a, b) => a.meal.name.localeCompare(b.meal.name));
+      case "name": return [...list].sort((a, b) => naturalCompare(a.meal.name, b.meal.name));
       case "calories": return [...list].sort((a, b) => b.totalKcal - a.totalKcal);
       case "protein": return [...list].sort((a, b) => b.totalP - a.totalP);
       default: return list;
