@@ -13,6 +13,7 @@ import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.MealUi
 import com.mealplanplus.data.repository.TagRepository
 import com.mealplanplus.data.sync.SyncManager
+import com.mealplanplus.util.NaturalOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +57,7 @@ data class DietsUiState(
             tagFilter?.let { t -> list = list.filter { d -> d.diet.tags.any { it.name == t } } }
             return when (sortMode) {
                 DietSort.RECENT   -> list.sortedByDescending { it.diet.updatedAt }
-                DietSort.NAME     -> list.sortedBy { it.diet.name.lowercase() }
+                DietSort.NAME     -> list.sortedWith(compareBy(NaturalOrder) { it.diet.name })
                 DietSort.CALORIES -> list.sortedByDescending { it.totalKcal }
                 DietSort.PROTEIN  -> list.sortedByDescending { it.totalProtein }
             }

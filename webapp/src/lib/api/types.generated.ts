@@ -460,8 +460,12 @@ export interface paths {
         };
         /**
          * Get last logged sets for an exercise
-         * @description Returns the sets from the most recent **completed** session that contains
-         *     the given exercise. Used by the Session Runner "Last time" panel.
+         * @description Used by the Session Runner "Last time" / "Copy last" panel.
+         *
+         *     When `workout` is given, returns the exercise's sets from the most recent **completed**
+         *     session of that same workout (matched by name) — i.e. the last time you did *this* workout —
+         *     or an empty list if the exercise wasn't logged in that session. Without `workout`, falls back
+         *     to the most recent completed session that contains the exercise, in any workout.
          */
         get: operations["lastSetsForExercise"];
         put?: never;
@@ -2821,7 +2825,10 @@ export interface operations {
     };
     lastSetsForExercise: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The current workout's name, used to scope "last time" to this same workout. */
+                workout?: string;
+            };
             header?: never;
             path: {
                 exerciseId: number;

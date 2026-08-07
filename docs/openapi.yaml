@@ -975,8 +975,12 @@ paths:
       tags: [Workout Sessions]
       summary: Get last logged sets for an exercise
       description: |
-        Returns the sets from the most recent **completed** session that contains
-        the given exercise. Used by the Session Runner "Last time" panel.
+        Used by the Session Runner "Last time" / "Copy last" panel.
+
+        When `workout` is given, returns the exercise's sets from the most recent **completed**
+        session of that same workout (matched by name) — i.e. the last time you did *this* workout —
+        or an empty list if the exercise wasn't logged in that session. Without `workout`, falls back
+        to the most recent completed session that contains the exercise, in any workout.
       operationId: lastSetsForExercise
       parameters:
         - name: exerciseId
@@ -985,6 +989,12 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: workout
+          in: query
+          required: false
+          description: The current workout's name, used to scope "last time" to this same workout.
+          schema:
+            type: string
       responses:
         '200':
           description: Last sets for exercise

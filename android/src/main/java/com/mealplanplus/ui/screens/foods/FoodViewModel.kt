@@ -7,6 +7,7 @@ import com.mealplanplus.data.model.Food
 import com.mealplanplus.data.repository.BarcodeRepository
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.sync.SyncManager
+import com.mealplanplus.util.NaturalOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,7 +66,7 @@ data class FoodsUiState(
             categoryFilter?.let { cat -> list = list.filter { it.category == cat } }
             list = when (sortMode) {
                 FoodSort.RECENT   -> list.sortedByDescending { it.updatedAt }
-                FoodSort.NAME     -> list.sortedBy { it.name.lowercase() }
+                FoodSort.NAME     -> list.sortedWith(compareBy(NaturalOrder) { it.name })
                 FoodSort.CALORIES -> list.sortedByDescending { it.caloriesPer100 }
                 FoodSort.PROTEIN  -> list.sortedByDescending { it.proteinPer100 }
             }

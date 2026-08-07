@@ -69,8 +69,8 @@ class WorkoutSessionController(private val service: WorkoutService) : WorkoutSes
     override fun getWorkoutSession(id: Long): ResponseEntity<WorkoutSessionDto> =
         ResponseEntity.ok(service.getSession(id))
 
-    override fun lastSetsForExercise(exerciseId: Long): ResponseEntity<LastSetsDto> =
-        ResponseEntity.ok(service.lastSetsForExercise(currentUid(), exerciseId))
+    override fun lastSetsForExercise(exerciseId: Long, workout: String?): ResponseEntity<LastSetsDto> =
+        ResponseEntity.ok(service.lastSetsForExercise(currentUid(), exerciseId, workout))
 
     override fun createWorkoutSession(workoutSessionDto: WorkoutSessionDto): ResponseEntity<WorkoutSessionDto> =
         ResponseEntity.status(HttpStatus.CREATED).body(service.createSession(workoutSessionDto, currentUid()))

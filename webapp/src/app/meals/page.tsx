@@ -168,6 +168,8 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
               <span style={{ color: C.muted2 }}>⌕</span>
               <input value={pickQuery} onChange={(e) => setPickQuery(e.target.value)} placeholder="Search your foods…"
                 className="flex-1 bg-transparent border-none outline-none text-[13px]" style={{ color: C.ink }} />
+              {/* Clear the search → empties the box and shows all foods again. */}
+              {pickQuery && <button onClick={() => setPickQuery("")} className="text-[13px] leading-none" style={{ color: C.muted2 }}>✕</button>}
             </div>
             <div className="max-h-[240px] overflow-y-auto">
               {pickList.length === 0 && <p className="text-center text-[12px] py-3" style={{ color: C.muted2 }}>No foods. Create some on the Foods tab.</p>}
