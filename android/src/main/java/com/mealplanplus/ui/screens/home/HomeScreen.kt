@@ -167,6 +167,7 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
                                     w.exerciseId != null -> onOpenExerciseRunner(w.exerciseId, w.name)
                                 }
                             },
+                            onRemove = viewModel::removeWorkout,
                             onAdd = { sheet = HomeSheet.AddWorkout })
                         if (state.hcConnected) {
                             Spacer(Modifier.height(16.dp))
@@ -230,7 +231,7 @@ private fun ActivityStat(value: String, label: String, modifier: Modifier = Modi
 
 // ── Today's workout ──────────────────────────────────────────────────────────────
 @Composable
-private fun WorkoutSection(workouts: List<HomeWorkout>, onOpen: (HomeWorkout) -> Unit, onAdd: () -> Unit) {
+private fun WorkoutSection(workouts: List<HomeWorkout>, onOpen: (HomeWorkout) -> Unit, onRemove: (HomeWorkout) -> Unit, onAdd: () -> Unit) {
     Text("Today's workout", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
     if (workouts.isEmpty()) {
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))
@@ -248,6 +249,11 @@ private fun WorkoutSection(workouts: List<HomeWorkout>, onOpen: (HomeWorkout) ->
                     Text(w.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                     WorkoutStatusLabel(w.status)
                 }
+                // Remove a planned/in-progress workout → drops it from the plan and clears its
+                // started session. Completed workouts are kept as history (no ✕).
+                if (w.status != WorkoutStatus.DONE)
+                    Text("✕", fontSize = 13.sp, color = MutedLight,
+                        modifier = Modifier.clip(CircleShape).clickable { onRemove(w) }.padding(8.dp))
                 Text("›", fontSize = 20.sp, color = MutedLight)
             }
             if (i < workouts.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))

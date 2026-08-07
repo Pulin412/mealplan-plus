@@ -89,23 +89,42 @@ function ReadyPhase({ s }: { s: ReturnType<typeof useSession> }) {
   );
 }
 
+// Circular check that marks an exercise done during logging (locks its sets read-only).
+function ExCheck({ done, onClick }: { done: boolean; onClick: (e: React.MouseEvent) => void }) {
+  return (
+    <button onClick={onClick} className="w-6 h-6 flex-none rounded-full flex items-center justify-center text-[13px] font-bold mr-2.5"
+      style={done ? { background: C.green, color: "#fff" } : { border: `1.5px solid ${C.muted2}`, color: "transparent" }}>
+      {done ? "✓" : ""}
+    </button>
+  );
+}
+
 /**
- * One exercise while logging: a tappable header (name + description) that expands to its sets — the
- * familiar rows with Copy last, per-set reps/weight steppers, ✕ remove, and Add set.
+ * One exercise while logging: a tappable header (name + description) that expands to its sets. The
+ * check on the header marks the exercise **done** — its sets go read-only (no editing/add/remove) so
+ * you can see what's finished vs left; unchecking makes it editable again.
  */
 function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExercise }) {
   const [open, setOpen] = useState(false);
+  const done = s.doneIds.has(ex.exerciseId);
   return (
     <Card>
-      <div className="flex items-center cursor-pointer" onClick={() => setOpen((o) => !o)}>
-        <div className="flex-1">
-          <div className="text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</div>
+      <div className="flex items-center">
+        <ExCheck done={done} onClick={(e) => { e.stopPropagation(); s.toggleDone(ex.exerciseId); }} />
+        <div className="flex-1 cursor-pointer" onClick={() => setOpen((o) => !o)}>
+          <div className="text-[13px] font-bold" style={{ color: done ? C.muted3 : C.ink }}>{ex.name}</div>
           <Desc text={ex.description} />
-          {!open && <div className="text-[10.5px] mt-0.5" style={{ color: C.faint }}>{ex.sets.length} set{ex.sets.length === 1 ? "" : "s"}</div>}
+          {!open && <div className="text-[10.5px] mt-0.5" style={{ color: C.faint }}>{ex.sets.length} set{ex.sets.length === 1 ? "" : "s"}{done ? " · done" : ""}</div>}
         </div>
-        <span className="text-[13px] pl-2" style={{ color: C.muted2 }}>{open ? "▾" : "▸"}</span>
+        <span className="text-[13px] pl-2 cursor-pointer" onClick={() => setOpen((o) => !o)} style={{ color: C.muted2 }}>{open ? "▾" : "▸"}</span>
       </div>
-      {open && (
+      {open && (done ? (
+        <>
+          {/* Read-only recap while this exercise is checked off. */}
+          <ColHeaders actions={false} />
+          {ex.sets.map((set, i) => <ReadOnlyRow key={i} n={i + 1} reps={set.reps} weightKg={set.weightKg} />)}
+        </>
+      ) : (
         <>
           {ex.lastTime.length > 0 && (
             <button onClick={() => s.copyLast(ex.exerciseId)} className="block w-full text-right text-[11px] font-semibold mt-1.5" style={{ color: C.teal }}>Copy last</button>
@@ -122,7 +141,7 @@ function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExer
           ))}
           <button onClick={() => s.addSet(ex.exerciseId)} className="text-[11.5px] font-semibold mt-1.5" style={{ color: C.teal }}>＋ Add set</button>
         </>
-      )}
+      ))}
     </Card>
   );
 }

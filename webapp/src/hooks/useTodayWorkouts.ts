@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { getPlan, addPlannedWorkout } from "@/lib/api/plans";
+import { getPlan, addPlannedWorkout, removePlannedWorkout } from "@/lib/api/plans";
 import { listWorkouts, type WorkoutTemplateDto } from "@/lib/api/workouts";
 import { listExercises, type ExerciseDto } from "@/lib/api/exercises";
-import { listSessionsForDate, type WorkoutSessionDto } from "@/lib/api/sessions";
+import { listSessionsForDate, deleteSession, type WorkoutSessionDto } from "@/lib/api/sessions";
 
 export type WorkoutStatus = "planned" | "in_progress" | "done";
-export interface HomeWorkout { templateId: number | null; exerciseId: number | null; name: string; status: WorkoutStatus }
+export interface HomeWorkout { templateId: number | null; exerciseId: number | null; name: string; status: WorkoutStatus; plannedId: number | null }
 
 const todayIso = (): string => {
   const d = new Date();
@@ -28,11 +28,11 @@ export function useTodayWorkouts() {
     const planned = plan?.plannedWorkouts ?? [];
     const plannedRows: HomeWorkout[] = planned.map((pw) => {
       const s = sessions.find((x) => x.name === pw.activityName);
-      return { templateId: pw.workoutTemplateId ?? null, exerciseId: s?.sets?.[0]?.exerciseId ?? null, name: pw.activityName, status: statusOf(s) };
+      return { templateId: pw.workoutTemplateId ?? null, exerciseId: s?.sets?.[0]?.exerciseId ?? null, name: pw.activityName, status: statusOf(s), plannedId: pw.id ?? null };
     });
     const plannedNames = new Set(planned.map((p) => p.activityName));
     const adHocRows: HomeWorkout[] = sessions.filter((s) => !plannedNames.has(s.name)).map((s) => ({
-      templateId: null, exerciseId: s.sets?.[0]?.exerciseId ?? null, name: s.name, status: statusOf(s),
+      templateId: null, exerciseId: s.sets?.[0]?.exerciseId ?? null, name: s.name, status: statusOf(s), plannedId: null,
     }));
     setWorkouts([...plannedRows, ...adHocRows]);
   }, [today]);
@@ -49,5 +49,15 @@ export function useTodayWorkouts() {
     await reload();
   }, [today, reload]);
 
-  return { workouts, templates, exercises, addWorkout, reload };
+  // Remove a planned/in-progress workout: drop its plan entry (leaves the Plan too) and delete its
+  // started-but-unfinished session. Completed logs are kept.
+  const removeWorkout = useCallback(async (hw: HomeWorkout) => {
+    if (hw.plannedId != null) await removePlannedWorkout(today, hw.plannedId).catch(() => {});
+    const sessions = await listSessionsForDate(today).catch(() => []);
+    const s = sessions.find((x) => x.name === hw.name && x.isCompleted !== true);
+    if (s?.id != null) await deleteSession(s.id).catch(() => {});
+    await reload();
+  }, [today, reload]);
+
+  return { workouts, templates, exercises, addWorkout, removeWorkout, reload };
 }

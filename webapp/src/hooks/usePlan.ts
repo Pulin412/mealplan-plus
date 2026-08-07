@@ -6,6 +6,7 @@ import { listDiets, type DietDto } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { listWorkouts, type WorkoutTemplateDto } from "@/lib/api/workouts";
+import { listSessionsForDate, deleteSession } from "@/lib/api/sessions";
 import { foodMacros, unitLabel, MEAL_SLOTS, num } from "@/lib/nutrition";
 
 export interface DietLine { name: string; meta: string; header: boolean }
@@ -140,9 +141,18 @@ export function usePlan() {
   }, [ym, loadPlans]);
 
   const removeWorkout = useCallback(async (dateIso: string, workoutId: number) => {
-    try { await removePlannedWorkout(dateIso, workoutId); await loadPlans(ym.year, ym.month); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
-  }, [ym, loadPlans]);
+    try {
+      // Also drop a started-but-unfinished session for it, else it lingers on Home as an ad-hoc workout.
+      const name = plans[dateIso]?.plannedWorkouts?.find((pw) => pw.id === workoutId)?.activityName;
+      await removePlannedWorkout(dateIso, workoutId);
+      if (name) {
+        const sessions = await listSessionsForDate(dateIso).catch(() => []);
+        const s = sessions.find((x) => x.name === name && x.isCompleted !== true);
+        if (s?.id != null) await deleteSession(s.id);
+      }
+      await loadPlans(ym.year, ym.month);
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+  }, [ym, loadPlans, plans]);
 
   /** Open the read-only detail of a planned workout by its template id (no-op if not a template). */
   const openWorkoutDetail = useCallback((templateId: number | null | undefined) => {
