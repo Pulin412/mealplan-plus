@@ -114,8 +114,8 @@ private fun ReadyPhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
 // ── Active ───────────────────────────────────────────────────────────────────────
 @Composable
 private fun ActivePhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
-    // Which exercise cards are expanded (by exerciseId). Collapsed shows the name + description; tap
-    // to reveal its sets. Ephemeral UI state for the current logging view.
+    // Expansion is ephemeral view state; "done" checks are persisted per session (survive back-nav),
+    // so read from state.doneExerciseIds. Done locks an exercise's sets read-only; unchecking edits again.
     val expanded = remember { mutableStateMapOf<Long, Boolean>() }
     var pickerOpen by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
@@ -124,7 +124,9 @@ private fun ActivePhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
                 ExerciseCard(
                     ex = ex,
                     expanded = expanded[ex.exerciseId] == true,
+                    done = ex.exerciseId in state.doneExerciseIds,
                     onToggle = { expanded[ex.exerciseId] = !(expanded[ex.exerciseId] == true) },
+                    onToggleDone = { vm.toggleExerciseDone(ex.exerciseId) },
                     vm = vm,
                 )
                 Spacer(Modifier.height(8.dp))
@@ -157,44 +159,67 @@ private fun ActivePhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
 }
 
 /**
- * One exercise while logging: a tappable header (name + description) that expands to its sets — the
- * familiar rows with Copy last, per-set reps/weight steppers, ✕ remove, and Add set.
+ * One exercise while logging: a tappable header (name + description) that expands to its sets. The
+ * check on the header marks the exercise **done** — its sets go read-only (no editing/add/remove) and
+ * the card tints green so you can see what's finished vs left; unchecking makes it editable again.
  */
 @Composable
-private fun ExerciseCard(ex: RunExercise, expanded: Boolean, onToggle: () -> Unit, vm: SessionRunnerViewModel) {
+private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onToggle: () -> Unit, onToggleDone: () -> Unit, vm: SessionRunnerViewModel) {
     AppCard {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle)) {
-            Column(Modifier.weight(1f)) {
-                Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            CheckToggle(done, onToggleDone)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f).clickable(onClick = onToggle)) {
+                Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (done) MutedDark else Ink)
                 ExerciseDesc(ex.description)
                 if (!expanded)
-                    Text("${ex.sets.size} set${if (ex.sets.size == 1) "" else "s"}", fontSize = 10.5.sp, color = MutedFaint,
-                        modifier = Modifier.padding(top = 2.dp))
+                    Text("${ex.sets.size} set${if (ex.sets.size == 1) "" else "s"}${if (done) " · done" else ""}",
+                        fontSize = 10.5.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
             }
-            Text(if (expanded) "▾" else "▸", fontSize = 13.sp, color = MutedLight, modifier = Modifier.padding(start = 8.dp))
+            Text(if (expanded) "▾" else "▸", fontSize = 13.sp, color = MutedLight,
+                modifier = Modifier.clickable(onClick = onToggle).padding(start = 8.dp))
         }
         if (expanded) {
-            if (ex.lastTime.isNotEmpty())
-                Text("Copy last", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal,
-                    modifier = Modifier.fillMaxWidth().clickable { vm.copyLast(ex.exerciseId) }.padding(top = 6.dp), textAlign = TextAlign.End)
-            ColumnHeaders(showActions = true)
-            ex.sets.forEachIndexed { i, s ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                    Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
-                    // Uniform +/- and directly-editable controls (weight steps by 0.5).
-                    Stepper(value = s.reps ?: 0, onChange = { vm.setReps(ex.exerciseId, i, it) },
-                        min = 0, max = 100, modifier = Modifier.width(100.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Stepper(value = s.weightKg ?: 0.0, onChange = { vm.setWeight(ex.exerciseId, i, it.takeIf { w -> w > 0.0 }) },
-                        min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(120.dp))
-                    Spacer(Modifier.weight(1f))
-                    if (ex.sets.size > 1)
-                        Text("✕", fontSize = 12.sp, color = MutedLight, modifier = Modifier.clickable { vm.removeSet(ex.exerciseId, i) }.padding(start = 8.dp))
+            if (done) {
+                // Read-only recap of the logged sets while this exercise is checked off.
+                ColumnHeaders(showActions = false)
+                ex.sets.forEachIndexed { i, s -> ReadOnlyRow(i + 1, s.reps, s.weightKg) }
+            } else {
+                if (ex.lastTime.isNotEmpty())
+                    Text("Copy last", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                        modifier = Modifier.fillMaxWidth().clickable { vm.copyLast(ex.exerciseId) }.padding(top = 6.dp), textAlign = TextAlign.End)
+                ColumnHeaders(showActions = true)
+                ex.sets.forEachIndexed { i, s ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                        Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
+                        // Uniform +/- and directly-editable controls (weight steps by 0.5).
+                        Stepper(value = s.reps ?: 0, onChange = { vm.setReps(ex.exerciseId, i, it) },
+                            min = 0, max = 100, modifier = Modifier.width(100.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Stepper(value = s.weightKg ?: 0.0, onChange = { vm.setWeight(ex.exerciseId, i, it.takeIf { w -> w > 0.0 }) },
+                            min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(120.dp))
+                        Spacer(Modifier.weight(1f))
+                        if (ex.sets.size > 1)
+                            Text("✕", fontSize = 12.sp, color = MutedLight, modifier = Modifier.clickable { vm.removeSet(ex.exerciseId, i) }.padding(start = 8.dp))
+                    }
                 }
+                Text("＋ Add set", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                    modifier = Modifier.padding(top = 6.dp).clickable { vm.addSet(ex.exerciseId) })
             }
-            Text("＋ Add set", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
-                modifier = Modifier.padding(top = 6.dp).clickable { vm.addSet(ex.exerciseId) })
         }
+    }
+}
+
+/** Circular check that marks an exercise done during logging (locks its sets read-only). */
+@Composable
+private fun CheckToggle(done: Boolean, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(24.dp).clip(CircleShape)
+            .then(if (done) Modifier.background(Success) else Modifier.border(1.5.dp, MutedLight, CircleShape))
+            .clickable { onClick() },
+    ) {
+        if (done) Text("✓", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = OnAccent)
     }
 }
 

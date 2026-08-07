@@ -31,8 +31,26 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [exercises, setExercises] = useState<RunExercise[]>([]);
   const [library, setLibrary] = useState<LibExercise[]>([]);   // for the "Add exercise" picker
+  const [doneIds, setDoneIds] = useState<Set<number>>(new Set());   // exercises checked off this session (persisted locally)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // "Done" checks persist per session (survive leaving/returning to the runner) via localStorage.
+  const loadDone = (id: number | null) => {
+    if (id == null) { setDoneIds(new Set()); return; }
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(`workoutDone:${id}`) : null;
+      setDoneIds(new Set(raw ? (JSON.parse(raw) as number[]) : []));
+    } catch { setDoneIds(new Set()); }
+  };
+  const toggleDone = (exId: number) => {
+    setDoneIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(exId)) next.delete(exId); else next.add(exId);
+      try { if (sessionId != null && typeof window !== "undefined") window.localStorage.setItem(`workoutDone:${sessionId}`, JSON.stringify(Array.from(next))); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const templateRef = useRef<WorkoutTemplateDto | null>(null);
   const descRef = useRef<Map<number, string | null>>(new Map());
@@ -96,6 +114,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
         setSessionId(existing.id ?? null);
         const active = existing.isCompleted !== true;
         setPhase(active ? "active" : "done");
+        loadDone(active ? (existing.id ?? null) : null);
         if (active) void loadLastTimes(list);
       } else {
         const list = tpl ? exercisesFromTemplate() : exerciseReadyList();
@@ -162,6 +181,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       const list = exercisesFromSession(session).map((e) => ({ ...e, lastTime: prevLast.get(e.exerciseId) ?? [] }));
       setSessionId(session.id ?? null);
       setExercises(list);
+      loadDone(session.id ?? null);
       setPhase("active");
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to start"); }
     finally { setBusy(false); }
@@ -181,8 +201,8 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const edit = useCallback(() => setPhase("active"), []);
 
   return {
-    phase, workoutName: name, exercises, library, busy, error,
+    phase, workoutName: name, exercises, library, doneIds, busy, error,
     start, finish, edit,
-    setReps, setWeight, addSet, removeSet, copyLast, addExercise,
+    setReps, setWeight, addSet, removeSet, copyLast, addExercise, toggleDone,
   };
 }
