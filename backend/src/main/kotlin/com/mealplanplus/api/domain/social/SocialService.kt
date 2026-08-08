@@ -7,6 +7,8 @@ import com.mealplanplus.api.domain.user.User
 import com.mealplanplus.api.domain.user.UserRepository
 import com.mealplanplus.api.domain.user.toResponse
 import com.mealplanplus.api.domain.workout.WorkoutService
+import com.mealplanplus.api.generated.model.CopyRequest
+import com.mealplanplus.api.generated.model.CopyResultDto
 import com.mealplanplus.api.generated.model.HandleAvailabilityDto
 import com.mealplanplus.api.generated.model.ProfileUpdateRequest
 import com.mealplanplus.api.generated.model.PublicProfileDto
@@ -34,6 +36,7 @@ class SocialService(
     private val mealService: MealService,
     private val workoutService: WorkoutService,
     private val foodService: FoodService,
+    private val copyService: CopyService,
 ) {
     private val handleRegex = Regex("^[a-z0-9_]{3,20}$")
 
@@ -235,6 +238,13 @@ class SocialService(
         val (workout, exercises) = workoutService.sharedTemplateBundle(author.firebaseUid, serverId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         return SharedWorkoutDetailDto(workout = workout, exercises = exercises)
+    }
+
+    // ── Copy ─────────────────────────────────────────────────────────────────
+
+    fun copy(viewerUid: String, req: CopyRequest): CopyResultDto {
+        val author = requireCanViewLibrary(viewerUid, req.handle)
+        return copyService.copy(viewerUid, author.firebaseUid, req.entityType, req.sourceServerId)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

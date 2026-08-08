@@ -2120,6 +2120,39 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/v1/social/copy:
+    post:
+      tags: [Social]
+      summary: Copy a shared template into your own library
+      description: >-
+        Deep-clones another user's shared diet/meal/workout into the caller's library.
+        Foods and exercises are deduplicated (system items referenced directly; manual
+        items matched against the caller's own by name+unit+per-100 macros for foods, by
+        name for exercises — reuse on match, else created fresh). Containers (the diet/
+        meal/workout, and a diet's meals) are always created fresh and stamped with
+        provenance. The caller then sync-pulls the new owned rows. Same follows+block
+        gate as the read endpoints; the source must be shared.
+      operationId: copyTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyRequest'
+      responses:
+        '201':
+          description: The newly created owned template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopyResultDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ── Shared-library reads (followers-gated) ──────────────────────────────────
   # Every read below requires viewer ∈ followers(author) (or self) AND no block
   # either way. 403 = not following ("Follow to see"); items must be is_shared.
@@ -2689,6 +2722,36 @@ components:
             $ref: '#/components/schemas/ExerciseDto'
           default: []
       required: [workout]
+
+    CopyRequest:
+      type: object
+      required: [entityType, handle, sourceServerId]
+      properties:
+        entityType:
+          type: string
+          enum: [DIET, MEAL, WORKOUT_TEMPLATE]
+        handle:
+          type: string
+          description: Handle of the author whose shared template is being copied.
+        sourceServerId:
+          type: string
+          format: uuid
+          description: serverId of the shared template to copy.
+
+    CopyResultDto:
+      type: object
+      description: Identifies the newly created owned template; the client sync-pulls the full rows.
+      properties:
+        entityType:
+          type: string
+          enum: [DIET, MEAL, WORKOUT_TEMPLATE]
+        serverId:
+          type: string
+          format: uuid
+          description: serverId of the new owned copy.
+        name:
+          type: string
+      required: [entityType, serverId, name]
 
     # ── Dashboard ─────────────────────────────────────────────────────────────
 

@@ -1179,6 +1179,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/social/copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy a shared template into your own library
+         * @description Deep-clones another user's shared diet/meal/workout into the caller's library. Foods and exercises are deduplicated (system items referenced directly; manual items matched against the caller's own by name+unit+per-100 macros for foods, by name for exercises — reuse on match, else created fresh). Containers (the diet/ meal/workout, and a diet's meals) are always created fresh and stamped with provenance. The caller then sync-pulls the new owned rows. Same follows+block gate as the read endpoints; the source must be shared.
+         */
+        post: operations["copyTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/social/users/{handle}/diets": {
         parameters: {
             query?: never;
@@ -1470,6 +1490,28 @@ export interface components {
             workout: components["schemas"]["WorkoutTemplateDto"];
             /** @default [] */
             exercises: components["schemas"]["ExerciseDto"][];
+        };
+        CopyRequest: {
+            /** @enum {string} */
+            entityType: "DIET" | "MEAL" | "WORKOUT_TEMPLATE";
+            /** @description Handle of the author whose shared template is being copied. */
+            handle: string;
+            /**
+             * Format: uuid
+             * @description serverId of the shared template to copy.
+             */
+            sourceServerId: string;
+        };
+        /** @description Identifies the newly created owned template; the client sync-pulls the full rows. */
+        CopyResultDto: {
+            /** @enum {string} */
+            entityType: "DIET" | "MEAL" | "WORKOUT_TEMPLATE";
+            /**
+             * Format: uuid
+             * @description serverId of the new owned copy.
+             */
+            serverId: string;
+            name: string;
         };
         /** @description A day's completion state (the unit counted by the streak). */
         DayCompletionDto: {
@@ -4557,6 +4599,33 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    copyTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created owned template */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyResultDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listSharedDiets: {

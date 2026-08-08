@@ -4,6 +4,8 @@ import com.mealplanplus.api.generated.api.SocialApi
 import com.mealplanplus.api.generated.model.HandleAvailabilityDto
 import com.mealplanplus.api.generated.model.ProfileUpdateRequest
 import com.mealplanplus.api.generated.model.PublicProfileDto
+import com.mealplanplus.api.generated.model.CopyRequest
+import com.mealplanplus.api.generated.model.CopyResultDto
 import com.mealplanplus.api.generated.model.PublicProfileSummaryDto
 import com.mealplanplus.api.generated.model.ReportRequest
 import com.mealplanplus.api.generated.model.SharedDietDetailDto
@@ -80,6 +82,9 @@ class SocialController(private val service: SocialService) : SocialApi {
 
     override fun getSharedWorkout(handle: String, serverId: UUID): ResponseEntity<SharedWorkoutDetailDto> =
         ResponseEntity.ok(service.getSharedWorkout(currentUid(), handle, serverId))
+
+    override fun copyTemplate(copyRequest: CopyRequest): ResponseEntity<CopyResultDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.copy(currentUid(), copyRequest))
 
     private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }
