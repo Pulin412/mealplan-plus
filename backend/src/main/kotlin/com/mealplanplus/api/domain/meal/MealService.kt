@@ -89,6 +89,36 @@ class MealService(
     }
 
     @Transactional
+    fun toggleShare(serverId: UUID, firebaseUid: String): MealDto {
+        val meal = mealRepo.findByServerId(serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
+        if (meal.firebaseUid != firebaseUid)
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        meal.isShared = !meal.isShared
+        itemRepo.findByMealId(meal.id).let { return mealRepo.save(meal).toDto(it, foodServerIds(it)) }
+    }
+
+    /** Author-scoped shared reads for the social layer. */
+    fun sharedMealsOf(authorUid: String): List<Meal> =
+        mealRepo.findByFirebaseUid(authorUid).filter { it.isShared }
+
+    fun sharedMealDto(authorUid: String, serverId: UUID): MealDto? {
+        val meal = mealRepo.findByServerId(serverId) ?: return null
+        if (meal.firebaseUid != authorUid || !meal.isShared) return null
+        itemRepo.findByMealId(meal.id).let { return meal.toDto(it, foodServerIds(it)) }
+    }
+
+    /** Meals referenced by a shared diet (viewable as part of it, share flag not required). */
+    fun dtosByServerIds(authorUid: String, serverIds: Collection<UUID>): List<MealDto> {
+        if (serverIds.isEmpty()) return emptyList()
+        val meals = mealRepo.findByServerIdIn(serverIds).filter { it.firebaseUid == authorUid }
+        if (meals.isEmpty()) return emptyList()
+        val itemsByMealId = itemRepo.findByMealIdIn(meals.map { it.id }).groupBy { it.mealId }
+        val foodSids = foodServerIds(itemsByMealId.values.flatten())
+        return meals.map { it.toDto(itemsByMealId[it.id] ?: emptyList(), foodSids) }
+    }
+
+    @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val meal = mealRepo.findById(id).orElseThrow()
         if (meal.firebaseUid != firebaseUid)
@@ -157,5 +187,7 @@ fun Meal.toDto(items: List<MealFoodItem>, foodServerIds: Map<Long, UUID>) = Meal
     slots       = slots,
     items       = items.map { it.toDto(foodServerIds) },
     isFavorite  = isFavorite,
+    isShared    = isShared,
+    imported    = copiedFromUid != null,
     updatedAt   = updatedAt
 )

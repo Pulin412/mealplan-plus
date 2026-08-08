@@ -9,6 +9,7 @@ import {
   type WorkoutTemplateDto, type TemplateExerciseDto,
 } from "@/lib/api/workouts";
 import { listExerciseTags, createExerciseTag, listWorkoutTags, createWorkoutTag, type TagDto } from "@/lib/api/tags";
+import { toggleWorkoutShare } from "@/lib/api/social";
 import { listWorkoutSessions, updateSession, deleteSession, type WorkoutSessionDto } from "@/lib/api/sessions";
 import { isoOf } from "@/lib/api/plans";
 
@@ -315,6 +316,13 @@ export function useExercises() {
     }
   }, [load]);
 
+  // Per-item Share toggle — direct REST by serverId. Imported copies can't be re-shared.
+  const toggleWorkoutShareFn = useCallback(async (w: WorkoutTemplateDto) => {
+    if (!w.serverId) return;
+    setWorkouts((prev) => prev.map((x) => x.serverId === w.serverId ? { ...x, isShared: !x.isShared } : x));
+    try { await toggleWorkoutShare(w.serverId); } catch { await load(); }
+  }, [load]);
+
   // ── Logs (read-only) ──────────────────────────────────────────────────────────
   const openLogDetail = useCallback((s: WorkoutSessionDto) => setOpenLog(s), []);
   const closeLogDetail = useCallback(() => setOpenLog(null), []);
@@ -372,6 +380,6 @@ export function useExercises() {
     openPicker, closePicker, setPickerSearch, addToBuilder, removeFromBuilder,
     toggleBuilderTag, createBuilderTag,
     duplicateSet, removeSet, setReps, setWeight,
-    pickerCandidates, canSaveWorkout, saveWorkout, removeWorkout,
+    pickerCandidates, canSaveWorkout, saveWorkout, removeWorkout, toggleWorkoutShare: toggleWorkoutShareFn,
   };
 }

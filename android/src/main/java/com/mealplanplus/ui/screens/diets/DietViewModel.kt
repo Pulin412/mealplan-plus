@@ -11,6 +11,7 @@ import com.mealplanplus.data.repository.DietUi
 import com.mealplanplus.data.repository.FoodRepository
 import com.mealplanplus.data.repository.MealRepository
 import com.mealplanplus.data.repository.MealUi
+import com.mealplanplus.data.repository.SharingRepository
 import com.mealplanplus.data.repository.TagRepository
 import com.mealplanplus.data.sync.SyncManager
 import com.mealplanplus.util.NaturalOrder
@@ -32,8 +33,11 @@ data class DietsUiState(
     val sortMode: DietSort = DietSort.RECENT,
     val viewMode: DietViewMode = DietViewMode.LIST,
     val favOnly: Boolean = false,
+    val importedOnly: Boolean = false,
     val tagFilter: String? = null,
     val expandedIds: Set<String> = emptySet(),
+    val sharedIds: Set<String> = emptySet(),   // diet serverIds currently shared with followers
+    val importedIds: Set<String> = emptySet(), // diet serverIds copied from other users
     val newDietOpen: Boolean = false,
     val editingDiet: Diet? = null,   // non-null = the New Diet sheet is editing this diet
     val error: String? = null,
@@ -54,6 +58,7 @@ data class DietsUiState(
                 }
             }
             if (favOnly) list = list.filter { it.diet.isFavorite }
+            if (importedOnly) list = list.filter { it.diet.id in importedIds }
             tagFilter?.let { t -> list = list.filter { d -> d.diet.tags.any { it.name == t } } }
             return when (sortMode) {
                 DietSort.RECENT   -> list.sortedByDescending { it.diet.updatedAt }
@@ -72,6 +77,7 @@ class DietViewModel @Inject constructor(
     private val mealRepository: MealRepository,
     private val foodRepository: FoodRepository,
     private val tagRepository: TagRepository,
+    private val sharingRepository: SharingRepository,
     private val syncManager: SyncManager,
 ) : ViewModel() {
 
@@ -82,6 +88,7 @@ class DietViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getDiets().collect { diets -> _state.value = _state.value.copy(diets = diets) }
         }
+        loadShared()
         viewModelScope.launch {
             mealRepository.getMeals().collect { meals -> _state.value = _state.value.copy(meals = meals) }
         }
@@ -123,6 +130,31 @@ class DietViewModel @Inject constructor(
     fun toggleExpand(id: String) {
         val cur = _state.value.expandedIds
         _state.value = _state.value.copy(expandedIds = if (id in cur) cur - id else cur + id)
+    }
+
+    private fun loadShared() {
+        viewModelScope.launch {
+            val flags = sharingRepository.dietFlags()
+            _state.value = _state.value.copy(
+                sharedIds = flags.shared.map { it.toString() }.toSet(),
+                importedIds = flags.imported.map { it.toString() }.toSet(),
+            )
+        }
+    }
+
+    fun toggleImportedOnly() { _state.value = _state.value.copy(importedOnly = !_state.value.importedOnly) }
+
+    /** Flip whether this diet is shared with followers (direct REST by serverId; not part of sync). */
+    fun toggleShare(diet: Diet) {
+        viewModelScope.launch {
+            val newState = runCatching { sharingRepository.toggleDiet(java.util.UUID.fromString(diet.id)) }.getOrNull()
+            if (newState != null) {
+                val cur = _state.value.sharedIds
+                _state.value = _state.value.copy(sharedIds = if (newState) cur + diet.id else cur - diet.id)
+            } else {
+                _state.value = _state.value.copy(error = "Couldn't update sharing")
+            }
+        }
     }
 
     fun toggleFavorite(diet: Diet) {

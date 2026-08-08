@@ -55,6 +55,11 @@ object AppModule {
     fun provideUsersApi(retrofit: Retrofit): UsersApi =
         retrofit.create(UsersApi::class.java)
 
+    /** Social — follow graph, profiles, discovery, shared-library reads, copy (online-only, direct REST). */
+    @Provides @Singleton
+    fun provideSocialApi(retrofit: Retrofit): com.mealplanplus.data.generated.api.SocialApi =
+        retrofit.create(com.mealplanplus.data.generated.api.SocialApi::class.java)
+
     /** Calendar day-plans (diet + planned workouts per date). */
     @Provides @Singleton
     fun providePlansApi(retrofit: Retrofit): PlansApi = retrofit.create(PlansApi::class.java)

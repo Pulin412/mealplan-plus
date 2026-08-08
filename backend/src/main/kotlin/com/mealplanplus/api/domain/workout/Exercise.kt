@@ -14,5 +14,8 @@ class Exercise(
 
     val name: String = "",
     val description: String? = null,
-    val isSystem: Boolean = false
+    val isSystem: Boolean = false,
+    // Social (V9): copy provenance (leaf dedupe stamps these in P1).
+    var copiedFromUid: String? = null,
+    var copiedFromServerId: java.util.UUID? = null
 ) : SyncableEntity()

@@ -78,6 +78,7 @@ import com.mealplanplus.data.repository.unitLabel
 import com.mealplanplus.ui.components.AppCard
 import com.mealplanplus.ui.components.CalorieValue
 import com.mealplanplus.ui.components.FavoriteStar
+import com.mealplanplus.ui.components.ShareToggle
 import com.mealplanplus.ui.components.MacroText
 import com.mealplanplus.ui.components.SegmentedControl
 import com.mealplanplus.ui.theme.AppBg
@@ -140,6 +141,8 @@ fun MealsScreen(
                 favOnly = state.favOnly,
                 favCount = state.favCount,
                 onFavToggle = viewModel::toggleFavOnly,
+                importedOnly = state.importedOnly,
+                onImportedToggle = viewModel::toggleImportedOnly,
                 viewMode = state.viewMode,
                 onViewToggle = viewModel::setViewMode,
             )
@@ -159,8 +162,11 @@ fun MealsScreen(
                         MealListCard(
                             m = m,
                             expanded = m.meal.id in state.expandedIds,
+                            shared = m.meal.id in state.sharedIds,
+                            imported = m.meal.id in state.importedIds,
                             onToggleExpand = { viewModel.toggleExpand(m.meal.id) },
                             onToggleFav = { viewModel.toggleFavorite(m.meal) },
+                            onToggleShare = { viewModel.toggleShare(m.meal) },
                             onDelete = { viewModel.deleteMeal(m.meal) },
                             onEdit = { viewModel.openEditMeal(m.meal) },
                         )
@@ -180,8 +186,11 @@ fun MealsScreen(
                                     m = m,
                                     expanded = m.meal.id in state.expandedIds,
                                     isLast = i == meals.lastIndex,
+                                    shared = m.meal.id in state.sharedIds,
+                                    imported = m.meal.id in state.importedIds,
                                     onToggleExpand = { viewModel.toggleExpand(m.meal.id) },
                                     onToggleFav = { viewModel.toggleFavorite(m.meal) },
+                                    onToggleShare = { viewModel.toggleShare(m.meal) },
                                     onDelete = { viewModel.deleteMeal(m.meal) },
                             onEdit = { viewModel.openEditMeal(m.meal) },
                                 )
@@ -231,6 +240,7 @@ private fun MealsToolbar(
     sortMode: MealSort, sortOpen: Boolean,
     onSortClick: () -> Unit, onSortDismiss: () -> Unit, onSortPick: (MealSort) -> Unit,
     favOnly: Boolean, favCount: Int, onFavToggle: () -> Unit,
+    importedOnly: Boolean, onImportedToggle: () -> Unit,
     viewMode: MealViewMode, onViewToggle: (MealViewMode) -> Unit,
 ) {
     Row(
@@ -265,6 +275,14 @@ private fun MealsToolbar(
                 fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = if (favOnly) Teal else Ink,
             )
         }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "Imported", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = if (importedOnly) Teal else Ink,
+            modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                .border(1.dp, if (importedOnly) Teal else CardBorder, RoundedCornerShape(8.dp))
+                .background(if (importedOnly) Teal.copy(alpha = 0.08f) else Color.Transparent)
+                .clickable(onClick = onImportedToggle).padding(horizontal = 10.dp, vertical = 6.dp),
+        )
         Spacer(Modifier.weight(1f))
         val modes = listOf(MealViewMode.LIST to "☰", MealViewMode.COMPACT to "≣")
         SegmentedControl(
@@ -280,8 +298,8 @@ private fun MealsToolbar(
 // ── List card ────────────────────────────────────────────────────────────────
 @Composable
 private fun MealListCard(
-    m: MealUi, expanded: Boolean,
-    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
+    m: MealUi, expanded: Boolean, shared: Boolean, imported: Boolean,
+    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onToggleShare: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
 ) {
     AppCard(modifier = Modifier.clickable(onClick = onToggleExpand)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -303,12 +321,20 @@ private fun MealListCard(
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
             }
             Spacer(Modifier.width(8.dp))
+            if (!imported) {
+                ShareToggle(shared = shared, onClick = onToggleShare, size = 26.dp)
+            } else {
+                Spacer(Modifier.width(26.dp))   // reserve the globe column
+            }
+            Spacer(Modifier.width(4.dp))
             Box(contentAlignment = Alignment.Center,
                 modifier = Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onToggleFav)) {
                 FavoriteStar(active = m.meal.isFavorite, size = 17.dp)
             }
             Spacer(Modifier.width(8.dp))
-            CalorieValue(kcal = m.totalKcal)
+            Box(Modifier.width(66.dp), contentAlignment = Alignment.CenterEnd) {
+                CalorieValue(kcal = m.totalKcal)
+            }
         }
         AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column(Modifier.fillMaxWidth().padding(top = 9.dp)) {
@@ -339,8 +365,8 @@ private fun ExpandedItemRow(it: MealItemUi) {
 // ── Compact row ──────────────────────────────────────────────────────────────
 @Composable
 private fun MealCompactRow(
-    m: MealUi, expanded: Boolean, isLast: Boolean,
-    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
+    m: MealUi, expanded: Boolean, isLast: Boolean, shared: Boolean, imported: Boolean,
+    onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onToggleShare: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
 ) {
     Column(
         Modifier.fillMaxWidth().clickable(onClick = onToggleExpand)
@@ -364,12 +390,20 @@ private fun MealCompactRow(
                 }
                 Text("${m.items.size} items", fontSize = 9.5.sp, color = MutedFaint)
             }
+            if (!imported) {
+                ShareToggle(shared = shared, onClick = onToggleShare, size = 22.dp)
+            } else {
+                Spacer(Modifier.width(22.dp))   // reserve the globe column
+            }
+            Spacer(Modifier.width(4.dp))
             Box(contentAlignment = Alignment.Center,
                 modifier = Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onToggleFav)) {
                 FavoriteStar(active = m.meal.isFavorite, size = 13.dp)
             }
-            Spacer(Modifier.width(4.dp))
-            CalorieValue(kcal = m.totalKcal, fontSize = 12.sp)
+            Spacer(Modifier.width(6.dp))
+            Box(Modifier.width(60.dp), contentAlignment = Alignment.CenterEnd) {
+                CalorieValue(kcal = m.totalKcal, fontSize = 12.sp)
+            }
         }
         AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {

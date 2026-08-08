@@ -63,6 +63,11 @@ tags:
     description: Delta sync — push local changes, pull server changes since a timestamp
   - name: Feedback
     description: In-app user feedback submissions
+  - name: Social
+    description: >-
+      Follow graph, public profiles, discovery, and safety (block/report).
+      An online-only read layer over the offline-first personal data — others'
+      data is fetched live and never written into the sync tables. See issue #175.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PATHS
@@ -468,6 +473,28 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/meals/{serverId}/share:
+    patch:
+      tags: [Meals]
+      summary: Toggle whether this meal is shared with followers
+      description: Keyed by the stable serverId so any client can call it without the numeric id.
+      operationId: toggleMealShare
+      parameters:
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Meal with updated `isShared`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ── Diets ───────────────────────────────────────────────────────────────────
   /api/v1/diets:
     get:
@@ -607,6 +634,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DietDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/diets/{serverId}/share:
+    patch:
+      tags: [Diets]
+      summary: Toggle whether this diet is shared with followers
+      description: Keyed by the stable serverId so any client can call it without the numeric id.
+      operationId: toggleDietShare
+      parameters:
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Diet with updated `isShared`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DietDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/workout-templates/{serverId}/share:
+    patch:
+      tags: [Workout Templates]
+      summary: Toggle whether this workout template is shared with followers
+      description: Keyed by the stable serverId so any client can call it without the numeric id.
+      operationId: toggleWorkoutTemplateShare
+      parameters:
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Template with updated `isShared`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutTemplateDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1809,6 +1880,423 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  # ── Social ──────────────────────────────────────────────────────────────────
+  /api/v1/users/me/profile:
+    put:
+      tags: [Social]
+      summary: Update my social profile
+      description: >-
+        Claim/update the public-facing profile: handle, bio, avatar seed, searchability.
+        Handle must match `^[a-z0-9_]{3,20}$` (validated + normalised to lowercase) and be
+        globally unique. Only fields present are changed.
+      operationId: updateMyProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid handle format
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Handle already taken
+
+  /api/v1/social/handle-available:
+    get:
+      tags: [Social]
+      summary: Check handle availability
+      operationId: checkHandleAvailable
+      parameters:
+        - name: handle
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Availability result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleAvailabilityDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/users/search:
+    get:
+      tags: [Social]
+      summary: Search users
+      description: >-
+        Case-insensitive substring match on handle or display name. Only returns
+        users who have claimed a handle and are searchable, excluding yourself and
+        anyone in a block relationship with you.
+      operationId: searchUsers
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Matching profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProfileSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/users/{handle}:
+    get:
+      tags: [Social]
+      summary: Get a public profile
+      description: >-
+        Public profile by handle, with follower/following counts and whether the
+        caller follows them. 404 if no such handle; 403 if a block exists either way.
+      operationId: getPublicProfile
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Public profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfileDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/follow:
+    post:
+      tags: [Social]
+      summary: Follow a user
+      description: Idempotent. 409 if a block exists either way or you target yourself.
+      operationId: followUser
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '204':
+          description: Now following
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot follow (blocked or self)
+    delete:
+      tags: [Social]
+      summary: Unfollow a user
+      description: Idempotent.
+      operationId: unfollowUser
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '204':
+          description: No longer following
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/followers:
+    get:
+      tags: [Social]
+      summary: List a user's followers
+      operationId: listFollowers
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Followers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProfileSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/following:
+    get:
+      tags: [Social]
+      summary: List who a user follows
+      operationId: listFollowing
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Following
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProfileSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/block:
+    post:
+      tags: [Social]
+      summary: Block a user
+      description: >-
+        Blocking removes any follow edges between the two users in both directions
+        and hides each from the other. Idempotent.
+      operationId: blockUser
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '204':
+          description: Blocked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot block yourself
+    delete:
+      tags: [Social]
+      summary: Unblock a user
+      operationId: unblockUser
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '204':
+          description: Unblocked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/report:
+    post:
+      tags: [Social]
+      summary: Report content or a user
+      operationId: reportContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '201':
+          description: Report recorded
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/copy:
+    post:
+      tags: [Social]
+      summary: Copy a shared template into your own library
+      description: >-
+        Deep-clones another user's shared diet/meal/workout into the caller's library.
+        Foods and exercises are deduplicated (system items referenced directly; manual
+        items matched against the caller's own by name+unit+per-100 macros for foods, by
+        name for exercises — reuse on match, else created fresh). Containers (the diet/
+        meal/workout, and a diet's meals) are always created fresh and stamped with
+        provenance. The caller then sync-pulls the new owned rows. Same follows+block
+        gate as the read endpoints; the source must be shared.
+      operationId: copyTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyRequest'
+      responses:
+        '201':
+          description: The newly created owned template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopyResultDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Shared-library reads (followers-gated) ──────────────────────────────────
+  # Every read below requires viewer ∈ followers(author) (or self) AND no block
+  # either way. 403 = not following ("Follow to see"); items must be is_shared.
+  /api/v1/social/users/{handle}/diets:
+    get:
+      tags: [Social]
+      summary: List a user's shared diets
+      operationId: listSharedDiets
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Shared diet summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedTemplateSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/meals:
+    get:
+      tags: [Social]
+      summary: List a user's shared meals
+      operationId: listSharedMeals
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Shared meal summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedTemplateSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/workouts:
+    get:
+      tags: [Social]
+      summary: List a user's shared workout templates
+      operationId: listSharedWorkouts
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Shared workout summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedTemplateSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/diets/{serverId}:
+    get:
+      tags: [Social]
+      summary: Read a shared diet (self-contained bundle)
+      description: >-
+        Returns the diet plus every meal and food it references, so the viewer can
+        render and (later) copy it without owning the underlying items.
+      operationId: getSharedDiet
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Shared diet bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedDietDetailDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/meals/{serverId}:
+    get:
+      tags: [Social]
+      summary: Read a shared meal (self-contained bundle)
+      operationId: getSharedMeal
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Shared meal bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedMealDetailDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/workouts/{serverId}:
+    get:
+      tags: [Social]
+      summary: Read a shared workout template (self-contained bundle)
+      operationId: getSharedWorkout
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Shared workout bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedWorkoutDetailDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 # ─────────────────────────────────────────────────────────────────────────────
 # COMPONENTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1837,6 +2325,21 @@ components:
         type: string
         format: date
       description: ISO-8601 date (YYYY-MM-DD)
+    HandlePath:
+      name: handle
+      in: path
+      required: true
+      schema:
+        type: string
+      description: A user's unique handle (case-insensitive)
+    ServerIdPath:
+      name: serverId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Stable UUID of a shared template (diet/meal/workout)
 
   responses:
     Unauthorized:
@@ -1981,6 +2484,21 @@ components:
           nullable: true
           readOnly: true
           description: When first-run onboarding was completed/skipped (null = not yet onboarded).
+        handle:
+          type: string
+          nullable: true
+          description: Public unique handle (null until claimed). `^[a-z0-9_]{3,20}$`.
+        bio:
+          type: string
+          nullable: true
+          maxLength: 300
+        avatarSeed:
+          type: string
+          nullable: true
+          description: Deterministic seed for a client-rendered generated avatar.
+        isSearchable:
+          type: boolean
+          description: Whether this user appears in user search. Defaults to true.
       required: [id, firebaseUid]
 
     UserUpdateRequest:
@@ -2041,6 +2559,202 @@ components:
           description: >-
             Send true when first-run onboarding is finished/skipped; the server stamps
             onboardingCompletedAt = now().
+
+    # ── Social ────────────────────────────────────────────────────────────────
+
+    ProfileUpdateRequest:
+      type: object
+      description: Fields accepted on PUT /api/v1/users/me/profile (all optional — only send what changed).
+      properties:
+        handle:
+          type: string
+          nullable: true
+          description: New handle to claim. `^[a-z0-9_]{3,20}$`, normalised to lowercase, globally unique.
+        bio:
+          type: string
+          nullable: true
+          maxLength: 300
+        avatarSeed:
+          type: string
+          nullable: true
+        isSearchable:
+          type: boolean
+          nullable: true
+
+    HandleAvailabilityDto:
+      type: object
+      properties:
+        handle:
+          type: string
+        available:
+          type: boolean
+        valid:
+          type: boolean
+          description: Whether the handle matches the required format.
+      required: [handle, available, valid]
+
+    PublicProfileDto:
+      type: object
+      description: A user's public-facing profile.
+      properties:
+        handle:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        avatarSeed:
+          type: string
+          nullable: true
+        followerCount:
+          type: integer
+          format: int64
+        followingCount:
+          type: integer
+          format: int64
+        isFollowedByMe:
+          type: boolean
+        isMe:
+          type: boolean
+      required: [handle, followerCount, followingCount, isFollowedByMe, isMe]
+
+    PublicProfileSummaryDto:
+      type: object
+      description: Compact profile for search results and follower/following lists.
+      properties:
+        handle:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        avatarSeed:
+          type: string
+          nullable: true
+        isFollowedByMe:
+          type: boolean
+      required: [handle, isFollowedByMe]
+
+    ReportRequest:
+      type: object
+      required: [entityType]
+      properties:
+        entityType:
+          type: string
+          enum: [DIET, MEAL, WORKOUT_TEMPLATE, USER]
+        entityServerId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The shared item's serverId. Null when reporting a USER.
+        reportedHandle:
+          type: string
+          nullable: true
+          description: Handle of the author / reported user.
+        reason:
+          type: string
+          nullable: true
+          maxLength: 64
+        detail:
+          type: string
+          nullable: true
+          maxLength: 1000
+
+    SharedTemplateSummaryDto:
+      type: object
+      description: Card summary of a shared diet/meal/workout for a user's public library.
+      properties:
+        type:
+          type: string
+          enum: [DIET, MEAL, WORKOUT_TEMPLATE]
+        serverId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        subtitle:
+          type: string
+          nullable: true
+          description: Short display hint (e.g. "520 kcal", "6 foods", "5 exercises").
+      required: [type, serverId, name]
+
+    SharedDietDetailDto:
+      type: object
+      description: >-
+        A shared diet with every meal and food it references, so the viewer can render
+        (and later copy) it without owning the underlying items. Resolve DietMealDto.mealServerId
+        against `meals` and *FoodItemDto.foodServerId against `foods`.
+      properties:
+        diet:
+          $ref: '#/components/schemas/DietDto'
+        meals:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealDto'
+          default: []
+        foods:
+          type: array
+          items:
+            $ref: '#/components/schemas/FoodDto'
+          default: []
+      required: [diet]
+
+    SharedMealDetailDto:
+      type: object
+      description: A shared meal plus the foods it references (resolve foodServerId against `foods`).
+      properties:
+        meal:
+          $ref: '#/components/schemas/MealDto'
+        foods:
+          type: array
+          items:
+            $ref: '#/components/schemas/FoodDto'
+          default: []
+      required: [meal]
+
+    SharedWorkoutDetailDto:
+      type: object
+      description: A shared workout template plus the exercises it references.
+      properties:
+        workout:
+          $ref: '#/components/schemas/WorkoutTemplateDto'
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExerciseDto'
+          default: []
+      required: [workout]
+
+    CopyRequest:
+      type: object
+      required: [entityType, handle, sourceServerId]
+      properties:
+        entityType:
+          type: string
+          enum: [DIET, MEAL, WORKOUT_TEMPLATE]
+        handle:
+          type: string
+          description: Handle of the author whose shared template is being copied.
+        sourceServerId:
+          type: string
+          format: uuid
+          description: serverId of the shared template to copy.
+
+    CopyResultDto:
+      type: object
+      description: Identifies the newly created owned template; the client sync-pulls the full rows.
+      properties:
+        entityType:
+          type: string
+          enum: [DIET, MEAL, WORKOUT_TEMPLATE]
+        serverId:
+          type: string
+          format: uuid
+          description: serverId of the new owned copy.
+        name:
+          type: string
+      required: [entityType, serverId, name]
 
     # ── Dashboard ─────────────────────────────────────────────────────────────
 
@@ -2432,6 +3146,14 @@ components:
         isFavorite:
           type: boolean
           default: false
+        isShared:
+          type: boolean
+          default: false
+          description: Whether this meal is shared with followers (see PATCH /meals/{serverId}/share).
+        imported:
+          type: boolean
+          readOnly: true
+          description: True if this was copied from another user's shared template.
         updatedAt:
           type: string
           format: date-time
@@ -2563,6 +3285,14 @@ components:
         isFavorite:
           type: boolean
           default: false
+        isShared:
+          type: boolean
+          default: false
+          description: Whether this diet is shared with followers (see PATCH /diets/{serverId}/share).
+        imported:
+          type: boolean
+          readOnly: true
+          description: True if this was copied from another user's shared template.
         updatedAt:
           type: string
           format: date-time
@@ -2669,6 +3399,10 @@ components:
         id:
           type: integer
           format: int64
+        serverId:
+          type: string
+          format: uuid
+          nullable: true
         firebaseUid:
           type: string
           readOnly: true
@@ -2696,6 +3430,14 @@ components:
           default: []
           readOnly: true
           description: Full tag objects (read-only; send tagIds to assign)
+        isShared:
+          type: boolean
+          default: false
+          description: Whether this template is shared with followers (see PATCH /workout-templates/{serverId}/share).
+        imported:
+          type: boolean
+          readOnly: true
+          description: True if this was copied from another user's shared template.
       required: [name]
 
     # ── Workout Sessions ──────────────────────────────────────────────────────

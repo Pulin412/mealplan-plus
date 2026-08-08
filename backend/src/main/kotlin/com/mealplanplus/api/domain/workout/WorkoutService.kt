@@ -251,6 +251,31 @@ class WorkoutService(
     }
 
     @Transactional
+    fun toggleTemplateShare(serverId: UUID, firebaseUid: String): WorkoutTemplateDto {
+        val template = templateRepo.findByServerId(serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
+        if (template.firebaseUid != firebaseUid)
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        template.isShared = !template.isShared
+        return templateRepo.save(template).toFullDto()
+    }
+
+    /** Author-scoped shared reads for the social layer. */
+    fun sharedTemplatesOf(authorUid: String): List<WorkoutTemplate> =
+        templateRepo.findByFirebaseUid(authorUid).filter { it.isShared }
+
+    /** Shared template + the exercises it references (for read-only render). */
+    fun sharedTemplateBundle(authorUid: String, serverId: UUID): Pair<WorkoutTemplateDto, List<ExerciseDto>>? {
+        val template = templateRepo.findByServerId(serverId) ?: return null
+        if (template.firebaseUid != authorUid || !template.isShared) return null
+        val exerciseIds = templateExerciseRepo.findByTemplateIdOrderByOrderIndex(template.id)
+            .map { it.exerciseId }.toSet()
+        val exercises = if (exerciseIds.isEmpty()) emptyList()
+                        else exerciseRepo.findAllById(exerciseIds).map { it.toDto() }
+        return template.toFullDto() to exercises
+    }
+
+    @Transactional
     fun startFromTemplate(templateId: Long, firebaseUid: String): WorkoutSessionDto {
         val template = templateRepo.findById(templateId).orElseThrow()
         val session = WorkoutSession(firebaseUid = firebaseUid, name = template.name,
@@ -429,11 +454,14 @@ fun TemplateExercise.toDto(exercise: Exercise?, sets: List<TemplateExerciseSet>)
 
 fun WorkoutTemplate.toDto(exercises: List<TemplateExerciseDto>, tags: List<TagDto> = emptyList()) = WorkoutTemplateDto(
     id          = id,
+    serverId    = serverId,
     firebaseUid = firebaseUid,
     name        = name,
     notes       = notes,
     exercises   = exercises,
-    tagIds      = tags.map { it.id }
+    tagIds      = tags.map { it.id },
+    isShared    = isShared,
+    imported    = copiedFromUid != null
 )
 
 fun Exercise.toDto(tags: List<TagDto> = emptyList()) = ExerciseDto(

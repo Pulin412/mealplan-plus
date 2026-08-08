@@ -240,7 +240,7 @@ private fun WorkoutsTab(state: ExercisesUiState, vm: ExercisesViewModel) {
             }
             LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
                 items(state.filteredWorkouts, key = { it.id ?: it.name.hashCode().toLong() }) { w ->
-                    WorkoutCard(w, state.workoutTagName) { vm.openEditWorkout(w) }
+                    WorkoutCard(w, state.workoutTagName, onToggleShare = { vm.toggleWorkoutShare(w) }) { vm.openEditWorkout(w) }
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -249,7 +249,7 @@ private fun WorkoutsTab(state: ExercisesUiState, vm: ExercisesViewModel) {
 }
 
 @Composable
-private fun WorkoutCard(w: WorkoutTemplateDto, tagName: Map<Long, String>, onClick: () -> Unit) {
+private fun WorkoutCard(w: WorkoutTemplateDto, tagName: Map<Long, String>, onToggleShare: () -> Unit, onClick: () -> Unit) {
     val items = w.exercises ?: emptyList()
     val totalSets = items.sumOf { it.sets?.size ?: 0 }
     val tagNames = (w.tagIds ?: emptyList()).mapNotNull { tagName[it] }
@@ -270,6 +270,10 @@ private fun WorkoutCard(w: WorkoutTemplateDto, tagName: Map<Long, String>, onCli
                         tagNames.take(4).forEach { ExerciseTagChip(it) }
                     }
                 }
+            }
+            // Imported copies can't be re-shared (no re-publishing others' plans).
+            if (w.imported != true) {
+                com.mealplanplus.ui.components.ShareToggle(shared = w.isShared == true, onClick = onToggleShare, size = 26.dp)
             }
             Text("›", fontSize = 20.sp, color = MutedLight)
         }

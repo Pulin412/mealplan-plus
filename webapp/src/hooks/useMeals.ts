@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { listMeals, createMeal, updateMeal, deleteMeal, toggleMealFavorite, type MealDto } from "@/lib/api/meals";
+import { toggleMealShare } from "@/lib/api/social";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { foodMacros, defaultQtyFor, type FoodUnit } from "@/lib/nutrition";
 import { naturalCompare } from "@/lib/utils/naturalCompare";
@@ -28,6 +29,7 @@ export function useMeals() {
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<MealViewMode>("list");
   const [favOnly, setFavOnly] = useState(false);
+  const [importedOnly, setImportedOnly] = useState(false);
   const [slotFilter, setSlotFilter] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
@@ -76,6 +78,7 @@ export function useMeals() {
       list = list.filter((v) => v.meal.name.toLowerCase().includes(q));
     }
     if (favOnly) list = list.filter((v) => v.meal.isFavorite);
+    if (importedOnly) list = list.filter((v) => v.meal.imported);
     if (slotFilter) list = list.filter((v) => (v.meal.slots ?? []).includes(slotFilter));
     switch (sort) {
       case "name": return [...list].sort((a, b) => naturalCompare(a.meal.name, b.meal.name));
@@ -83,7 +86,7 @@ export function useMeals() {
       case "protein": return [...list].sort((a, b) => b.totalP - a.totalP);
       default: return list;
     }
-  }, [resolved, query, favOnly, slotFilter, sort]);
+  }, [resolved, query, favOnly, importedOnly, slotFilter, sort]);
 
   const favCount = useMemo(() => meals.filter((m) => m.isFavorite).length, [meals]);
 
@@ -103,6 +106,12 @@ export function useMeals() {
     if (meal.id == null) return;
     setMeals((prev) => prev.map((m) => m.id === meal.id ? { ...m, isFavorite: !m.isFavorite } : m));
     try { await toggleMealFavorite(meal.id); } catch { await reload(); }
+  }, [reload]);
+
+  const handleToggleShare = useCallback(async (meal: MealDto) => {
+    if (!meal.serverId) return;
+    setMeals((prev) => prev.map((m) => m.serverId === meal.serverId ? { ...m, isShared: !m.isShared } : m));
+    try { await toggleMealShare(meal.serverId); } catch { await reload(); }
   }, [reload]);
 
   const handleDelete = useCallback(async (meal: MealDto) => {
@@ -136,9 +145,10 @@ export function useMeals() {
     loading, error,
     query, setQuery, sort, setSort, sortOpen, setSortOpen,
     viewMode, setViewMode, favOnly, setFavOnly,
+    importedOnly, setImportedOnly,
     allSlots, slotFilter, setSlotFilter,
     expandedIds, toggleExpand,
-    handleToggleFav, handleDelete,
+    handleToggleFav, handleToggleShare, handleDelete,
     builderOpen, editing, openNew, openEdit, closeBuilder, saveMeal, saving,
     defaultQtyFor,
   };

@@ -72,6 +72,13 @@ class UserService(private val userRepository: UserRepository) {
                 .setParameter("uid", firebaseUid)
                 .executeUpdate()
         }
+        // Social graph is keyed by role-specific columns, not firebase_uid — purge separately.
+        em.createNativeQuery("DELETE FROM follows WHERE follower_uid = :uid OR followee_uid = :uid")
+            .setParameter("uid", firebaseUid).executeUpdate()
+        em.createNativeQuery("DELETE FROM blocks WHERE blocker_uid = :uid OR blocked_uid = :uid")
+            .setParameter("uid", firebaseUid).executeUpdate()
+        em.createNativeQuery("DELETE FROM content_reports WHERE reporter_uid = :uid OR reported_uid = :uid")
+            .setParameter("uid", firebaseUid).executeUpdate()
         em.createNativeQuery("DELETE FROM users WHERE firebase_uid = :uid")
             .setParameter("uid", firebaseUid)
             .executeUpdate()
@@ -123,7 +130,11 @@ fun User.toResponse() = UserResponse(
     createdAt      = createdAt,
     consentedAt           = consentedAt,
     privacyPolicyVersion  = privacyPolicyVersion,
-    onboardingCompletedAt = onboardingCompletedAt
+    onboardingCompletedAt = onboardingCompletedAt,
+    handle       = handle,
+    bio          = bio,
+    avatarSeed   = avatarSeed,
+    isSearchable = isSearchable
 )
 
 private fun mapGenderToSpec(g: GenderEnum): UserResponse.Gender = when (g) {

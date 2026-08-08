@@ -22,6 +22,9 @@ const SORT_LABELS: Record<MealSort, string> = { recent: "Recent", name: "Name", 
 function StarBtn({ active, onClick }: { active: boolean; onClick: (e: React.MouseEvent) => void }) {
   return <button onClick={onClick} className="flex-none text-[15px] leading-none px-0.5" style={{ color: active ? C.teal : C.muted2 }}>{active ? "★" : "☆"}</button>;
 }
+function GlobeBtn({ active, onClick }: { active: boolean; onClick: (e: React.MouseEvent) => void }) {
+  return <button onClick={onClick} title={active ? "Shared with followers" : "Not shared"} className="flex-none text-[13px] leading-none px-0.5" style={{ color: active ? C.teal : C.muted2 }}>{active ? "🌐" : "◍"}</button>;
+}
 function SlotBadge({ slot }: { slot: string }) {
   return <span className="text-[8.5px] font-semibold rounded-[5px] px-[6px] py-[2px]" style={{ color: C.teal, background: "oklch(0.62 0.09 210 / .12)" }}>{slot.toUpperCase()}</span>;
 }
@@ -30,9 +33,9 @@ function macroLine(p: number, c: number, f: number) {
 }
 
 // ── List card ─────────────────────────────────────────────────────────────────
-function MealCard({ v, expanded, compact, isLast, onToggle, onFav, onEdit, onDelete }: {
+function MealCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEdit, onDelete }: {
   v: MealView; expanded: boolean; compact?: boolean; isLast?: boolean; onToggle: () => void;
-  onFav: (e: React.MouseEvent) => void; onEdit: () => void; onDelete: () => void;
+  onFav: (e: React.MouseEvent) => void; onShare: (e: React.MouseEvent) => void; onEdit: () => void; onDelete: () => void;
 }) {
   const slots = v.meal.slots ?? [];
   const wrapClass = compact ? "cursor-pointer px-[11px] py-[7px]" : "cursor-pointer rounded-[12px] mb-[8px] px-3 py-[9px]";
@@ -50,6 +53,7 @@ function MealCard({ v, expanded, compact, isLast, onToggle, onFav, onEdit, onDel
           </div>
           <div className="text-[10.5px] truncate mt-0.5" style={{ color: C.muted2 }}>{v.summary}</div>
         </div>
+        {!v.meal.imported && <GlobeBtn active={!!v.meal.isShared} onClick={(e) => { e.stopPropagation(); onShare(e); }} />}
         <StarBtn active={!!v.meal.isFavorite} onClick={(e) => { e.stopPropagation(); onFav(e); }} />
         <span className="flex-none text-[12.5px] font-bold tabular-nums" style={{ color: C.ink, fontFamily: mono }}>
           {v.totalKcal}<span className="text-[9px] font-normal" style={{ color: C.muted2, fontFamily: "system-ui" }}> kcal</span>
@@ -327,6 +331,8 @@ function MealsPageInner() {
               </>
             )}
           </div>
+          <button onClick={() => m.setImportedOnly(!m.importedOnly)} className="rounded-[9px] px-[11px] py-[7px] text-[11.5px] font-semibold"
+            style={{ background: m.importedOnly ? "oklch(0.62 0.09 210 / .12)" : C.bgAlt, color: m.importedOnly ? C.teal : C.ink }}>Imported</button>
           <button onClick={() => m.setFavOnly(!m.favOnly)} className="flex items-center gap-[5px] rounded-[9px] px-[11px] py-[7px] text-[11.5px] font-semibold"
             style={{ background: m.favOnly ? "oklch(0.62 0.09 210 / .12)" : C.bgAlt, color: m.favOnly ? C.teal : C.ink }}>
             {m.favOnly ? "★" : "☆"} {m.favCount}
@@ -363,6 +369,7 @@ function MealsPageInner() {
           <MealCard key={v.meal.id} v={v} expanded={m.expandedIds.has(v.meal.id!)}
             onToggle={() => m.toggleExpand(v.meal.id!)}
             onFav={() => void m.handleToggleFav(v.meal)}
+            onShare={() => void m.handleToggleShare(v.meal)}
             onEdit={() => m.openEdit(v.meal)}
             onDelete={() => void m.handleDelete(v.meal)} />
         ))}
@@ -373,6 +380,7 @@ function MealsPageInner() {
                 expanded={m.expandedIds.has(v.meal.id!)}
                 onToggle={() => m.toggleExpand(v.meal.id!)}
                 onFav={() => void m.handleToggleFav(v.meal)}
+                onShare={() => void m.handleToggleShare(v.meal)}
                 onEdit={() => m.openEdit(v.meal)}
                 onDelete={() => void m.handleDelete(v.meal)} />
             ))}
