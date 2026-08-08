@@ -164,6 +164,25 @@ class DietService(
     }
 
     @Transactional
+    fun toggleShare(id: Long, firebaseUid: String): DietDto {
+        val diet = dietRepo.findById(id).orElseThrow()
+        if (diet.firebaseUid != firebaseUid)
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        diet.isShared = !diet.isShared
+        return dietRepo.save(diet).toFullDto()
+    }
+
+    /** Author-scoped shared reads for the social layer. */
+    fun sharedDietsOf(authorUid: String): List<Diet> =
+        dietRepo.findByFirebaseUid(authorUid).filter { it.isShared }
+
+    fun sharedDietDto(authorUid: String, serverId: UUID): DietDto? {
+        val diet = dietRepo.findByServerId(serverId) ?: return null
+        if (diet.firebaseUid != authorUid || !diet.isShared) return null
+        return diet.toFullDto()
+    }
+
+    @Transactional
     fun delete(id: Long, firebaseUid: String) {
         val diet = dietRepo.findById(id).orElseThrow()
         if (diet.firebaseUid != firebaseUid)
@@ -302,5 +321,6 @@ fun Diet.toDto(
     tagIds         = tags.map { it.id },
     tags           = tags.map { it.toDto() },
     isFavorite     = isFavorite,
+    isShared       = isShared,
     updatedAt      = updatedAt
 )

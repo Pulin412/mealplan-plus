@@ -1,19 +1,28 @@
 package com.mealplanplus.api.domain.social
 
+import com.mealplanplus.api.domain.diet.DietService
+import com.mealplanplus.api.domain.food.FoodService
+import com.mealplanplus.api.domain.meal.MealService
 import com.mealplanplus.api.domain.user.User
 import com.mealplanplus.api.domain.user.UserRepository
 import com.mealplanplus.api.domain.user.toResponse
+import com.mealplanplus.api.domain.workout.WorkoutService
 import com.mealplanplus.api.generated.model.HandleAvailabilityDto
 import com.mealplanplus.api.generated.model.ProfileUpdateRequest
 import com.mealplanplus.api.generated.model.PublicProfileDto
 import com.mealplanplus.api.generated.model.PublicProfileSummaryDto
 import com.mealplanplus.api.generated.model.ReportRequest
+import com.mealplanplus.api.generated.model.SharedDietDetailDto
+import com.mealplanplus.api.generated.model.SharedMealDetailDto
+import com.mealplanplus.api.generated.model.SharedTemplateSummaryDto
+import com.mealplanplus.api.generated.model.SharedWorkoutDetailDto
 import com.mealplanplus.api.generated.model.UserResponse
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.util.UUID
 
 @Service
 class SocialService(
@@ -21,6 +30,10 @@ class SocialService(
     private val followRepository: FollowRepository,
     private val blockRepository: BlockRepository,
     private val contentReportRepository: ContentReportRepository,
+    private val dietService: DietService,
+    private val mealService: MealService,
+    private val workoutService: WorkoutService,
+    private val foodService: FoodService,
 ) {
     private val handleRegex = Regex("^[a-z0-9_]{3,20}$")
 
@@ -158,7 +171,89 @@ class SocialService(
         )
     }
 
+    // ── Shared-library reads (followers-gated) ───────────────────────────────
+
+    fun listSharedDiets(viewerUid: String, handle: String): List<SharedTemplateSummaryDto> {
+        val author = requireCanViewLibrary(viewerUid, handle)
+        return dietService.sharedDietsOf(author.firebaseUid).map {
+            SharedTemplateSummaryDto(
+                type = SharedTemplateSummaryDto.Type.DIET,
+                serverId = it.serverId,
+                name = it.name,
+                subtitle = it.targetCalories?.let { c -> "${c.toInt()} kcal" },
+            )
+        }
+    }
+
+    fun listSharedMeals(viewerUid: String, handle: String): List<SharedTemplateSummaryDto> {
+        val author = requireCanViewLibrary(viewerUid, handle)
+        return mealService.sharedMealsOf(author.firebaseUid).map {
+            SharedTemplateSummaryDto(
+                type = SharedTemplateSummaryDto.Type.MEAL,
+                serverId = it.serverId,
+                name = it.name,
+                subtitle = it.slots.takeIf { s -> s.isNotEmpty() }?.joinToString(", "),
+            )
+        }
+    }
+
+    fun listSharedWorkouts(viewerUid: String, handle: String): List<SharedTemplateSummaryDto> {
+        val author = requireCanViewLibrary(viewerUid, handle)
+        return workoutService.sharedTemplatesOf(author.firebaseUid).map {
+            SharedTemplateSummaryDto(
+                type = SharedTemplateSummaryDto.Type.WORKOUT_TEMPLATE,
+                serverId = it.serverId,
+                name = it.name,
+                subtitle = it.category.takeIf { c -> c.isNotBlank() },
+            )
+        }
+    }
+
+    fun getSharedDiet(viewerUid: String, handle: String, serverId: UUID): SharedDietDetailDto {
+        val author = requireCanViewLibrary(viewerUid, handle)
+        val diet = dietService.sharedDietDto(author.firebaseUid, serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
+        val meals = mealService.dtosByServerIds(
+            author.firebaseUid,
+            diet.meals.orEmpty().mapNotNull { it.mealServerId },
+        )
+        val foodServerIds = (diet.foodItems.orEmpty().mapNotNull { it.foodServerId } +
+            meals.flatMap { m -> m.items.orEmpty().mapNotNull { it.foodServerId } }).toSet()
+        return SharedDietDetailDto(diet = diet, meals = meals, foods = foodService.dtosByServerIds(foodServerIds))
+    }
+
+    fun getSharedMeal(viewerUid: String, handle: String, serverId: UUID): SharedMealDetailDto {
+        val author = requireCanViewLibrary(viewerUid, handle)
+        val meal = mealService.sharedMealDto(author.firebaseUid, serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
+        val foodServerIds = meal.items.orEmpty().mapNotNull { it.foodServerId }.toSet()
+        return SharedMealDetailDto(meal = meal, foods = foodService.dtosByServerIds(foodServerIds))
+    }
+
+    fun getSharedWorkout(viewerUid: String, handle: String, serverId: UUID): SharedWorkoutDetailDto {
+        val author = requireCanViewLibrary(viewerUid, handle)
+        val (workout, exercises) = workoutService.sharedTemplateBundle(author.firebaseUid, serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
+        return SharedWorkoutDetailDto(workout = workout, exercises = exercises)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Gate for reading another user's shared library: must follow the author (or be them)
+     * and not be in a block relationship either way. 403 otherwise ("Follow to see").
+     */
+    private fun requireCanViewLibrary(viewerUid: String, handle: String): User {
+        val author = requireUser(handle)
+        if (author.firebaseUid == viewerUid) return author
+        if (blockRepository.blockExistsEitherWay(viewerUid, author.firebaseUid)) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Unavailable")
+        }
+        if (!followRepository.existsByFollowerUidAndFolloweeUid(viewerUid, author.firebaseUid)) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Follow to see this user's library")
+        }
+        return author
+    }
 
     private fun requireUser(handle: String): User =
         userRepository.findByHandle(handle.trim())

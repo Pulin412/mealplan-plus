@@ -473,6 +473,27 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/meals/{id}/share:
+    patch:
+      tags: [Meals]
+      summary: Toggle whether this meal is shared with followers
+      operationId: toggleMealShare
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Meal with updated `isShared`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ── Diets ───────────────────────────────────────────────────────────────────
   /api/v1/diets:
     get:
@@ -612,6 +633,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DietDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/diets/{id}/share:
+    patch:
+      tags: [Diets]
+      summary: Toggle whether this diet is shared with followers
+      operationId: toggleDietShare
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Diet with updated `isShared`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DietDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/workout-templates/{id}/share:
+    patch:
+      tags: [Workout Templates]
+      summary: Toggle whether this workout template is shared with followers
+      operationId: toggleWorkoutTemplateShare
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Template with updated `isShared`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutTemplateDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2057,6 +2120,147 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  # ── Shared-library reads (followers-gated) ──────────────────────────────────
+  # Every read below requires viewer ∈ followers(author) (or self) AND no block
+  # either way. 403 = not following ("Follow to see"); items must be is_shared.
+  /api/v1/social/users/{handle}/diets:
+    get:
+      tags: [Social]
+      summary: List a user's shared diets
+      operationId: listSharedDiets
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Shared diet summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedTemplateSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/meals:
+    get:
+      tags: [Social]
+      summary: List a user's shared meals
+      operationId: listSharedMeals
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Shared meal summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedTemplateSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/workouts:
+    get:
+      tags: [Social]
+      summary: List a user's shared workout templates
+      operationId: listSharedWorkouts
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: Shared workout summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedTemplateSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/diets/{serverId}:
+    get:
+      tags: [Social]
+      summary: Read a shared diet (self-contained bundle)
+      description: >-
+        Returns the diet plus every meal and food it references, so the viewer can
+        render and (later) copy it without owning the underlying items.
+      operationId: getSharedDiet
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Shared diet bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedDietDetailDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/meals/{serverId}:
+    get:
+      tags: [Social]
+      summary: Read a shared meal (self-contained bundle)
+      operationId: getSharedMeal
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Shared meal bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedMealDetailDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/users/{handle}/workouts/{serverId}:
+    get:
+      tags: [Social]
+      summary: Read a shared workout template (self-contained bundle)
+      operationId: getSharedWorkout
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+        - $ref: '#/components/parameters/ServerIdPath'
+      responses:
+        '200':
+          description: Shared workout bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedWorkoutDetailDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 # ─────────────────────────────────────────────────────────────────────────────
 # COMPONENTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2092,6 +2296,14 @@ components:
       schema:
         type: string
       description: A user's unique handle (case-insensitive)
+    ServerIdPath:
+      name: serverId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Stable UUID of a shared template (diet/meal/workout)
 
   responses:
     Unauthorized:
@@ -2412,6 +2624,71 @@ components:
           type: string
           nullable: true
           maxLength: 1000
+
+    SharedTemplateSummaryDto:
+      type: object
+      description: Card summary of a shared diet/meal/workout for a user's public library.
+      properties:
+        type:
+          type: string
+          enum: [DIET, MEAL, WORKOUT_TEMPLATE]
+        serverId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        subtitle:
+          type: string
+          nullable: true
+          description: Short display hint (e.g. "520 kcal", "6 foods", "5 exercises").
+      required: [type, serverId, name]
+
+    SharedDietDetailDto:
+      type: object
+      description: >-
+        A shared diet with every meal and food it references, so the viewer can render
+        (and later copy) it without owning the underlying items. Resolve DietMealDto.mealServerId
+        against `meals` and *FoodItemDto.foodServerId against `foods`.
+      properties:
+        diet:
+          $ref: '#/components/schemas/DietDto'
+        meals:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealDto'
+          default: []
+        foods:
+          type: array
+          items:
+            $ref: '#/components/schemas/FoodDto'
+          default: []
+      required: [diet]
+
+    SharedMealDetailDto:
+      type: object
+      description: A shared meal plus the foods it references (resolve foodServerId against `foods`).
+      properties:
+        meal:
+          $ref: '#/components/schemas/MealDto'
+        foods:
+          type: array
+          items:
+            $ref: '#/components/schemas/FoodDto'
+          default: []
+      required: [meal]
+
+    SharedWorkoutDetailDto:
+      type: object
+      description: A shared workout template plus the exercises it references.
+      properties:
+        workout:
+          $ref: '#/components/schemas/WorkoutTemplateDto'
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExerciseDto'
+          default: []
+      required: [workout]
 
     # ── Dashboard ─────────────────────────────────────────────────────────────
 
@@ -2803,6 +3080,10 @@ components:
         isFavorite:
           type: boolean
           default: false
+        isShared:
+          type: boolean
+          default: false
+          description: Whether this meal is shared with followers (see PUT /meals/{id}/share).
         updatedAt:
           type: string
           format: date-time
@@ -2934,6 +3215,10 @@ components:
         isFavorite:
           type: boolean
           default: false
+        isShared:
+          type: boolean
+          default: false
+          description: Whether this diet is shared with followers (see PUT /diets/{id}/share).
         updatedAt:
           type: string
           format: date-time
@@ -3067,6 +3352,10 @@ components:
           default: []
           readOnly: true
           description: Full tag objects (read-only; send tagIds to assign)
+        isShared:
+          type: boolean
+          default: false
+          description: Whether this template is shared with followers (see PUT /workout-templates/{id}/share).
       required: [name]
 
     # ── Workout Sessions ──────────────────────────────────────────────────────

@@ -40,6 +40,7 @@ interface WorkoutSetRepository : JpaRepository<WorkoutSet, Long> {
 
 interface WorkoutTemplateRepository : JpaRepository<WorkoutTemplate, Long> {
     fun findByFirebaseUid(firebaseUid: String): List<WorkoutTemplate>
+    fun findByServerId(serverId: UUID): WorkoutTemplate?
 }
 
 interface TemplateExerciseRepository : JpaRepository<TemplateExercise, Long> {

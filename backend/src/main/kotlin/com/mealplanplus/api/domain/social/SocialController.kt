@@ -6,11 +6,16 @@ import com.mealplanplus.api.generated.model.ProfileUpdateRequest
 import com.mealplanplus.api.generated.model.PublicProfileDto
 import com.mealplanplus.api.generated.model.PublicProfileSummaryDto
 import com.mealplanplus.api.generated.model.ReportRequest
+import com.mealplanplus.api.generated.model.SharedDietDetailDto
+import com.mealplanplus.api.generated.model.SharedMealDetailDto
+import com.mealplanplus.api.generated.model.SharedTemplateSummaryDto
+import com.mealplanplus.api.generated.model.SharedWorkoutDetailDto
 import com.mealplanplus.api.generated.model.UserResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @RestController
 class SocialController(private val service: SocialService) : SocialApi {
@@ -57,6 +62,24 @@ class SocialController(private val service: SocialService) : SocialApi {
         service.report(currentUid(), reportRequest)
         return ResponseEntity.status(HttpStatus.CREATED).build()
     }
+
+    override fun listSharedDiets(handle: String): ResponseEntity<List<SharedTemplateSummaryDto>> =
+        ResponseEntity.ok(service.listSharedDiets(currentUid(), handle))
+
+    override fun listSharedMeals(handle: String): ResponseEntity<List<SharedTemplateSummaryDto>> =
+        ResponseEntity.ok(service.listSharedMeals(currentUid(), handle))
+
+    override fun listSharedWorkouts(handle: String): ResponseEntity<List<SharedTemplateSummaryDto>> =
+        ResponseEntity.ok(service.listSharedWorkouts(currentUid(), handle))
+
+    override fun getSharedDiet(handle: String, serverId: UUID): ResponseEntity<SharedDietDetailDto> =
+        ResponseEntity.ok(service.getSharedDiet(currentUid(), handle, serverId))
+
+    override fun getSharedMeal(handle: String, serverId: UUID): ResponseEntity<SharedMealDetailDto> =
+        ResponseEntity.ok(service.getSharedMeal(currentUid(), handle, serverId))
+
+    override fun getSharedWorkout(handle: String, serverId: UUID): ResponseEntity<SharedWorkoutDetailDto> =
+        ResponseEntity.ok(service.getSharedWorkout(currentUid(), handle, serverId))
 
     private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

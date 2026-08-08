@@ -215,6 +215,23 @@ export interface paths {
         patch: operations["toggleMealFavorite"];
         trace?: never;
     };
+    "/api/v1/meals/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Toggle whether this meal is shared with followers */
+        patch: operations["toggleMealShare"];
+        trace?: never;
+    };
     "/api/v1/diets": {
         parameters: {
             query?: never;
@@ -287,6 +304,40 @@ export interface paths {
         head?: never;
         /** Toggle favourite */
         patch: operations["toggleDietFavorite"];
+        trace?: never;
+    };
+    "/api/v1/diets/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Toggle whether this diet is shared with followers */
+        patch: operations["toggleDietShare"];
+        trace?: never;
+    };
+    "/api/v1/workout-templates/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Toggle whether this workout template is shared with followers */
+        patch: operations["toggleWorkoutTemplateShare"];
         trace?: never;
     };
     "/api/v1/tags": {
@@ -1128,6 +1179,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/social/users/{handle}/diets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's shared diets */
+        get: operations["listSharedDiets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's shared meals */
+        get: operations["listSharedMeals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/workouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's shared workout templates */
+        get: operations["listSharedWorkouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/diets/{serverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a shared diet (self-contained bundle)
+         * @description Returns the diet plus every meal and food it references, so the viewer can render and (later) copy it without owning the underlying items.
+         */
+        get: operations["getSharedDiet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/meals/{serverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a shared meal (self-contained bundle) */
+        get: operations["getSharedMeal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/workouts/{serverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a shared workout template (self-contained bundle) */
+        get: operations["getSharedWorkout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1284,6 +1440,36 @@ export interface components {
             reportedHandle?: string | null;
             reason?: string | null;
             detail?: string | null;
+        };
+        /** @description Card summary of a shared diet/meal/workout for a user's public library. */
+        SharedTemplateSummaryDto: {
+            /** @enum {string} */
+            type: "DIET" | "MEAL" | "WORKOUT_TEMPLATE";
+            /** Format: uuid */
+            serverId: string;
+            name: string;
+            /** @description Short display hint (e.g. "520 kcal", "6 foods", "5 exercises"). */
+            subtitle?: string | null;
+        };
+        /** @description A shared diet with every meal and food it references, so the viewer can render (and later copy) it without owning the underlying items. Resolve DietMealDto.mealServerId against `meals` and *FoodItemDto.foodServerId against `foods`. */
+        SharedDietDetailDto: {
+            diet: components["schemas"]["DietDto"];
+            /** @default [] */
+            meals: components["schemas"]["MealDto"][];
+            /** @default [] */
+            foods: components["schemas"]["FoodDto"][];
+        };
+        /** @description A shared meal plus the foods it references (resolve foodServerId against `foods`). */
+        SharedMealDetailDto: {
+            meal: components["schemas"]["MealDto"];
+            /** @default [] */
+            foods: components["schemas"]["FoodDto"][];
+        };
+        /** @description A shared workout template plus the exercises it references. */
+        SharedWorkoutDetailDto: {
+            workout: components["schemas"]["WorkoutTemplateDto"];
+            /** @default [] */
+            exercises: components["schemas"]["ExerciseDto"][];
         };
         /** @description A day's completion state (the unit counted by the streak). */
         DayCompletionDto: {
@@ -1510,6 +1696,11 @@ export interface components {
             items: components["schemas"]["MealFoodItemDto"][];
             /** @default false */
             isFavorite: boolean;
+            /**
+             * @description Whether this meal is shared with followers (see PUT /meals/{id}/share).
+             * @default false
+             */
+            isShared: boolean;
             /** Format: date-time */
             readonly updatedAt?: string;
         };
@@ -1590,6 +1781,11 @@ export interface components {
             readonly tags: components["schemas"]["TagDto"][];
             /** @default false */
             isFavorite: boolean;
+            /**
+             * @description Whether this diet is shared with followers (see PUT /diets/{id}/share).
+             * @default false
+             */
+            isShared: boolean;
             /** Format: date-time */
             readonly updatedAt?: string;
         };
@@ -1667,6 +1863,11 @@ export interface components {
              * @default []
              */
             readonly tags: components["schemas"]["TagDto"][];
+            /**
+             * @description Whether this template is shared with followers (see PUT /workout-templates/{id}/share).
+             * @default false
+             */
+            isShared: boolean;
         };
         /** @description Actual reps and weight logged for one set of one exercise. */
         WorkoutSetDto: {
@@ -2034,6 +2235,8 @@ export interface components {
         DatePath: string;
         /** @description A user's unique handle (case-insensitive) */
         HandlePath: string;
+        /** @description Stable UUID of a shared template (diet/meal/workout) */
+        ServerIdPath: string;
     };
     requestBodies: never;
     headers: never;
@@ -2479,6 +2682,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    toggleMealShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meal with updated `isShared` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listDiets: {
         parameters: {
             query?: {
@@ -2646,6 +2874,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DietDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    toggleDietShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Diet with updated `isShared` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DietDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    toggleWorkoutTemplateShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template with updated `isShared` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutTemplateDto"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -4279,6 +4557,168 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listSharedDiets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared diet summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTemplateSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSharedMeals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared meal summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTemplateSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSharedWorkouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared workout summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTemplateSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedDiet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared diet bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedDietDetailDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedMeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared meal bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedMealDetailDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedWorkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared workout bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedWorkoutDetailDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }
