@@ -473,13 +473,14 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/meals/{id}/share:
+  /api/v1/meals/{serverId}/share:
     patch:
       tags: [Meals]
       summary: Toggle whether this meal is shared with followers
+      description: Keyed by the stable serverId so any client can call it without the numeric id.
       operationId: toggleMealShare
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ServerIdPath'
       responses:
         '200':
           description: Meal with updated `isShared`
@@ -640,13 +641,14 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/diets/{id}/share:
+  /api/v1/diets/{serverId}/share:
     patch:
       tags: [Diets]
       summary: Toggle whether this diet is shared with followers
+      description: Keyed by the stable serverId so any client can call it without the numeric id.
       operationId: toggleDietShare
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ServerIdPath'
       responses:
         '200':
           description: Diet with updated `isShared`
@@ -661,13 +663,14 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/workout-templates/{id}/share:
+  /api/v1/workout-templates/{serverId}/share:
     patch:
       tags: [Workout Templates]
       summary: Toggle whether this workout template is shared with followers
+      description: Keyed by the stable serverId so any client can call it without the numeric id.
       operationId: toggleWorkoutTemplateShare
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ServerIdPath'
       responses:
         '200':
           description: Template with updated `isShared`
@@ -3146,7 +3149,11 @@ components:
         isShared:
           type: boolean
           default: false
-          description: Whether this meal is shared with followers (see PUT /meals/{id}/share).
+          description: Whether this meal is shared with followers (see PATCH /meals/{serverId}/share).
+        imported:
+          type: boolean
+          readOnly: true
+          description: True if this was copied from another user's shared template.
         updatedAt:
           type: string
           format: date-time
@@ -3281,7 +3288,11 @@ components:
         isShared:
           type: boolean
           default: false
-          description: Whether this diet is shared with followers (see PUT /diets/{id}/share).
+          description: Whether this diet is shared with followers (see PATCH /diets/{serverId}/share).
+        imported:
+          type: boolean
+          readOnly: true
+          description: True if this was copied from another user's shared template.
         updatedAt:
           type: string
           format: date-time
@@ -3388,6 +3399,10 @@ components:
         id:
           type: integer
           format: int64
+        serverId:
+          type: string
+          format: uuid
+          nullable: true
         firebaseUid:
           type: string
           readOnly: true
@@ -3418,7 +3433,11 @@ components:
         isShared:
           type: boolean
           default: false
-          description: Whether this template is shared with followers (see PUT /workout-templates/{id}/share).
+          description: Whether this template is shared with followers (see PATCH /workout-templates/{serverId}/share).
+        imported:
+          type: boolean
+          readOnly: true
+          description: True if this was copied from another user's shared template.
       required: [name]
 
     # ── Workout Sessions ──────────────────────────────────────────────────────

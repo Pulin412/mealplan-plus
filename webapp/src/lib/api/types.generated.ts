@@ -215,7 +215,7 @@ export interface paths {
         patch: operations["toggleMealFavorite"];
         trace?: never;
     };
-    "/api/v1/meals/{id}/share": {
+    "/api/v1/meals/{serverId}/share": {
         parameters: {
             query?: never;
             header?: never;
@@ -228,7 +228,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Toggle whether this meal is shared with followers */
+        /**
+         * Toggle whether this meal is shared with followers
+         * @description Keyed by the stable serverId so any client can call it without the numeric id.
+         */
         patch: operations["toggleMealShare"];
         trace?: never;
     };
@@ -306,7 +309,7 @@ export interface paths {
         patch: operations["toggleDietFavorite"];
         trace?: never;
     };
-    "/api/v1/diets/{id}/share": {
+    "/api/v1/diets/{serverId}/share": {
         parameters: {
             query?: never;
             header?: never;
@@ -319,11 +322,14 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Toggle whether this diet is shared with followers */
+        /**
+         * Toggle whether this diet is shared with followers
+         * @description Keyed by the stable serverId so any client can call it without the numeric id.
+         */
         patch: operations["toggleDietShare"];
         trace?: never;
     };
-    "/api/v1/workout-templates/{id}/share": {
+    "/api/v1/workout-templates/{serverId}/share": {
         parameters: {
             query?: never;
             header?: never;
@@ -336,7 +342,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Toggle whether this workout template is shared with followers */
+        /**
+         * Toggle whether this workout template is shared with followers
+         * @description Keyed by the stable serverId so any client can call it without the numeric id.
+         */
         patch: operations["toggleWorkoutTemplateShare"];
         trace?: never;
     };
@@ -1739,10 +1748,12 @@ export interface components {
             /** @default false */
             isFavorite: boolean;
             /**
-             * @description Whether this meal is shared with followers (see PUT /meals/{id}/share).
+             * @description Whether this meal is shared with followers (see PATCH /meals/{serverId}/share).
              * @default false
              */
             isShared: boolean;
+            /** @description True if this was copied from another user's shared template. */
+            readonly imported?: boolean;
             /** Format: date-time */
             readonly updatedAt?: string;
         };
@@ -1824,10 +1835,12 @@ export interface components {
             /** @default false */
             isFavorite: boolean;
             /**
-             * @description Whether this diet is shared with followers (see PUT /diets/{id}/share).
+             * @description Whether this diet is shared with followers (see PATCH /diets/{serverId}/share).
              * @default false
              */
             isShared: boolean;
+            /** @description True if this was copied from another user's shared template. */
+            readonly imported?: boolean;
             /** Format: date-time */
             readonly updatedAt?: string;
         };
@@ -1890,6 +1903,8 @@ export interface components {
         WorkoutTemplateDto: {
             /** Format: int64 */
             id?: number;
+            /** Format: uuid */
+            serverId?: string | null;
             readonly firebaseUid?: string;
             name: string;
             notes?: string | null;
@@ -1906,10 +1921,12 @@ export interface components {
              */
             readonly tags: components["schemas"]["TagDto"][];
             /**
-             * @description Whether this template is shared with followers (see PUT /workout-templates/{id}/share).
+             * @description Whether this template is shared with followers (see PATCH /workout-templates/{serverId}/share).
              * @default false
              */
             isShared: boolean;
+            /** @description True if this was copied from another user's shared template. */
+            readonly imported?: boolean;
         };
         /** @description Actual reps and weight logged for one set of one exercise. */
         WorkoutSetDto: {
@@ -2729,7 +2746,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["IdPath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
             };
             cookie?: never;
         };
@@ -2928,7 +2946,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["IdPath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
             };
             cookie?: never;
         };
@@ -2953,7 +2972,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["IdPath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
             };
             cookie?: never;
         };

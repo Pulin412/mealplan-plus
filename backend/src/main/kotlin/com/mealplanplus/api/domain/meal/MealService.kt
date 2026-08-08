@@ -89,8 +89,9 @@ class MealService(
     }
 
     @Transactional
-    fun toggleShare(id: Long, firebaseUid: String): MealDto {
-        val meal = mealRepo.findById(id).orElseThrow()
+    fun toggleShare(serverId: UUID, firebaseUid: String): MealDto {
+        val meal = mealRepo.findByServerId(serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         meal.isShared = !meal.isShared
@@ -187,5 +188,6 @@ fun Meal.toDto(items: List<MealFoodItem>, foodServerIds: Map<Long, UUID>) = Meal
     items       = items.map { it.toDto(foodServerIds) },
     isFavorite  = isFavorite,
     isShared    = isShared,
+    imported    = copiedFromUid != null,
     updatedAt   = updatedAt
 )

@@ -57,8 +57,8 @@ class WorkoutTemplateController(private val service: WorkoutService) : WorkoutTe
     override fun startWorkoutFromTemplate(id: Long): ResponseEntity<WorkoutSessionDto> =
         ResponseEntity.status(HttpStatus.CREATED).body(service.startFromTemplate(id, currentUid()))
 
-    override fun toggleWorkoutTemplateShare(id: Long): ResponseEntity<WorkoutTemplateDto> =
-        ResponseEntity.ok(service.toggleTemplateShare(id, currentUid()))
+    override fun toggleWorkoutTemplateShare(serverId: java.util.UUID): ResponseEntity<WorkoutTemplateDto> =
+        ResponseEntity.ok(service.toggleTemplateShare(serverId, currentUid()))
 
     private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

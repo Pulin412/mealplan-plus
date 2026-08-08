@@ -164,8 +164,9 @@ class DietService(
     }
 
     @Transactional
-    fun toggleShare(id: Long, firebaseUid: String): DietDto {
-        val diet = dietRepo.findById(id).orElseThrow()
+    fun toggleShare(serverId: UUID, firebaseUid: String): DietDto {
+        val diet = dietRepo.findByServerId(serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         if (diet.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         diet.isShared = !diet.isShared
@@ -322,5 +323,6 @@ fun Diet.toDto(
     tags           = tags.map { it.toDto() },
     isFavorite     = isFavorite,
     isShared       = isShared,
+    imported       = copiedFromUid != null,
     updatedAt      = updatedAt
 )

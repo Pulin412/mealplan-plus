@@ -32,8 +32,8 @@ class DietController(private val service: DietService) : DietsApi {
     override fun toggleDietFavorite(id: Long): ResponseEntity<DietDto> =
         ResponseEntity.ok(service.toggleFavorite(id, currentUid()))
 
-    override fun toggleDietShare(id: Long): ResponseEntity<DietDto> =
-        ResponseEntity.ok(service.toggleShare(id, currentUid()))
+    override fun toggleDietShare(serverId: java.util.UUID): ResponseEntity<DietDto> =
+        ResponseEntity.ok(service.toggleShare(serverId, currentUid()))
 
     private fun currentUid() = SecurityContextHolder.getContext().authentication.name
 }

@@ -251,8 +251,9 @@ class WorkoutService(
     }
 
     @Transactional
-    fun toggleTemplateShare(id: Long, firebaseUid: String): WorkoutTemplateDto {
-        val template = templateRepo.findById(id).orElseThrow()
+    fun toggleTemplateShare(serverId: UUID, firebaseUid: String): WorkoutTemplateDto {
+        val template = templateRepo.findByServerId(serverId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         if (template.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         template.isShared = !template.isShared
@@ -453,12 +454,14 @@ fun TemplateExercise.toDto(exercise: Exercise?, sets: List<TemplateExerciseSet>)
 
 fun WorkoutTemplate.toDto(exercises: List<TemplateExerciseDto>, tags: List<TagDto> = emptyList()) = WorkoutTemplateDto(
     id          = id,
+    serverId    = serverId,
     firebaseUid = firebaseUid,
     name        = name,
     notes       = notes,
     exercises   = exercises,
     tagIds      = tags.map { it.id },
-    isShared    = isShared
+    isShared    = isShared,
+    imported    = copiedFromUid != null
 )
 
 fun Exercise.toDto(tags: List<TagDto> = emptyList()) = ExerciseDto(

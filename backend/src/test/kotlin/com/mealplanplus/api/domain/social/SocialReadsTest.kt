@@ -77,7 +77,7 @@ class SocialReadsTest {
                 DietMealDto(mealId = meal.id!!, mealServerId = meal.serverId, dayOfWeek = 0, slot = "Breakfast"))),
             author,
         )
-        if (shared) diets.toggleShare(diet.id!!, author)
+        if (shared) diets.toggleShare(diet.serverId!!, author)
         return diet.serverId!!
     }
 
@@ -150,7 +150,7 @@ class SocialReadsTest {
         follow()
         assertTrue(social.listSharedDiets(viewer, "author").isEmpty())
         val ownerDiet = diets.list(author).first()
-        diets.toggleShare(ownerDiet.id!!, author)
+        diets.toggleShare(ownerDiet.serverId!!, author)
         assertEquals(1, social.listSharedDiets(viewer, "author").size)
     }
 
@@ -167,7 +167,7 @@ class SocialReadsTest {
                 MealFoodItemDto(foodId = food.id!!, foodServerId = food.serverId, quantity = 200.0, unit = FoodUnit.GRAM))),
             author,
         )
-        meals.toggleShare(meal.id!!, author)
+        meals.toggleShare(meal.serverId!!, author)
         follow()
         val bundle = social.getSharedMeal(viewer, "author", meal.serverId!!)
         assertEquals("Protein Meal", bundle.meal.name)
@@ -183,12 +183,9 @@ class SocialReadsTest {
                 TemplateExerciseDto(exerciseId = exercise.id!!, orderIndex = 0))),
             author,
         )
-        workouts.toggleTemplateShare(template.id!!, author)
+        workouts.toggleTemplateShare(template.serverId!!, author)
         follow()
-        // WorkoutTemplateDto doesn't carry serverId (clients get it from the summary/URL),
-        // so read it back from the entity.
-        val serverId = workouts.sharedTemplatesOf(author).first().serverId
-        val bundle = social.getSharedWorkout(viewer, "author", serverId)
+        val bundle = social.getSharedWorkout(viewer, "author", template.serverId!!)
         assertEquals("Push Day", bundle.workout.name)
         assertEquals(1, bundle.exercises!!.size)
         assertEquals("Bench Press", bundle.exercises!![0].name)
