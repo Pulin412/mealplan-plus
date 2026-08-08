@@ -116,12 +116,28 @@ class ExercisesViewModel @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val sessionRepo: WorkoutSessionRepository,
     private val responseCache: ResponseCache,
+    private val sharingRepo: com.mealplanplus.data.repository.SharingRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExercisesUiState())
     val state: StateFlow<ExercisesUiState> = _state
 
     init { load() }
+
+    /** Flip whether a workout template is shared with followers (direct REST by serverId). */
+    fun toggleWorkoutShare(w: WorkoutTemplateDto) {
+        val serverId = w.serverId ?: return
+        viewModelScope.launch {
+            val newState = runCatching { sharingRepo.toggleWorkout(serverId) }.getOrNull()
+            if (newState != null) {
+                _state.update { st ->
+                    st.copy(workouts = st.workouts.map { if (it.serverId == serverId) it.copy(isShared = newState) else it })
+                }
+            } else {
+                _state.update { it.copy(error = "Couldn't update sharing") }
+            }
+        }
+    }
 
     /**
      * Read-through cached load: paints the last-known library instantly on a cold open, then

@@ -13,7 +13,11 @@ class Meal(
     var isFavorite: Boolean = false,
     @Convert(converter = StringListConverter::class)
     @Column(columnDefinition = "text")
-    var slots: List<String> = emptyList()
+    var slots: List<String> = emptyList(),
+    // Social (V9): per-item share toggle + copy provenance.
+    var isShared: Boolean = false,
+    var copiedFromUid: String? = null,
+    var copiedFromServerId: java.util.UUID? = null
 ) : SyncableEntity()
 
 @Entity

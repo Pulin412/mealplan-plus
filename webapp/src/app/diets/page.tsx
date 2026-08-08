@@ -23,6 +23,10 @@ const macroLine = (p: number, c: number, f: number) => `P${num(p)} · C${num(c)}
 function StarBtn({ active, onClick }: { active: boolean; onClick: (e: React.MouseEvent) => void }) {
   return <button onClick={onClick} className="flex-none text-[15px] leading-none px-0.5" style={{ color: active ? C.teal : C.muted2 }}>{active ? "★" : "☆"}</button>;
 }
+function GlobeBtn({ active, onClick }: { active: boolean; onClick: (e: React.MouseEvent) => void }) {
+  // Share-with-followers toggle.
+  return <button onClick={onClick} title={active ? "Shared with followers" : "Not shared"} className="flex-none text-[13px] leading-none px-0.5" style={{ color: active ? C.teal : C.muted2 }}>{active ? "🌐" : "◍"}</button>;
+}
 function TagPill({ name }: { name: string }) {
   return <span className="text-[8.5px] font-semibold rounded-[5px] px-[6px] py-[2px]" style={{ color: C.teal, background: "oklch(0.62 0.09 210 / .12)" }}>{name}</span>;
 }
@@ -44,9 +48,9 @@ function SlotGroupView({ slot, entries, kcal }: DietView["slots"][number]) {
   );
 }
 
-function DietCard({ v, expanded, compact, isLast, onToggle, onFav, onEdit, onDelete }: {
+function DietCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEdit, onDelete }: {
   v: DietView; expanded: boolean; compact?: boolean; isLast?: boolean; onToggle: () => void;
-  onFav: (e: React.MouseEvent) => void; onEdit: () => void; onDelete: () => void;
+  onFav: (e: React.MouseEvent) => void; onShare: (e: React.MouseEvent) => void; onEdit: () => void; onDelete: () => void;
 }) {
   const wrapClass = compact ? "cursor-pointer px-[11px] py-[7px]" : "cursor-pointer rounded-[12px] mb-[8px] px-3 py-[9px]";
   const wrapStyle = compact ? { borderBottom: isLast ? "none" : `1px solid ${C.bgAlt}` } : { background: C.surface, border: `1px solid ${C.border}` };
@@ -63,6 +67,7 @@ function DietCard({ v, expanded, compact, isLast, onToggle, onFav, onEdit, onDel
             </div>
           )}
         </div>
+        {!v.diet.imported && <GlobeBtn active={!!v.diet.isShared} onClick={(e) => { e.stopPropagation(); onShare(e); }} />}
         <StarBtn active={!!v.diet.isFavorite} onClick={(e) => { e.stopPropagation(); onFav(e); }} />
         <span className="flex-none text-[12.5px] font-bold tabular-nums" style={{ color: C.ink, fontFamily: mono }}>
           {v.totalKcal}<span className="text-[9px] font-normal" style={{ color: C.muted2, fontFamily: "system-ui" }}> kcal</span>
@@ -269,6 +274,7 @@ function DietsPageInner() {
               </div></>)}
           </div>
           <button onClick={() => d.setFavOnly(!d.favOnly)} className="flex items-center gap-[5px] rounded-[9px] px-[11px] py-[7px] text-[11.5px] font-semibold" style={{ background: d.favOnly ? "oklch(0.62 0.09 210 / .12)" : C.bgAlt, color: d.favOnly ? C.teal : C.ink }}>{d.favOnly ? "★" : "☆"} {d.favCount}</button>
+          <button onClick={() => d.setImportedOnly(!d.importedOnly)} className="rounded-[9px] px-[11px] py-[7px] text-[11.5px] font-semibold" style={{ background: d.importedOnly ? "oklch(0.62 0.09 210 / .12)" : C.bgAlt, color: d.importedOnly ? C.teal : C.ink }}>Imported</button>
           <span className="flex-1" />
           <div className="flex rounded-[9px] overflow-hidden" style={{ border: `1px solid #e2e7ea` }}>
             {(["list", "compact"] as const).map((v) => <button key={v} onClick={() => d.setViewMode(v)} className="w-[34px] h-[32px] flex items-center justify-center text-[15px]" style={{ background: d.viewMode === v ? C.surface : "transparent", color: d.viewMode === v ? C.ink : C.muted2, borderRight: v === "list" ? "1px solid #e2e7ea" : "none" }}>{v === "list" ? "☰" : "≣"}</button>)}
@@ -291,6 +297,7 @@ function DietsPageInner() {
         {d.viewMode === "list" && d.diets.map((v) => (
           <DietCard key={v.diet.id} v={v} expanded={d.expandedIds.has(v.diet.id!)}
             onToggle={() => d.toggleExpand(v.diet.id!)} onFav={() => void d.handleToggleFav(v.diet)}
+            onShare={() => void d.handleToggleShare(v.diet)}
             onEdit={() => d.openEdit(v.diet)} onDelete={() => void d.handleDelete(v.diet)} />
         ))}
         {d.viewMode === "compact" && d.diets.length > 0 && (
@@ -299,6 +306,7 @@ function DietsPageInner() {
               <DietCard key={v.diet.id} v={v} compact isLast={i === d.diets.length - 1}
                 expanded={d.expandedIds.has(v.diet.id!)}
                 onToggle={() => d.toggleExpand(v.diet.id!)} onFav={() => void d.handleToggleFav(v.diet)}
+                onShare={() => void d.handleToggleShare(v.diet)}
                 onEdit={() => d.openEdit(v.diet)} onDelete={() => void d.handleDelete(v.diet)} />
             ))}
           </div>

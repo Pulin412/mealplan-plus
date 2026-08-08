@@ -215,6 +215,26 @@ export interface paths {
         patch: operations["toggleMealFavorite"];
         trace?: never;
     };
+    "/api/v1/meals/{serverId}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Toggle whether this meal is shared with followers
+         * @description Keyed by the stable serverId so any client can call it without the numeric id.
+         */
+        patch: operations["toggleMealShare"];
+        trace?: never;
+    };
     "/api/v1/diets": {
         parameters: {
             query?: never;
@@ -287,6 +307,46 @@ export interface paths {
         head?: never;
         /** Toggle favourite */
         patch: operations["toggleDietFavorite"];
+        trace?: never;
+    };
+    "/api/v1/diets/{serverId}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Toggle whether this diet is shared with followers
+         * @description Keyed by the stable serverId so any client can call it without the numeric id.
+         */
+        patch: operations["toggleDietShare"];
+        trace?: never;
+    };
+    "/api/v1/workout-templates/{serverId}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Toggle whether this workout template is shared with followers
+         * @description Keyed by the stable serverId so any client can call it without the numeric id.
+         */
+        patch: operations["toggleWorkoutTemplateShare"];
         trace?: never;
     };
     "/api/v1/tags": {
@@ -955,6 +1015,304 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update my social profile
+         * @description Claim/update the public-facing profile: handle, bio, avatar seed, searchability. Handle must match `^[a-z0-9_]{3,20}$` (validated + normalised to lowercase) and be globally unique. Only fields present are changed.
+         */
+        put: operations["updateMyProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/handle-available": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check handle availability */
+        get: operations["checkHandleAvailable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search users
+         * @description Case-insensitive substring match on handle or display name. Only returns users who have claimed a handle and are searchable, excluding yourself and anyone in a block relationship with you.
+         */
+        get: operations["searchUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a public profile
+         * @description Public profile by handle, with follower/following counts and whether the caller follows them. 404 if no such handle; 403 if a block exists either way.
+         */
+        get: operations["getPublicProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/follow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Follow a user
+         * @description Idempotent. 409 if a block exists either way or you target yourself.
+         */
+        post: operations["followUser"];
+        /**
+         * Unfollow a user
+         * @description Idempotent.
+         */
+        delete: operations["unfollowUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/followers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's followers */
+        get: operations["listFollowers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/following": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List who a user follows */
+        get: operations["listFollowing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Block a user
+         * @description Blocking removes any follow edges between the two users in both directions and hides each from the other. Idempotent.
+         */
+        post: operations["blockUser"];
+        /** Unblock a user */
+        delete: operations["unblockUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report content or a user */
+        post: operations["reportContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy a shared template into your own library
+         * @description Deep-clones another user's shared diet/meal/workout into the caller's library. Foods and exercises are deduplicated (system items referenced directly; manual items matched against the caller's own by name+unit+per-100 macros for foods, by name for exercises — reuse on match, else created fresh). Containers (the diet/ meal/workout, and a diet's meals) are always created fresh and stamped with provenance. The caller then sync-pulls the new owned rows. Same follows+block gate as the read endpoints; the source must be shared.
+         */
+        post: operations["copyTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/diets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's shared diets */
+        get: operations["listSharedDiets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's shared meals */
+        get: operations["listSharedMeals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/workouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's shared workout templates */
+        get: operations["listSharedWorkouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/diets/{serverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a shared diet (self-contained bundle)
+         * @description Returns the diet plus every meal and food it references, so the viewer can render and (later) copy it without owning the underlying items.
+         */
+        get: operations["getSharedDiet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/meals/{serverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a shared meal (self-contained bundle) */
+        get: operations["getSharedMeal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/workouts/{serverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a shared workout template (self-contained bundle) */
+        get: operations["getSharedWorkout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1032,6 +1390,13 @@ export interface components {
              * @description When first-run onboarding was completed/skipped (null = not yet onboarded).
              */
             readonly onboardingCompletedAt?: string | null;
+            /** @description Public unique handle (null until claimed). `^[a-z0-9_]{3,20}$`. */
+            handle?: string | null;
+            bio?: string | null;
+            /** @description Deterministic seed for a client-rendered generated avatar. */
+            avatarSeed?: string | null;
+            /** @description Whether this user appears in user search. Defaults to true. */
+            isSearchable?: boolean;
         };
         /** @description Fields accepted on PUT /api/v1/users/me (all optional — only send what changed). */
         UserUpdateRequest: {
@@ -1057,6 +1422,105 @@ export interface components {
             privacyPolicyVersion?: string | null;
             /** @description Send true when first-run onboarding is finished/skipped; the server stamps onboardingCompletedAt = now(). */
             onboardingCompleted?: boolean | null;
+        };
+        /** @description Fields accepted on PUT /api/v1/users/me/profile (all optional — only send what changed). */
+        ProfileUpdateRequest: {
+            /** @description New handle to claim. `^[a-z0-9_]{3,20}$`, normalised to lowercase, globally unique. */
+            handle?: string | null;
+            bio?: string | null;
+            avatarSeed?: string | null;
+            isSearchable?: boolean | null;
+        };
+        HandleAvailabilityDto: {
+            handle: string;
+            available: boolean;
+            /** @description Whether the handle matches the required format. */
+            valid: boolean;
+        };
+        /** @description A user's public-facing profile. */
+        PublicProfileDto: {
+            handle: string;
+            displayName?: string | null;
+            bio?: string | null;
+            avatarSeed?: string | null;
+            /** Format: int64 */
+            followerCount: number;
+            /** Format: int64 */
+            followingCount: number;
+            isFollowedByMe: boolean;
+            isMe: boolean;
+        };
+        /** @description Compact profile for search results and follower/following lists. */
+        PublicProfileSummaryDto: {
+            handle: string;
+            displayName?: string | null;
+            avatarSeed?: string | null;
+            isFollowedByMe: boolean;
+        };
+        ReportRequest: {
+            /** @enum {string} */
+            entityType: "DIET" | "MEAL" | "WORKOUT_TEMPLATE" | "USER";
+            /**
+             * Format: uuid
+             * @description The shared item's serverId. Null when reporting a USER.
+             */
+            entityServerId?: string | null;
+            /** @description Handle of the author / reported user. */
+            reportedHandle?: string | null;
+            reason?: string | null;
+            detail?: string | null;
+        };
+        /** @description Card summary of a shared diet/meal/workout for a user's public library. */
+        SharedTemplateSummaryDto: {
+            /** @enum {string} */
+            type: "DIET" | "MEAL" | "WORKOUT_TEMPLATE";
+            /** Format: uuid */
+            serverId: string;
+            name: string;
+            /** @description Short display hint (e.g. "520 kcal", "6 foods", "5 exercises"). */
+            subtitle?: string | null;
+        };
+        /** @description A shared diet with every meal and food it references, so the viewer can render (and later copy) it without owning the underlying items. Resolve DietMealDto.mealServerId against `meals` and *FoodItemDto.foodServerId against `foods`. */
+        SharedDietDetailDto: {
+            diet: components["schemas"]["DietDto"];
+            /** @default [] */
+            meals: components["schemas"]["MealDto"][];
+            /** @default [] */
+            foods: components["schemas"]["FoodDto"][];
+        };
+        /** @description A shared meal plus the foods it references (resolve foodServerId against `foods`). */
+        SharedMealDetailDto: {
+            meal: components["schemas"]["MealDto"];
+            /** @default [] */
+            foods: components["schemas"]["FoodDto"][];
+        };
+        /** @description A shared workout template plus the exercises it references. */
+        SharedWorkoutDetailDto: {
+            workout: components["schemas"]["WorkoutTemplateDto"];
+            /** @default [] */
+            exercises: components["schemas"]["ExerciseDto"][];
+        };
+        CopyRequest: {
+            /** @enum {string} */
+            entityType: "DIET" | "MEAL" | "WORKOUT_TEMPLATE";
+            /** @description Handle of the author whose shared template is being copied. */
+            handle: string;
+            /**
+             * Format: uuid
+             * @description serverId of the shared template to copy.
+             */
+            sourceServerId: string;
+        };
+        /** @description Identifies the newly created owned template; the client sync-pulls the full rows. */
+        CopyResultDto: {
+            /** @enum {string} */
+            entityType: "DIET" | "MEAL" | "WORKOUT_TEMPLATE";
+            /**
+             * Format: uuid
+             * @description serverId of the new owned copy.
+             */
+            serverId: string;
+            name: string;
         };
         /** @description A day's completion state (the unit counted by the streak). */
         DayCompletionDto: {
@@ -1283,6 +1747,13 @@ export interface components {
             items: components["schemas"]["MealFoodItemDto"][];
             /** @default false */
             isFavorite: boolean;
+            /**
+             * @description Whether this meal is shared with followers (see PATCH /meals/{serverId}/share).
+             * @default false
+             */
+            isShared: boolean;
+            /** @description True if this was copied from another user's shared template. */
+            readonly imported?: boolean;
             /** Format: date-time */
             readonly updatedAt?: string;
         };
@@ -1363,6 +1834,13 @@ export interface components {
             readonly tags: components["schemas"]["TagDto"][];
             /** @default false */
             isFavorite: boolean;
+            /**
+             * @description Whether this diet is shared with followers (see PATCH /diets/{serverId}/share).
+             * @default false
+             */
+            isShared: boolean;
+            /** @description True if this was copied from another user's shared template. */
+            readonly imported?: boolean;
             /** Format: date-time */
             readonly updatedAt?: string;
         };
@@ -1425,6 +1903,8 @@ export interface components {
         WorkoutTemplateDto: {
             /** Format: int64 */
             id?: number;
+            /** Format: uuid */
+            serverId?: string | null;
             readonly firebaseUid?: string;
             name: string;
             notes?: string | null;
@@ -1440,6 +1920,13 @@ export interface components {
              * @default []
              */
             readonly tags: components["schemas"]["TagDto"][];
+            /**
+             * @description Whether this template is shared with followers (see PATCH /workout-templates/{serverId}/share).
+             * @default false
+             */
+            isShared: boolean;
+            /** @description True if this was copied from another user's shared template. */
+            readonly imported?: boolean;
         };
         /** @description Actual reps and weight logged for one set of one exercise. */
         WorkoutSetDto: {
@@ -1805,6 +2292,10 @@ export interface components {
         IdPath: number;
         /** @description ISO-8601 date (YYYY-MM-DD) */
         DatePath: string;
+        /** @description A user's unique handle (case-insensitive) */
+        HandlePath: string;
+        /** @description Stable UUID of a shared template (diet/meal/workout) */
+        ServerIdPath: string;
     };
     requestBodies: never;
     headers: never;
@@ -2250,6 +2741,32 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    toggleMealShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meal with updated `isShared` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listDiets: {
         parameters: {
             query?: {
@@ -2417,6 +2934,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DietDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    toggleDietShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Diet with updated `isShared` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DietDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    toggleWorkoutTemplateShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template with updated `isShared` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutTemplateDto"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -3756,6 +4325,489 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Invalid handle format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Handle already taken */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    checkHandleAvailable: {
+        parameters: {
+            query: {
+                handle: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Availability result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandleAvailabilityDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    searchUsers: {
+        parameters: {
+            query: {
+                q: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching profiles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getPublicProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    followUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Now following */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Cannot follow (blocked or self) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unfollowUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No longer following */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listFollowers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Followers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listFollowing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Following */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    blockUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blocked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Cannot block yourself */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unblockUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unblocked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    reportContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Report recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    copyTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created owned template */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyResultDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSharedDiets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared diet summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTemplateSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSharedMeals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared meal summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTemplateSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSharedWorkouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared workout summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTemplateSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedDiet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared diet bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedDietDetailDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedMeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared meal bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedMealDetailDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedWorkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+                /** @description Stable UUID of a shared template (diet/meal/workout) */
+                serverId: components["parameters"]["ServerIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared workout bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedWorkoutDetailDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

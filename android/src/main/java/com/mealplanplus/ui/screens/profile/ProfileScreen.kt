@@ -84,9 +84,24 @@ private sealed interface Editor {
 }
 
 @Composable
-fun ProfileScreen(onBack: () -> Unit = {}) {
+fun ProfileScreen(
+    onBack: () -> Unit = {},
+    onEditPublicProfile: () -> Unit = {},
+    onOpenPublicProfile: (String) -> Unit = {},
+    onDiscover: () -> Unit = {},
+) {
     val viewModel: ProfileViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    // Refresh when returning to Profile (e.g. after editing the public profile) so a freshly
+    // claimed handle shows up instead of a stale cached user.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.load()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var editor by remember { mutableStateOf<Editor?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -107,6 +122,25 @@ fun ProfileScreen(onBack: () -> Unit = {}) {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                     IdentityHeader(u, state.accountEmail)
                     Spacer(Modifier.height(16.dp))
+
+                    Section("Social") {
+                        val handle = u.handle
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable(enabled = !handle.isNullOrBlank()) { handle?.let(onOpenPublicProfile) }
+                                .padding(horizontal = 12.dp, vertical = 13.dp)) {
+                            Text("My public profile", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold,
+                                color = if (handle.isNullOrBlank()) MutedLight else Ink, modifier = Modifier.weight(1f))
+                            Text(if (handle.isNullOrBlank()) "Set a handle first" else "@$handle",
+                                fontSize = 12.sp, color = MutedLight)
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                        Text("Edit public profile", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                            modifier = Modifier.fillMaxWidth().clickable { onEditPublicProfile() }.padding(horizontal = 12.dp, vertical = 13.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                        Text("Discover people", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                            modifier = Modifier.fillMaxWidth().clickable { onDiscover() }.padding(horizontal = 12.dp, vertical = 13.dp))
+                    }
 
                     Section("Body") {
                         Row2("Name", u.displayName ?: "—") { editor = Editor.Num("Name", u.displayName ?: "", "Your name", KeyboardType.Text) { v -> viewModel.patch(UserUpdateRequest(displayName = v.ifBlank { null })) } }
@@ -180,6 +214,9 @@ private fun IdentityHeader(u: UserResponse, fallbackEmail: String?) {
         Column {
             Text(u.displayName ?: "Set your name", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)
             Text(u.email ?: fallbackEmail ?: "—", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+            u.handle?.takeIf { it.isNotBlank() }?.let {
+                Text("@$it", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.padding(top = 2.dp))
+            }
         }
     }
 }

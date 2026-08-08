@@ -50,6 +50,11 @@ import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
+import com.mealplanplus.ui.screens.social.DiscoverScreen
+import com.mealplanplus.ui.screens.social.FollowListScreen
+import com.mealplanplus.ui.screens.social.ProfileEditScreen
+import com.mealplanplus.ui.screens.social.PublicProfileScreen
+import com.mealplanplus.ui.screens.social.SharedDetailScreen
 import com.mealplanplus.ui.screens.settings.SettingsScreen
 import java.net.URLEncoder
 
@@ -181,7 +186,12 @@ fun MealPlanNavHost() {
                 SessionRunnerScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Profile.route)   {
-                ProfileScreen(onBack = { navController.popBackStack() })
+                ProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditPublicProfile = { navController.navigate("profileEdit") },
+                    onOpenPublicProfile = { handle -> navController.navigate("u/$handle") },
+                    onDiscover = { navController.navigate("discover") },
+                )
             }
             composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.popBackStack() }) }
             composable(Screen.Plan.route)      { PlanScreen() }
@@ -206,6 +216,49 @@ fun MealPlanNavHost() {
             }
             composable(Screen.Groceries.route) {
                 GroceryScreen(onMenu = { navController.popBackStack() })
+            }
+
+            // ── Social ──────────────────────────────────────────────────────────
+            composable("profileEdit") {
+                ProfileEditScreen(onBack = { navController.popBackStack() })
+            }
+            composable("discover") {
+                DiscoverScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenProfile = { handle -> navController.navigate("u/$handle") },
+                )
+            }
+            composable(
+                route = "u/{handle}",
+                arguments = listOf(navArgument("handle") { type = NavType.StringType }),
+            ) {
+                PublicProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenShared = { handle, type, serverId -> navController.navigate("shared/$handle/$type/$serverId") },
+                    onOpenFollows = { handle, mode -> navController.navigate("follows/$handle/$mode") },
+                )
+            }
+            composable(
+                route = "follows/{handle}/{mode}",
+                arguments = listOf(
+                    navArgument("handle") { type = NavType.StringType },
+                    navArgument("mode") { type = NavType.StringType },
+                ),
+            ) {
+                FollowListScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenProfile = { handle -> navController.navigate("u/$handle") },
+                )
+            }
+            composable(
+                route = "shared/{handle}/{type}/{serverId}",
+                arguments = listOf(
+                    navArgument("handle") { type = NavType.StringType },
+                    navArgument("type") { type = NavType.StringType },
+                    navArgument("serverId") { type = NavType.StringType },
+                ),
+            ) {
+                SharedDetailScreen(onBack = { navController.popBackStack() })
             }
         }
     }

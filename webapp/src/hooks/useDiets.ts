@@ -6,6 +6,7 @@ import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { naturalCompare } from "@/lib/utils/naturalCompare";
 import { listDietTags, createDietTag, type TagDto } from "@/lib/api/tags";
+import { toggleDietShare } from "@/lib/api/social";
 import { foodMacros, MEAL_SLOTS, type Macros } from "@/lib/nutrition";
 import type { DietSort, DietViewMode } from "@/types/diet";
 
@@ -39,6 +40,7 @@ export function useDiets() {
   const [sort, setSort] = useState<DietSort>("recent");
   const [viewMode, setViewMode] = useState<DietViewMode>("list");
   const [favOnly, setFavOnly] = useState(false);
+  const [importedOnly, setImportedOnly] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
@@ -111,6 +113,7 @@ export function useDiets() {
       list = list.filter((v) => v.diet.name.toLowerCase().includes(q) || v.tagNames.some((t) => t.toLowerCase().includes(q)));
     }
     if (favOnly) list = list.filter((v) => v.diet.isFavorite);
+    if (importedOnly) list = list.filter((v) => v.diet.imported);
     if (tagFilter) list = list.filter((v) => v.tagNames.includes(tagFilter));
     switch (sort) {
       case "name": return [...list].sort((a, b) => naturalCompare(a.diet.name, b.diet.name));
@@ -118,7 +121,7 @@ export function useDiets() {
       case "protein": return [...list].sort((a, b) => b.totalP - a.totalP);
       default: return list;
     }
-  }, [resolved, query, favOnly, tagFilter, sort]);
+  }, [resolved, query, favOnly, importedOnly, tagFilter, sort]);
 
   const favCount = useMemo(() => diets.filter((d) => d.isFavorite).length, [diets]);
 
@@ -132,6 +135,13 @@ export function useDiets() {
     if (diet.id == null) return;
     setDiets((prev) => prev.map((d) => d.id === diet.id ? { ...d, isFavorite: !d.isFavorite } : d));
     try { await toggleDietFavorite(diet.id); } catch { await reload(); }
+  }, [reload]);
+
+  // Per-item Share toggle — direct REST by serverId (not synced). Imported copies can't be re-shared.
+  const handleToggleShare = useCallback(async (diet: DietDto) => {
+    if (!diet.serverId) return;
+    setDiets((prev) => prev.map((d) => d.serverId === diet.serverId ? { ...d, isShared: !d.isShared } : d));
+    try { await toggleDietShare(diet.serverId); } catch { await reload(); }
   }, [reload]);
 
   const handleDelete = useCallback(async (diet: DietDto) => {
@@ -172,8 +182,9 @@ export function useDiets() {
     diets: filtered, totalCount: diets.length, favCount, meals, foods, foodsById, mealSummaries,
     availableTags, allTagNames, loading, error,
     query, setQuery, sort, setSort, viewMode, setViewMode, favOnly, setFavOnly,
+    importedOnly, setImportedOnly,
     tagFilter, setTagFilter, expandedIds, toggleExpand,
-    handleToggleFav, handleDelete, createTag,
+    handleToggleFav, handleToggleShare, handleDelete, createTag,
     builderOpen, editing, openNew, openEdit, closeBuilder, saveDiet, saving,
   };
 }

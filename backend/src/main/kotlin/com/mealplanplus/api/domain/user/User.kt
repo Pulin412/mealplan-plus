@@ -24,6 +24,15 @@ class User(
     var email: String? = null,
     var displayName: String? = null,
 
+    // Social profile (see V9 migration). handle is case-insensitive unique (citext);
+    // null until claimed. Format enforced in SocialService (^[a-z0-9_]{3,20}$).
+    @Column(columnDefinition = "citext")
+    var handle: String? = null,
+    var bio: String? = null,
+    var avatarSeed: String? = null,
+    @Column(nullable = false)
+    var isSearchable: Boolean = true,
+
     var age: Int? = null,
     var weightKg: Double? = null,
     var heightCm: Double? = null,

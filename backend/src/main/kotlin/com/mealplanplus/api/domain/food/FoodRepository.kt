@@ -14,6 +14,7 @@ interface FoodRepository : JpaRepository<Food, Long> {
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<Food>
     fun findByIsSystemFoodTrueAndUpdatedAtAfter(since: Instant): List<Food>
     fun findByServerId(serverId: UUID): Food?
+    fun findByServerIdIn(serverIds: Collection<UUID>): List<Food>
 
     @Query("""
         SELECT f FROM Food f

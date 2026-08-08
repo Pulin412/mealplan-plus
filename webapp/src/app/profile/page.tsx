@@ -157,8 +157,16 @@ function ProfileInner() {
               <div>
                 <div style={{ font: "700 15px system-ui", color: C.ink }}>{u.displayName ?? "Set your name"}</div>
                 <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: 2 }}>{u.email ?? "—"}</div>
+                {u.handle && <div style={{ font: "600 11.5px system-ui", color: C.teal, marginTop: 2 }}>@{u.handle}</div>}
               </div>
             </div>
+
+            <Section title="Social">
+              <Row label="My public profile" value={u.handle ? `@${u.handle}` : "Set a handle first"}
+                onClick={() => { if (u.handle) router.push(`/u/${u.handle}`); else router.push("/social/edit"); }} />
+              <Row label="Edit public profile" value="" onClick={() => router.push("/social/edit")} />
+              <Row label="Discover people" value="" onClick={() => router.push("/discover")} />
+            </Section>
 
             <Section title="Body">
               <Row label="Name" value={u.displayName ?? "—"} onClick={() => setEditor({ kind: "num", label: "Name", value: u.displayName ?? "", suffix: "", onSave: (v) => set({ displayName: v.trim() || null }) })} />

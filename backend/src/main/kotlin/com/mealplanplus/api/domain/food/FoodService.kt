@@ -53,6 +53,12 @@ class FoodService(
         return food.toDtoWithPrefs(favIds)
     }
 
+    /** Foods referenced by a shared diet/meal, resolved by stable serverId (any owner). */
+    fun dtosByServerIds(serverIds: Collection<UUID>): List<FoodDto> {
+        if (serverIds.isEmpty()) return emptyList()
+        return repo.findByServerIdIn(serverIds).map { it.toDto() }
+    }
+
     @Transactional
     fun create(dto: FoodDto, firebaseUid: String): FoodDto {
         val food = Food(

@@ -14,7 +14,11 @@ class WorkoutTemplate(
     val firebaseUid: String = "",
     val name: String = "",
     val category: String = "STRENGTH",
-    val notes: String? = null
+    val notes: String? = null,
+    // Social (V9): per-item share toggle + copy provenance.
+    var isShared: Boolean = false,
+    var copiedFromUid: String? = null,
+    var copiedFromServerId: java.util.UUID? = null
 ) : SyncableEntity()
 
 @Entity
