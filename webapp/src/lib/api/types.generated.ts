@@ -955,6 +955,179 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update my social profile
+         * @description Claim/update the public-facing profile: handle, bio, avatar seed, searchability. Handle must match `^[a-z0-9_]{3,20}$` (validated + normalised to lowercase) and be globally unique. Only fields present are changed.
+         */
+        put: operations["updateMyProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/handle-available": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check handle availability */
+        get: operations["checkHandleAvailable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search users
+         * @description Case-insensitive substring match on handle or display name. Only returns users who have claimed a handle and are searchable, excluding yourself and anyone in a block relationship with you.
+         */
+        get: operations["searchUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a public profile
+         * @description Public profile by handle, with follower/following counts and whether the caller follows them. 404 if no such handle; 403 if a block exists either way.
+         */
+        get: operations["getPublicProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/follow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Follow a user
+         * @description Idempotent. 409 if a block exists either way or you target yourself.
+         */
+        post: operations["followUser"];
+        /**
+         * Unfollow a user
+         * @description Idempotent.
+         */
+        delete: operations["unfollowUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/followers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a user's followers */
+        get: operations["listFollowers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/following": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List who a user follows */
+        get: operations["listFollowing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/users/{handle}/block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Block a user
+         * @description Blocking removes any follow edges between the two users in both directions and hides each from the other. Idempotent.
+         */
+        post: operations["blockUser"];
+        /** Unblock a user */
+        delete: operations["unblockUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report content or a user */
+        post: operations["reportContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1032,6 +1205,13 @@ export interface components {
              * @description When first-run onboarding was completed/skipped (null = not yet onboarded).
              */
             readonly onboardingCompletedAt?: string | null;
+            /** @description Public unique handle (null until claimed). `^[a-z0-9_]{3,20}$`. */
+            handle?: string | null;
+            bio?: string | null;
+            /** @description Deterministic seed for a client-rendered generated avatar. */
+            avatarSeed?: string | null;
+            /** @description Whether this user appears in user search. Defaults to true. */
+            isSearchable?: boolean;
         };
         /** @description Fields accepted on PUT /api/v1/users/me (all optional — only send what changed). */
         UserUpdateRequest: {
@@ -1057,6 +1237,53 @@ export interface components {
             privacyPolicyVersion?: string | null;
             /** @description Send true when first-run onboarding is finished/skipped; the server stamps onboardingCompletedAt = now(). */
             onboardingCompleted?: boolean | null;
+        };
+        /** @description Fields accepted on PUT /api/v1/users/me/profile (all optional — only send what changed). */
+        ProfileUpdateRequest: {
+            /** @description New handle to claim. `^[a-z0-9_]{3,20}$`, normalised to lowercase, globally unique. */
+            handle?: string | null;
+            bio?: string | null;
+            avatarSeed?: string | null;
+            isSearchable?: boolean | null;
+        };
+        HandleAvailabilityDto: {
+            handle: string;
+            available: boolean;
+            /** @description Whether the handle matches the required format. */
+            valid: boolean;
+        };
+        /** @description A user's public-facing profile. */
+        PublicProfileDto: {
+            handle: string;
+            displayName?: string | null;
+            bio?: string | null;
+            avatarSeed?: string | null;
+            /** Format: int64 */
+            followerCount: number;
+            /** Format: int64 */
+            followingCount: number;
+            isFollowedByMe: boolean;
+            isMe: boolean;
+        };
+        /** @description Compact profile for search results and follower/following lists. */
+        PublicProfileSummaryDto: {
+            handle: string;
+            displayName?: string | null;
+            avatarSeed?: string | null;
+            isFollowedByMe: boolean;
+        };
+        ReportRequest: {
+            /** @enum {string} */
+            entityType: "DIET" | "MEAL" | "WORKOUT_TEMPLATE" | "USER";
+            /**
+             * Format: uuid
+             * @description The shared item's serverId. Null when reporting a USER.
+             */
+            entityServerId?: string | null;
+            /** @description Handle of the author / reported user. */
+            reportedHandle?: string | null;
+            reason?: string | null;
+            detail?: string | null;
         };
         /** @description A day's completion state (the unit counted by the streak). */
         DayCompletionDto: {
@@ -1805,6 +2032,8 @@ export interface components {
         IdPath: number;
         /** @description ISO-8601 date (YYYY-MM-DD) */
         DatePath: string;
+        /** @description A user's unique handle (case-insensitive) */
+        HandlePath: string;
     };
     requestBodies: never;
     headers: never;
@@ -3754,6 +3983,300 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FeedbackDto"];
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Invalid handle format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Handle already taken */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    checkHandleAvailable: {
+        parameters: {
+            query: {
+                handle: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Availability result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandleAvailabilityDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    searchUsers: {
+        parameters: {
+            query: {
+                q: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching profiles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getPublicProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    followUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Now following */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Cannot follow (blocked or self) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unfollowUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No longer following */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listFollowers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Followers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listFollowing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Following */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    blockUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blocked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Cannot block yourself */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unblockUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user's unique handle (case-insensitive) */
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unblocked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    reportContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Report recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
         };

@@ -85,6 +85,13 @@ class UserDeletionIntegrationTest {
             uid, uid,
         )
 
+        // A social footprint: a second user, a follow edge, a block, and a report (V9 tables).
+        val other = "IT_OTHER_UID"
+        jdbc.update("INSERT INTO users(firebase_uid, created_at, updated_at) VALUES (?, now(), now())", other)
+        jdbc.update("INSERT INTO follows(follower_uid, followee_uid) VALUES (?, ?)", uid, other)
+        jdbc.update("INSERT INTO blocks(blocker_uid, blocked_uid) VALUES (?, ?)", uid, other)
+        jdbc.update("INSERT INTO content_reports(reporter_uid, entity_type) VALUES (?, 'USER')", uid)
+
         assertEquals(1, count("SELECT count(*) FROM users WHERE firebase_uid = ?", uid))
         assertEquals(1, count("SELECT count(*) FROM diet_food_items WHERE quantity = 999"))
 
@@ -97,6 +104,12 @@ class UserDeletionIntegrationTest {
         assertEquals(0, count("SELECT count(*) FROM diets WHERE firebase_uid = ?", uid), "owned diet remains")
         // Child row cascaded away with its diet
         assertEquals(0, count("SELECT count(*) FROM diet_food_items WHERE quantity = 999"), "child diet_food_item not cascaded")
+        // Social footprint purged (follows/blocks/reports are keyed by role columns, not firebase_uid)
+        assertEquals(0, count("SELECT count(*) FROM follows WHERE follower_uid = ? OR followee_uid = ?", uid, uid), "follows remain")
+        assertEquals(0, count("SELECT count(*) FROM blocks WHERE blocker_uid = ? OR blocked_uid = ?", uid, uid), "blocks remain")
+        assertEquals(0, count("SELECT count(*) FROM content_reports WHERE reporter_uid = ?", uid), "reports remain")
+        // The other user is untouched.
+        assertEquals(1, count("SELECT count(*) FROM users WHERE firebase_uid = ?", other), "other user affected")
         // Shared system data untouched
         assertEquals(
             systemFoodsBefore,

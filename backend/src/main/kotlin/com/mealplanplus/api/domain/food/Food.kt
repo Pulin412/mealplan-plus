@@ -35,5 +35,8 @@ class Food(
     val glycemicIndex: Int? = null,
     val isSystemFood: Boolean = false,
     var isFavorite: Boolean = false,
-    val verified: Boolean = false
+    val verified: Boolean = false,
+    // Social (V9): copy provenance (leaf dedupe stamps these in P1).
+    var copiedFromUid: String? = null,
+    var copiedFromServerId: java.util.UUID? = null
 ) : SyncableEntity()

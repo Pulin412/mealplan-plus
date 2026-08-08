@@ -18,7 +18,11 @@ class Diet(
     val targetProtein: Double? = null,
     val targetCarbs: Double? = null,
     val targetFat: Double? = null,
-    var isFavorite: Boolean = false
+    var isFavorite: Boolean = false,
+    // Social (V9): per-item share toggle + copy provenance.
+    var isShared: Boolean = false,
+    var copiedFromUid: String? = null,
+    var copiedFromServerId: java.util.UUID? = null
 ) : SyncableEntity()
 
 @Entity
