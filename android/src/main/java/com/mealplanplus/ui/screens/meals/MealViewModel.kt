@@ -26,8 +26,11 @@ data class MealsUiState(
     val sortMode: MealSort = MealSort.RECENT,
     val viewMode: MealViewMode = MealViewMode.LIST,
     val favOnly: Boolean = false,
+    val importedOnly: Boolean = false,
     val slotFilter: String? = null,
     val expandedIds: Set<String> = emptySet(),
+    val sharedIds: Set<String> = emptySet(),   // meal serverIds currently shared with followers
+    val importedIds: Set<String> = emptySet(), // meal serverIds copied from other users
     val newMealOpen: Boolean = false,
     val editingMeal: Meal? = null,   // non-null = the New Meal sheet is editing this meal
     val error: String? = null,
@@ -43,6 +46,7 @@ data class MealsUiState(
                 list = list.filter { it.meal.name.lowercase().contains(q) }
             }
             if (favOnly) list = list.filter { it.meal.isFavorite }
+            if (importedOnly) list = list.filter { it.meal.id in importedIds }
             slotFilter?.let { s -> list = list.filter { s in it.meal.slots } }
             return when (sortMode) {
                 MealSort.RECENT   -> list.sortedByDescending { it.meal.updatedAt }
@@ -59,6 +63,7 @@ data class MealsUiState(
 class MealViewModel @Inject constructor(
     private val repository: MealRepository,
     private val foodRepository: FoodRepository,
+    private val sharingRepository: com.mealplanplus.data.repository.SharingRepository,
     private val syncManager: SyncManager,
 ) : ViewModel() {
 
@@ -73,6 +78,32 @@ class MealViewModel @Inject constructor(
             foodRepository.getFoods().collect { foods -> _state.value = _state.value.copy(foods = foods) }
         }
         sync()
+        loadShared()
+    }
+
+    private fun loadShared() {
+        viewModelScope.launch {
+            val flags = sharingRepository.mealFlags()
+            _state.value = _state.value.copy(
+                sharedIds = flags.shared.map { it.toString() }.toSet(),
+                importedIds = flags.imported.map { it.toString() }.toSet(),
+            )
+        }
+    }
+
+    fun toggleImportedOnly() { _state.value = _state.value.copy(importedOnly = !_state.value.importedOnly) }
+
+    /** Flip whether this meal is shared with followers (direct REST by serverId; not part of sync). */
+    fun toggleShare(meal: Meal) {
+        viewModelScope.launch {
+            val newState = runCatching { sharingRepository.toggleMeal(java.util.UUID.fromString(meal.id)) }.getOrNull()
+            if (newState != null) {
+                val cur = _state.value.sharedIds
+                _state.value = _state.value.copy(sharedIds = if (newState) cur + meal.id else cur - meal.id)
+            } else {
+                _state.value = _state.value.copy(error = "Couldn't update sharing")
+            }
+        }
     }
 
     private fun sync() {

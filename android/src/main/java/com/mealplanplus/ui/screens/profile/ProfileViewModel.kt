@@ -56,6 +56,7 @@ class ProfileViewModel @Inject constructor(
      * no waiting on a Cloud Run cold start), then refreshes from the server in the background.
      */
     fun load() {
+        loadJob?.cancel()   // avoid stacking collectors when re-loaded on screen resume
         loadJob = viewModelScope.launch {
             responseCache.stream<UserResponse>("profile") {
                 usersApi.getMe().let { r ->
