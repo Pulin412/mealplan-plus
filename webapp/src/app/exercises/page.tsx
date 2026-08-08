@@ -104,7 +104,7 @@ function ExerciseCard({ e, tagName, onClick }: { e: ExerciseDto; tagName: Map<nu
   );
 }
 
-function WorkoutCard({ w, tagName, onClick }: { w: WorkoutTemplateDto; tagName: Map<number, string>; onClick: () => void }) {
+function WorkoutCard({ w, tagName, onClick, onShare }: { w: WorkoutTemplateDto; tagName: Map<number, string>; onClick: () => void; onShare: (e: React.MouseEvent) => void }) {
   const items = w.exercises ?? [];
   const totalSets = items.reduce((sum, it) => sum + (it.sets?.length ?? 0), 0);
   const tagNames = (w.tagIds ?? []).map((id) => tagName.get(id)).filter(Boolean) as string[];
@@ -128,6 +128,10 @@ function WorkoutCard({ w, tagName, onClick }: { w: WorkoutTemplateDto; tagName: 
             </div>
           )}
         </div>
+        {w.imported !== true && (
+          <button onClick={(e) => { e.stopPropagation(); onShare(e); }} title={w.isShared ? "Shared with followers" : "Not shared"}
+            className="flex-none text-[13px] leading-none px-0.5" style={{ color: w.isShared ? C.teal : C.muted2 }}>{w.isShared ? "🌐" : "◍"}</button>
+        )}
         <span className="text-[20px] leading-none" style={{ color: C.muted2 }}>›</span>
       </div>
     </div>
@@ -604,7 +608,7 @@ function ExercisesPageInner() {
                     ))}
                   </div>
                 )}
-                {ex.filteredWorkouts.map((w) => <WorkoutCard key={w.id} w={w} tagName={ex.workoutTagName} onClick={() => ex.openEditWorkout(w)} />)}
+                {ex.filteredWorkouts.map((w) => <WorkoutCard key={w.id} w={w} tagName={ex.workoutTagName} onClick={() => ex.openEditWorkout(w)} onShare={() => void ex.toggleWorkoutShare(w)} />)}
               </>
         ) : (
           <LogsTab ex={ex} />
