@@ -50,6 +50,7 @@ import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
+import com.mealplanplus.ui.screens.social.BlockedAccountsScreen
 import com.mealplanplus.ui.screens.social.DiscoverScreen
 import com.mealplanplus.ui.screens.social.FollowListScreen
 import com.mealplanplus.ui.screens.social.ProfileEditScreen
@@ -191,6 +192,7 @@ fun MealPlanNavHost() {
                     onEditPublicProfile = { navController.navigate("profileEdit") },
                     onOpenPublicProfile = { handle -> navController.navigate("u/$handle") },
                     onDiscover = { navController.navigate("discover") },
+                    onBlockedAccounts = { navController.navigate("blockedAccounts") },
                 )
             }
             composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.popBackStack() }) }
@@ -259,6 +261,9 @@ fun MealPlanNavHost() {
                 ),
             ) {
                 SharedDetailScreen(onBack = { navController.popBackStack() })
+            }
+            composable("blockedAccounts") {
+                BlockedAccountsScreen(onBack = { navController.popBackStack() })
             }
         }
     }

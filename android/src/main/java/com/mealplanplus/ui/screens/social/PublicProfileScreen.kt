@@ -19,16 +19,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,11 +48,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.generated.model.PublicProfileDto
+import com.mealplanplus.data.generated.model.ReportRequest
 import com.mealplanplus.data.generated.model.SharedTemplateSummaryDto
 import com.mealplanplus.data.repository.SocialRepository
 import com.mealplanplus.ui.components.SocialAvatar
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.CardBorder
+import com.mealplanplus.ui.theme.Danger
 import com.mealplanplus.ui.theme.Ink
 import com.mealplanplus.ui.theme.MutedFaint
 import com.mealplanplus.ui.theme.MutedLight
@@ -69,6 +79,9 @@ data class PublicProfileUiState(
     val meals: List<SharedTemplateSummaryDto> = emptyList(),
     val workouts: List<SharedTemplateSummaryDto> = emptyList(),
     val followBusy: Boolean = false,
+    val blockBusy: Boolean = false,
+    val reportBusy: Boolean = false,
+    val reportSent: Boolean = false,
 )
 
 @HiltViewModel
@@ -112,6 +125,35 @@ class PublicProfileViewModel @Inject constructor(
             if (ok) load()
         }
     }
+
+    /** Blocks the user; on success invokes [onBlocked] so the caller can navigate away (a blocked
+     *  user's profile 403s, so we can't stay here). */
+    fun block(onBlocked: () -> Unit) {
+        viewModelScope.launch {
+            _state.update { it.copy(blockBusy = true) }
+            val ok = social.block(handle)
+            _state.update { it.copy(blockBusy = false) }
+            if (ok) onBlocked()
+        }
+    }
+
+    fun report(reason: String, detail: String?) {
+        val p = _state.value.profile ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(reportBusy = true) }
+            social.report(
+                ReportRequest(
+                    entityType = ReportRequest.EntityType.USER,
+                    reportedHandle = p.handle,
+                    reason = reason,
+                    detail = detail,
+                ),
+            )
+            _state.update { it.copy(reportBusy = false, reportSent = true) }
+        }
+    }
+
+    fun clearReportSent() = _state.update { it.copy(reportSent = false) }
 }
 
 @Composable
@@ -122,10 +164,43 @@ fun PublicProfileScreen(
     viewModel: PublicProfileViewModel = hiltViewModel(),
 ) {
     val s by viewModel.state.collectAsState()
+    var menuOpen by remember { mutableStateOf(false) }
+    var reportOpen by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(AppBg)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Ink) }
             Text("@${viewModel.handle}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink)
+            val p = s.profile
+            if (p != null && !p.isMe) {
+                Spacer(Modifier.weight(1f))
+                Box {
+                    IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, "More options", tint = MutedLight) }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Report @${viewModel.handle}") }, onClick = { menuOpen = false; reportOpen = true })
+                        DropdownMenuItem(
+                            text = { Text(if (s.blockBusy) "Blocking…" else "Block @${viewModel.handle}", color = Danger) },
+                            enabled = !s.blockBusy,
+                            onClick = { menuOpen = false; viewModel.block(onBack) },
+                        )
+                    }
+                }
+            }
+        }
+        if (reportOpen) {
+            ReportDialog(
+                subject = "@${viewModel.handle}",
+                busy = s.reportBusy,
+                onDismiss = { reportOpen = false },
+                onSubmit = { reason, detail -> viewModel.report(reason, detail) },
+            )
+        }
+        if (s.reportSent) {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearReportSent(); reportOpen = false },
+                title = { Text("Report received") },
+                text = { Text("Thanks — our team will review @${viewModel.handle}. You can also block them to stop seeing their content.") },
+                confirmButton = { TextButton(onClick = { viewModel.clearReportSent(); reportOpen = false }) { Text("Done") } },
+            )
         }
         when {
             s.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Teal) }

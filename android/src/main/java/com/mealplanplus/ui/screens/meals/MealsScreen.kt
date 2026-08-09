@@ -351,8 +351,10 @@ private fun MealListCard(
     }
 }
 
+/** One food row inside a meal (name + qty/kcal meta). Public so the shared-meal detail screen
+ *  reuses the exact same rendering. */
 @Composable
-private fun ExpandedItemRow(it: MealItemUi) {
+fun ExpandedItemRow(it: MealItemUi) {
     Row(verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Text(it.name, fontSize = 11.5.sp, fontWeight = FontWeight.Medium, color = MealItemName,

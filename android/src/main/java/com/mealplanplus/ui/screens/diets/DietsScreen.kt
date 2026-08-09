@@ -349,8 +349,10 @@ private fun DietListCard(
     }
 }
 
+/** Renders one slot of a diet (label + its meal/food entries, meals expandable to show ingredients).
+ *  Public so the shared-diet detail screen reuses the exact same rendering. */
 @Composable
-private fun SlotGroup(slot: DietSlotUi) {
+fun SlotGroup(slot: DietSlotUi) {
     Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 2.dp)) {
             // Per-slot kcal intentionally omitted — each ingredient row already shows its calories.
