@@ -2106,6 +2106,26 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/social/blocks:
+    get:
+      tags: [Social]
+      summary: List accounts you have blocked
+      description: >-
+        Blocked users are hidden from search and their profiles 403, so this list is the
+        only way to reach one again in order to unblock. Most recently blocked first.
+      operationId: listBlocks
+      responses:
+        '200':
+          description: Blocked accounts, most recent first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProfileSummaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/social/report:
     post:
       tags: [Social]
