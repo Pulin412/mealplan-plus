@@ -31,6 +31,13 @@ interface WorkoutSessionRepository : JpaRepository<WorkoutSession, Long> {
     fun findCompletedSessionIdsForExercise(firebaseUid: String, exerciseId: Long): List<Long>
 }
 
+interface WorkoutSessionExerciseNoteRepository : JpaRepository<WorkoutSessionExerciseNote, Long> {
+    fun findBySessionId(sessionId: Long): List<WorkoutSessionExerciseNote>
+    fun findBySessionIdIn(sessionIds: Collection<Long>): List<WorkoutSessionExerciseNote>
+    fun findBySessionIdAndExerciseId(sessionId: Long, exerciseId: Long): WorkoutSessionExerciseNote?
+    fun deleteBySessionId(sessionId: Long)
+}
+
 interface WorkoutSetRepository : JpaRepository<WorkoutSet, Long> {
     fun findBySessionId(sessionId: Long): List<WorkoutSet>
     fun findBySessionIdIn(sessionIds: Collection<Long>): List<WorkoutSet>

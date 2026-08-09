@@ -13,6 +13,7 @@ import type { WorkoutTemplateDto } from "@/lib/api/workouts";
 import type { ExerciseDto } from "@/lib/api/exercises";
 import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, type FoodDto, type FoodUnit } from "@/lib/nutrition";
 import { searchFoodsOnline } from "@/lib/api/foods";
+import type { MealDto } from "@/lib/api/meals";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
@@ -151,15 +152,17 @@ function StreakCard({ d }: { d: DashboardDto }) {
   );
 }
 
-function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onAddOnline, onClose }: {
-  open: boolean; foods: FoodDto[]; plannedSlots: string[];
+function AddToTodaySheet({ open, foods, meals, plannedSlots, onAdd, onAddOnline, onAddMeal, onClose }: {
+  open: boolean; foods: FoodDto[]; meals: MealDto[]; plannedSlots: string[];
   onAdd: (foodId: number, slot: string, qty: number, unit: FoodUnit) => void;
-  onAddOnline: (dto: FoodDto, slot: string, qty: number, unit: FoodUnit) => void; onClose: () => void;
+  onAddOnline: (dto: FoodDto, slot: string, qty: number, unit: FoodUnit) => void;
+  onAddMeal: (meal: MealDto, slot: string) => void; onClose: () => void;
 }) {
   const [slot, setSlot] = useState(plannedSlots[0] ?? MEAL_SLOTS[1]);
   const [query, setQuery] = useState("");
   const [online, setOnline] = useState<FoodDto[]>([]);
   const [searching, setSearching] = useState(false);
+  const [mealsTab, setMealsTab] = useState(false);
   const list = foods.filter((f) => !query || f.name.toLowerCase().includes(query.toLowerCase()));
   const searchOnline = async () => {
     if (!query.trim()) return;
@@ -168,7 +171,9 @@ function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onAddOnline, onClos
   };
   return (
     <BottomSheet open={open} onClose={onClose} title="Add to today">
-      <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: -8, marginBottom: 10 }}>Log an unplanned food into a slot</div>
+      <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: -8, marginBottom: 10 }}>
+        {mealsTab ? "Log a meal's foods into a slot (today only)" : "Log an unplanned food into a slot"}
+      </div>
       <div style={{ font: "600 11px system-ui", color: C.muted3, marginBottom: 6 }}>Slot</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
         {MEAL_SLOTS.map((s) => (
@@ -176,6 +181,28 @@ function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onAddOnline, onClos
             color: s === slot ? "#fff" : C.muted3, background: s === slot ? C.teal : "transparent", border: `1.5px solid ${s === slot ? C.teal : "#dfe6e8"}` }}>{s}</button>
         ))}
       </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {([[false, "Foods"], [true, "Meals"]] as const).map(([isMeals, label]) => (
+          <button key={label} onClick={() => setMealsTab(isMeals)} style={{ flex: 1, font: "600 12px system-ui", borderRadius: 9, padding: "8px 0",
+            color: mealsTab === isMeals ? "#fff" : C.muted3, background: mealsTab === isMeals ? C.teal : C.bgAlt, border: "none" }}>{label}</button>
+        ))}
+      </div>
+      {mealsTab ? (
+        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+          {meals.length === 0 && <p style={{ textAlign: "center", font: "400 12px system-ui", color: C.muted2, padding: 12 }}>No meals yet.</p>}
+          {meals.map((m) => (
+            <div key={m.serverId ?? m.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.bgAlt}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{m.name}</div>
+                <div style={{ font: "400 10.5px system-ui", color: C.muted }}>{m.items?.length ?? 0} items</div>
+              </div>
+              <button onClick={() => { onAddMeal(m, slot); onClose(); }}
+                style={{ font: "600 11.5px system-ui", color: C.teal, border: "1.5px solid #dfe6e8", borderRadius: 9, padding: "7px 12px" }}>+ Add</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+      <>
       <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.bgAlt, borderRadius: 11, padding: "10px 12px", marginBottom: 8 }}>
         <span style={{ color: C.muted2 }}>⌕</span>
         <input value={query} onChange={(e) => { setQuery(e.target.value); setOnline([]); }} placeholder="Search foods…"
@@ -211,6 +238,8 @@ function AddToTodaySheet({ open, foods, plannedSlots, onAdd, onAddOnline, onClos
           </div>
         ))}
       </div>
+      </>
+      )}
     </BottomSheet>
   );
 }
@@ -422,7 +451,7 @@ function TodayInner() {
         <button onClick={() => setAddOpen(true)} className="fixed bottom-[68px] right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white text-[28px] font-light shadow-lg"
           style={{ background: C.teal, boxShadow: "0 6px 18px oklch(0.62 0.09 210 / .45)" }}>+</button>
       )}
-      {d && <AddToTodaySheet open={addOpen} foods={t.foods} plannedSlots={d.slots.map((s) => s.slot)} onAdd={t.addFood} onAddOnline={t.addOnlineFood} onClose={() => setAddOpen(false)} />}
+      {d && <AddToTodaySheet open={addOpen} foods={t.foods} meals={t.meals} plannedSlots={d.slots.map((s) => s.slot)} onAdd={t.addFood} onAddOnline={t.addOnlineFood} onAddMeal={t.addMeal} onClose={() => setAddOpen(false)} />}
       {d && <DietSheet open={dietOpen} d={d} onClose={() => setDietOpen(false)} />}
       <AddWorkoutSheet open={addWorkoutOpen} templates={tw.templates} exercises={tw.exercises}
         onPickWorkout={(w) => { setAddWorkoutOpen(false); void tw.addWorkout(w); }}

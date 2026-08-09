@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { getDashboard, toggleMealSlot, toggleDayComplete as apiToggleDayComplete, addLoggedFood, removeLoggedFood, isoDate, type DashboardDto } from "@/lib/api/dashboard";
 import { listFoods, createFoodFromDto, type FoodDto } from "@/lib/api/foods";
+import { listMeals, type MealDto } from "@/lib/api/meals";
 import type { FoodUnit } from "@/lib/nutrition";
 
 export function useToday() {
   const [dashboard, setDashboard] = useState<DashboardDto | null>(null);
   const [foods, setFoods] = useState<FoodDto[]>([]);
+  const [meals, setMeals] = useState<MealDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -24,6 +26,7 @@ export function useToday() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
     listFoods().then(setFoods).catch(() => {});
+    listMeals().then(setMeals).catch(() => {});
   }, []);
 
   const date = useMemo(() => (dashboard ? isoDate(dashboard.date) : ""), [dashboard]);
@@ -53,6 +56,23 @@ export function useToday() {
 
   const reloadFoods = useCallback(() => { listFoods().then(setFoods).catch(() => {}); }, []);
 
+  /**
+   * Log a whole meal into today's slot by flattening it into its foods — only touches today's log,
+   * never the planned diet. Resolves each item's food id (falls back to the serverId→id map).
+   */
+  const addMeal = useCallback(async (meal: MealDto, slot: string) => {
+    if (!date) return;
+    const idByServerId = new Map<string, number>();
+    foods.forEach((f) => { if (f.serverId && f.id != null) idByServerId.set(f.serverId, f.id); });
+    try {
+      for (const it of meal.items ?? []) {
+        const foodId = it.foodId ?? (it.foodServerId ? idByServerId.get(it.foodServerId) : undefined);
+        if (foodId != null) await addLoggedFood(date, foodId, slot, it.quantity, it.unit);
+      }
+      await reload();
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+  }, [date, foods, reload]);
+
   /** Persist an Open Food Facts result as a food (server assigns an id), then log it to today. */
   const addOnlineFood = useCallback(async (dto: FoodDto, slot: string, quantity: number, unit: FoodUnit) => {
     if (!date) return;
@@ -78,5 +98,5 @@ export function useToday() {
     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
   }, [reload]);
 
-  return { dashboard, foods, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, toggleDayComplete, removeFood };
+  return { dashboard, foods, meals, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, addMeal, toggleDayComplete, removeFood };
 }

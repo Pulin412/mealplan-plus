@@ -166,6 +166,7 @@ function ProfileInner() {
                 onClick={() => { if (u.handle) router.push(`/u/${u.handle}`); else router.push("/social/edit"); }} />
               <Row label="Edit public profile" value="" onClick={() => router.push("/social/edit")} />
               <Row label="Discover people" value="" onClick={() => router.push("/discover")} />
+              <Row label="Blocked accounts" value="" onClick={() => router.push("/settings/blocked")} />
             </Section>
 
             <Section title="Body">

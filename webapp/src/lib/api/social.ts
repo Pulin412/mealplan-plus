@@ -13,6 +13,7 @@ export type SharedWorkoutDetailDto = S["SharedWorkoutDetailDto"];
 export type CopyRequest = S["CopyRequest"];
 export type CopyResultDto = S["CopyResultDto"];
 export type UserResponse = S["UserResponse"];
+export type ReportRequest = S["ReportRequest"];
 
 export type ShareType = "DIET" | "MEAL" | "WORKOUT_TEMPLATE";
 
@@ -49,6 +50,16 @@ export function unfollowUser(handle: string): Promise<void> {
 }
 export function blockUser(handle: string): Promise<void> {
   return apiFetch<void>(`/api/v1/social/users/${enc(handle)}/block`, { method: "POST" });
+}
+export function unblockUser(handle: string): Promise<void> {
+  return apiFetch<void>(`/api/v1/social/users/${enc(handle)}/block`, { method: "DELETE" });
+}
+// Accounts I've blocked — the only place a blocked user is reachable again to unblock.
+export function listBlocks(): Promise<PublicProfileSummaryDto[]> {
+  return apiFetch<PublicProfileSummaryDto[]>(`/api/v1/social/blocks`);
+}
+export function reportContent(req: ReportRequest): Promise<void> {
+  return apiFetch<void>(`/api/v1/social/report`, { method: "POST", body: JSON.stringify(req) });
 }
 
 // ── Shared library reads ─────────────────────────────────────────────────────

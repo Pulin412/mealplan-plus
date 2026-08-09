@@ -1171,6 +1171,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/social/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List accounts you have blocked
+         * @description Blocked users are hidden from search and their profiles 403, so this list is the only way to reach one again in order to unblock. Most recently blocked first.
+         */
+        get: operations["listBlocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/social/report": {
         parameters: {
             query?: never;
@@ -1963,14 +1983,27 @@ export interface components {
             isCompleted: boolean;
             /** @default [] */
             sets: components["schemas"]["WorkoutSetDto"][];
+            /**
+             * @description Per-exercise notes-to-self for this session (one per exercise). Not tied to sets.
+             * @default []
+             */
+            exerciseNotes: components["schemas"]["ExerciseNoteDto"][];
             /** Format: date-time */
             readonly updatedAt?: string;
+        };
+        /** @description A free-text note for one exercise within a workout session. */
+        ExerciseNoteDto: {
+            /** Format: int64 */
+            exerciseId: number;
+            note?: string | null;
         };
         /** @description Sets from the most recent completed session containing the given exercise. */
         LastSetsDto: {
             /** Format: int64 */
             exerciseId: number;
             sets: components["schemas"]["WorkoutSetDto"][];
+            /** @description The per-exercise note from that last session (a note-to-self; shown but never copied with the sets). */
+            note?: string | null;
         };
         PlannedWorkoutDto: {
             /** Format: int64 */
@@ -2028,6 +2061,8 @@ export interface components {
             /** Format: double */
             quantity: number;
             unit?: components["schemas"]["FoodUnit"];
+            /** @description Set when logging a whole meal — its foods share this name so the client groups them into one collapsible row. */
+            mealName?: string | null;
         };
         /** @description An individually-logged food entry (added via FAB, outside the slot plan). */
         LoggedFoodResponseDto: {
@@ -2043,6 +2078,8 @@ export interface components {
             /** Format: double */
             quantity: number;
             unit: components["schemas"]["FoodUnit"];
+            /** @description Non-null when this food was logged as part of a whole meal; foods sharing it group into one row. */
+            mealName?: string | null;
         };
         /**
          * @description A single health measurement. Built-in types: WEIGHT (kg), GLUCOSE (mg/dL),
@@ -4596,6 +4633,27 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listBlocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blocked accounts, most recent first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     reportContent: {

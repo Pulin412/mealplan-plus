@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.generated.api.DashboardApi
 import com.mealplanplus.data.generated.api.FoodsApi
 import com.mealplanplus.data.generated.api.LoggingApi
+import com.mealplanplus.data.generated.api.MealsApi
 import com.mealplanplus.data.generated.api.PlansApi
 import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
 import com.mealplanplus.data.generated.model.AddLoggedFoodRequest
@@ -12,6 +13,7 @@ import com.mealplanplus.data.generated.model.DashboardDto
 import com.mealplanplus.data.generated.model.ExerciseDto
 import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.generated.model.FoodUnit
+import com.mealplanplus.data.generated.model.MealDto
 import com.mealplanplus.data.generated.model.PlannedWorkoutDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.data.cache.Resource
@@ -57,6 +59,7 @@ data class HomeUiState(
     val loading: Boolean = true,
     val dashboard: DashboardDto? = null,
     val foods: List<FoodDto> = emptyList(),  // for the "Add to today" picker
+    val meals: List<MealDto> = emptyList(),  // for the "Add to today" picker (meals tab)
     val workouts: List<HomeWorkout> = emptyList(),
     val workoutTemplates: List<WorkoutTemplateDto> = emptyList(),  // for the "add workout" picker
     val exercises: List<ExerciseDto> = emptyList(),                // for the "add exercise" picker
@@ -77,6 +80,7 @@ class HomeViewModel @Inject constructor(
     private val dashboardApi: DashboardApi,
     private val loggingApi: LoggingApi,
     private val foodsApi: FoodsApi,
+    private val mealsApi: MealsApi,
     private val plansApi: PlansApi,
     private val workoutsApi: WorkoutTemplatesApi,
     private val sessionRepo: WorkoutSessionRepository,
@@ -89,7 +93,7 @@ class HomeViewModel @Inject constructor(
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state
 
-    init { load(); loadFoods(); loadWorkouts(); loadWorkoutTemplates(); loadExercises(); loadActivity() }
+    init { load(); loadFoods(); loadMeals(); loadWorkouts(); loadWorkoutTemplates(); loadExercises(); loadActivity() }
 
     /** Today's steps + calories burned from Health Connect (shown only when connected). */
     fun loadActivity() {
@@ -327,6 +331,52 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { loggingApi.addLoggedFood(AddLoggedFoodRequest(today(), foodId, slot, quantity, unit)) }
                 .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            load()
+        }
+    }
+
+    /** Re-fetch the "Add to today" pickers so newly-created foods/meals show up without a restart. */
+    fun refreshPickers() { loadFoods(); loadMeals() }
+
+    private fun loadMeals() {
+        viewModelScope.launch {
+            responseCache.stream<List<MealDto>>("home.meals") {
+                mealsApi.listMeals(false).let { r ->
+                    r.body().takeIf { r.isSuccessful } ?: throw IllegalStateException("meals ${r.code()}")
+                }
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.meals.isNotEmpty())
+                    st.copy(meals = if (r.keep) st.meals else r.value ?: st.meals)
+                }
+            }
+        }
+    }
+
+    /**
+     * Log a whole meal into today's [slot] by flattening it into its foods — this only touches
+     * today's log (via [LoggingApi]), never the planned diet. Each food is stamped with the meal
+     * name so "Added today" can group them back into one collapsible meal row.
+     */
+    fun addMeal(meal: MealDto, slot: String) {
+        viewModelScope.launch {
+            val foodIdBySid = _state.value.foods.mapNotNull { f -> f.serverId?.let { it to f.id } }.toMap()
+            meal.items.orEmpty().forEach { item ->
+                val foodId = foodIdBySid[item.foodServerId] ?: return@forEach
+                runCatching { loggingApi.addLoggedFood(AddLoggedFoodRequest(today(), foodId, slot, item.quantity, item.unit, mealName = meal.name)) }
+                    .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            }
+            load()
+        }
+    }
+
+    /** Remove a previously-added unplanned food (or every food of an added meal). */
+    fun removeFoods(ids: List<Long>) {
+        viewModelScope.launch {
+            ids.forEach { id ->
+                runCatching { loggingApi.removeLoggedFood(id) }
+                    .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            }
             load()
         }
     }

@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { SocialAvatar } from "@/components/SocialAvatar";
+import { ReportDialog } from "@/components/social/ReportDialog";
 import {
-  followUser, unfollowUser, getPublicProfile, listSharedDiets, listSharedMeals, listSharedWorkouts,
+  followUser, unfollowUser, blockUser, getPublicProfile, listSharedDiets, listSharedMeals, listSharedWorkouts,
   type PublicProfileDto, type SharedTemplateSummaryDto,
 } from "@/lib/api/social";
 
@@ -23,6 +24,9 @@ function ProfileInner() {
   const [tab, setTab] = useState<Tab>("DIET");
   const [items, setItems] = useState<Record<Tab, SharedTemplateSummaryDto[]>>({ DIET: [], MEAL: [], WORKOUT_TEMPLATE: [] });
   const [busy, setBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -49,6 +53,19 @@ function ProfileInner() {
     } finally { setBusy(false); }
   }
 
+  async function block() {
+    if (blocking) return;
+    if (!confirm(`Block @${handle}? They'll be removed from your followers and hidden from you. You can unblock from Settings → Blocked accounts.`)) return;
+    setBlocking(true);
+    try {
+      await blockUser(handle);
+      setMenuOpen(false);
+      router.push("/discover");
+    } catch {
+      alert("Couldn't block — please try again.");
+    } finally { setBlocking(false); }
+  }
+
   const tabItems = items[tab];
 
   return (
@@ -56,7 +73,25 @@ function ProfileInner() {
       <div className="flex items-center gap-2 px-3 py-3">
         <button onClick={() => router.back()} style={{ fontSize: 22, color: C.ink }}>‹</button>
         <h1 className="text-[17px] font-bold" style={{ color: C.ink }}>@{handle}</h1>
+        {p && !p.isMe && (
+          <div className="relative ml-auto">
+            <button onClick={() => setMenuOpen((v) => !v)} aria-label="More options"
+              style={{ fontSize: 22, color: C.muted, lineHeight: 1, padding: "0 6px" }}>⋯</button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-1 z-50 rounded-[10px] overflow-hidden" style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: "0 6px 20px rgba(0,0,0,.12)", minWidth: 170 }}>
+                  <button onClick={() => { setMenuOpen(false); setReportOpen(true); }}
+                    className="block w-full text-left text-[13.5px] px-4 py-2.5" style={{ color: C.ink }}>Report @{handle}</button>
+                  <button onClick={block} disabled={blocking}
+                    className="block w-full text-left text-[13.5px] px-4 py-2.5" style={{ color: "#b23b3b", borderTop: `1px solid ${C.border}` }}>{blocking ? "Blocking…" : `Block @${handle}`}</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
+      {reportOpen && <ReportDialog entityType="USER" reportedHandle={handle} subject={`@${handle}`} onClose={() => setReportOpen(false)} />}
       {loading ? <div className="p-8 text-center" style={{ color: C.muted }}>Loading…</div>
         : error || !p ? <div className="p-8 text-center" style={{ color: C.muted }}>{error ?? "Unavailable"}</div>
         : (
@@ -97,7 +132,7 @@ function ProfileInner() {
               </div>
               {tabItems.length === 0 ? <div className="py-10 text-center text-[13px]" style={{ color: C.muted }}>Nothing shared yet</div>
                 : tabItems.map((it) => (
-                  <Link key={it.serverId} href={`/u/${handle}/${TAB_PATH[tab]}/${it.serverId}`}
+                  <Link key={it.serverId} href={`/u/${handle}/${TAB_PATH[tab]}/${it.serverId}${p.isMe ? "?own=1" : ""}`}
                     className="flex items-center justify-between rounded-[12px] px-3.5 py-3 mb-2" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                     <div className="min-w-0">
                       <div className="text-[15px] font-semibold truncate" style={{ color: C.ink }}>{it.name}</div>

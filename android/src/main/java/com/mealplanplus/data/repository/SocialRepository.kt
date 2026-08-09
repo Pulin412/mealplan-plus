@@ -7,6 +7,7 @@ import com.mealplanplus.data.generated.model.HandleAvailabilityDto
 import com.mealplanplus.data.generated.model.ProfileUpdateRequest
 import com.mealplanplus.data.generated.model.PublicProfileDto
 import com.mealplanplus.data.generated.model.PublicProfileSummaryDto
+import com.mealplanplus.data.generated.model.ReportRequest
 import com.mealplanplus.data.generated.model.SharedDietDetailDto
 import com.mealplanplus.data.generated.model.SharedMealDetailDto
 import com.mealplanplus.data.generated.model.SharedTemplateSummaryDto
@@ -67,6 +68,13 @@ class SocialRepository @Inject constructor(
 
     suspend fun unblock(handle: String): Boolean =
         runCatching { api.unblockUser(handle).isSuccessful }.getOrDefault(false)
+
+    /** Accounts I've blocked — the only place a blocked user is reachable again. */
+    suspend fun blocks(): List<PublicProfileSummaryDto> =
+        runCatching { api.listBlocks().body().orEmpty() }.getOrDefault(emptyList())
+
+    suspend fun report(req: ReportRequest): Boolean =
+        runCatching { api.reportContent(req).isSuccessful }.getOrDefault(false)
 
     // ── Shared library reads ─────────────────────────────────────────────────────
     suspend fun sharedDiets(handle: String): List<SharedTemplateSummaryDto> =

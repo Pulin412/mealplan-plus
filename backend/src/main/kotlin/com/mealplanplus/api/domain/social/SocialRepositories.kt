@@ -16,6 +16,7 @@ interface FollowRepository : JpaRepository<Follow, FollowId> {
 interface BlockRepository : JpaRepository<Block, BlockId> {
     fun existsByBlockerUidAndBlockedUid(blockerUid: String, blockedUid: String): Boolean
     fun deleteByBlockerUidAndBlockedUid(blockerUid: String, blockedUid: String)
+    fun findByBlockerUidOrderByCreatedAtDesc(blockerUid: String): List<Block>
 
     /** True if either user blocks the other — used to hide profiles/content both ways. */
     @Query(

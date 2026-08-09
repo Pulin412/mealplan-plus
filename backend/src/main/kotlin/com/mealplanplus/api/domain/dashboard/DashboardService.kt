@@ -61,7 +61,8 @@ class DashboardService(
             loggedFoodRepo.findByDailyLogId(todayLog.id).map { lf ->
                 LoggedFoodResponseDto(id = lf.id, dailyLogId = lf.dailyLogId,
                     date = today, foodId = lf.foodId,
-                    mealSlot = lf.mealSlot, quantity = lf.quantity, unit = FoodUnit.forValue(lf.unit))
+                    mealSlot = lf.mealSlot, quantity = lf.quantity, unit = FoodUnit.forValue(lf.unit),
+                    mealName = lf.mealName)
             }
         } else emptyList()
 

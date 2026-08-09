@@ -34,6 +34,7 @@ class SocialServiceTest {
 
     private val alice = "uid-alice"
     private val bob = "uid-bob"
+    private val carol = "uid-carol"
 
     @BeforeEach
     fun setUp() {
@@ -152,6 +153,19 @@ class SocialServiceTest {
 
         assertTrue(service.searchUsers(alice, "alice").isEmpty())  // excludes self
         assertTrue(service.searchUsers(alice, "bob").isEmpty())    // bob opted out
+    }
+
+    @Test
+    fun `listBlocks returns blocked accounts most recent first and unblock removes them`() {
+        claim(alice, "alice"); claim(bob, "bob"); claim(carol, "carol")
+        service.blockUser(alice, "bob")
+        service.blockUser(alice, "carol")
+
+        val blocked = service.listBlocks(alice)
+        assertEquals(listOf("carol", "bob"), blocked.map { it.handle })  // most recent first
+
+        service.unblockUser(alice, "bob")
+        assertEquals(listOf("carol"), service.listBlocks(alice).map { it.handle })
     }
 
     @Test
