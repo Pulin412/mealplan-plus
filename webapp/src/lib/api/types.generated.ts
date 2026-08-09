@@ -1171,6 +1171,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/social/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List accounts you have blocked
+         * @description Blocked users are hidden from search and their profiles 403, so this list is the only way to reach one again in order to unblock. Most recently blocked first.
+         */
+        get: operations["listBlocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/social/report": {
         parameters: {
             query?: never;
@@ -4596,6 +4616,27 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listBlocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blocked accounts, most recent first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileSummaryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     reportContent: {
