@@ -133,7 +133,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
 
   const persist = useCallback((list: RunExercise[]) => {
     if (sessionId == null) return;
-    void updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(list) }).catch(() => {});
+    void updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(list), exerciseNotes: [] }).catch(() => {});
   }, [sessionId, name, today]);
 
   const mutate = useCallback((f: (list: RunExercise[]) => RunExercise[]) => {
@@ -191,7 +191,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     if (sessionId == null) return;
     setBusy(true); setError(null);
     try {
-      await updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises) });
+      await updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises), exerciseNotes: [] });
       await finishSession(sessionId);
       setPhase("done");
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to finish"); }

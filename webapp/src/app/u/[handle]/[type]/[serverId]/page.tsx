@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ReportDialog } from "@/components/social/ReportDialog";
 import { foodMacros, unitLabel, num, MEAL_SLOTS, type FoodDto } from "@/lib/nutrition";
@@ -32,6 +32,8 @@ function DetailInner() {
   const handle = String(params.handle);
   const type = TYPE[String(params.type)];
   const serverId = String(params.serverId);
+  // Own items can't be copied into your own library — hide the copy action.
+  const own = useSearchParams().get("own") === "1";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -177,13 +179,15 @@ function DetailInner() {
             {copied && <div className="mt-4 text-[14px] font-semibold" style={{ color: C.teal }}>Saved “{copied}” to your library ✓</div>}
             {error && <div className="mt-3 text-[13px]" style={{ color: C.danger }}>{error}</div>}
           </div>
-          <div className="py-4">
-            <button onClick={useThis} disabled={copying || copied != null}
-              className="w-full rounded-[12px] py-3.5 font-bold text-[14px]"
-              style={{ background: C.teal, color: "#fff", opacity: copying || copied != null ? 0.6 : 1 }}>
-              {copying ? "Saving…" : copied != null ? "Saved ✓" : "Use this — save to my library"}
-            </button>
-          </div>
+          {!own && (
+            <div className="py-4">
+              <button onClick={useThis} disabled={copying || copied != null}
+                className="w-full rounded-[12px] py-3.5 font-bold text-[14px]"
+                style={{ background: C.teal, color: "#fff", opacity: copying || copied != null ? 0.6 : 1 }}>
+                {copying ? "Saving…" : copied != null ? "Saved ✓" : "Copy to personal library"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -191,5 +195,11 @@ function DetailInner() {
 }
 
 export default function Page() {
-  return <AuthGuard><DetailInner /></AuthGuard>;
+  return (
+    <AuthGuard>
+      <Suspense fallback={<div className="p-8 text-center" style={{ color: C.muted }}>Loading…</div>}>
+        <DetailInner />
+      </Suspense>
+    </AuthGuard>
+  );
 }

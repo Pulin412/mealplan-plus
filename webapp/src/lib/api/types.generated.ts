@@ -1983,14 +1983,27 @@ export interface components {
             isCompleted: boolean;
             /** @default [] */
             sets: components["schemas"]["WorkoutSetDto"][];
+            /**
+             * @description Per-exercise notes-to-self for this session (one per exercise). Not tied to sets.
+             * @default []
+             */
+            exerciseNotes: components["schemas"]["ExerciseNoteDto"][];
             /** Format: date-time */
             readonly updatedAt?: string;
+        };
+        /** @description A free-text note for one exercise within a workout session. */
+        ExerciseNoteDto: {
+            /** Format: int64 */
+            exerciseId: number;
+            note?: string | null;
         };
         /** @description Sets from the most recent completed session containing the given exercise. */
         LastSetsDto: {
             /** Format: int64 */
             exerciseId: number;
             sets: components["schemas"]["WorkoutSetDto"][];
+            /** @description The per-exercise note from that last session (a note-to-self; shown but never copied with the sets). */
+            note?: string | null;
         };
         PlannedWorkoutDto: {
             /** Format: int64 */
@@ -2048,6 +2061,8 @@ export interface components {
             /** Format: double */
             quantity: number;
             unit?: components["schemas"]["FoodUnit"];
+            /** @description Set when logging a whole meal — its foods share this name so the client groups them into one collapsible row. */
+            mealName?: string | null;
         };
         /** @description An individually-logged food entry (added via FAB, outside the slot plan). */
         LoggedFoodResponseDto: {
@@ -2063,6 +2078,8 @@ export interface components {
             /** Format: double */
             quantity: number;
             unit: components["schemas"]["FoodUnit"];
+            /** @description Non-null when this food was logged as part of a whole meal; foods sharing it group into one row. */
+            mealName?: string | null;
         };
         /**
          * @description A single health measurement. Built-in types: WEIGHT (kg), GLUCOSE (mg/dL),

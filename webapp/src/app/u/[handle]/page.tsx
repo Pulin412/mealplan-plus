@@ -132,7 +132,7 @@ function ProfileInner() {
               </div>
               {tabItems.length === 0 ? <div className="py-10 text-center text-[13px]" style={{ color: C.muted }}>Nothing shared yet</div>
                 : tabItems.map((it) => (
-                  <Link key={it.serverId} href={`/u/${handle}/${TAB_PATH[tab]}/${it.serverId}`}
+                  <Link key={it.serverId} href={`/u/${handle}/${TAB_PATH[tab]}/${it.serverId}${p.isMe ? "?own=1" : ""}`}
                     className="flex items-center justify-between rounded-[12px] px-3.5 py-3 mb-2" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                     <div className="min-w-0">
                       <div className="text-[15px] font-semibold truncate" style={{ color: C.ink }}>{it.name}</div>
