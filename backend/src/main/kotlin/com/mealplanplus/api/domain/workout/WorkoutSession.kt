@@ -57,6 +57,21 @@ class WorkoutSession(
     val isCompleted: Boolean = false
 ) : SyncableEntity()
 
+/**
+ * One free-text note per exercise within a session — a note-to-self (form cues, how it felt) kept
+ * across repeats and surfaced on the next "copy last". Distinct from per-set [WorkoutSet.notes] and
+ * the whole-workout [WorkoutSession.notes]; it is never copied when copying sets/reps.
+ */
+@Entity
+@Table(name = "workout_session_exercise_notes")
+class WorkoutSessionExerciseNote(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+    val sessionId: Long = 0,
+    val exerciseId: Long = 0,
+    val note: String? = null
+)
+
 @Entity
 @Table(name = "workout_sets")
 class WorkoutSet(

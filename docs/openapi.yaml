@@ -3526,11 +3526,29 @@ components:
           items:
             $ref: '#/components/schemas/WorkoutSetDto'
           default: []
+        exerciseNotes:
+          type: array
+          description: Per-exercise notes-to-self for this session (one per exercise). Not tied to sets.
+          items:
+            $ref: '#/components/schemas/ExerciseNoteDto'
+          default: []
         updatedAt:
           type: string
           format: date-time
           readOnly: true
       required: [name]
+
+    ExerciseNoteDto:
+      type: object
+      description: A free-text note for one exercise within a workout session.
+      properties:
+        exerciseId:
+          type: integer
+          format: int64
+        note:
+          type: string
+          nullable: true
+      required: [exerciseId]
 
     LastSetsDto:
       type: object
@@ -3543,6 +3561,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WorkoutSetDto'
+        note:
+          type: string
+          nullable: true
+          description: The per-exercise note from that last session (a note-to-self; shown but never copied with the sets).
       required: [exerciseId, sets]
 
     # ── Plans ─────────────────────────────────────────────────────────────────
@@ -3636,6 +3658,10 @@ components:
           format: double
         unit:
           $ref: '#/components/schemas/FoodUnit'
+        mealName:
+          type: string
+          nullable: true
+          description: Set when logging a whole meal — its foods share this name so the client groups them into one collapsible row.
       required: [date, foodId, mealSlot, quantity]
 
     LoggedFoodResponseDto:
@@ -3661,6 +3687,10 @@ components:
           format: double
         unit:
           $ref: '#/components/schemas/FoodUnit'
+        mealName:
+          type: string
+          nullable: true
+          description: Non-null when this food was logged as part of a whole meal; foods sharing it group into one row.
       required: [id, dailyLogId, date, foodId, mealSlot, quantity, unit]
 
     # ── Health Metrics ────────────────────────────────────────────────────────
