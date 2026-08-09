@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +68,7 @@ import com.mealplanplus.data.generated.model.ExerciseDto
 import com.mealplanplus.data.generated.model.FoodDto
 import com.mealplanplus.data.generated.model.FoodUnit
 import com.mealplanplus.data.generated.model.LoggedFoodResponseDto
+import com.mealplanplus.data.generated.model.MealDto
 import com.mealplanplus.data.generated.model.SlotStatusDto
 import com.mealplanplus.data.generated.model.StreakDto
 import com.mealplanplus.data.generated.model.TodayMealItemDto
@@ -157,7 +159,7 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
                             onToggleExpand = { s -> expandedSlots = if (s in expandedSlots) expandedSlots - s else expandedSlots + s })
                         if (d.additionalFoods.isNotEmpty()) {
                             Spacer(Modifier.height(16.dp))
-                            AddedTodaySection(d.additionalFoods, state.foods, viewModel::removeFood)
+                            AddedTodaySection(d.additionalFoods, state.foods, viewModel::removeFoods)
                         }
                         Spacer(Modifier.height(16.dp))
                         WorkoutSection(state.workouts,
@@ -183,7 +185,7 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
 
         Box(contentAlignment = Alignment.Center,
             modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).size(56.dp).clip(CircleShape).background(Teal)
-                .clickable { if (state.dashboard != null) sheet = HomeSheet.AddToday }) {
+                .clickable { if (state.dashboard != null) { viewModel.refreshPickers(); sheet = HomeSheet.AddToday } }) {
             Icon(Icons.Default.Add, "Add to today", tint = OnAccent, modifier = Modifier.size(28.dp))
         }
     }
@@ -191,11 +193,12 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
     when (sheet) {
         is HomeSheet.Diet -> state.dashboard?.let { DietDetailSheet(it) { sheet = HomeSheet.None } }
         is HomeSheet.AddToday -> AddToTodaySheet(
-            state.foods, state.dashboard?.slots.orEmpty().map { it.slot },
+            state.foods, state.meals, state.dashboard?.slots.orEmpty().map { it.slot },
             onlineResults = state.onlineResults, onlineSearching = state.onlineSearching,
             onSearchOnline = viewModel::searchOnlineFoods, onClearOnline = viewModel::clearOnlineResults,
             onAdd = { foodId, slot, qty, unit -> viewModel.addFood(foodId, slot, qty, unit); viewModel.clearOnlineResults(); sheet = HomeSheet.None },
             onAddOnline = { dto, s, qty, unit -> viewModel.addOnlineFood(dto, s, qty, unit); viewModel.clearOnlineResults(); sheet = HomeSheet.None },
+            onAddMeal = { meal, slot -> viewModel.addMeal(meal, slot); viewModel.clearOnlineResults(); sheet = HomeSheet.None },
             onClose = { viewModel.clearOnlineResults(); sheet = HomeSheet.None },
         )
         is HomeSheet.AddWorkout -> AddWorkoutSheet(state.workoutTemplates, state.exercises,
@@ -517,31 +520,88 @@ private fun SlotDetail(slot: SlotStatusDto) {
 }
 
 // ── Added today (unplanned foods logged via FAB) ────────────────────────────────
+/** One row in "Added today": a lone logged food, or a whole meal (grouped by mealName). */
+private sealed interface AddedUnit {
+    data class Single(val lf: LoggedFoodResponseDto) : AddedUnit
+    data class MealGroup(val name: String, val items: List<LoggedFoodResponseDto>) : AddedUnit
+}
+
 @Composable
-private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<FoodDto>, onRemove: (Long) -> Unit) {
+private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<FoodDto>, onRemove: (List<Long>) -> Unit) {
     val byId = foods.associateBy { it.id }
+    fun kcalOf(lf: LoggedFoodResponseDto): Int {
+        val food = byId[lf.foodId]
+        return ((food?.caloriesPer100 ?: 0.0) * gramsForDto(food, lf.quantity, (lf.unit ?: FoodUnit.GRAM).value) / 100.0).roundToInt()
+    }
+    // Group meal-tagged foods; lone foods stay individual. Order by each unit's first appearance.
+    val units: List<AddedUnit> = buildList {
+        val seen = mutableSetOf<String>()
+        added.forEach { lf ->
+            val mn = lf.mealName
+            if (mn.isNullOrBlank()) add(AddedUnit.Single(lf))
+            else if (seen.add(mn)) add(AddedUnit.MealGroup(mn, added.filter { it.mealName == mn }))
+        }
+    }
+    val expanded = remember { mutableStateMapOf<String, Boolean>() }
+
     Text("Added today", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))) {
-        added.forEachIndexed { i, lf ->
-            val food = byId[lf.foodId]
-            val unit = lf.unit ?: FoodUnit.GRAM
-            val kcal = ((food?.caloriesPer100 ?: 0.0) * gramsForDto(food, lf.quantity, unit.value) / 100.0).roundToInt()
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
-                Column(Modifier.weight(1f)) {
-                    Text(food?.name ?: "Food", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                        SlotBadge(lf.mealSlot)
-                        Spacer(Modifier.width(6.dp))
-                        Text("${lf.quantity.trimNum()} ${unitLabel(unit.value)}", fontSize = 10.sp, color = MutedFaint, fontFamily = DmMono)
+        units.forEachIndexed { i, unit ->
+            when (unit) {
+                is AddedUnit.Single -> {
+                    val lf = unit.lf
+                    AddedRow(byId[lf.foodId]?.name ?: "Food", lf.mealSlot,
+                        "${lf.quantity.trimNum()} ${unitLabel((lf.unit ?: FoodUnit.GRAM).value)}", kcalOf(lf),
+                        onRemove = { onRemove(listOf(lf.id)) })
+                }
+                is AddedUnit.MealGroup -> {
+                    val open = expanded[unit.name] == true
+                    val total = unit.items.sumOf { kcalOf(it) }
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+                        .clickable { expanded[unit.name] = !open }.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text("🍲  ${unit.name}", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                                SlotBadge(unit.items.first().mealSlot)
+                                Spacer(Modifier.width(6.dp))
+                                Text("${unit.items.size} items ${if (open) "▾" else "▸"}", fontSize = 10.sp, color = MutedFaint, fontFamily = DmMono)
+                            }
+                        }
+                        Text("$total", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
+                        Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable { onRemove(unit.items.map { it.id }) })
+                    }
+                    if (open) unit.items.forEach { lf ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 2.dp, bottom = 6.dp)) {
+                            Text("• ${byId[lf.foodId]?.name ?: "Food"}", fontSize = 11.sp, color = MutedDark, modifier = Modifier.weight(1f))
+                            Text("${lf.quantity.trimNum()} ${unitLabel((lf.unit ?: FoodUnit.GRAM).value)}", fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
+                            Spacer(Modifier.width(8.dp))
+                            Text("${kcalOf(lf)} kcal", fontSize = 9.5.sp, color = MutedFaint, fontFamily = DmMono)
+                        }
                     }
                 }
-                Text("$kcal", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
-                Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
-                Spacer(Modifier.width(10.dp))
-                Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable { onRemove(lf.id) })
             }
-            if (i < added.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+            if (i < units.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
         }
+    }
+}
+
+@Composable
+private fun AddedRow(name: String, slot: String, qtyLabel: String, kcal: Int, onRemove: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                SlotBadge(slot)
+                Spacer(Modifier.width(6.dp))
+                Text(qtyLabel, fontSize = 10.sp, color = MutedFaint, fontFamily = DmMono)
+            }
+        }
+        Text("$kcal", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
+        Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
+        Spacer(Modifier.width(10.dp))
+        Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable(onClick = onRemove))
     }
 }
 
@@ -611,21 +671,26 @@ private fun DietDetailSheet(d: DashboardDto, onClose: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun AddToTodaySheet(
-    foods: List<FoodDto>, plannedSlots: List<String>,
+    foods: List<FoodDto>, meals: List<MealDto>, plannedSlots: List<String>,
     onlineResults: List<FoodDto>, onlineSearching: Boolean,
     onSearchOnline: (String) -> Unit, onClearOnline: () -> Unit,
     onAdd: (Long, String, Double, FoodUnit) -> Unit,
     onAddOnline: (FoodDto, String, Double, FoodUnit) -> Unit,
+    onAddMeal: (MealDto, String) -> Unit,
     onClose: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var slot by remember { mutableStateOf(plannedSlots.firstOrNull() ?: HOME_SLOTS[1]) }
     var query by remember { mutableStateOf("") }
+    var mealsTab by remember { mutableStateOf(false) }
     val list = foods.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = sheetState, containerColor = Surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 20.dp).height(520.dp)) {
             Text("Add to today", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
-            Text("Log an unplanned food into a slot", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
+            Text(
+                if (mealsTab) "Log a meal's foods into a slot (today only)" else "Log an unplanned food into a slot",
+                fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+            )
             Text("Slot", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                 HOME_SLOTS.forEach { s ->
@@ -634,6 +699,34 @@ private fun AddToTodaySheet(
                         modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Teal else Color.Transparent)
                             .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp)).clickable { slot = s }.padding(horizontal = 11.dp, vertical = 6.dp))
                 }
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(false to "Foods", true to "Meals").forEach { (isMeals, label) ->
+                    val on = mealsTab == isMeals
+                    Box(
+                        Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(if (on) Teal else SurfaceMuted)
+                            .clickable { mealsTab = isMeals }.padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (on) OnAccent else MutedDark) }
+                }
+            }
+            if (mealsTab) {
+                LazyColumn(Modifier.weight(1f)) {
+                    if (meals.isEmpty()) item { Text("No meals yet", fontSize = 12.sp, color = MutedLight, modifier = Modifier.padding(vertical = 12.dp)) }
+                    items(meals, key = { "meal-${it.serverId ?: it.name.hashCode()}" }) { meal ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text(meal.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                                Text("${meal.items?.size ?: 0} items", fontSize = 10.5.sp, color = MutedLight)
+                            }
+                            Text("+ Add", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                                modifier = Modifier.clip(RoundedCornerShape(9.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(9.dp))
+                                    .clickable { onAddMeal(meal, slot) }.padding(horizontal = 12.dp, vertical = 7.dp))
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                    }
+                }
+                return@Column
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(SurfaceMuted).padding(horizontal = 12.dp, vertical = 10.dp)) {
                 Text("⌕", fontSize = 14.sp, color = MutedLight)

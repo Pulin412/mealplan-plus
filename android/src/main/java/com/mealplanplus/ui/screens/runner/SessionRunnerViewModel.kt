@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
+import com.mealplanplus.data.generated.model.ExerciseNoteDto
 import com.mealplanplus.data.generated.model.WorkoutSessionDto
 import com.mealplanplus.data.generated.model.WorkoutSetDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
@@ -35,11 +36,14 @@ data class RunExercise(
     val description: String? = null,
     val templateSets: List<RunSet> = emptyList(),
     val lastTime: List<RunSet> = emptyList(),
+    val note: String = "",            // this session's per-exercise note-to-self
+    val lastNote: String? = null,     // the note from last time (shown in the Copy-last preview)
 )
 
 data class RunnerUiState(
     val phase: RunPhase = RunPhase.LOADING,
     val workoutName: String = "",
+    val workoutNote: String = "",     // whole-workout note for this session
     val sessionId: Long? = null,
     val exercises: List<RunExercise> = emptyList(),
     val library: List<LibExercise> = emptyList(),   // for the "Add exercise" picker
@@ -94,6 +98,7 @@ class SessionRunnerViewModel @Inject constructor(
                     it.copy(
                         phase = if (active) RunPhase.ACTIVE else RunPhase.DONE,
                         sessionId = existing.id,
+                        workoutNote = existing.notes.orEmpty(),
                         exercises = exercises,
                         doneExerciseIds = if (active) existing.id?.let { id -> progressStore.getDone(id) }.orEmpty() else emptySet(),
                     )
@@ -125,12 +130,13 @@ class SessionRunnerViewModel @Inject constructor(
     /** Rebuild exercises from a live session's logged sets (grouped by exercise, template order). */
     private fun exercisesFromSession(session: WorkoutSessionDto): List<RunExercise> {
         val names = exerciseNames()
+        val noteByEx = (session.exerciseNotes ?: emptyList()).associate { it.exerciseId to it.note.orEmpty() }
         val order = (template?.exercises ?: emptyList()).sortedBy { it.orderIndex }.map { it.exerciseId }
         val grouped = (session.sets ?: emptyList()).groupBy { it.exerciseId }
         val ids = (order + grouped.keys).distinct()
         return ids.mapNotNull { id ->
             val sets = grouped[id]?.sortedBy { it.setNumber }?.map { RunSet(it.reps, it.weightKg) } ?: return@mapNotNull null
-            RunExercise(id, names[id] ?: "Exercise", sets = sets, description = descById[id])
+            RunExercise(id, names[id] ?: "Exercise", sets = sets, description = descById[id], note = noteByEx[id].orEmpty())
         }
     }
 
@@ -138,9 +144,17 @@ class SessionRunnerViewModel @Inject constructor(
     private fun loadLastTimes() {
         viewModelScope.launch {
             val ex = _state.value.exercises
-            val last = ex.map { e -> async { e.exerciseId to sessionRepo.lastForExercise(e.exerciseId, activityName).map { RunSet(it.reps, it.weightKg) } } }
+            val last = ex.map { e -> async { e.exerciseId to sessionRepo.lastFullForExercise(e.exerciseId, activityName) } }
                 .map { it.await() }.toMap()
-            _state.update { s -> s.copy(exercises = s.exercises.map { it.copy(lastTime = last[it.exerciseId] ?: it.lastTime) }) }
+            _state.update { s ->
+                s.copy(exercises = s.exercises.map { e ->
+                    val l = last[e.exerciseId]
+                    e.copy(
+                        lastTime = l?.sets?.map { RunSet(it.reps, it.weightKg) } ?: e.lastTime,
+                        lastNote = l?.note ?: e.lastNote,
+                    )
+                })
+            }
         }
     }
 
@@ -163,8 +177,8 @@ class SessionRunnerViewModel @Inject constructor(
 
     /** Preserve any lastTime we already loaded when swapping the exercise list. */
     private fun mergeLastTimes(fresh: List<RunExercise>): List<RunExercise> {
-        val prev = _state.value.exercises.associate { it.exerciseId to it.lastTime }
-        return fresh.map { it.copy(lastTime = prev[it.exerciseId] ?: it.lastTime) }
+        val prev = _state.value.exercises.associateBy { it.exerciseId }
+        return fresh.map { it.copy(lastTime = prev[it.exerciseId]?.lastTime ?: it.lastTime, lastNote = prev[it.exerciseId]?.lastNote ?: it.lastNote) }
     }
 
     // ── Active editing (each change is persisted) ───────────────────────────────────
@@ -188,9 +202,18 @@ class SessionRunnerViewModel @Inject constructor(
         _state.update { it.copy(doneExerciseIds = next) }
     }
 
-    /** Fill this exercise's sets from the last logged session. */
+    /** Fill this exercise's sets from the last logged session — sets/reps only, never the note. */
     fun copyLast(exId: Long) = editExercise(exId) {
         if (it.lastTime.isEmpty()) it else it.copy(sets = it.lastTime.map { s -> s.copy() })
+    }
+
+    /** Per-exercise note-to-self for this session (persisted with the session). */
+    fun setExerciseNote(exId: Long, note: String) = editExercise(exId) { it.copy(note = note) }
+
+    /** Whole-workout note for this session. */
+    fun setWorkoutNote(note: String) {
+        _state.update { it.copy(workoutNote = note) }
+        persist()
     }
 
     /**
@@ -204,9 +227,9 @@ class SessionRunnerViewModel @Inject constructor(
         _state.update { s -> s.copy(exercises = s.exercises + RunExercise(exerciseId, lib.name, sets = sets, description = lib.description)) }
         persist()
         viewModelScope.launch {
-            val last = sessionRepo.lastForExercise(exerciseId, activityName).map { RunSet(it.reps, it.weightKg) }
-            if (last.isNotEmpty())
-                _state.update { s -> s.copy(exercises = s.exercises.map { if (it.exerciseId == exerciseId) it.copy(lastTime = last) else it }) }
+            val l = sessionRepo.lastFullForExercise(exerciseId, activityName) ?: return@launch
+            val last = l.sets.map { RunSet(it.reps, it.weightKg) }
+            _state.update { s -> s.copy(exercises = s.exercises.map { if (it.exerciseId == exerciseId) it.copy(lastTime = last, lastNote = l.note) else it }) }
         }
     }
 
@@ -223,13 +246,20 @@ class SessionRunnerViewModel @Inject constructor(
             ex.sets.mapIndexed { i, s -> WorkoutSetDto(exerciseId = ex.exerciseId, setNumber = i, reps = s.reps, weightKg = s.weightKg) }
         }
 
-    /** Save current sets to the in-progress session so we can resume after leaving the screen. */
+    private fun currentExerciseNotes(): List<ExerciseNoteDto> =
+        _state.value.exercises.filter { it.note.isNotBlank() }
+            .map { ExerciseNoteDto(exerciseId = it.exerciseId, note = it.note) }
+
+    private fun sessionPayload(id: Long) = WorkoutSessionDto(
+        id = id, name = _state.value.workoutName, date = today, isCompleted = false,
+        notes = _state.value.workoutNote.ifBlank { null },
+        sets = currentSets(), exerciseNotes = currentExerciseNotes(),
+    )
+
+    /** Save current sets + notes to the in-progress session so we can resume after leaving the screen. */
     private fun persist() {
         val id = _state.value.sessionId ?: return
-        viewModelScope.launch {
-            sessionRepo.update(WorkoutSessionDto(id = id, name = _state.value.workoutName, date = today,
-                isCompleted = false, sets = currentSets()))
-        }
+        viewModelScope.launch { sessionRepo.update(sessionPayload(id)) }
     }
 
     // ── Finish / re-edit ────────────────────────────────────────────────────────────
@@ -237,8 +267,7 @@ class SessionRunnerViewModel @Inject constructor(
         val id = _state.value.sessionId ?: return
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null) }
-            sessionRepo.update(WorkoutSessionDto(id = id, name = _state.value.workoutName, date = today,
-                isCompleted = false, sets = currentSets()))
+            sessionRepo.update(sessionPayload(id))
             sessionRepo.finish(id)
                 .onSuccess { _state.update { it.copy(busy = false, phase = RunPhase.DONE) } }
                 .onFailure { e -> _state.update { it.copy(busy = false, error = e.message) } }

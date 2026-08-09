@@ -159,7 +159,7 @@ class PublicProfileViewModel @Inject constructor(
 @Composable
 fun PublicProfileScreen(
     onBack: () -> Unit,
-    onOpenShared: (handle: String, type: String, serverId: String) -> Unit,
+    onOpenShared: (handle: String, type: String, serverId: String, own: Boolean) -> Unit,
     onOpenFollows: (handle: String, mode: String) -> Unit,
     viewModel: PublicProfileViewModel = hiltViewModel(),
 ) {
@@ -215,7 +215,7 @@ fun PublicProfileScreen(
 private fun ProfileBody(
     s: PublicProfileUiState,
     vm: PublicProfileViewModel,
-    onOpenShared: (String, String, String) -> Unit,
+    onOpenShared: (String, String, String, Boolean) -> Unit,
     onOpenFollows: (String, String) -> Unit,
 ) {
     val p = s.profile!!
@@ -284,7 +284,7 @@ private fun ProfileBody(
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 items(items, key = { it.serverId }) { item ->
-                    SharedItemRow(item) { onOpenShared(vm.handle, typeName, item.serverId.toString()) }
+                    SharedItemRow(item) { onOpenShared(vm.handle, typeName, item.serverId.toString(), p.isMe) }
                 }
             }
         }

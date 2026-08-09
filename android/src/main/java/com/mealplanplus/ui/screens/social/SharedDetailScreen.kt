@@ -93,6 +93,9 @@ class SharedDetailViewModel @Inject constructor(
     val handle: String = savedState.get<String>("handle").orEmpty()
     val type: String = savedState.get<String>("type").orEmpty()
     private val serverId: UUID = UUID.fromString(savedState.get<String>("serverId").orEmpty())
+    /** True when viewing one of your own shared items — copying your own into your library is
+     *  meaningless, so the copy action is hidden. */
+    val own: Boolean = savedState.get<Boolean>("own") ?: false
 
     private val _state = MutableStateFlow(SharedDetailUiState())
     val state: StateFlow<SharedDetailUiState> = _state
@@ -248,17 +251,20 @@ fun SharedDetailScreen(
                         Text("Saved “$it” to your library ✓", color = Teal, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                Box(Modifier.fillMaxWidth().padding(16.dp)) {
-                    Button(
-                        onClick = viewModel::useThis,
-                        enabled = !s.copying && s.copiedName == null,
-                        colors = ButtonDefaults.buttonColors(containerColor = Teal, contentColor = OnAccent),
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                    ) {
-                        when {
-                            s.copying -> CircularProgressIndicator(color = OnAccent, modifier = Modifier.height(22.dp))
-                            s.copiedName != null -> Text("Saved ✓", fontWeight = FontWeight.Bold)
-                            else -> Text("Use this — save to my library", fontWeight = FontWeight.Bold)
+                // Copy is only for other people's shared items — hidden when viewing your own.
+                if (!viewModel.own) {
+                    Box(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Button(
+                            onClick = viewModel::useThis,
+                            enabled = !s.copying && s.copiedName == null,
+                            colors = ButtonDefaults.buttonColors(containerColor = Teal, contentColor = OnAccent),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                        ) {
+                            when {
+                                s.copying -> CircularProgressIndicator(color = OnAccent, modifier = Modifier.height(22.dp))
+                                s.copiedName != null -> Text("Saved ✓", fontWeight = FontWeight.Bold)
+                                else -> Text("Copy to personal library", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

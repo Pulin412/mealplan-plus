@@ -236,7 +236,7 @@ fun MealPlanNavHost() {
             ) {
                 PublicProfileScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenShared = { handle, type, serverId -> navController.navigate("shared/$handle/$type/$serverId") },
+                    onOpenShared = { handle, type, serverId, own -> navController.navigate("shared/$handle/$type/$serverId?own=$own") },
                     onOpenFollows = { handle, mode -> navController.navigate("follows/$handle/$mode") },
                 )
             }
@@ -253,11 +253,12 @@ fun MealPlanNavHost() {
                 )
             }
             composable(
-                route = "shared/{handle}/{type}/{serverId}",
+                route = "shared/{handle}/{type}/{serverId}?own={own}",
                 arguments = listOf(
                     navArgument("handle") { type = NavType.StringType },
                     navArgument("type") { type = NavType.StringType },
                     navArgument("serverId") { type = NavType.StringType },
+                    navArgument("own") { type = NavType.BoolType; defaultValue = false },
                 ),
             ) {
                 SharedDetailScreen(onBack = { navController.popBackStack() })
