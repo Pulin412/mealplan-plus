@@ -2,6 +2,7 @@ package com.mealplanplus.data.repository
 
 import com.mealplanplus.data.generated.api.WorkoutSessionsApi
 import com.mealplanplus.data.generated.api.WorkoutTemplatesApi
+import com.mealplanplus.data.generated.model.LastSetsDto
 import com.mealplanplus.data.generated.model.WorkoutSessionDto
 import com.mealplanplus.data.generated.model.WorkoutSetDto
 import java.time.LocalDate
@@ -58,4 +59,8 @@ class WorkoutSessionRepository @Inject constructor(
      */
     suspend fun lastForExercise(exerciseId: Long, workoutName: String? = null): List<WorkoutSetDto> =
         runCatching { api.lastSetsForExercise(exerciseId, workoutName).body()?.sets.orEmpty() }.getOrDefault(emptyList())
+
+    /** Last-session sets AND the exercise's note-to-self from that session (for the Copy-last preview). */
+    suspend fun lastFullForExercise(exerciseId: Long, workoutName: String? = null): LastSetsDto? =
+        runCatching { api.lastSetsForExercise(exerciseId, workoutName).body() }.getOrNull()
 }

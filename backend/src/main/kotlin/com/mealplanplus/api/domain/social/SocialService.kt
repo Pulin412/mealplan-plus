@@ -159,6 +159,13 @@ class SocialService(
         blockRepository.deleteByBlockerUidAndBlockedUid(uid, target.firebaseUid)
     }
 
+    /** Accounts the caller has blocked, most recent first — the only place a blocked user is
+     *  reachable again (they are hidden from search and their profile 403s). */
+    fun listBlocks(uid: String): List<PublicProfileSummaryDto> =
+        blockRepository.findByBlockerUidOrderByCreatedAtDesc(uid)
+            .mapNotNull { userRepository.findByFirebaseUid(it.blockedUid) }
+            .map { it.toSummary(uid) }
+
     @Transactional
     fun report(uid: String, req: ReportRequest) {
         val reportedUid = req.reportedHandle?.let { userRepository.findByHandle(it.trim())?.firebaseUid }

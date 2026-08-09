@@ -142,6 +142,13 @@ private fun ActivePhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
                     Text("＋  Add exercise", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
                 }
             }
+            item {
+                Spacer(Modifier.height(8.dp))
+                AppCard {
+                    Text("Workout notes", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    NoteField(state.workoutNote, "Notes for the whole session…", vm::setWorkoutNote)
+                }
+            }
         }
         Footer {
             state.error?.let { Text(it, color = Danger, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp)) }
@@ -184,10 +191,10 @@ private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onTo
                 // Read-only recap of the logged sets while this exercise is checked off.
                 ColumnHeaders(showActions = false)
                 ex.sets.forEachIndexed { i, s -> ReadOnlyRow(i + 1, s.reps, s.weightKg) }
+                if (ex.note.isNotBlank()) NoteDisplay(ex.note)
             } else {
-                if (ex.lastTime.isNotEmpty())
-                    Text("Copy last", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal,
-                        modifier = Modifier.fillMaxWidth().clickable { vm.copyLast(ex.exerciseId) }.padding(top = 6.dp), textAlign = TextAlign.End)
+                if (ex.lastTime.isNotEmpty() || !ex.lastNote.isNullOrBlank())
+                    LastTimePanel(ex, onCopy = { vm.copyLast(ex.exerciseId) })
                 ColumnHeaders(showActions = true)
                 ex.sets.forEachIndexed { i, s ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
@@ -205,6 +212,7 @@ private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onTo
                 }
                 Text("＋ Add set", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
                     modifier = Modifier.padding(top = 6.dp).clickable { vm.addSet(ex.exerciseId) })
+                NoteField(ex.note, "Add a note for this exercise…") { vm.setExerciseNote(ex.exerciseId, it) }
             }
         }
     }
@@ -266,6 +274,14 @@ private fun DonePhase(state: RunnerUiState, vm: SessionRunnerViewModel, onBack: 
                     ExerciseDesc(ex.description)
                     ColumnHeaders(showActions = false)
                     ex.sets.forEachIndexed { i, s -> ReadOnlyRow(i + 1, s.reps, s.weightKg) }
+                    if (ex.note.isNotBlank()) NoteDisplay(ex.note)
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            if (state.workoutNote.isNotBlank()) item {
+                AppCard {
+                    Text("Workout notes", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    NoteDisplay(state.workoutNote)
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -289,6 +305,52 @@ private fun Header(title: String, sub: String, onBack: () -> Unit) {
         Column {
             Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
             if (sub.isNotEmpty()) Text(sub, fontSize = 10.5.sp, color = MutedFaint)
+        }
+    }
+}
+
+/** Editable note-to-self field (per-exercise or whole-workout). Persisted as you type. */
+@Composable
+private fun NoteField(value: String, placeholder: String, onChange: (String) -> Unit) {
+    Box(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(9.dp)).background(SurfaceMuted).padding(horizontal = 10.dp, vertical = 9.dp)) {
+        if (value.isEmpty()) Text(placeholder, fontSize = 11.5.sp, color = MutedFaint)
+        BasicTextField(value, onChange, textStyle = TextStyle(fontSize = 11.5.sp, color = Ink),
+            cursorBrush = SolidColor(Teal), modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** Read-only note shown in completed logs. */
+@Composable
+private fun NoteDisplay(note: String) {
+    Text("📝  $note", fontSize = 11.sp, color = MutedDark, modifier = Modifier.padding(top = 8.dp))
+}
+
+/**
+ * Collapsible "Last time" panel — shows the previous session's note + sets/reps before you copy.
+ * "Copy last" fills only the sets/reps; the note is a note-to-self and is never copied.
+ */
+@Composable
+private fun LastTimePanel(ex: RunExercise, onCopy: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(if (open) "▾ Last time" else "▸ Last time", fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                color = MutedDark, modifier = Modifier.clickable { open = !open })
+            Spacer(Modifier.weight(1f))
+            if (ex.lastTime.isNotEmpty())
+                Text("Copy last", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                    modifier = Modifier.clickable(onClick = onCopy).padding(start = 8.dp))
+        }
+        if (open) {
+            Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                if (!ex.lastNote.isNullOrBlank()) NoteDisplay(ex.lastNote)
+                if (ex.lastTime.isEmpty())
+                    Text("No previous sets", fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 4.dp))
+                else ex.lastTime.forEachIndexed { i, s ->
+                    Text("Set ${i + 1}:  ${setSummary(s.reps, s.weightKg)}", fontSize = 10.5.sp,
+                        fontFamily = DmMono, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
         }
     }
 }

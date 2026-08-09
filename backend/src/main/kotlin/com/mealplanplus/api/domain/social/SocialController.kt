@@ -60,6 +60,9 @@ class SocialController(private val service: SocialService) : SocialApi {
         return ResponseEntity.noContent().build()
     }
 
+    override fun listBlocks(): ResponseEntity<List<PublicProfileSummaryDto>> =
+        ResponseEntity.ok(service.listBlocks(currentUid()))
+
     override fun reportContent(reportRequest: ReportRequest): ResponseEntity<Unit> {
         service.report(currentUid(), reportRequest)
         return ResponseEntity.status(HttpStatus.CREATED).build()

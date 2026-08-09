@@ -88,7 +88,8 @@ class LoggingService(
         val log = logRepo.findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid, date)
             ?: logRepo.save(DailyLog(firebaseUid = firebaseUid, date = date))
         val food = foodRepo.save(LoggedFood(dailyLogId = log.id, foodId = req.foodId,
-            mealSlot = req.mealSlot, quantity = req.quantity, unit = (req.unit ?: FoodUnit.GRAM).value))
+            mealSlot = req.mealSlot, quantity = req.quantity, unit = (req.unit ?: FoodUnit.GRAM).value,
+            mealName = req.mealName?.takeIf { it.isNotBlank() }))
         return food.toResponseDto(date)
     }
 
@@ -116,5 +117,6 @@ private fun LoggedFood.toResponseDto(date: LocalDate) = LoggedFoodResponseDto(
     foodId     = foodId,
     mealSlot   = mealSlot,
     quantity   = quantity,
-    unit       = FoodUnit.forValue(unit)
+    unit       = FoodUnit.forValue(unit),
+    mealName   = mealName
 )

@@ -23,5 +23,8 @@ class LoggedFood(
     val foodId: Long = 0,
     val mealSlot: String = "Lunch",
     val quantity: Double = 0.0,
-    val unit: String = "GRAM"
+    val unit: String = "GRAM",
+    /** When a whole meal is logged to a day, its foods share this name so the client can group them
+     *  back into one collapsible meal row. Null for individually-logged foods. */
+    val mealName: String? = null
 )

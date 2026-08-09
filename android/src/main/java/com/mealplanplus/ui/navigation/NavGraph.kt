@@ -50,6 +50,7 @@ import com.mealplanplus.ui.screens.home.HomeScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
+import com.mealplanplus.ui.screens.social.BlockedAccountsScreen
 import com.mealplanplus.ui.screens.social.DiscoverScreen
 import com.mealplanplus.ui.screens.social.FollowListScreen
 import com.mealplanplus.ui.screens.social.ProfileEditScreen
@@ -191,6 +192,7 @@ fun MealPlanNavHost() {
                     onEditPublicProfile = { navController.navigate("profileEdit") },
                     onOpenPublicProfile = { handle -> navController.navigate("u/$handle") },
                     onDiscover = { navController.navigate("discover") },
+                    onBlockedAccounts = { navController.navigate("blockedAccounts") },
                 )
             }
             composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.popBackStack() }) }
@@ -234,7 +236,7 @@ fun MealPlanNavHost() {
             ) {
                 PublicProfileScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenShared = { handle, type, serverId -> navController.navigate("shared/$handle/$type/$serverId") },
+                    onOpenShared = { handle, type, serverId, own -> navController.navigate("shared/$handle/$type/$serverId?own=$own") },
                     onOpenFollows = { handle, mode -> navController.navigate("follows/$handle/$mode") },
                 )
             }
@@ -251,14 +253,18 @@ fun MealPlanNavHost() {
                 )
             }
             composable(
-                route = "shared/{handle}/{type}/{serverId}",
+                route = "shared/{handle}/{type}/{serverId}?own={own}",
                 arguments = listOf(
                     navArgument("handle") { type = NavType.StringType },
                     navArgument("type") { type = NavType.StringType },
                     navArgument("serverId") { type = NavType.StringType },
+                    navArgument("own") { type = NavType.BoolType; defaultValue = false },
                 ),
             ) {
                 SharedDetailScreen(onBack = { navController.popBackStack() })
+            }
+            composable("blockedAccounts") {
+                BlockedAccountsScreen(onBack = { navController.popBackStack() })
             }
         }
     }

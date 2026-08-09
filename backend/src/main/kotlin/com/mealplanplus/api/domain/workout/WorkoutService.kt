@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.workout
 
 import com.mealplanplus.api.generated.model.ExerciseDto
+import com.mealplanplus.api.generated.model.ExerciseNoteDto
 import com.mealplanplus.api.generated.model.LastSetsDto
 import com.mealplanplus.api.generated.model.TagDto
 import com.mealplanplus.api.generated.model.TemplateExerciseDto
@@ -28,6 +29,7 @@ class WorkoutService(
     private val exerciseRepo: ExerciseRepository,
     private val sessionRepo: WorkoutSessionRepository,
     private val setRepo: WorkoutSetRepository,
+    private val exerciseNoteRepo: WorkoutSessionExerciseNoteRepository,
     private val templateRepo: WorkoutTemplateRepository,
     private val templateExerciseRepo: TemplateExerciseRepository,
     private val templateSetRepo: TemplateExerciseSetRepository,
@@ -302,12 +304,13 @@ class WorkoutService(
             sessionRepo.findByFirebaseUid(firebaseUid)
         if (sessions.isEmpty()) return emptyList()
         val setsBySessionId = setRepo.findBySessionIdIn(sessions.map { it.id }).groupBy { it.sessionId }
-        return sessions.map { it.toDto(setsBySessionId[it.id] ?: emptyList()) }
+        val notesBySessionId = exerciseNoteRepo.findBySessionIdIn(sessions.map { it.id }).groupBy { it.sessionId }
+        return sessions.map { it.toDto(setsBySessionId[it.id] ?: emptyList(), notesBySessionId[it.id] ?: emptyList()) }
     }
 
     fun getSession(id: Long): WorkoutSessionDto {
         val session = sessionRepo.findById(id).orElseThrow()
-        return session.toDto(setRepo.findBySessionId(session.id))
+        return session.toDto(setRepo.findBySessionId(session.id), exerciseNoteRepo.findBySessionId(session.id))
     }
 
     @Transactional
@@ -322,7 +325,8 @@ class WorkoutService(
             setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = s.exerciseId ?: 0L,
                 setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg, notes = s.notes))
         }
-        return saved.toDto(sets)
+        val notes = saveExerciseNotes(saved.id, dto.exerciseNotes)
+        return saved.toDto(sets, notes)
     }
 
     @Transactional
@@ -331,6 +335,7 @@ class WorkoutService(
         if (session.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         setRepo.deleteBySessionId(id)
+        exerciseNoteRepo.deleteBySessionId(id)
         val updated = WorkoutSession(id = session.id, firebaseUid = session.firebaseUid,
             name = session.name, date = session.date, durationMinutes = dto.durationMinutes,
             notes = dto.notes, isCompleted = session.isCompleted)
@@ -340,8 +345,15 @@ class WorkoutService(
             setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = s.exerciseId ?: 0L,
                 setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg, notes = s.notes))
         }
-        return saved.toDto(sets)
+        val notes = saveExerciseNotes(saved.id, dto.exerciseNotes)
+        return saved.toDto(sets, notes)
     }
+
+    /** Persist a session's per-exercise notes (blank ones dropped); callers clear existing first. */
+    private fun saveExerciseNotes(sessionId: Long, notes: List<ExerciseNoteDto>?): List<WorkoutSessionExerciseNote> =
+        (notes ?: emptyList())
+            .filter { !it.note.isNullOrBlank() }
+            .map { exerciseNoteRepo.save(WorkoutSessionExerciseNote(sessionId = sessionId, exerciseId = it.exerciseId, note = it.note)) }
 
     /** Marks a session complete and upserts — replaces an existing log for the same (uid, date, name). */
     @Transactional
@@ -353,7 +365,7 @@ class WorkoutService(
             name = session.name, date = session.date, durationMinutes = session.durationMinutes,
             notes = session.notes, isCompleted = true)
             .also { it.serverId = session.serverId }
-        return sessionRepo.save(finished).toDto(setRepo.findBySessionId(session.id))
+        return sessionRepo.save(finished).toDto(setRepo.findBySessionId(session.id), exerciseNoteRepo.findBySessionId(session.id))
     }
 
     /**
@@ -371,7 +383,8 @@ class WorkoutService(
         val sets = sessionId
             ?.let { setRepo.findBySessionIdAndExerciseId(it, exerciseId).sortedBy { s -> s.setNumber } }
             ?: emptyList()
-        return LastSetsDto(exerciseId = exerciseId, sets = sets.map { it.toDto() })
+        val note = sessionId?.let { exerciseNoteRepo.findBySessionIdAndExerciseId(it, exerciseId)?.note }
+        return LastSetsDto(exerciseId = exerciseId, sets = sets.map { it.toDto() }, note = note)
     }
 
     @Transactional
@@ -380,6 +393,7 @@ class WorkoutService(
         if (session.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         setRepo.deleteBySessionId(id)
+        exerciseNoteRepo.deleteBySessionId(id)
         sessionRepo.delete(session)
         tombstones.record(firebaseUid, "workout_session", session.serverId)
     }
@@ -388,7 +402,8 @@ class WorkoutService(
         val sessions = sessionRepo.findByFirebaseUidAndUpdatedAtAfter(firebaseUid, since)
         if (sessions.isEmpty()) return emptyList()
         val setsBySessionId = setRepo.findBySessionIdIn(sessions.map { it.id }).groupBy { it.sessionId }
-        return sessions.map { it.toDto(setsBySessionId[it.id] ?: emptyList()) }
+        val notesBySessionId = exerciseNoteRepo.findBySessionIdIn(sessions.map { it.id }).groupBy { it.sessionId }
+        return sessions.map { it.toDto(setsBySessionId[it.id] ?: emptyList(), notesBySessionId[it.id] ?: emptyList()) }
     }
 
     @Transactional
@@ -423,7 +438,7 @@ fun WorkoutSet.toDto() = WorkoutSetDto(
     notes      = notes
 )
 
-fun WorkoutSession.toDto(sets: List<WorkoutSet>) = WorkoutSessionDto(
+fun WorkoutSession.toDto(sets: List<WorkoutSet>, exerciseNotes: List<WorkoutSessionExerciseNote> = emptyList()) = WorkoutSessionDto(
     id              = id,
     serverId        = serverId,
     firebaseUid     = firebaseUid,
@@ -433,6 +448,7 @@ fun WorkoutSession.toDto(sets: List<WorkoutSet>) = WorkoutSessionDto(
     notes           = notes,
     isCompleted     = isCompleted,
     sets            = sets.map { it.toDto() },
+    exerciseNotes   = exerciseNotes.map { ExerciseNoteDto(exerciseId = it.exerciseId, note = it.note) },
     updatedAt       = updatedAt
 )
 

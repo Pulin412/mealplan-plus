@@ -89,6 +89,7 @@ fun ProfileScreen(
     onEditPublicProfile: () -> Unit = {},
     onOpenPublicProfile: (String) -> Unit = {},
     onDiscover: () -> Unit = {},
+    onBlockedAccounts: () -> Unit = {},
 ) {
     val viewModel: ProfileViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
@@ -140,6 +141,9 @@ fun ProfileScreen(
                         Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
                         Text("Discover people", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
                             modifier = Modifier.fillMaxWidth().clickable { onDiscover() }.padding(horizontal = 12.dp, vertical = 13.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
+                        Text("Blocked accounts", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                            modifier = Modifier.fillMaxWidth().clickable { onBlockedAccounts() }.padding(horizontal = 12.dp, vertical = 13.dp))
                     }
 
                     Section("Body") {
