@@ -244,6 +244,79 @@ function AddToTodaySheet({ open, foods, meals, plannedSlots, onAdd, onAddOnline,
   );
 }
 
+// ── Added today (unplanned foods logged via ＋) ─────────────────────────────────
+type LoggedFood = DashboardDto["additionalFoods"][number];
+type AddedUnit = { kind: "single"; lf: LoggedFood } | { kind: "meal"; name: string; items: LoggedFood[] };
+
+// Meal-tagged foods (mealName) group into one collapsible 🍲 row; lone foods stay individual.
+function AddedToday({ added, foodsById, onRemove }: { added: LoggedFood[]; foodsById: Map<number, FoodDto>; onRemove: (ids: number[]) => void }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const kcalOf = (lf: LoggedFood) => r(foodMacros(lf.foodId != null ? foodsById.get(lf.foodId) : undefined, lf.quantity, (lf.unit ?? "GRAM") as FoodUnit).kcal);
+
+  const units: AddedUnit[] = [];
+  const seen = new Set<string>();
+  for (const lf of added) {
+    const mn = lf.mealName;
+    if (!mn) units.push({ kind: "single", lf });
+    else if (!seen.has(mn)) { seen.add(mn); units.push({ kind: "meal", name: mn, items: added.filter((x) => x.mealName === mn) }); }
+  }
+
+  return (
+    <>
+      <div style={{ font: "600 12.5px system-ui", color: C.ink, margin: "16px 0 8px 2px" }}>Added today</div>
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+        {units.map((u, i) => {
+          const border = i < units.length - 1 ? `1px solid ${C.bgAlt}` : "none";
+          if (u.kind === "single") {
+            const lf = u.lf;
+            const unit = (lf.unit ?? "GRAM") as FoodUnit;
+            return (
+              <div key={lf.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: border }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{(lf.foodId != null ? foodsById.get(lf.foodId) : undefined)?.name ?? "Food"}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    <SlotBadge slot={lf.mealSlot} />
+                    <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{num(lf.quantity)} {unitLabel(unit)}</span>
+                  </div>
+                </div>
+                <span style={{ font: `700 12.5px ${mono}`, color: C.ink }}>{kcalOf(lf)}<span style={{ font: "400 9px system-ui", color: C.muted2 }}> kcal</span></span>
+                <button onClick={() => onRemove([lf.id])} style={{ fontSize: 13, color: C.muted2, marginLeft: 6 }}>✕</button>
+              </div>
+            );
+          }
+          const isOpen = !!open[u.name];
+          const total = u.items.reduce((sum, it) => sum + kcalOf(it), 0);
+          return (
+            <div key={u.name} style={{ borderBottom: border }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", cursor: "pointer" }} onClick={() => setOpen((o) => ({ ...o, [u.name]: !o[u.name] }))}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: "600 12.5px system-ui", color: C.ink }}>🍲  {u.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    <SlotBadge slot={u.items[0].mealSlot} />
+                    <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{u.items.length} items {isOpen ? "▾" : "▸"}</span>
+                  </div>
+                </div>
+                <span style={{ font: `700 12.5px ${mono}`, color: C.ink }}>{total}<span style={{ font: "400 9px system-ui", color: C.muted2 }}> kcal</span></span>
+                <button onClick={(e) => { e.stopPropagation(); onRemove(u.items.map((x) => x.id)); }} style={{ fontSize: 13, color: C.muted2, marginLeft: 6 }}>✕</button>
+              </div>
+              {isOpen && u.items.map((lf) => {
+                const unit = (lf.unit ?? "GRAM") as FoodUnit;
+                return (
+                  <div key={lf.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 12px 8px 24px" }}>
+                    <span style={{ flex: 1, font: "400 11px system-ui", color: C.muted3 }}>• {(lf.foodId != null ? foodsById.get(lf.foodId) : undefined)?.name ?? "Food"}</span>
+                    <span style={{ font: `400 9.5px ${mono}`, color: C.muted2 }}>{num(lf.quantity)} {unitLabel(unit)}</span>
+                    <span style={{ font: `400 9.5px ${mono}`, color: C.muted2 }}>{kcalOf(lf)} kcal</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 function DietSheet({ open, d, onClose }: { open: boolean; d: DashboardDto; onClose: () => void }) {
   return (
     <BottomSheet open={open} onClose={onClose} title={d.dietName ?? "Diet"}>
@@ -415,29 +488,7 @@ function TodayInner() {
             )}
 
             {d.additionalFoods.length > 0 && (
-              <>
-                <div style={{ font: "600 12.5px system-ui", color: C.ink, margin: "16px 0 8px 2px" }}>Added today</div>
-                <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-                  {d.additionalFoods.map((lf, i) => {
-                    const food = lf.foodId != null ? t.foodsById.get(lf.foodId) : undefined;
-                    const unit = (lf.unit ?? "GRAM") as FoodUnit;
-                    const kcal = r(foodMacros(food, lf.quantity, unit).kcal);
-                    return (
-                      <div key={lf.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: i < d.additionalFoods.length - 1 ? `1px solid ${C.bgAlt}` : "none" }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{food?.name ?? "Food"}</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                            <SlotBadge slot={lf.mealSlot} />
-                            <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{num(lf.quantity)} {unitLabel(unit)}</span>
-                          </div>
-                        </div>
-                        <span style={{ font: `700 12.5px ${mono}`, color: C.ink }}>{kcal}<span style={{ font: "400 9px system-ui", color: C.muted2 }}> kcal</span></span>
-                        <button onClick={() => t.removeFood(lf.id)} style={{ fontSize: 13, color: C.muted2, marginLeft: 6 }}>✕</button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+              <AddedToday added={d.additionalFoods} foodsById={t.foodsById} onRemove={t.removeFoods} />
             )}
 
             <WorkoutSection workouts={tw.workouts} onOpen={openWorkout} onRemove={tw.removeWorkout} onAdd={() => setAddWorkoutOpen(true)} />
@@ -448,7 +499,7 @@ function TodayInner() {
       </div>
 
       {d && (
-        <button onClick={() => setAddOpen(true)} className="fixed bottom-[68px] right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white text-[28px] font-light shadow-lg"
+        <button onClick={() => { t.refreshPickers(); setAddOpen(true); }} className="fixed bottom-[68px] right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white text-[28px] font-light shadow-lg"
           style={{ background: C.teal, boxShadow: "0 6px 18px oklch(0.62 0.09 210 / .45)" }}>+</button>
       )}
       {d && <AddToTodaySheet open={addOpen} foods={t.foods} meals={t.meals} plannedSlots={d.slots.map((s) => s.slot)} onAdd={t.addFood} onAddOnline={t.addOnlineFood} onAddMeal={t.addMeal} onClose={() => setAddOpen(false)} />}
