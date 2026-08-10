@@ -19,10 +19,10 @@ export function toggleMealSlot(date: string, slot: string): Promise<unknown> {
   return apiFetch(`/api/v1/logging/slots/${date}/${encodeURIComponent(slot)}/toggle`, { method: "POST" });
 }
 
-export function addLoggedFood(date: string, foodId: number, mealSlot: string, quantity: number, unit: FoodUnit): Promise<unknown> {
+export function addLoggedFood(date: string, foodId: number, mealSlot: string, quantity: number, unit: FoodUnit, mealName?: string): Promise<unknown> {
   return apiFetch("/api/v1/logging/foods", {
     method: "POST",
-    body: JSON.stringify({ date, foodId, mealSlot, quantity, unit }),
+    body: JSON.stringify({ date, foodId, mealSlot, quantity, unit, mealName }),
   });
 }
 

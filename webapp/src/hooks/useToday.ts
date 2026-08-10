@@ -56,6 +56,12 @@ export function useToday() {
 
   const reloadFoods = useCallback(() => { listFoods().then(setFoods).catch(() => {}); }, []);
 
+  /** Re-fetch the "Add to today" pickers so newly-created foods/meals show up without a reload. */
+  const refreshPickers = useCallback(() => {
+    listFoods().then(setFoods).catch(() => {});
+    listMeals().then(setMeals).catch(() => {});
+  }, []);
+
   /**
    * Log a whole meal into today's slot by flattening it into its foods — only touches today's log,
    * never the planned diet. Resolves each item's food id (falls back to the serverId→id map).
@@ -67,7 +73,7 @@ export function useToday() {
     try {
       for (const it of meal.items ?? []) {
         const foodId = it.foodId ?? (it.foodServerId ? idByServerId.get(it.foodServerId) : undefined);
-        if (foodId != null) await addLoggedFood(date, foodId, slot, it.quantity, it.unit);
+        if (foodId != null) await addLoggedFood(date, foodId, slot, it.quantity, it.unit, meal.name);
       }
       await reload();
     } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
@@ -98,5 +104,11 @@ export function useToday() {
     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
   }, [reload]);
 
-  return { dashboard, foods, meals, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, addMeal, toggleDayComplete, removeFood };
+  /** Remove one logged food, or every food of an added meal, in one go. */
+  const removeFoods = useCallback(async (ids: number[]) => {
+    try { for (const id of ids) await removeLoggedFood(id); await reload(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+  }, [reload]);
+
+  return { dashboard, foods, meals, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, addMeal, toggleDayComplete, removeFood, removeFoods, refreshPickers };
 }
