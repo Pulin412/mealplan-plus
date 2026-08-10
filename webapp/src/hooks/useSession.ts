@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { getWorkout, type WorkoutTemplateDto } from "@/lib/api/workouts";
 import { listExercises } from "@/lib/api/exercises";
 import {
-  listSessionsForDate, startWorkout, createSession, updateSession, finishSession, lastForExercise,
+  listSessionsForDate, startWorkout, createSession, updateSession, finishSession, lastFullForExercise,
   type WorkoutSessionDto, type WorkoutSetDto,
 } from "@/lib/api/sessions";
 
@@ -18,6 +18,8 @@ export interface RunExercise {
   sets: RunSet[];
   templateSets: RunSet[];
   lastTime: RunSet[];
+  note: string;              // this session's per-exercise note-to-self
+  lastNote: string | null;   // the note from last time (shown in the Copy-last preview)
 }
 
 const todayIso = (): string => {
@@ -30,6 +32,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const [phase, setPhase] = useState<RunPhase>("loading");
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [exercises, setExercises] = useState<RunExercise[]>([]);
+  const [workoutNote, setWorkoutNoteState] = useState("");   // whole-workout note for this session
   const [library, setLibrary] = useState<LibExercise[]>([]);   // for the "Add exercise" picker
   const [doneIds, setDoneIds] = useState<Set<number>>(new Set());   // exercises checked off this session (persisted locally)
   const [busy, setBusy] = useState(false);
@@ -60,20 +63,21 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     const t = templateRef.current;
     return [...(t?.exercises ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((te) => {
       const sets = [...(te.sets ?? [])].sort((a, b) => a.setNumber - b.setNumber).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null }));
-      return { exerciseId: te.exerciseId, name: te.exerciseName ?? libNameRef.current.get(te.exerciseId) ?? "Exercise", description: descRef.current.get(te.exerciseId) ?? null, sets, templateSets: sets, lastTime: [] };
+      return { exerciseId: te.exerciseId, name: te.exerciseName ?? libNameRef.current.get(te.exerciseId) ?? "Exercise", description: descRef.current.get(te.exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null };
     });
   }, []);
 
   const exerciseReadyList = useCallback((): RunExercise[] => {
     if (exerciseId == null) return [];
     const sets: RunSet[] = [0, 1, 2].map(() => ({ reps: 10, weightKg: null }));
-    return [{ exerciseId, name: libNameRef.current.get(exerciseId) ?? name, description: descRef.current.get(exerciseId) ?? null, sets, templateSets: sets, lastTime: [] }];
+    return [{ exerciseId, name: libNameRef.current.get(exerciseId) ?? name, description: descRef.current.get(exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null }];
   }, [exerciseId, name]);
 
   const exercisesFromSession = useCallback((session: WorkoutSessionDto): RunExercise[] => {
     const order = [...(templateRef.current?.exercises ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((te) => te.exerciseId);
     const grouped = new Map<number, WorkoutSetDto[]>();
     (session.sets ?? []).forEach((s) => { if (!grouped.has(s.exerciseId)) grouped.set(s.exerciseId, []); grouped.get(s.exerciseId)!.push(s); });
+    const noteById = new Map((session.exerciseNotes ?? []).map((n) => [n.exerciseId, n.note ?? ""]));
     const ids = Array.from(new Set([...order, ...Array.from(grouped.keys())])).filter((id) => grouped.has(id));
     return ids.map((id) => ({
       exerciseId: id,
@@ -82,14 +86,22 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       sets: grouped.get(id)!.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })),
       templateSets: [],
       lastTime: [],
+      note: noteById.get(id) ?? "",
+      lastNote: null,
     }));
   }, []);
 
   const loadLastTimes = useCallback(async (list: RunExercise[]) => {
     // Scope "last time" to this same workout (by name) — the last time you did *this* workout.
-    const entries = await Promise.all(list.map(async (e) => [e.exerciseId, await lastForExercise(e.exerciseId, name)] as const));
-    const map = new Map(entries.map(([id, sets]) => [id, sets.map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null }))]));
-    setExercises((prev) => prev.map((e) => ({ ...e, lastTime: map.get(e.exerciseId) ?? e.lastTime })));
+    const entries = await Promise.all(list.map(async (e) => [e.exerciseId, await lastFullForExercise(e.exerciseId, name)] as const));
+    const map = new Map(entries.map(([id, l]) => [id, {
+      sets: (l?.sets ?? []).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })),
+      note: l?.note ?? null,
+    }]));
+    setExercises((prev) => prev.map((e) => {
+      const l = map.get(e.exerciseId);
+      return l ? { ...e, lastTime: l.sets, lastNote: l.note } : e;
+    }));
   }, [name]);
 
   useEffect(() => {
@@ -111,6 +123,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       if (existing) {
         const list = exercisesFromSession(existing);
         setExercises(list);
+        setWorkoutNoteState(existing.notes ?? "");
         setSessionId(existing.id ?? null);
         const active = existing.isCompleted !== true;
         setPhase(active ? "active" : "done");
@@ -130,15 +143,28 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   // ── persistence ─────────────────────────────────────────────────────────────
   const setsPayload = (list: RunExercise[]): WorkoutSetDto[] =>
     list.flatMap((ex) => ex.sets.map((s, i) => ({ exerciseId: ex.exerciseId, setNumber: i, reps: s.reps, weightKg: s.weightKg })));
+  const notesPayload = (list: RunExercise[]) =>
+    list.filter((ex) => ex.note.trim()).map((ex) => ({ exerciseId: ex.exerciseId, note: ex.note }));
+
+  // Keep the latest workout note in a ref so per-set persists don't need it as a dep.
+  const workoutNoteRef = useRef("");
+  workoutNoteRef.current = workoutNote;
 
   const persist = useCallback((list: RunExercise[]) => {
     if (sessionId == null) return;
-    void updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(list), exerciseNotes: [] }).catch(() => {});
+    void updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(list), exerciseNotes: notesPayload(list), notes: workoutNoteRef.current || null }).catch(() => {});
   }, [sessionId, name, today]);
 
   const mutate = useCallback((f: (list: RunExercise[]) => RunExercise[]) => {
     setExercises((prev) => { const next = f(prev); persist(next); return next; });
   }, [persist]);
+
+  const setExerciseNote = (exId: number, note: string) =>
+    mutate((list) => list.map((ex) => ex.exerciseId === exId ? { ...ex, note } : ex));
+  const setWorkoutNote = (note: string) => {
+    setWorkoutNoteState(note);
+    if (sessionId != null) void updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises), exerciseNotes: notesPayload(exercises), notes: note || null }).catch(() => {});
+  };
 
   const editSet = (exId: number, index: number, f: (s: RunSet) => RunSet) =>
     mutate((list) => list.map((ex) => ex.exerciseId === exId ? { ...ex, sets: ex.sets.map((s, i) => i === index ? f(s) : s) } : ex));
@@ -161,12 +187,12 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     if (!lib) return;
     mutate((list) => list.some((e) => e.exerciseId === exId) ? list : [
       ...list,
-      { exerciseId: exId, name: lib.name, description: lib.description, sets: [0, 1, 2].map(() => ({ reps: 10, weightKg: null })), templateSets: [], lastTime: [] },
+      { exerciseId: exId, name: lib.name, description: lib.description, sets: [0, 1, 2].map(() => ({ reps: 10, weightKg: null })), templateSets: [], lastTime: [], note: "", lastNote: null },
     ]);
-    void lastForExercise(exId, name).then((sets) => {
-      if (!sets.length) return;
+    void lastFullForExercise(exId, name).then((l) => {
+      if (!l) return;
       setExercises((prev) => prev.map((e) => e.exerciseId === exId
-        ? { ...e, lastTime: sets.map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })) } : e));
+        ? { ...e, lastTime: (l.sets ?? []).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })), lastNote: l.note ?? null } : e));
     }).catch(() => {});
   };
 
@@ -177,8 +203,8 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       const session = templateRef.current
         ? await startWorkout(templateId!)
         : await createSession(name, today, setsPayload(exercises));
-      const prevLast = new Map(exercises.map((e) => [e.exerciseId, e.lastTime]));
-      const list = exercisesFromSession(session).map((e) => ({ ...e, lastTime: prevLast.get(e.exerciseId) ?? [] }));
+      const prevLast = new Map(exercises.map((e) => [e.exerciseId, { lastTime: e.lastTime, lastNote: e.lastNote }]));
+      const list = exercisesFromSession(session).map((e) => ({ ...e, lastTime: prevLast.get(e.exerciseId)?.lastTime ?? [], lastNote: prevLast.get(e.exerciseId)?.lastNote ?? null }));
       setSessionId(session.id ?? null);
       setExercises(list);
       loadDone(session.id ?? null);
@@ -191,18 +217,18 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     if (sessionId == null) return;
     setBusy(true); setError(null);
     try {
-      await updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises), exerciseNotes: [] });
+      await updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises), exerciseNotes: notesPayload(exercises), notes: workoutNote || null });
       await finishSession(sessionId);
       setPhase("done");
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to finish"); }
     finally { setBusy(false); }
-  }, [sessionId, name, today, exercises]);
+  }, [sessionId, name, today, exercises, workoutNote]);
 
   const edit = useCallback(() => setPhase("active"), []);
 
   return {
-    phase, workoutName: name, exercises, library, doneIds, busy, error,
+    phase, workoutName: name, exercises, library, doneIds, busy, error, workoutNote,
     start, finish, edit,
-    setReps, setWeight, addSet, removeSet, copyLast, addExercise, toggleDone,
+    setReps, setWeight, addSet, removeSet, copyLast, addExercise, toggleDone, setExerciseNote, setWorkoutNote,
   };
 }

@@ -64,6 +64,45 @@ function ReadOnlyRow({ n, reps, weightKg }: { n: number; reps: number | null; we
   );
 }
 
+/** Editable note-to-self (per-exercise or whole-workout); persisted as you type. */
+function NoteField({ value, placeholder, onChange }: { value: string; placeholder: string; onChange: (v: string) => void }) {
+  return (
+    <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={2}
+      className="w-full mt-2 rounded-[9px] px-2.5 py-2 text-[11.5px] outline-none resize-y border-none"
+      style={{ background: C.bgAlt, color: C.ink }} />
+  );
+}
+
+/** Read-only note shown in completed logs / last-time preview. */
+function NoteDisplay({ note }: { note: string }) {
+  return <div className="text-[11px] mt-2" style={{ color: C.muted3 }}>📝  {note}</div>;
+}
+
+/**
+ * Collapsible "Last time" panel — shows the previous session's note + sets/reps before you copy.
+ * "Copy last" fills only the sets/reps; the note is a note-to-self and is never copied.
+ */
+function LastTimePanel({ ex, onCopy }: { ex: RunExercise; onCopy: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-1.5">
+      <div className="flex items-center">
+        <button onClick={() => setOpen((o) => !o)} className="text-[11px] font-semibold" style={{ color: C.muted3 }}>{open ? "▾" : "▸"} Last time</button>
+        <span className="flex-1" />
+        {ex.lastTime.length > 0 && <button onClick={onCopy} className="text-[11px] font-semibold" style={{ color: C.teal }}>Copy last</button>}
+      </div>
+      {open && (
+        <div className="mt-1">
+          {ex.lastNote && <NoteDisplay note={ex.lastNote} />}
+          {ex.lastTime.length === 0
+            ? <div className="text-[10px] mt-1" style={{ color: C.faint }}>No previous sets</div>
+            : ex.lastTime.map((set, i) => <div key={i} className="text-[10.5px] mt-0.5" style={{ color: C.faint, fontFamily: mono }}>Set {i + 1}:  {setSummary(set)}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── phases ──────────────────────────────────────────────────────────────────────
 function ReadyPhase({ s }: { s: ReturnType<typeof useSession> }) {
   return (
@@ -123,12 +162,11 @@ function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExer
           {/* Read-only recap while this exercise is checked off. */}
           <ColHeaders actions={false} />
           {ex.sets.map((set, i) => <ReadOnlyRow key={i} n={i + 1} reps={set.reps} weightKg={set.weightKg} />)}
+          {ex.note && <NoteDisplay note={ex.note} />}
         </>
       ) : (
         <>
-          {ex.lastTime.length > 0 && (
-            <button onClick={() => s.copyLast(ex.exerciseId)} className="block w-full text-right text-[11px] font-semibold mt-1.5" style={{ color: C.teal }}>Copy last</button>
-          )}
+          {(ex.lastTime.length > 0 || ex.lastNote) && <LastTimePanel ex={ex} onCopy={() => s.copyLast(ex.exerciseId)} />}
           <ColHeaders actions />
           {ex.sets.map((set, i) => (
             <div key={i} className="flex items-center py-[3px]">
@@ -140,6 +178,7 @@ function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExer
             </div>
           ))}
           <button onClick={() => s.addSet(ex.exerciseId)} className="text-[11.5px] font-semibold mt-1.5" style={{ color: C.teal }}>＋ Add set</button>
+          <NoteField value={ex.note} placeholder="Add a note for this exercise…" onChange={(v) => s.setExerciseNote(ex.exerciseId, v)} />
         </>
       ))}
     </Card>
@@ -175,6 +214,10 @@ function ActivePhase({ s }: { s: ReturnType<typeof useSession> }) {
         {s.exercises.map((ex: RunExercise) => <ExerciseCard key={ex.exerciseId} s={s} ex={ex} />)}
         {/* Add an exercise on the fly — logged to THIS session only, never the template. */}
         <button onClick={() => setPickerOpen(true)} className="w-full rounded-[10px] py-3 text-[12.5px] font-semibold" style={{ border: `1px solid ${C.borderCool}`, color: C.teal }}>＋  Add exercise</button>
+        <div className="rounded-[12px] mt-2 px-3 py-[11px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+          <div className="text-[12px] font-semibold" style={{ color: C.ink }}>Workout notes</div>
+          <NoteField value={s.workoutNote} placeholder="Notes for the whole session…" onChange={s.setWorkoutNote} />
+        </div>
       </div>
       <div className="flex-none px-5 pt-2 pb-4" style={{ borderTop: `1px solid ${C.border}` }}>
         {s.error && <div className="text-[12px] mb-2" style={{ color: C.danger }}>{s.error}</div>}
@@ -202,8 +245,15 @@ function DonePhase({ s, onDone }: { s: ReturnType<typeof useSession>; onDone: ()
             <div className="text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</div>
             <ColHeaders actions={false} />
             {ex.sets.map((set, i) => <ReadOnlyRow key={i} n={i + 1} reps={set.reps} weightKg={set.weightKg} />)}
+            {ex.note && <NoteDisplay note={ex.note} />}
           </Card>
         ))}
+        {s.workoutNote && (
+          <Card>
+            <div className="text-[12px] font-semibold" style={{ color: C.ink }}>Workout notes</div>
+            <NoteDisplay note={s.workoutNote} />
+          </Card>
+        )}
       </div>
       <div className="flex-none px-5 pt-2 pb-4" style={{ borderTop: `1px solid ${C.border}` }}>
         <PrimaryButton label="Done" enabled onClick={onDone} />

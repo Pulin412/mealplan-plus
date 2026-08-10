@@ -46,6 +46,12 @@ export function lastForExercise(exerciseId: number, workout?: string): Promise<W
     .catch(() => []);
 }
 
+/** Last-session sets AND the exercise's note-to-self from that session (for the Copy-last preview). */
+export function lastFullForExercise(exerciseId: number, workout?: string): Promise<LastSetsDto | null> {
+  const qs = workout ? `?workout=${encodeURIComponent(workout)}` : "";
+  return apiFetch<LastSetsDto>(`/api/v1/workout-sessions/last-for-exercise/${exerciseId}${qs}`).catch(() => null);
+}
+
 /** Delete a logged session. */
 export function deleteSession(id: number): Promise<void> {
   return apiFetch<void>(`/api/v1/workout-sessions/${id}`, { method: "DELETE" });
