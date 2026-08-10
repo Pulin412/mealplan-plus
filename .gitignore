@@ -39,6 +39,10 @@ design_v2/
 # Local-only dev H2 seeder (run manually when testing) — never commit
 scripts/dev-seed-h2.py
 
+# local-up.sh config (holds the Firebase key) + its backend log — never commit
+scripts/local-seed.env
+scripts/.local-backend.log
+
 # Python bytecode cache (from running local scripts)
 __pycache__/
 *.pyc
