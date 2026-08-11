@@ -1,5 +1,7 @@
 package com.mealplanplus.ui.screens.diets
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -81,6 +83,9 @@ import com.mealplanplus.ui.components.FavoriteStar
 import com.mealplanplus.ui.components.ShareToggle
 import com.mealplanplus.ui.components.MacroText
 import com.mealplanplus.ui.components.SegmentedControl
+import com.mealplanplus.ui.components.UnsavedChangesDialog
+import com.mealplanplus.ui.navigation.LocalUnsavedChangesController
+import com.mealplanplus.ui.navigation.UnsavedChangesController
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.AppText
 import com.mealplanplus.ui.theme.BorderCool
@@ -499,19 +504,45 @@ private fun NewDietSheet(viewModel: DietViewModel) {
     }
     val selectedTags = remember(editing?.id) { mutableStateListOf<DietTag>().apply { editing?.tags?.let { addAll(it) } } }
     var addOpen by remember { mutableStateOf(false) }
+    var dirty by remember(editing?.id) { mutableStateOf(false) }
+    var showConfirm by remember { mutableStateOf(false) }
+
+    val canSave = name.isNotBlank() && entries.isNotEmpty()
+    fun save() {
+        viewModel.createDiet(name.trim(), entries.map {
+            DietEntry(it.kind, it.refServerId, it.slot, it.quantity, it.unit)
+        }, selectedTags.toList())
+    }
+    fun attemptClose() { if (dirty) showConfirm = true else viewModel.closeNewDiet() }
+    BackHandler { if (addOpen) addOpen = false else attemptClose() }
+
+    // Register with the app-level guard so bottom-nav taps also prompt while dirty.
+    val unsaved = LocalUnsavedChangesController.current
+    DisposableEffect(dirty, canSave) {
+        unsaved.guard = if (dirty) UnsavedChangesController.Guard(canSave, { save() }, { viewModel.closeNewDiet() }) else null
+        onDispose { unsaved.guard = null }
+    }
+    if (showConfirm) {
+        UnsavedChangesDialog(
+            canSave = canSave,
+            onSave = { showConfirm = false; save() },
+            onDiscard = { showConfirm = false; viewModel.closeNewDiet() },
+            onDismiss = { showConfirm = false },
+        )
+    }
 
     val totalKcal = entries.sumOf { it.kcal }
     val p = entries.sumOf { it.macro(it.proteinPer) }
     val c = entries.sumOf { it.macro(it.carbsPer) }
     val f = entries.sumOf { it.macro(it.fatPer) }
 
-    fun setQty(index: Int, q: Double) { if (index in entries.indices) entries[index] = entries[index].copy(quantity = q) }
+    fun setQty(index: Int, q: Double) { if (index in entries.indices) { entries[index] = entries[index].copy(quantity = q); dirty = true } }
 
     Column(Modifier.fillMaxSize().background(AppBg)) {
         if (!addOpen) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
-                IconButton(onClick = viewModel::closeNewDiet) { Icon(Icons.Default.Close, "Close", tint = Ink) }
+                IconButton(onClick = { attemptClose() }) { Icon(Icons.Default.Close, "Close", tint = Ink) }
                 Text(if (editing != null) "Edit diet" else "New diet", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                 if (editing != null) {
                     Spacer(Modifier.weight(1f))
@@ -521,15 +552,15 @@ private fun NewDietSheet(viewModel: DietViewModel) {
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 Label("Diet name")
-                OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
+                OutlinedTextField(value = name, onValueChange = { name = it; dirty = true }, singleLine = true,
                     placeholder = { Text("e.g. High-protein day", fontSize = 13.sp, color = MutedLight) },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp))
 
                 TagPicker(
                     available = state.availableTags,
                     selected = selectedTags,
-                    onToggle = { t -> if (selectedTags.any { it.id == t.id }) selectedTags.removeAll { it.id == t.id } else selectedTags.add(t) },
-                    onCreate = { nm -> scope.launch { viewModel.createTag(nm)?.let { if (selectedTags.none { s -> s.id == it.id }) selectedTags.add(it) } } },
+                    onToggle = { t -> dirty = true; if (selectedTags.any { it.id == t.id }) selectedTags.removeAll { it.id == t.id } else selectedTags.add(t) },
+                    onCreate = { nm -> dirty = true; scope.launch { viewModel.createTag(nm)?.let { if (selectedTags.none { s -> s.id == it.id }) selectedTags.add(it) } } },
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
@@ -560,7 +591,7 @@ private fun NewDietSheet(viewModel: DietViewModel) {
                                         Spacer(Modifier.width(8.dp))
                                     }
                                     Text("✕", fontSize = 13.sp, color = DeleteColor,
-                                        modifier = Modifier.clickable { entries.removeAt(idx) })
+                                        modifier = Modifier.clickable { entries.removeAt(idx); dirty = true })
                                 }
                                 Divider(color = SurfaceMuted)
                             }
@@ -578,22 +609,17 @@ private fun NewDietSheet(viewModel: DietViewModel) {
                 }
                 Spacer(Modifier.height(16.dp))
             }
-            val canSave = name.isNotBlank() && entries.isNotEmpty()
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(16.dp)
                 .clip(RoundedCornerShape(12.dp)).background(if (canSave) Teal else BorderCool)
-                .clickable(enabled = canSave) {
-                    viewModel.createDiet(name.trim(), entries.map {
-                        DietEntry(it.kind, it.refServerId, it.slot, it.quantity, it.unit)
-                    }, selectedTags.toList())
-                }.padding(vertical = 14.dp)) {
+                .clickable(enabled = canSave) { save() }.padding(vertical = 14.dp)) {
                 Text(if (editing != null) "Save changes" else "Save diet", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) OnAccent else MutedLight)
             }
         } else {
             AddToDietPanel(
                 meals = state.meals, foods = state.foods, entries = entries,
                 onClose = { addOpen = false },
-                onAdd = { be -> if (entries.none { it.refServerId == be.refServerId && it.slot == be.slot }) entries.add(be) },
-                onRemove = { ref, slot -> entries.removeAll { it.refServerId == ref && it.slot == slot } },
+                onAdd = { be -> if (entries.none { it.refServerId == be.refServerId && it.slot == be.slot }) { entries.add(be); dirty = true } },
+                onRemove = { ref, slot -> entries.removeAll { it.refServerId == ref && it.slot == slot }; dirty = true },
             )
         }
     }

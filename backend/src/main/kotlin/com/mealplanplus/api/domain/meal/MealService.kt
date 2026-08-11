@@ -18,7 +18,8 @@ class MealService(
     private val mealRepo: MealRepository,
     private val itemRepo: MealFoodItemRepository,
     private val foodRepo: FoodRepository,
-    private val tombstones: TombstoneService
+    private val tombstones: TombstoneService,
+    private val notificationService: com.mealplanplus.api.domain.social.NotificationService,
 ) {
 
     private fun resolveFoodId(dto: MealFoodItemDto): Long {
@@ -94,8 +95,16 @@ class MealService(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        val wasShared = meal.isShared
         meal.isShared = !meal.isShared
-        itemRepo.findByMealId(meal.id).let { return mealRepo.save(meal).toDto(it, foodServerIds(it)) }
+        val saved = mealRepo.save(meal)
+        if (!wasShared && saved.isShared) {
+            notificationService.notifyShare(
+                firebaseUid, com.mealplanplus.api.domain.social.NotificationSubjectKind.MEAL,
+                saved.serverId, saved.name,
+            )
+        }
+        itemRepo.findByMealId(saved.id).let { return saved.toDto(it, foodServerIds(it)) }
     }
 
     /** Author-scoped shared reads for the social layer. */

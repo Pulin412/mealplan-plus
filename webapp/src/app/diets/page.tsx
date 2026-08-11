@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { useDiets, type DietView, type MealSummary } from "@/hooks/useDiets";
@@ -107,6 +108,7 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
   });
   const [selTags, setSelTags] = useState<TagDto[]>(editing?.tags ?? []);
   const [newTag, setNewTag] = useState("");
+  const [dirty, setDirty] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addSlot, setAddSlot] = useState(MEAL_SLOTS[0]);
   const [addTab, setAddTab] = useState<"meals" | "foods">("meals");
@@ -119,21 +121,29 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
   const totals = entries.reduce((a, e) => { const m = entryMacros(e); return { kcal: a.kcal + m.kcal, p: a.p + m.protein, c: a.c + m.carbs, f: a.f + m.fat }; }, { kcal: 0, p: 0, c: 0, f: 0 });
 
   const has = (kind: string, refId: number, slot: string) => entries.some((e) => e.kind === kind && e.refId === refId && e.slot === slot);
-  const addMeal = (m: MealDto) => { if (m.id != null && !has("meal", m.id, addSlot)) setEntries((p) => [...p, { kind: "meal", refId: m.id!, slot: addSlot, quantity: 1, unit: "GRAM", name: m.name }]); };
-  const addFood = (f: FoodDto) => { if (f.id != null && !has("food", f.id, addSlot)) setEntries((p) => [...p, { kind: "food", refId: f.id!, slot: addSlot, quantity: defaultQtyFor(f.unit ?? "GRAM"), unit: f.unit ?? "GRAM", name: f.name }]); };
-  const setQty = (idx: number, q: number) => setEntries((p) => p.map((e, i) => i === idx ? { ...e, quantity: q } : e));
-  const removeEntry = (idx: number) => setEntries((p) => p.filter((_, i) => i !== idx));
-  const toggleTag = (t: TagDto) => setSelTags((p) => p.some((x) => x.id === t.id) ? p.filter((x) => x.id !== t.id) : [...p, t]);
+  const addMeal = (m: MealDto) => { if (m.id != null && !has("meal", m.id, addSlot)) { setEntries((p) => [...p, { kind: "meal", refId: m.id!, slot: addSlot, quantity: 1, unit: "GRAM", name: m.name }]); setDirty(true); } };
+  const addFood = (f: FoodDto) => { if (f.id != null && !has("food", f.id, addSlot)) { setEntries((p) => [...p, { kind: "food", refId: f.id!, slot: addSlot, quantity: defaultQtyFor(f.unit ?? "GRAM"), unit: f.unit ?? "GRAM", name: f.name }]); setDirty(true); } };
+  const setQty = (idx: number, q: number) => { setEntries((p) => p.map((e, i) => i === idx ? { ...e, quantity: q } : e)); setDirty(true); };
+  const removeEntry = (idx: number) => { setEntries((p) => p.filter((_, i) => i !== idx)); setDirty(true); };
+  const toggleTag = (t: TagDto) => { setSelTags((p) => p.some((x) => x.id === t.id) ? p.filter((x) => x.id !== t.id) : [...p, t]); setDirty(true); };
   const shownTags = [...availableTags, ...selTags].filter((t, i, a) => a.findIndex((x) => x.id === t.id) === i);
 
   const groupedSlots = slotOrderLocal(entries.map((e) => e.slot));
   const canSave = name.trim() !== "" && entries.length > 0;
   const doSave = () => onSave(name, entries.map((e) => ({ kind: e.kind, refId: e.refId, slot: e.slot, quantity: e.quantity, unit: e.unit as DietEntryInput["unit"] })), selTags.map((t) => t.id));
 
+  // Guard bottom-nav taps / ✕ while there are unsaved changes.
+  const { setGuard, attempt } = useUnsavedGuard();
+  useEffect(() => {
+    setGuard(dirty ? { canSave, onSave: doSave, onDiscard: onClose } : null);
+    return () => setGuard(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, canSave, name, entries, selTags]);
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.bg }}>
       <div className="flex-none flex items-center gap-2 px-3 pt-3 pb-2">
-        <button onClick={onClose} className="text-[20px]" style={{ color: C.ink }}>✕</button>
+        <button onClick={() => attempt(onClose)} className="text-[20px]" style={{ color: C.ink }}>✕</button>
         <span className="text-[17px] font-semibold" style={{ color: C.ink }}>{editing ? "Edit diet" : "New diet"}</span>
         <span className="flex-1" />
         {editing && <button onClick={onDelete} className="text-[13px] font-semibold" style={{ color: C.danger }}>Delete</button>}
@@ -143,7 +153,7 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
         <>
           <div className="flex-1 overflow-y-auto px-4">
             <label className="block text-[11px] font-semibold mb-[5px] mt-2" style={{ color: C.muted3 }}>Diet name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. High-protein day"
+            <input value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} placeholder="e.g. High-protein day"
               className="w-full border rounded-[11px] px-3 py-[11px] text-[13px] mb-[14px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
 
             <div className="flex items-baseline mb-2"><span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Tags</span><span className="text-[11px] ml-1" style={{ color: C.muted2 }}>· optional</span></div>
@@ -159,7 +169,7 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
             <div className="flex gap-2 mb-4">
               <input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="New tag e.g. chicken-based"
                 className="flex-1 rounded-[10px] px-3 py-[9px] text-[12px]" style={{ background: C.bgAlt, color: C.ink, border: "none", outline: "none" }} />
-              <button disabled={!newTag.trim()} onClick={async () => { const t = await onCreateTag(newTag.trim()); if (t && !selTags.some((x) => x.id === t.id)) setSelTags((p) => [...p, t]); setNewTag(""); }}
+              <button disabled={!newTag.trim()} onClick={async () => { const t = await onCreateTag(newTag.trim()); if (t && !selTags.some((x) => x.id === t.id)) { setSelTags((p) => [...p, t]); setDirty(true); } setNewTag(""); }}
                 className="rounded-[9px] px-[14px] text-[12px] font-semibold" style={{ border: `1.5px solid ${newTag.trim() ? C.teal : "#dfe6e8"}`, color: newTag.trim() ? C.teal : C.muted2 }}>Add</button>
             </div>
 

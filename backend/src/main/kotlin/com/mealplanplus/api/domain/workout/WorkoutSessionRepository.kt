@@ -1,6 +1,7 @@
 package com.mealplanplus.api.domain.workout
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import java.time.Instant
 import java.time.LocalDate
@@ -35,6 +36,15 @@ interface WorkoutSessionExerciseNoteRepository : JpaRepository<WorkoutSessionExe
     fun findBySessionId(sessionId: Long): List<WorkoutSessionExerciseNote>
     fun findBySessionIdIn(sessionIds: Collection<Long>): List<WorkoutSessionExerciseNote>
     fun findBySessionIdAndExerciseId(sessionId: Long, exerciseId: Long): WorkoutSessionExerciseNote?
+
+    /**
+     * Bulk delete (immediate SQL), NOT a derived load-then-delete. Callers replace a session's notes
+     * with delete-then-reinsert in one transaction; a deferred derived delete flushes AFTER the new
+     * inserts (Hibernate orders inserts before deletes), colliding with uq_wsen_session_exercise.
+     * Running the DELETE now clears the old rows before the inserts.
+     */
+    @Modifying
+    @Query("delete from WorkoutSessionExerciseNote n where n.sessionId = :sessionId")
     fun deleteBySessionId(sessionId: Long)
 }
 
@@ -42,6 +52,11 @@ interface WorkoutSetRepository : JpaRepository<WorkoutSet, Long> {
     fun findBySessionId(sessionId: Long): List<WorkoutSet>
     fun findBySessionIdIn(sessionIds: Collection<Long>): List<WorkoutSet>
     fun findBySessionIdAndExerciseId(sessionId: Long, exerciseId: Long): List<WorkoutSet>
+
+    /** Bulk delete (immediate SQL) — see the note on the exercise-note repo; also makes concurrent
+     *  re-saves idempotent instead of throwing StaleObjectStateException on a 0-row entity delete. */
+    @Modifying
+    @Query("delete from WorkoutSet w where w.sessionId = :sessionId")
     fun deleteBySessionId(sessionId: Long)
 }
 

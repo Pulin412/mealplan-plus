@@ -4,6 +4,8 @@ import com.mealplanplus.data.generated.api.SocialApi
 import com.mealplanplus.data.generated.model.CopyRequest
 import com.mealplanplus.data.generated.model.CopyResultDto
 import com.mealplanplus.data.generated.model.HandleAvailabilityDto
+import com.mealplanplus.data.generated.model.NotificationListDto
+import com.mealplanplus.data.generated.model.NotificationPrefsDto
 import com.mealplanplus.data.generated.model.ProfileUpdateRequest
 import com.mealplanplus.data.generated.model.PublicProfileDto
 import com.mealplanplus.data.generated.model.PublicProfileSummaryDto
@@ -103,6 +105,19 @@ class SocialRepository @Inject constructor(
         val r = api.copyTemplate(req)
         if (r.isSuccessful) r.body()!! else throw IllegalStateException("Copy failed (${r.code()})")
     }
+
+    // ── Notifications (online-only) ───────────────────────────────────────────
+    suspend fun notifications(limit: Int = 50): NotificationListDto? =
+        runCatching { api.listNotifications(limit).body() }.getOrNull()
+
+    suspend fun markNotificationsRead(): Boolean =
+        runCatching { api.markNotificationsRead().isSuccessful }.getOrDefault(false)
+
+    suspend fun notificationsEnabled(): Boolean =
+        runCatching { api.getNotificationPrefs().body()?.enabled }.getOrNull() ?: true
+
+    suspend fun setNotificationsEnabled(enabled: Boolean): Boolean =
+        runCatching { api.updateNotificationPrefs(NotificationPrefsDto(enabled)).isSuccessful }.getOrDefault(false)
 }
 
 class HandleTakenException : Exception("That handle is already taken")

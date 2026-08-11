@@ -37,6 +37,7 @@ class SocialService(
     private val workoutService: WorkoutService,
     private val foodService: FoodService,
     private val copyService: CopyService,
+    private val notificationService: NotificationService,
 ) {
     private val handleRegex = Regex("^[a-z0-9_]{3,20}$")
 
@@ -112,6 +113,7 @@ class SocialService(
         }
         if (!followRepository.existsByFollowerUidAndFolloweeUid(uid, target.firebaseUid)) {
             followRepository.save(Follow(followerUid = uid, followeeUid = target.firebaseUid))
+            notificationService.notifyFollow(actorUid = uid, followeeUid = target.firebaseUid)
         }
     }
 

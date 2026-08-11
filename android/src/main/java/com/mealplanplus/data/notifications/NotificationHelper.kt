@@ -20,11 +20,45 @@ object NotificationHelper {
     private const val CHANNEL_NAME = "Reminders"
     private const val CHANNEL_DESC = "Meal, water, workout, weigh-in and glucose reminders"
 
+    const val SOCIAL_CHANNEL_ID = "social"
+    private const val SOCIAL_CHANNEL_NAME = "Social"
+    private const val SOCIAL_CHANNEL_DESC = "New followers and items shared with you"
+
+    /** Stable notification id for the social summary (updates in place). */
+    private const val SOCIAL_NOTIFICATION_ID = 2000
+
     /** Idempotent — safe to call on every app start. */
     fun createChannel(context: Context) {
-        val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT)
-            .apply { description = CHANNEL_DESC }
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        val nm = context.getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT)
+                .apply { description = CHANNEL_DESC },
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(SOCIAL_CHANNEL_ID, SOCIAL_CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT)
+                .apply { description = SOCIAL_CHANNEL_DESC },
+        )
+    }
+
+    /** Posts (or updates) the social summary notification. No-op without permission. */
+    fun postSocial(context: Context, title: String, body: String) {
+        if (!canPost(context)) return
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentPi = PendingIntent.getActivity(
+            context, SOCIAL_NOTIFICATION_ID, tapIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = NotificationCompat.Builder(context, SOCIAL_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setAutoCancel(true)
+            .setContentIntent(contentPi)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        NotificationManagerCompat.from(context).notify(SOCIAL_NOTIFICATION_ID, notification)
     }
 
     /** True when the app may post notifications (always true below API 33). */

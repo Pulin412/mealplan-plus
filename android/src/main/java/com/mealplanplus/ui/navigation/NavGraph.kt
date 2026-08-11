@@ -17,6 +17,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import com.mealplanplus.ui.components.UnsavedChangesDialog
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
@@ -53,6 +55,7 @@ import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
 import com.mealplanplus.ui.screens.social.BlockedAccountsScreen
 import com.mealplanplus.ui.screens.social.DiscoverScreen
 import com.mealplanplus.ui.screens.social.FollowListScreen
+import com.mealplanplus.ui.screens.social.NotificationsScreen
 import com.mealplanplus.ui.screens.social.ProfileEditScreen
 import com.mealplanplus.ui.screens.social.PublicProfileScreen
 import com.mealplanplus.ui.screens.social.SharedDetailScreen
@@ -130,7 +133,14 @@ fun MealPlanNavHost() {
     val tour = rememberTourController()
     LaunchedEffect(Unit) { if (!tourSeen) tour.start() }
 
-    CompositionLocalProvider(LocalTourController provides tour) {
+    // Guards navigation away from a dirty create/edit screen via routes those screens can't intercept
+    // themselves (bottom-nav tab taps). System-back and the editor's X are handled inside each editor.
+    val unsavedController = remember { UnsavedChangesController() }
+
+    CompositionLocalProvider(
+        LocalTourController provides tour,
+        LocalUnsavedChangesController provides unsavedController,
+    ) {
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         bottomBar = {
@@ -145,11 +155,14 @@ fun MealPlanNavHost() {
                                 // transient screens (Profile, Settings, Meals…) pushed on top.
                                 // No saveState/restoreState — that captured non-tab screens into a
                                 // tab's state and resurrected them (e.g. Home re-opening Profile).
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        inclusive = false
+                                // Routed through the guard so a dirty editor prompts first.
+                                unsavedController.attempt {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            inclusive = false
+                                        }
+                                        launchSingleTop = true
                                     }
-                                    launchSingleTop = true
                                 }
                             },
                             icon  = { Icon(icon, contentDescription = screen.label) },
@@ -169,6 +182,7 @@ fun MealPlanNavHost() {
             composable(Screen.Today.route)     {
                 HomeScreen(onMenu = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
                     onProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } },
+                    onNotifications = { navController.navigate("notifications") { launchSingleTop = true } },
                     onOpenRunner = { templateId, name ->
                         navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
                     },
@@ -266,11 +280,28 @@ fun MealPlanNavHost() {
             composable("blockedAccounts") {
                 BlockedAccountsScreen(onBack = { navController.popBackStack() })
             }
+            composable("notifications") {
+                NotificationsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenProfile = { handle -> navController.navigate("u/$handle") },
+                    onOpenShared = { handle, type, serverId -> navController.navigate("shared/$handle/$type/$serverId?own=false") },
+                )
+            }
         }
     }
 
         if (tour.running) {
             TourOverlay(tour, navController, onFinish = { tourViewModel.markSeen() })
+        }
+
+        // Prompt when a dirty editor is being left via guarded navigation (bottom-nav tab tap).
+        if (unsavedController.pending != null) {
+            UnsavedChangesDialog(
+                canSave = unsavedController.guard?.canSave == true,
+                onSave = { unsavedController.resolveSave() },
+                onDiscard = { unsavedController.resolveDiscard() },
+                onDismiss = { unsavedController.cancel() },
+            )
         }
     }
     }

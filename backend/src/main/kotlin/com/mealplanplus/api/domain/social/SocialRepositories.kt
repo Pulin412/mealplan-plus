@@ -1,8 +1,11 @@
 package com.mealplanplus.api.domain.social
 
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.Instant
 
 interface FollowRepository : JpaRepository<Follow, FollowId> {
     fun existsByFollowerUidAndFolloweeUid(followerUid: String, followeeUid: String): Boolean
@@ -30,3 +33,12 @@ interface BlockRepository : JpaRepository<Block, BlockId> {
 }
 
 interface ContentReportRepository : JpaRepository<ContentReport, Long>
+
+interface NotificationRepository : JpaRepository<Notification, Long> {
+    fun findByRecipientUidOrderByCreatedAtDesc(recipientUid: String, pageable: Pageable): List<Notification>
+    fun countByRecipientUidAndReadAtIsNull(recipientUid: String): Long
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.readAt = :now WHERE n.recipientUid = :uid AND n.readAt IS NULL")
+    fun markAllRead(@Param("uid") uid: String, @Param("now") now: Instant): Int
+}
