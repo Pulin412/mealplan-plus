@@ -69,6 +69,7 @@ data class HomeUiState(
     val hcSummary: HealthConnectSummary = HealthConnectSummary(),
     val onlineResults: List<FoodDto> = emptyList(),  // Open Food Facts search results in the add sheet
     val onlineSearching: Boolean = false,
+    val unreadNotifications: Int = 0,                 // bell badge count
 )
 
 /**
@@ -88,12 +89,21 @@ class HomeViewModel @Inject constructor(
     private val healthConnect: HealthConnectManager,
     private val themeStore: ThemeStore,
     private val responseCache: ResponseCache,
+    private val socialRepo: com.mealplanplus.data.repository.SocialRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state
 
-    init { load(); loadFoods(); loadMeals(); loadWorkouts(); loadWorkoutTemplates(); loadExercises(); loadActivity() }
+    init { load(); loadFoods(); loadMeals(); loadWorkouts(); loadWorkoutTemplates(); loadExercises(); loadActivity(); loadNotifications() }
+
+    /** Unread social-notification count for the bell badge. Online-only; silent on failure. */
+    fun loadNotifications() {
+        viewModelScope.launch {
+            val count = socialRepo.notifications(1)?.unreadCount ?: return@launch
+            _state.update { it.copy(unreadNotifications = count) }
+        }
+    }
 
     /** Today's steps + calories burned from Health Connect (shown only when connected). */
     fun loadActivity() {

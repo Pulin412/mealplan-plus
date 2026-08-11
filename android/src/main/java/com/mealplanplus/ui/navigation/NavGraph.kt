@@ -53,6 +53,7 @@ import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
 import com.mealplanplus.ui.screens.social.BlockedAccountsScreen
 import com.mealplanplus.ui.screens.social.DiscoverScreen
 import com.mealplanplus.ui.screens.social.FollowListScreen
+import com.mealplanplus.ui.screens.social.NotificationsScreen
 import com.mealplanplus.ui.screens.social.ProfileEditScreen
 import com.mealplanplus.ui.screens.social.PublicProfileScreen
 import com.mealplanplus.ui.screens.social.SharedDetailScreen
@@ -169,6 +170,7 @@ fun MealPlanNavHost() {
             composable(Screen.Today.route)     {
                 HomeScreen(onMenu = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
                     onProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } },
+                    onNotifications = { navController.navigate("notifications") { launchSingleTop = true } },
                     onOpenRunner = { templateId, name ->
                         navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
                     },
@@ -265,6 +267,13 @@ fun MealPlanNavHost() {
             }
             composable("blockedAccounts") {
                 BlockedAccountsScreen(onBack = { navController.popBackStack() })
+            }
+            composable("notifications") {
+                NotificationsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenProfile = { handle -> navController.navigate("u/$handle") },
+                    onOpenShared = { handle, type, serverId -> navController.navigate("shared/$handle/$type/$serverId?own=false") },
+                )
             }
         }
     }

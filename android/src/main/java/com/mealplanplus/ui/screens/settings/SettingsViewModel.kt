@@ -42,10 +42,26 @@ class SettingsViewModel @Inject constructor(
     private val notificationStore: NotificationStore,
     private val notificationScheduler: NotificationScheduler,
     private val healthConnect: HealthConnectManager,
+    private val socialRepository: com.mealplanplus.data.repository.SocialRepository,
 ) : ViewModel() {
 
     private val _exporting = MutableStateFlow(false)
     val exporting: StateFlow<Boolean> = _exporting.asStateFlow()
+
+    /** Server-backed master switch for follow/share notifications. */
+    private val _socialNotifications = MutableStateFlow(true)
+    val socialNotifications: StateFlow<Boolean> = _socialNotifications.asStateFlow()
+
+    init { viewModelScope.launch { _socialNotifications.value = socialRepository.notificationsEnabled() } }
+
+    fun setSocialNotifications(on: Boolean) {
+        _socialNotifications.value = on   // optimistic
+        viewModelScope.launch {
+            if (!socialRepository.setNotificationsEnabled(on)) {
+                _socialNotifications.value = socialRepository.notificationsEnabled()   // revert on failure
+            }
+        }
+    }
 
     /** Live notification preferences for the Settings UI. */
     val notifications: StateFlow<NotificationSettings> = notificationStore.state
