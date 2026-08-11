@@ -70,6 +70,24 @@ class WorkoutExerciseNotesTest {
     }
 
     @Test
+    fun `re-saving a session with the same exercise note does not violate the unique constraint`() {
+        // Repro for the prod 500 (uq_wsen_session_exercise): finishing/re-saving a session that
+        // already has a note for an exercise must replace it, not collide with the existing row.
+        val created = service.createSession(
+            session("Push", completed = false, notes = listOf(ExerciseNoteDto(exerciseId = benchId, note = "cue v1"))),
+            uid,
+        )
+        val updated = service.updateSession(
+            created.id!!,
+            session("Push", completed = true, notes = listOf(ExerciseNoteDto(exerciseId = benchId, note = "cue v2"))),
+            uid,
+        )
+        assertEquals(listOf(benchId to "cue v2"), updated.exerciseNotes!!.map { it.exerciseId to it.note })
+        // Exactly one note persisted for the exercise (re-read from the DB).
+        assertEquals(listOf(benchId to "cue v2"), service.getSession(created.id!!).exerciseNotes!!.map { it.exerciseId to it.note })
+    }
+
+    @Test
     fun `copy last surfaces the note from the last completed session, separate from the sets`() {
         service.createSession(
             session("Push", completed = true, notes = listOf(ExerciseNoteDto(exerciseId = benchId, note = "pause at chest"))),
