@@ -1333,10 +1333,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/social/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my social notifications (most recent first) with unread count
+         * @description In-app notification feed for follow and share events. Online-only — never synced to Room.
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark my notifications as read
+         * @description Marks all of the caller's unread notifications as read. Idempotent.
+         */
+        post: operations["markNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/social/notifications/prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get my social-notification preference */
+        get: operations["getNotificationPrefs"];
+        /**
+         * Update my social-notification preference
+         * @description When disabled, no new follow/share notifications are generated for the caller.
+         */
+        put: operations["updateNotificationPrefs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Stable, user-safe error envelope returned for every handled 4xx/5xx response. Never contains stacktraces or internal exception detail. `code` is a stable machine string each client maps to a friendly, localized message; `requestId` ties the error to server logs + Sentry (also returned in the `X-Request-Id` response header) so a support ticket quoting it is traceable to one incident. */
+        ApiError: {
+            /**
+             * @description Stable error code. One of: VALIDATION, BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, INTERNAL, SERVICE_UNAVAILABLE.
+             * @example INTERNAL
+             */
+            code: string;
+            /**
+             * @description Safe human-readable fallback; clients may override it via `code`.
+             * @example Something went wrong. Please try again.
+             */
+            message: string;
+            /**
+             * @description Correlation id (also in the X-Request-Id response header).
+             * @example a1b2c3d4
+             */
+            requestId: string;
+            /**
+             * Format: date-time
+             * @description Server time the error was produced (UTC).
+             */
+            timestamp: string;
+            /**
+             * @description Request path that produced the error.
+             * @example /api/v1/diets
+             */
+            path: string;
+        };
         FeedbackRequestDto: {
             /** @description The user's feedback message */
             message: string;
@@ -1476,6 +1565,34 @@ export interface components {
             displayName?: string | null;
             avatarSeed?: string | null;
             isFollowedByMe: boolean;
+        };
+        /** @description A single social notification (someone followed you, or a followee shared an item). */
+        NotificationDto: {
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            type: "FOLLOW" | "SHARE";
+            actorHandle?: string | null;
+            actorDisplayName?: string | null;
+            actorAvatarSeed?: string | null;
+            /**
+             * @description Present only for SHARE notifications.
+             * @enum {string|null}
+             */
+            subjectKind?: "DIET" | "MEAL" | "WORKOUT" | null;
+            /** Format: uuid */
+            subjectServerId?: string | null;
+            subjectName?: string | null;
+            read: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        NotificationListDto: {
+            items: components["schemas"]["NotificationDto"][];
+            unreadCount: number;
+        };
+        NotificationPrefsDto: {
+            enabled: boolean;
         };
         ReportRequest: {
             /** @enum {string} */
@@ -4866,6 +4983,94 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notifications + unread count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    markNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked read */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preference */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefsDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPrefsDto"];
+            };
+        };
+        responses: {
+            /** @description Updated preference */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefsDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
 }

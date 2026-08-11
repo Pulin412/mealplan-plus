@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.health
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.CustomMetricTypeDto
 import com.mealplanplus.api.generated.model.HealthMetricDto
@@ -52,7 +53,7 @@ class HealthMetricService(
 
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
-        val metric = metricRepo.findById(id).orElseThrow()
+        val metric = metricRepo.findById(id).orNotFound("Health reading")
         if (metric.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         metricRepo.delete(metric)
         tombstones.record(firebaseUid, "health_metric", metric.serverId)

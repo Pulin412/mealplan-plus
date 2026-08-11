@@ -31,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +66,7 @@ import com.mealplanplus.ui.theme.OnAccent
 import com.mealplanplus.ui.theme.Surface
 import com.mealplanplus.ui.theme.SurfaceMuted
 import com.mealplanplus.ui.theme.Teal
+import com.mealplanplus.ui.navigation.LocalSnackbarController
 import com.mealplanplus.ui.components.RulerPicker
 import com.mealplanplus.ui.components.Stepper
 import kotlin.math.roundToInt
@@ -102,6 +104,13 @@ fun ProfileScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    // Transient action failures (e.g. a failed profile save) used to be set on state.error but never
+    // shown (the inline error only renders when the profile couldn't load at all). Surface them.
+    val snackbar = LocalSnackbarController.current
+    LaunchedEffect(state.error) {
+        val err = state.error
+        if (err != null && state.user != null) { snackbar.show(err); viewModel.clearError() }
     }
     var editor by remember { mutableStateOf<Editor?>(null) }
     var confirmClear by remember { mutableStateOf(false) }

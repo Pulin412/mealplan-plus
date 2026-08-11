@@ -12,6 +12,7 @@ import { listExerciseTags, createExerciseTag, listWorkoutTags, createWorkoutTag,
 import { toggleWorkoutShare } from "@/lib/api/social";
 import { listWorkoutSessions, updateSession, deleteSession, type WorkoutSessionDto } from "@/lib/api/sessions";
 import { isoOf } from "@/lib/api/plans";
+import { friendlyMessage, toastApiError } from "@/lib/api/errors";
 
 export type LibTab = "exercises" | "workouts" | "logs";
 
@@ -83,7 +84,7 @@ export function useExercises() {
       setTags(tg);
       setWorkoutTags(wtg);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(friendlyMessage(e));
     } finally {
       setLoading(false);
     }
@@ -162,7 +163,7 @@ export function useExercises() {
       setTags((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
       setEditor((ed) => ed && { ...ed, tagIds: new Set(ed.tagIds).add(t.id) });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create tag");
+      setError(friendlyMessage(e));
     }
   }, []);
 
@@ -176,7 +177,7 @@ export function useExercises() {
       setEditor(null);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save exercise");
+      setError(friendlyMessage(e));
     }
   }, [editor, load]);
 
@@ -186,7 +187,7 @@ export function useExercises() {
       setEditor(null);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete exercise");
+      setError(friendlyMessage(e));
     }
   }, [load]);
 
@@ -243,7 +244,7 @@ export function useExercises() {
       setWorkoutTags((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
       setBuilder((b) => b && { ...b, tagIds: new Set(b.tagIds).add(t.id), dirty: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create tag");
+      setError(friendlyMessage(e));
     }
   }, []);
 
@@ -304,7 +305,7 @@ export function useExercises() {
       setBuilder(null);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save workout");
+      setError(friendlyMessage(e));
     }
   }, [builder, load]);
 
@@ -314,7 +315,7 @@ export function useExercises() {
       setBuilder(null);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete workout");
+      setError(friendlyMessage(e));
     }
   }, [load]);
 
@@ -322,7 +323,7 @@ export function useExercises() {
   const toggleWorkoutShareFn = useCallback(async (w: WorkoutTemplateDto) => {
     if (!w.serverId) return;
     setWorkouts((prev) => prev.map((x) => x.serverId === w.serverId ? { ...x, isShared: !x.isShared } : x));
-    try { await toggleWorkoutShare(w.serverId); } catch { await load(); }
+    try { await toggleWorkoutShare(w.serverId); } catch (e) { toastApiError(e); await load(); }
   }, [load]);
 
   // ── Logs (read-only) ──────────────────────────────────────────────────────────
@@ -333,19 +334,19 @@ export function useExercises() {
   const updateLog = useCallback(async (session: WorkoutSessionDto) => {
     if (session.id == null) return;
     try { await updateSession(session.id, session); setOpenLog(session); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [load]);
 
   /** Delete a single logged session, then refresh. */
   const deleteLog = useCallback(async (id: number) => {
     try { await deleteSession(id); setOpenLog(null); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [load]);
 
   /** Delete every logged session. */
   const clearAllLogs = useCallback(async () => {
     try { await Promise.all(logs.map((s) => (s.id != null ? deleteSession(s.id) : Promise.resolve()))); setOpenLog(null); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed to clear"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [logs, load]);
   const prevLogsMonth = useCallback(() => setLogsMonth((m) => (m.month === 1 ? { year: m.year - 1, month: 12 } : { ...m, month: m.month - 1 })), []);
   const nextLogsMonth = useCallback(() => setLogsMonth((m) => (m.month === 12 ? { year: m.year + 1, month: 1 } : { ...m, month: m.month + 1 })), []);

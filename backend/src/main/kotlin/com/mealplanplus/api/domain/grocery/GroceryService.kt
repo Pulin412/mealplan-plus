@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.grocery
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.GroceryItemDto
@@ -35,7 +36,7 @@ class GroceryService(
     }
 
     fun get(id: Long): GroceryListDto {
-        val gl = listRepo.findById(id).orElseThrow()
+        val gl = listRepo.findById(id).orNotFound("Grocery list")
         return gl.toDto(itemRepo.findByGroceryListId(gl.id))
     }
 
@@ -54,7 +55,7 @@ class GroceryService(
 
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
-        val gl = listRepo.findById(id).orElseThrow()
+        val gl = listRepo.findById(id).orNotFound("Grocery list")
         if (gl.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         itemRepo.deleteByGroceryListId(id)
         listRepo.delete(gl)
@@ -67,7 +68,7 @@ class GroceryService(
 
     @Transactional
     fun update(id: Long, dto: GroceryListDto, firebaseUid: String): GroceryListDto {
-        val existing = listRepo.findById(id).orElseThrow()
+        val existing = listRepo.findById(id).orNotFound("Grocery list")
         if (existing.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByGroceryListId(existing.id)
         val updated = GroceryList(id = existing.id, firebaseUid = existing.firebaseUid,

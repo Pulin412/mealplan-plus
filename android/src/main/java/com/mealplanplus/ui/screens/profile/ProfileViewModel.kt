@@ -9,8 +9,10 @@ import com.mealplanplus.data.generated.api.UsersApi
 import com.mealplanplus.data.local.dao.DietDao
 import com.mealplanplus.data.local.dao.FoodDao
 import com.mealplanplus.data.local.dao.MealDao
+import com.mealplanplus.data.remote.ApiErrors
 import com.mealplanplus.data.sync.SyncCursorStore
 import com.mealplanplus.ui.onboarding.OnboardingStore
+import java.io.IOException
 import java.time.Instant
 import com.mealplanplus.data.generated.model.UserResponse
 import com.mealplanplus.data.generated.model.UserUpdateRequest
@@ -84,11 +86,18 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(saving = true) }
             runCatching { usersApi.updateMe(update) }
-                .onSuccess { resp -> resp.body()?.let { u -> _state.update { st -> st.copy(user = u) } } }
-                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+                .onSuccess { resp ->
+                    if (resp.isSuccessful) resp.body()?.let { u -> _state.update { st -> st.copy(user = u) } }
+                    // A non-2xx used to be swallowed here (body() == null → nothing) — surface it now.
+                    else _state.update { it.copy(error = ApiErrors.messageFor(resp)) }
+                }
+                .onFailure { e -> _state.update { it.copy(error = ApiErrors.messageFor(e)) } }
             _state.update { it.copy(saving = false) }
         }
     }
+
+    /** Clear a transient action error once it's been shown (e.g. surfaced as a snackbar). */
+    fun clearError() = _state.update { it.copy(error = null) }
 
     fun signOut() = authRepo.signOut()
 
@@ -111,10 +120,12 @@ class ProfileViewModel @Inject constructor(
     fun deleteAccount(onError: (String) -> Unit) {
         viewModelScope.launch {
             _state.value = _state.value.copy(saving = true)
-            val resp = runCatching { usersApi.deleteMe() }.getOrNull()
+            val result = runCatching { usersApi.deleteMe() }
+            val resp = result.getOrNull()
             if (resp == null || !resp.isSuccessful) {
                 _state.value = _state.value.copy(saving = false)
-                onError(resp?.let { "Delete failed (${it.code()})" } ?: "Network error — please try again")
+                onError(resp?.let { ApiErrors.messageFor(it) }
+                    ?: ApiErrors.messageFor(result.exceptionOrNull() ?: IOException()))
                 return@launch
             }
             runCatching {

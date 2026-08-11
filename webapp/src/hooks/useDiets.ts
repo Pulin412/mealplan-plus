@@ -8,6 +8,7 @@ import { naturalCompare } from "@/lib/utils/naturalCompare";
 import { listDietTags, createDietTag, type TagDto } from "@/lib/api/tags";
 import { toggleDietShare } from "@/lib/api/social";
 import { foodMacros, MEAL_SLOTS, type Macros } from "@/lib/nutrition";
+import { friendlyMessage, toastApiError } from "@/lib/api/errors";
 import type { DietSort, DietViewMode } from "@/types/diet";
 
 export interface MealSummary { id: number; name: string; totals: Macros }
@@ -70,7 +71,7 @@ export function useDiets() {
     setLoading(true);
     Promise.all([listDiets(), listMeals(), listFoods()])
       .then(([d, m, f]) => { setDiets(d); setMeals(m); setFoods(f); })
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(friendlyMessage(e)))
       .finally(() => setLoading(false));
     listDietTags().then(setAvailableTags).catch(() => {});
   }, []);
@@ -134,20 +135,20 @@ export function useDiets() {
   const handleToggleFav = useCallback(async (diet: DietDto) => {
     if (diet.id == null) return;
     setDiets((prev) => prev.map((d) => d.id === diet.id ? { ...d, isFavorite: !d.isFavorite } : d));
-    try { await toggleDietFavorite(diet.id); } catch { await reload(); }
+    try { await toggleDietFavorite(diet.id); } catch (e) { toastApiError(e); await reload(); }
   }, [reload]);
 
   // Per-item Share toggle — direct REST by serverId (not synced). Imported copies can't be re-shared.
   const handleToggleShare = useCallback(async (diet: DietDto) => {
     if (!diet.serverId) return;
     setDiets((prev) => prev.map((d) => d.serverId === diet.serverId ? { ...d, isShared: !d.isShared } : d));
-    try { await toggleDietShare(diet.serverId); } catch { await reload(); }
+    try { await toggleDietShare(diet.serverId); } catch (e) { toastApiError(e); await reload(); }
   }, [reload]);
 
   const handleDelete = useCallback(async (diet: DietDto) => {
     if (diet.id == null) return;
     setDiets((prev) => prev.filter((d) => d.id !== diet.id));
-    try { await deleteDiet(diet.id); } catch { await reload(); }
+    try { await deleteDiet(diet.id); } catch (e) { toastApiError(e); await reload(); }
   }, [reload]);
 
   const createTag = useCallback(async (name: string): Promise<TagDto | null> => {
@@ -172,7 +173,7 @@ export function useDiets() {
       await reload();
       closeBuilder();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save diet");
+      setError(friendlyMessage(e));
     } finally {
       setSaving(false);
     }

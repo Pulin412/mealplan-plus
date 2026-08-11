@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.diet
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.DietDto
 import com.mealplanplus.api.generated.model.FoodUnit
@@ -114,7 +115,7 @@ class DietService(
     }
 
     fun get(id: Long, firebaseUid: String): DietDto {
-        val diet = dietRepo.findById(id).orElseThrow()
+        val diet = dietRepo.findById(id).orNotFound("Diet")
         if (diet.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         return diet.toFullDto()
@@ -139,7 +140,7 @@ class DietService(
 
     @Transactional
     fun update(id: Long, dto: DietDto, firebaseUid: String): DietDto {
-        val diet = dietRepo.findById(id).orElseThrow()
+        val diet = dietRepo.findById(id).orNotFound("Diet")
         if (diet.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         clearDietChildren(id)
@@ -157,7 +158,7 @@ class DietService(
 
     @Transactional
     fun toggleFavorite(id: Long, firebaseUid: String): DietDto {
-        val diet = dietRepo.findById(id).orElseThrow()
+        val diet = dietRepo.findById(id).orNotFound("Diet")
         if (diet.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         diet.isFavorite = !diet.isFavorite
@@ -194,7 +195,7 @@ class DietService(
 
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
-        val diet = dietRepo.findById(id).orElseThrow()
+        val diet = dietRepo.findById(id).orNotFound("Diet")
         if (diet.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         clearDietChildren(id)
@@ -214,7 +215,7 @@ class DietService(
 
     @Transactional
     fun duplicate(id: Long, firebaseUid: String): DietDto {
-        val original  = dietRepo.findById(id).orElseThrow()
+        val original  = dietRepo.findById(id).orNotFound("Diet")
         val meals     = dietMealRepo.findByDietId(original.id)
         val foodItems = dietFoodItemRepo.findByDietId(original.id)
         val tagIds    = entityTagRepo.findByEntityTypeAndEntityId(TagEntityType.DIET, original.id).map { it.tagId }
@@ -266,7 +267,7 @@ class DietService(
 
     @Transactional
     fun deleteTag(id: Long, firebaseUid: String) {
-        val tag = tagRepo.findById(id).orElseThrow()
+        val tag = tagRepo.findById(id).orNotFound("Tag")
         if (tag.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         entityTagRepo.deleteByTagId(id)
