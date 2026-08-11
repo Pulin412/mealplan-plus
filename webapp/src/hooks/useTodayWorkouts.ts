@@ -5,6 +5,7 @@ import { getPlan, addPlannedWorkout, removePlannedWorkout } from "@/lib/api/plan
 import { listWorkouts, type WorkoutTemplateDto } from "@/lib/api/workouts";
 import { listExercises, type ExerciseDto } from "@/lib/api/exercises";
 import { listSessionsForDate, deleteSession, type WorkoutSessionDto } from "@/lib/api/sessions";
+import { toastApiError } from "@/lib/api/errors";
 
 export type WorkoutStatus = "planned" | "in_progress" | "done";
 export interface HomeWorkout { templateId: number | null; exerciseId: number | null; name: string; status: WorkoutStatus; plannedId: number | null }
@@ -45,17 +46,17 @@ export function useTodayWorkouts() {
 
   const addWorkout = useCallback(async (template: WorkoutTemplateDto) => {
     if (template.id == null) return;
-    await addPlannedWorkout(today, template.id, template.name).catch(() => {});
+    await addPlannedWorkout(today, template.id, template.name).catch(toastApiError);
     await reload();
   }, [today, reload]);
 
   // Remove a planned/in-progress workout: drop its plan entry (leaves the Plan too) and delete its
   // started-but-unfinished session. Completed logs are kept.
   const removeWorkout = useCallback(async (hw: HomeWorkout) => {
-    if (hw.plannedId != null) await removePlannedWorkout(today, hw.plannedId).catch(() => {});
+    if (hw.plannedId != null) await removePlannedWorkout(today, hw.plannedId).catch(toastApiError);
     const sessions = await listSessionsForDate(today).catch(() => []);
     const s = sessions.find((x) => x.name === hw.name && x.isCompleted !== true);
-    if (s?.id != null) await deleteSession(s.id).catch(() => {});
+    if (s?.id != null) await deleteSession(s.id).catch(toastApiError);
     await reload();
   }, [today, reload]);
 

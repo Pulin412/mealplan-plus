@@ -11,6 +11,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -137,12 +139,22 @@ fun MealPlanNavHost() {
     // themselves (bottom-nav tab taps). System-back and the editor's X are handled inside each editor.
     val unsavedController = remember { UnsavedChangesController() }
 
+    // App-level snackbar host: any screen/VM flow surfaces user-facing errors via LocalSnackbarController
+    // instead of swallowing them or re-plumbing a host per screen.
+    val snackbarController = remember { SnackbarController() }
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(snackbarController) {
+        snackbarController.messages.collect { snackbarHostState.showSnackbar(it) }
+    }
+
     CompositionLocalProvider(
         LocalTourController provides tour,
         LocalUnsavedChangesController provides unsavedController,
+        LocalSnackbarController provides snackbarController,
     ) {
     Box(Modifier.fillMaxSize()) {
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {

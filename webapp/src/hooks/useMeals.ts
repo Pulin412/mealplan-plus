@@ -6,6 +6,7 @@ import { toggleMealShare } from "@/lib/api/social";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { foodMacros, defaultQtyFor, type FoodUnit } from "@/lib/nutrition";
 import { naturalCompare } from "@/lib/utils/naturalCompare";
+import { friendlyMessage, toastApiError } from "@/lib/api/errors";
 import type { MealSort, MealViewMode } from "@/types/meal";
 
 export interface BuildItem { foodId: number; quantity: number; unit: FoodUnit }
@@ -48,7 +49,7 @@ export function useMeals() {
     setLoading(true);
     Promise.all([listMeals(), listFoods()])
       .then(([m, f]) => { setMeals(m); setFoods(f); })
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(friendlyMessage(e)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -105,19 +106,19 @@ export function useMeals() {
   const handleToggleFav = useCallback(async (meal: MealDto) => {
     if (meal.id == null) return;
     setMeals((prev) => prev.map((m) => m.id === meal.id ? { ...m, isFavorite: !m.isFavorite } : m));
-    try { await toggleMealFavorite(meal.id); } catch { await reload(); }
+    try { await toggleMealFavorite(meal.id); } catch (e) { toastApiError(e); await reload(); }
   }, [reload]);
 
   const handleToggleShare = useCallback(async (meal: MealDto) => {
     if (!meal.serverId) return;
     setMeals((prev) => prev.map((m) => m.serverId === meal.serverId ? { ...m, isShared: !m.isShared } : m));
-    try { await toggleMealShare(meal.serverId); } catch { await reload(); }
+    try { await toggleMealShare(meal.serverId); } catch (e) { toastApiError(e); await reload(); }
   }, [reload]);
 
   const handleDelete = useCallback(async (meal: MealDto) => {
     if (meal.id == null) return;
     setMeals((prev) => prev.filter((m) => m.id !== meal.id));
-    try { await deleteMeal(meal.id); } catch { await reload(); }
+    try { await deleteMeal(meal.id); } catch (e) { toastApiError(e); await reload(); }
   }, [reload]);
 
   const openNew = useCallback(() => { setEditing(null); setBuilderOpen(true); }, []);
@@ -134,7 +135,7 @@ export function useMeals() {
       await reload();
       closeBuilder();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save meal");
+      setError(friendlyMessage(e));
     } finally {
       setSaving(false);
     }

@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.log
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.AddLoggedFoodRequest
 import com.mealplanplus.api.generated.model.FoodUnit
@@ -95,8 +96,8 @@ class LoggingService(
 
     @Transactional
     fun removeFood(firebaseUid: String, id: Long) {
-        val food = foodRepo.findById(id).orElseThrow()
-        val log  = logRepo.findById(food.dailyLogId).orElseThrow()
+        val food = foodRepo.findById(id).orNotFound("Logged food")
+        val log  = logRepo.findById(food.dailyLogId).orNotFound("Daily log")
         if (log.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         foodRepo.delete(food)

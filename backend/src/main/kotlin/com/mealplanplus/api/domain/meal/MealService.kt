@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.meal
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.MealDto
@@ -44,7 +45,7 @@ class MealService(
     }
 
     fun get(id: Long, firebaseUid: String): MealDto {
-        val meal = mealRepo.findById(id).orElseThrow()
+        val meal = mealRepo.findById(id).orNotFound("Meal")
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.findByMealId(meal.id).let { return meal.toDto(it, foodServerIds(it)) }
@@ -65,7 +66,7 @@ class MealService(
 
     @Transactional
     fun update(id: Long, dto: MealDto, firebaseUid: String): MealDto {
-        val meal = mealRepo.findById(id).orElseThrow()
+        val meal = mealRepo.findById(id).orNotFound("Meal")
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByMealId(id)
@@ -82,7 +83,7 @@ class MealService(
 
     @Transactional
     fun toggleFavorite(id: Long, firebaseUid: String): MealDto {
-        val meal = mealRepo.findById(id).orElseThrow()
+        val meal = mealRepo.findById(id).orNotFound("Meal")
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         meal.isFavorite = !meal.isFavorite
@@ -129,7 +130,7 @@ class MealService(
 
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
-        val meal = mealRepo.findById(id).orElseThrow()
+        val meal = mealRepo.findById(id).orNotFound("Meal")
         if (meal.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByMealId(id)

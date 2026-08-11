@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.log
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.DailyLogDto
 import com.mealplanplus.api.generated.model.FoodUnit
@@ -27,7 +28,7 @@ class DailyLogService(
     }
 
     fun get(id: Long): DailyLogDto {
-        val log = logRepo.findById(id).orElseThrow()
+        val log = logRepo.findById(id).orNotFound("Daily log")
         return log.toDto(foodRepo.findByDailyLogId(log.id))
     }
 
@@ -49,7 +50,7 @@ class DailyLogService(
 
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
-        val log = logRepo.findById(id).orElseThrow()
+        val log = logRepo.findById(id).orNotFound("Daily log")
         if (log.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         foodRepo.deleteByDailyLogId(id)
         logRepo.delete(log)
@@ -62,7 +63,7 @@ class DailyLogService(
 
     @Transactional
     fun update(id: Long, dto: DailyLogDto, firebaseUid: String): DailyLogDto {
-        val existing = logRepo.findById(id).orElseThrow()
+        val existing = logRepo.findById(id).orNotFound("Daily log")
         if (existing.firebaseUid != firebaseUid) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         foodRepo.deleteByDailyLogId(existing.id)
         val date = dto.date

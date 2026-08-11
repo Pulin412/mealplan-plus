@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Toaster } from "sonner";
 import { AuthProvider } from "@/hooks/useAuth";
 import { UnsavedGuardProvider } from "@/hooks/useUnsavedGuard";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="antialiased">
         <AuthProvider><UnsavedGuardProvider>{children}</UnsavedGuardProvider></AuthProvider>
+        <Toaster position="top-center" richColors closeButton />
         <ServiceWorkerRegister />
       </body>
     </html>

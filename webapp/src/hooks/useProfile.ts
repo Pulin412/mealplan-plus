@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { friendlyMessage } from "@/lib/api/errors";
 import { getMe, updateMe, type UserResponse, type UserUpdateRequest } from "@/lib/api/user";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -13,13 +14,13 @@ export function useProfile() {
 
   useEffect(() => {
     setLoading(true);
-    getMe().then(setUser).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    getMe().then(setUser).catch((e) => setError(friendlyMessage(e))).finally(() => setLoading(false));
   }, []);
 
   const patch = useCallback(async (p: UserUpdateRequest) => {
     setSaving(true);
     try { setUser(await updateMe(p)); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+    catch (e) { setError(friendlyMessage(e)); }
     finally { setSaving(false); }
   }, []);
 

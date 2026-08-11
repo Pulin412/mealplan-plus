@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.food
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.FoodDto
 import com.mealplanplus.api.generated.model.FoodPage
@@ -48,7 +49,7 @@ class FoodService(
     }
 
     fun get(id: Long, firebaseUid: String): FoodDto {
-        val food = repo.findById(id).orElseThrow()
+        val food = repo.findById(id).orNotFound("Food")
         val favIds = if (food.isSystemFood) systemFavIds(firebaseUid) else emptySet()
         return food.toDtoWithPrefs(favIds)
     }
@@ -85,7 +86,7 @@ class FoodService(
 
     @Transactional
     fun update(id: Long, dto: FoodDto, firebaseUid: String): FoodDto {
-        val food = repo.findById(id).orElseThrow()
+        val food = repo.findById(id).orNotFound("Food")
         if (food.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         val updated = Food(
@@ -114,7 +115,7 @@ class FoodService(
 
     @Transactional
     fun delete(id: Long, firebaseUid: String) {
-        val food = repo.findById(id).orElseThrow()
+        val food = repo.findById(id).orNotFound("Food")
         if (food.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         repo.delete(food)
@@ -132,7 +133,7 @@ class FoodService(
 
     @Transactional
     fun toggleFavorite(id: Long, firebaseUid: String): FoodDto {
-        val food = repo.findById(id).orElseThrow()
+        val food = repo.findById(id).orNotFound("Food")
         if (food.firebaseUid != firebaseUid && !food.isSystemFood)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
 

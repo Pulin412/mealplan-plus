@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.plan
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.DayPlanDto
 import com.mealplanplus.api.generated.model.PlannedWorkoutDto
@@ -69,7 +70,7 @@ class DayPlanService(
     fun removeWorkout(firebaseUid: String, date: LocalDate, workoutId: Long) {
         val plan = repo.findByFirebaseUidAndDate(firebaseUid, date)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No plan for $date")
-        val workout = plannedWorkoutRepo.findById(workoutId).orElseThrow()
+        val workout = plannedWorkoutRepo.findById(workoutId).orNotFound("Planned workout")
         if (workout.dayPlanId != plan.id)
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not on this day's plan")
         plannedWorkoutRepo.delete(workout)

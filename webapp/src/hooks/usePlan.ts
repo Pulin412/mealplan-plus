@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { friendlyMessage } from "@/lib/api/errors";
 import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, getCompletedDays, getLoggedSlots, isoOf, type DayPlanDto, type LoggedMealSlotDto } from "@/lib/api/plans";
 import { listDiets, type DietDto } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
@@ -91,7 +92,7 @@ export function usePlan() {
       list.forEach((p) => { map[isoOf(p.date)] = p; });
       setPlans(map);
       getCompletedDays(lo, hi).then((cd) => setCompletedDays(new Set(cd.map((d) => isoOf(d))))).catch(() => {});
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { setError(friendlyMessage(e)); }
     finally { setLoading(false); }
   }, [today, todayIso]);
 
@@ -118,7 +119,7 @@ export function usePlan() {
   const setDiet = useCallback(async (dateIso: string, dietId: number | null) => {
     const existing = plans[dateIso];
     try { await upsertPlan(dateIso, dietId, existing?.plannedWorkouts ?? []); await loadPlans(ym.year, ym.month); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [plans, ym, loadPlans]);
 
   const openPicker = useCallback(() => { setPickerSearch(""); setPickerTag(null); setPickerOpen(true); }, []);
@@ -127,7 +128,7 @@ export function usePlan() {
 
   const clearDay = useCallback(async (dateIso: string) => {
     try { await deletePlan(dateIso); setSelected(null); await loadPlans(ym.year, ym.month); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [ym, loadPlans]);
 
   // ── Planned workouts ──────────────────────────────────────────────────────────
@@ -137,7 +138,7 @@ export function usePlan() {
   const addWorkout = useCallback(async (dateIso: string, template: WorkoutTemplateDto) => {
     if (template.id == null) return;
     try { await addPlannedWorkout(dateIso, template.id, template.name); setWorkoutPickerOpen(false); await loadPlans(ym.year, ym.month); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [ym, loadPlans]);
 
   const removeWorkout = useCallback(async (dateIso: string, workoutId: number) => {
@@ -151,7 +152,7 @@ export function usePlan() {
         if (s?.id != null) await deleteSession(s.id);
       }
       await loadPlans(ym.year, ym.month);
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { setError(friendlyMessage(e)); }
   }, [ym, loadPlans, plans]);
 
   /** Open the read-only detail of a planned workout by its template id (no-op if not a template). */

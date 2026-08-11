@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { friendlyMessage } from "@/lib/api/errors";
 import { listHealthMetrics, createHealthMetric, type HealthMetricDto } from "@/lib/api/health";
 
 export type HealthTabId = "GLUCOSE" | "WEIGHT" | "BLOOD_PRESSURE";
@@ -54,7 +55,7 @@ export function useHealth() {
       const sort = (xs: HealthMetricDto[]) => [...xs].sort((a, b) => t(a) - t(b));
       setReadings({ GLUCOSE: sort(glu), WEIGHT: sort(wgt), BLOOD_PRESSURE: sort(bp) });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(friendlyMessage(e));
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export function useHealth() {
       setLog(null);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save reading");
+      setError(friendlyMessage(e));
     }
   }, [log, canSaveLog, load]);
 
