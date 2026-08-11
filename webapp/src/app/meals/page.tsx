@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { useMeals, type BuildItem, type MealView } from "@/hooks/useMeals";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, FOOD_UNITS, isCountUnit, type FoodDto } from "@/lib/nutrition";
 import { Stepper } from "@/components/ui/Stepper";
 import { createFood } from "@/lib/api/foods";
@@ -153,6 +154,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
   const [items, setItems] = useState<BuildItem[]>(
     (editing?.items ?? []).filter((it) => it.foodId != null).map((it) => ({ foodId: it.foodId!, quantity: it.quantity, unit: it.unit }))
   );
+  const [dirty, setDirty] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickQuery, setPickQuery] = useState("");
   const [pickMode, setPickMode] = useState<"search" | "new">("search");
@@ -166,19 +168,29 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
     return { kcal: acc.kcal + m.kcal, p: acc.p + m.protein, c: acc.c + m.carbs, f: acc.f + m.fat };
   }, { kcal: 0, p: 0, c: 0, f: 0 });
 
-  const toggleSlot = (s: string) => setSlots((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
-  const setQty = (foodId: number, q: number) => setItems((prev) => prev.map((it) => it.foodId === foodId ? { ...it, quantity: q } : it));
-  const removeItem = (foodId: number) => setItems((prev) => prev.filter((it) => it.foodId !== foodId));
-  const addFood = (f: FoodDto) => { if (f.id != null && !items.some((it) => it.foodId === f.id)) setItems((prev) => [...prev, { foodId: f.id!, quantity: defaultQtyFor(f.unit ?? "GRAM"), unit: (f.unit ?? "GRAM") }]); };
+  const toggleSlot = (s: string) => { setSlots((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]); setDirty(true); };
+  const setQty = (foodId: number, q: number) => { setItems((prev) => prev.map((it) => it.foodId === foodId ? { ...it, quantity: q } : it)); setDirty(true); };
+  const removeItem = (foodId: number) => { setItems((prev) => prev.filter((it) => it.foodId !== foodId)); setDirty(true); };
+  const addFood = (f: FoodDto) => { if (f.id != null && !items.some((it) => it.foodId === f.id)) { setItems((prev) => [...prev, { foodId: f.id!, quantity: defaultQtyFor(f.unit ?? "GRAM"), unit: (f.unit ?? "GRAM") }]); setDirty(true); } };
 
   const canSave = name.trim() !== "" && items.length > 0;
+  const doSave = () => onSave(name, slots, items);
+
+  // Guard bottom-nav taps / ✕ while there are unsaved changes.
+  const { setGuard, attempt } = useUnsavedGuard();
+  useEffect(() => {
+    setGuard(dirty ? { canSave, onSave: doSave, onDiscard: onClose } : null);
+    return () => setGuard(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, canSave, name, slots, items]);
+
   const pickList = foods.filter((f) => !pickQuery || f.name.toLowerCase().includes(pickQuery.toLowerCase()));
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.bg }}>
       {/* header */}
       <div className="flex-none flex items-center gap-2 px-3 pt-3 pb-2">
-        <button onClick={onClose} className="text-[20px]" style={{ color: C.ink }}>✕</button>
+        <button onClick={() => attempt(onClose)} className="text-[20px]" style={{ color: C.ink }}>✕</button>
         <span className="text-[17px] font-semibold" style={{ color: C.ink }}>{editing ? "Edit meal" : "New meal"}</span>
         <span className="flex-1" />
         {editing && <button onClick={onDelete} className="text-[13px] font-semibold" style={{ color: C.danger }}>Delete</button>}
@@ -186,7 +198,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
 
       <div className="flex-1 overflow-y-auto px-4">
         <label className="block text-[11px] font-semibold mb-[5px] mt-2" style={{ color: C.muted3 }}>Meal name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chicken rice bowl"
+        <input value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} placeholder="e.g. Chicken rice bowl"
           className="w-full border rounded-[11px] px-3 py-[11px] text-[13px] mb-[14px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
 
         <div className="flex items-baseline mb-2">

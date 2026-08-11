@@ -82,6 +82,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
     val context = LocalContext.current
     val exporting by viewModel.exporting.collectAsState()
     val notifSettings by viewModel.notifications.collectAsState()
+    val socialNotifications by viewModel.socialNotifications.collectAsState()
     val hcState by viewModel.healthConnectState.collectAsState()
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val hcLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) {
@@ -184,6 +185,18 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
 
                 // ── Notifications (collapsible) ────────────────────────────────────
                 NotificationsSection(notifSettings, onToggleNotif, viewModel::setQuietHours)
+
+                // ── Social ─────────────────────────────────────────────────────────
+                SectionLabel("Social")
+                Card {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Social notifications", fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = Ink)
+                            Text("New followers and shared items", fontSize = 11.5.sp, color = MutedLight)
+                        }
+                        AppSwitch(socialNotifications) { on -> viewModel.setSocialNotifications(on) }
+                    }
+                }
 
                 // ── Feedback ───────────────────────────────────────────────────────
                 SectionLabel("Feedback")

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useExercises, type LibTab, type BuilderItem } from "@/hooks/useExercises";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { Stepper } from "@/components/ui/Stepper";
 import { exerciseTagColor } from "@/lib/exerciseTags";
 import type { ExerciseDto } from "@/lib/api/exercises";
@@ -280,9 +281,10 @@ function BuilderRow({ item, ex }: { item: BuilderItem; ex: ReturnType<typeof use
 
 function WorkoutBuilderOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
   const b = ex.builder!;
+  const { attempt } = useUnsavedGuard();
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.bg }}>
-      <OverlayHeader title={b.id == null ? "New workout" : "Edit workout"} onBack={ex.closeBuilder} />
+      <OverlayHeader title={b.id == null ? "New workout" : "Edit workout"} onBack={() => attempt(ex.closeBuilder)} />
       <div className="flex-1 overflow-y-auto px-5">
         <FieldLabel>Name</FieldLabel>
         <input value={b.name} onChange={(e) => ex.setBuilderName(e.target.value)} placeholder="e.g. Push Day"
@@ -554,6 +556,16 @@ function LogsTab({ ex }: { ex: ReturnType<typeof useExercises> }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 function ExercisesPageInner() {
   const ex = useExercises();
+
+  // Register the workout builder with the app-level unsaved guard (persists across the picker
+  // sub-screen) so bottom-nav taps prompt while there are unsaved changes.
+  const { setGuard } = useUnsavedGuard();
+  useEffect(() => {
+    const b = ex.builder;
+    setGuard(b?.dirty ? { canSave: ex.canSaveWorkout, onSave: () => void ex.saveWorkout(), onDiscard: ex.closeBuilder } : null);
+    return () => setGuard(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ex.builder?.dirty, ex.canSaveWorkout, ex.builder?.name, ex.builder?.items, ex.builder?.tagIds]);
 
   // Full-screen overlays take over the whole screen when open.
   if (ex.editor) return <ExerciseEditorOverlay ex={ex} />;

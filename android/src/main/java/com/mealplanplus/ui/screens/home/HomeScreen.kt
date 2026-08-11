@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -118,6 +119,7 @@ private sealed interface HomeSheet {
 
 @Composable
 fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
+               onNotifications: () -> Unit = {},
                onOpenRunner: (Long, String) -> Unit = { _, _ -> },
                onOpenExerciseRunner: (Long, String) -> Unit = { _, _ -> }) {
     val viewModel: HomeViewModel = hiltViewModel()
@@ -131,7 +133,7 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) { viewModel.load(); viewModel.loadWorkouts(); viewModel.loadActivity() }
+            if (event == Lifecycle.Event.ON_RESUME) { viewModel.load(); viewModel.loadWorkouts(); viewModel.loadActivity(); viewModel.loadNotifications() }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
@@ -140,7 +142,8 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize()) {
             HomeAppBar(state.dashboard, isDark, onMenu, onProfile, onToggleTheme = { viewModel.toggleTheme(isDark) },
-                onDietClick = { if (state.dashboard?.dietName != null) sheet = HomeSheet.Diet })
+                onDietClick = { if (state.dashboard?.dietName != null) sheet = HomeSheet.Diet },
+                unreadNotifications = state.unreadNotifications, onNotifications = onNotifications)
             when {
                 state.loading && state.dashboard == null ->
                     Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Loading today…", fontSize = 13.sp, color = MutedLight) }
@@ -349,12 +352,25 @@ private fun PickerRow(title: String, sub: String, action: String, onClick: () ->
 }
 
 @Composable
-private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, onProfile: () -> Unit, onToggleTheme: () -> Unit, onDietClick: () -> Unit) {
+private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, onProfile: () -> Unit, onToggleTheme: () -> Unit, onDietClick: () -> Unit,
+                       unreadNotifications: Int = 0, onNotifications: () -> Unit = {}) {
     val dateText = d?.date?.format(DateTimeFormatter.ofPattern("EEEE, d MMM")) ?: ""
     Column(Modifier.fillMaxWidth().padding(start = 6.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             IconButton(onClick = onMenu) { Icon(Icons.Default.Settings, "Settings", tint = Ink) }
             Spacer(Modifier.weight(1f))
+            Box(contentAlignment = Alignment.TopEnd) {
+                IconButton(onClick = onNotifications) { Icon(Icons.Default.Notifications, "Notifications", tint = Ink) }
+                if (unreadNotifications > 0) {
+                    Box(
+                        Modifier.padding(top = 6.dp, end = 6.dp).size(16.dp).clip(CircleShape).background(Color(0xFFE53935)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(if (unreadNotifications > 9) "9+" else unreadNotifications.toString(),
+                            fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
             Box(Modifier.size(34.dp).clip(CircleShape).clickable(onClick = onToggleTheme), contentAlignment = Alignment.Center) {
                 Text(if (isDark) "☀️" else "🌙", fontSize = 16.sp)
             }

@@ -35,7 +35,8 @@ class WorkoutService(
     private val templateSetRepo: TemplateExerciseSetRepository,
     private val entityTagRepo: EntityTagRepository,
     private val tagRepo: TagRepository,
-    private val tombstones: TombstoneService
+    private val tombstones: TombstoneService,
+    private val notificationService: com.mealplanplus.api.domain.social.NotificationService,
 ) {
     // ── Exercise tag helpers ──────────────────────────────────────────────────
 
@@ -258,8 +259,16 @@ class WorkoutService(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         if (template.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        val wasShared = template.isShared
         template.isShared = !template.isShared
-        return templateRepo.save(template).toFullDto()
+        val saved = templateRepo.save(template)
+        if (!wasShared && saved.isShared) {
+            notificationService.notifyShare(
+                firebaseUid, com.mealplanplus.api.domain.social.NotificationSubjectKind.WORKOUT,
+                saved.serverId, saved.name,
+            )
+        }
+        return saved.toFullDto()
     }
 
     /** Author-scoped shared reads for the social layer. */

@@ -63,7 +63,10 @@ class WorkoutSession(
  * the whole-workout [WorkoutSession.notes]; it is never copied when copying sets/reps.
  */
 @Entity
-@Table(name = "workout_session_exercise_notes")
+@Table(
+    name = "workout_session_exercise_notes",
+    uniqueConstraints = [UniqueConstraint(name = "uq_wsen_session_exercise", columnNames = ["session_id", "exercise_id"])],
+)
 class WorkoutSessionExerciseNote(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,

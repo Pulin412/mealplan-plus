@@ -25,7 +25,8 @@ class DietService(
     private val entityTagRepo: EntityTagRepository,
     private val mealRepo: MealRepository,
     private val foodRepo: FoodRepository,
-    private val tombstones: TombstoneService
+    private val tombstones: TombstoneService,
+    private val notificationService: com.mealplanplus.api.domain.social.NotificationService,
 ) {
     // ── serverId ↔ id resolution so offline clients (UUID identity) work ─────────
     /** UUID a client sent → local meal id (falls back to the numeric mealId). */
@@ -169,8 +170,16 @@ class DietService(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Not found")
         if (diet.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
+        val wasShared = diet.isShared
         diet.isShared = !diet.isShared
-        return dietRepo.save(diet).toFullDto()
+        val saved = dietRepo.save(diet)
+        if (!wasShared && saved.isShared) {
+            notificationService.notifyShare(
+                firebaseUid, com.mealplanplus.api.domain.social.NotificationSubjectKind.DIET,
+                saved.serverId, saved.name,
+            )
+        }
+        return saved.toFullDto()
     }
 
     /** Author-scoped shared reads for the social layer. */
