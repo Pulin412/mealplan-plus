@@ -5,6 +5,7 @@ import { getDashboard, toggleMealSlot, toggleDayComplete as apiToggleDayComplete
 import { listFoods, createFoodFromDto, type FoodDto } from "@/lib/api/foods";
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import type { FoodUnit } from "@/lib/nutrition";
+import { friendlyMessage } from "@/lib/api/errors";
 
 export function useToday() {
   const [dashboard, setDashboard] = useState<DashboardDto | null>(null);
@@ -23,7 +24,7 @@ export function useToday() {
     setLoading(true);
     getDashboard()
       .then(setDashboard)
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(friendlyMessage(e)))
       .finally(() => setLoading(false));
     listFoods().then(setFoods).catch(() => {});
     listMeals().then(setMeals).catch(() => {});
@@ -44,14 +45,14 @@ export function useToday() {
     if (!date) return;
     setBusySlot(slot);
     try { await toggleMealSlot(date, slot); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
     finally { setBusySlot(null); }
   }, [date, reload]);
 
   const addFood = useCallback(async (foodId: number, slot: string, quantity: number, unit: FoodUnit) => {
     if (!date) return;
     try { await addLoggedFood(date, foodId, slot, quantity, unit); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [date, reload]);
 
   const reloadFoods = useCallback(() => { listFoods().then(setFoods).catch(() => {}); }, []);
@@ -76,7 +77,7 @@ export function useToday() {
         if (foodId != null) await addLoggedFood(date, foodId, slot, it.quantity, it.unit, meal.name);
       }
       await reload();
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { setError(friendlyMessage(e)); }
   }, [date, foods, reload]);
 
   /** Persist an Open Food Facts result as a food (server assigns an id), then log it to today. */
@@ -89,25 +90,25 @@ export function useToday() {
         await addLoggedFood(date, created.id, slot, quantity, unit);
         await reload();
       }
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { setError(friendlyMessage(e)); }
   }, [date, reload, reloadFoods]);
 
   /** Mark today complete / not-complete; only completed days count toward the streak. */
   const toggleDayComplete = useCallback(async () => {
     if (!date) return;
     try { await apiToggleDayComplete(date); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [date, reload]);
 
   const removeFood = useCallback(async (id: number) => {
     try { await removeLoggedFood(id); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [reload]);
 
   /** Remove one logged food, or every food of an added meal, in one go. */
   const removeFoods = useCallback(async (ids: number[]) => {
     try { for (const id of ids) await removeLoggedFood(id); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(friendlyMessage(e)); }
   }, [reload]);
 
   return { dashboard, foods, meals, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, addMeal, toggleDayComplete, removeFood, removeFoods, refreshPickers };

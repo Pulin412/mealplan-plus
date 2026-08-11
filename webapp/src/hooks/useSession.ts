@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { friendlyMessage } from "@/lib/api/errors";
 import { getWorkout, type WorkoutTemplateDto } from "@/lib/api/workouts";
 import { listExercises } from "@/lib/api/exercises";
 import {
@@ -209,7 +210,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       setExercises(list);
       loadDone(session.id ?? null);
       setPhase("active");
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to start"); }
+    } catch (e) { setError(friendlyMessage(e)); }
     finally { setBusy(false); }
   }, [templateId, name, today, exercises, exercisesFromSession]);
 
@@ -220,7 +221,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       await updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises), exerciseNotes: notesPayload(exercises), notes: workoutNote || null });
       await finishSession(sessionId);
       setPhase("done");
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to finish"); }
+    } catch (e) { setError(friendlyMessage(e)); }
     finally { setBusy(false); }
   }, [sessionId, name, today, exercises, workoutNote]);
 

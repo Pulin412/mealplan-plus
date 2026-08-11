@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { friendlyMessage } from "@/lib/api/errors";
 import { listPlans, isoOf, type DayPlanDto } from "@/lib/api/plans";
 import { listDiets, type DietDto } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
@@ -159,7 +160,7 @@ export function useGroceries() {
       const m = new Map<number, MealDto>(); ms.forEach((x) => x.id != null && m.set(x.id, x));
       const f = new Map<number, FoodDto>(); fs.forEach((x) => x.id != null && f.set(x.id, x));
       dietsRef.current = d; mealsRef.current = m; foodsRef.current = f;
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
+    } catch (e) { setError(friendlyMessage(e)); }
   }, []);
 
   const loadPlansFor = useCallback(async (y: number, mo: number) => {
@@ -174,7 +175,7 @@ export function useGroceries() {
       list.forEach((p) => { merged[isoOf(p.date)] = p; });
       plansRef.current = merged;
       setPlannedDates(new Set(Object.values(merged).filter((p) => p.dietId != null).map((p) => isoOf(p.date))));
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
+    } catch (e) { setError(friendlyMessage(e)); }
   }, [today, todayIso]);
 
   // Restore working state (selection + rows) after mount.
