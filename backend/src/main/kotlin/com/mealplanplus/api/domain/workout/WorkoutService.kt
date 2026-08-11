@@ -1,4 +1,5 @@
 package com.mealplanplus.api.domain.workout
+import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.ExerciseDto
 import com.mealplanplus.api.generated.model.ExerciseNoteDto
@@ -87,7 +88,7 @@ class WorkoutService(
     }
 
     fun getExercise(id: Long): ExerciseDto =
-        exerciseRepo.findById(id).orElseThrow().toDtoWithTags()
+        exerciseRepo.findById(id).orNotFound("Exercise").toDtoWithTags()
 
     @Transactional
     fun createExercise(dto: ExerciseDto, firebaseUid: String): ExerciseDto {
@@ -100,7 +101,7 @@ class WorkoutService(
 
     @Transactional
     fun updateExercise(id: Long, dto: ExerciseDto, firebaseUid: String): ExerciseDto {
-        val exercise = exerciseRepo.findById(id).orElseThrow()
+        val exercise = exerciseRepo.findById(id).orNotFound("Exercise")
         if (exercise.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         val updated = Exercise(id = exercise.id, firebaseUid = exercise.firebaseUid,
@@ -113,7 +114,7 @@ class WorkoutService(
 
     @Transactional
     fun deleteExercise(id: Long, firebaseUid: String) {
-        val exercise = exerciseRepo.findById(id).orElseThrow()
+        val exercise = exerciseRepo.findById(id).orNotFound("Exercise")
         if (exercise.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         entityTagRepo.deleteByEntityTypeAndEntityId(TagEntityType.EXERCISE, id)
@@ -217,7 +218,7 @@ class WorkoutService(
     }
 
     fun getTemplate(id: Long): WorkoutTemplateDto =
-        templateRepo.findById(id).orElseThrow().toFullDto()
+        templateRepo.findById(id).orNotFound("Workout").toFullDto()
 
     @Transactional
     fun createTemplate(dto: WorkoutTemplateDto, firebaseUid: String): WorkoutTemplateDto {
@@ -230,7 +231,7 @@ class WorkoutService(
 
     @Transactional
     fun updateTemplate(id: Long, dto: WorkoutTemplateDto, firebaseUid: String): WorkoutTemplateDto {
-        val existing = templateRepo.findById(id).orElseThrow()
+        val existing = templateRepo.findById(id).orNotFound("Workout")
         if (existing.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         val updated = WorkoutTemplate(id = existing.id, firebaseUid = firebaseUid,
@@ -245,7 +246,7 @@ class WorkoutService(
 
     @Transactional
     fun deleteTemplate(id: Long, firebaseUid: String) {
-        val template = templateRepo.findById(id).orElseThrow()
+        val template = templateRepo.findById(id).orNotFound("Workout")
         if (template.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         deleteTemplateExercises(id)
@@ -288,7 +289,7 @@ class WorkoutService(
 
     @Transactional
     fun startFromTemplate(templateId: Long, firebaseUid: String): WorkoutSessionDto {
-        val template = templateRepo.findById(templateId).orElseThrow()
+        val template = templateRepo.findById(templateId).orNotFound("Workout")
         val session = WorkoutSession(firebaseUid = firebaseUid, name = template.name,
             date = LocalDate.now(), isCompleted = false)
         val saved = sessionRepo.save(session)
@@ -318,7 +319,7 @@ class WorkoutService(
     }
 
     fun getSession(id: Long): WorkoutSessionDto {
-        val session = sessionRepo.findById(id).orElseThrow()
+        val session = sessionRepo.findById(id).orNotFound("Workout session")
         return session.toDto(setRepo.findBySessionId(session.id), exerciseNoteRepo.findBySessionId(session.id))
     }
 
@@ -340,7 +341,7 @@ class WorkoutService(
 
     @Transactional
     fun updateSession(id: Long, dto: WorkoutSessionDto, firebaseUid: String): WorkoutSessionDto {
-        val session = sessionRepo.findById(id).orElseThrow()
+        val session = sessionRepo.findById(id).orNotFound("Workout session")
         if (session.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         setRepo.deleteBySessionId(id)
@@ -367,7 +368,7 @@ class WorkoutService(
     /** Marks a session complete and upserts — replaces an existing log for the same (uid, date, name). */
     @Transactional
     fun finishSession(id: Long, firebaseUid: String): WorkoutSessionDto {
-        val session = sessionRepo.findById(id).orElseThrow()
+        val session = sessionRepo.findById(id).orNotFound("Workout session")
         if (session.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         val finished = WorkoutSession(id = session.id, firebaseUid = session.firebaseUid,
@@ -398,7 +399,7 @@ class WorkoutService(
 
     @Transactional
     fun deleteSession(id: Long, firebaseUid: String) {
-        val session = sessionRepo.findById(id).orElseThrow()
+        val session = sessionRepo.findById(id).orNotFound("Workout session")
         if (session.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         setRepo.deleteBySessionId(id)
