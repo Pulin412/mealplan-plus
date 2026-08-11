@@ -33,6 +33,11 @@ class User(
     @Column(nullable = false)
     var isSearchable: Boolean = true,
 
+    // Social notifications (follow/share) master switch — see V12. When false, no notifications
+    // are generated for this user.
+    @Column(nullable = false)
+    var socialNotificationsEnabled: Boolean = true,
+
     var age: Int? = null,
     var weightKg: Double? = null,
     var heightCm: Double? = null,

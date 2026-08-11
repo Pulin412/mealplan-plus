@@ -2,6 +2,8 @@ package com.mealplanplus.api.domain.social
 
 import com.mealplanplus.api.generated.api.SocialApi
 import com.mealplanplus.api.generated.model.HandleAvailabilityDto
+import com.mealplanplus.api.generated.model.NotificationListDto
+import com.mealplanplus.api.generated.model.NotificationPrefsDto
 import com.mealplanplus.api.generated.model.ProfileUpdateRequest
 import com.mealplanplus.api.generated.model.PublicProfileDto
 import com.mealplanplus.api.generated.model.CopyRequest
@@ -20,7 +22,24 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 @RestController
-class SocialController(private val service: SocialService) : SocialApi {
+class SocialController(
+    private val service: SocialService,
+    private val notifications: NotificationService,
+) : SocialApi {
+
+    override fun listNotifications(limit: Int): ResponseEntity<NotificationListDto> =
+        ResponseEntity.ok(notifications.list(currentUid(), limit))
+
+    override fun markNotificationsRead(): ResponseEntity<Unit> {
+        notifications.markAllRead(currentUid())
+        return ResponseEntity.noContent().build()
+    }
+
+    override fun getNotificationPrefs(): ResponseEntity<NotificationPrefsDto> =
+        ResponseEntity.ok(notifications.getPrefs(currentUid()))
+
+    override fun updateNotificationPrefs(notificationPrefsDto: NotificationPrefsDto): ResponseEntity<NotificationPrefsDto> =
+        ResponseEntity.ok(notifications.setPrefs(currentUid(), notificationPrefsDto.enabled))
 
     override fun updateMyProfile(profileUpdateRequest: ProfileUpdateRequest): ResponseEntity<UserResponse> =
         ResponseEntity.ok(service.updateMyProfile(currentUid(), profileUpdateRequest))
