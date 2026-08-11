@@ -1,5 +1,7 @@
 package com.mealplanplus.ui.screens.meals
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -79,6 +81,9 @@ import com.mealplanplus.ui.components.AppCard
 import com.mealplanplus.ui.components.CalorieValue
 import com.mealplanplus.ui.components.FavoriteStar
 import com.mealplanplus.ui.components.ShareToggle
+import com.mealplanplus.ui.components.UnsavedChangesDialog
+import com.mealplanplus.ui.navigation.LocalUnsavedChangesController
+import com.mealplanplus.ui.navigation.UnsavedChangesController
 import com.mealplanplus.ui.components.MacroText
 import com.mealplanplus.ui.components.SegmentedControl
 import com.mealplanplus.ui.theme.AppBg
@@ -505,6 +510,31 @@ private fun NewMealSheet(viewModel: MealViewModel) {
         }
     }
     var addMode by remember { mutableStateOf(AddMode.NONE) }
+    var dirty by remember(editing?.id) { mutableStateOf(false) }
+    var showConfirm by remember { mutableStateOf(false) }
+
+    val canSave = name.isNotBlank() && items.isNotEmpty()
+    fun save() {
+        viewModel.createMeal(name.trim(), slots.toList(),
+            items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) })
+    }
+    fun attemptClose() { if (dirty) showConfirm = true else viewModel.closeNewMeal() }
+    BackHandler(enabled = addMode == AddMode.NONE) { attemptClose() }
+
+    // Register with the app-level guard so bottom-nav taps also prompt while dirty.
+    val unsaved = LocalUnsavedChangesController.current
+    DisposableEffect(dirty, canSave) {
+        unsaved.guard = if (dirty) UnsavedChangesController.Guard(canSave, { save() }, { viewModel.closeNewMeal() }) else null
+        onDispose { unsaved.guard = null }
+    }
+    if (showConfirm) {
+        UnsavedChangesDialog(
+            canSave = canSave,
+            onSave = { showConfirm = false; save() },
+            onDiscard = { showConfirm = false; viewModel.closeNewMeal() },
+            onDismiss = { showConfirm = false },
+        )
+    }
 
     val totalKcal = items.sumOf { (it.kcalPer100 * it.grams / 100.0) }.roundToInt()
     val p = items.sumOf { it.proteinPer100 * it.grams / 100.0 }
@@ -512,11 +542,11 @@ private fun NewMealSheet(viewModel: MealViewModel) {
     val f = items.sumOf { it.fatPer100 * it.grams / 100.0 }
 
     fun addItem(bi: BuildItem) {
-        if (items.none { it.foodId == bi.foodId }) items.add(bi)
+        if (items.none { it.foodId == bi.foodId }) { items.add(bi); dirty = true }
     }
     fun setQty(foodId: String, q: Double) {
         val idx = items.indexOfFirst { it.foodId == foodId }
-        if (idx >= 0) items[idx] = items[idx].copy(quantity = q)
+        if (idx >= 0) { items[idx] = items[idx].copy(quantity = q); dirty = true }
     }
 
     Column(Modifier.fillMaxSize().background(AppBg)) {
@@ -524,7 +554,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
             // ── Builder body ─────────────────────────────────────────────────
             Row(verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
-                IconButton(onClick = viewModel::closeNewMeal) { Icon(Icons.Default.Close, "Close", tint = Ink) }
+                IconButton(onClick = { attemptClose() }) { Icon(Icons.Default.Close, "Close", tint = Ink) }
                 Text(if (editing != null) "Edit meal" else "New meal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                 if (editing != null) {
                     Spacer(Modifier.weight(1f))
@@ -534,7 +564,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 Label("Meal name")
-                OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
+                OutlinedTextField(value = name, onValueChange = { name = it; dirty = true }, singleLine = true,
                     placeholder = { Text("e.g. Chicken rice bowl", fontSize = 13.sp, color = MutedLight) },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp))
 
@@ -552,7 +582,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                             modifier = Modifier.clip(RoundedCornerShape(20.dp))
                                 .background(if (on) Teal else Color.Transparent)
                                 .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
-                                .clickable { if (on) slots.remove(slot) else slots.add(slot) }
+                                .clickable { dirty = true; if (on) slots.remove(slot) else slots.add(slot) }
                                 .padding(horizontal = 11.dp, vertical = 6.dp))
                     }
                 }
@@ -576,7 +606,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                             QtyField(bi.foodId, bi.quantity, bi.unit) { setQty(bi.foodId, it) }
                             Spacer(Modifier.width(8.dp))
                             Text("✕", fontSize = 13.sp, color = DeleteColor,
-                                modifier = Modifier.clickable { items.removeAll { it.foodId == bi.foodId } })
+                                modifier = Modifier.clickable { items.removeAll { it.foodId == bi.foodId }; dirty = true })
                         }
                         Divider(color = SurfaceMuted)
                     }
@@ -593,13 +623,9 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                 }
                 Spacer(Modifier.height(16.dp))
             }
-            val canSave = name.isNotBlank() && items.isNotEmpty()
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(16.dp)
                 .clip(RoundedCornerShape(12.dp)).background(if (canSave) Teal else BorderCool)
-                .clickable(enabled = canSave) {
-                    viewModel.createMeal(name.trim(), slots.toList(),
-                        items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) })
-                }.padding(vertical = 14.dp)) {
+                .clickable(enabled = canSave) { save() }.padding(vertical = 14.dp)) {
                 Text(if (editing != null) "Save changes" else "Save meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) OnAccent else MutedLight)
             }
         } else {

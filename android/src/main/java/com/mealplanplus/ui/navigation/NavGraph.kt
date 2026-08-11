@@ -17,6 +17,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import com.mealplanplus.ui.components.UnsavedChangesDialog
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
@@ -131,7 +133,14 @@ fun MealPlanNavHost() {
     val tour = rememberTourController()
     LaunchedEffect(Unit) { if (!tourSeen) tour.start() }
 
-    CompositionLocalProvider(LocalTourController provides tour) {
+    // Guards navigation away from a dirty create/edit screen via routes those screens can't intercept
+    // themselves (bottom-nav tab taps). System-back and the editor's X are handled inside each editor.
+    val unsavedController = remember { UnsavedChangesController() }
+
+    CompositionLocalProvider(
+        LocalTourController provides tour,
+        LocalUnsavedChangesController provides unsavedController,
+    ) {
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         bottomBar = {
@@ -146,11 +155,14 @@ fun MealPlanNavHost() {
                                 // transient screens (Profile, Settings, Meals…) pushed on top.
                                 // No saveState/restoreState — that captured non-tab screens into a
                                 // tab's state and resurrected them (e.g. Home re-opening Profile).
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        inclusive = false
+                                // Routed through the guard so a dirty editor prompts first.
+                                unsavedController.attempt {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            inclusive = false
+                                        }
+                                        launchSingleTop = true
                                     }
-                                    launchSingleTop = true
                                 }
                             },
                             icon  = { Icon(icon, contentDescription = screen.label) },
@@ -280,6 +292,16 @@ fun MealPlanNavHost() {
 
         if (tour.running) {
             TourOverlay(tour, navController, onFinish = { tourViewModel.markSeen() })
+        }
+
+        // Prompt when a dirty editor is being left via guarded navigation (bottom-nav tab tap).
+        if (unsavedController.pending != null) {
+            UnsavedChangesDialog(
+                canSave = unsavedController.guard?.canSave == true,
+                onSave = { unsavedController.resolveSave() },
+                onDiscard = { unsavedController.resolveDiscard() },
+                onDismiss = { unsavedController.cancel() },
+            )
         }
     }
     }

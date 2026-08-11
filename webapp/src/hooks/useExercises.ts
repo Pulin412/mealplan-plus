@@ -44,6 +44,8 @@ export interface WorkoutBuilder {
   tagIds: Set<number>;
   pickerOpen: boolean;
   pickerSearch: string;
+  /** True once the user edits anything — drives the unsaved-changes exit guard. */
+  dirty: boolean;
 }
 
 const newSet = (): BuilderSet => ({ reps: 10, weightKg: null });
@@ -190,11 +192,11 @@ export function useExercises() {
 
   // ── Workout builder ──────────────────────────────────────────────────────────
   const openNewWorkout = useCallback(() => {
-    setBuilder({ id: null, name: "", items: [], tagIds: new Set(), pickerOpen: false, pickerSearch: "" });
+    setBuilder({ id: null, name: "", items: [], tagIds: new Set(), pickerOpen: false, pickerSearch: "", dirty: false });
   }, []);
   const openEditWorkout = useCallback((w: WorkoutTemplateDto) => {
     setBuilder({
-      id: w.id ?? null, name: w.name, pickerOpen: false, pickerSearch: "",
+      id: w.id ?? null, name: w.name, pickerOpen: false, pickerSearch: "", dirty: false,
       tagIds: new Set(w.tagIds ?? []),
       items: (w.exercises ?? []).map((te) => {
         const sets = [...(te.sets ?? [])]
@@ -209,7 +211,7 @@ export function useExercises() {
     });
   }, []);
   const closeBuilder = useCallback(() => setBuilder(null), []);
-  const setBuilderName = useCallback((name: string) => setBuilder((b) => b && { ...b, name }), []);
+  const setBuilderName = useCallback((name: string) => setBuilder((b) => b && { ...b, name, dirty: true }), []);
   const openPicker = useCallback(() => setBuilder((b) => b && { ...b, pickerOpen: true, pickerSearch: "" }), []);
   const closePicker = useCallback(() => setBuilder((b) => b && { ...b, pickerOpen: false }), []);
   const setPickerSearch = useCallback((pickerSearch: string) => setBuilder((b) => b && { ...b, pickerSearch }), []);
@@ -218,18 +220,18 @@ export function useExercises() {
     setBuilder((b) => {
       if (!b || e.id == null) return b;
       if (b.items.some((it) => it.exerciseId === e.id)) return b;
-      return { ...b, pickerOpen: false, items: [...b.items, { exerciseId: e.id, name: e.name, sets: [newSet()] }] };
+      return { ...b, pickerOpen: false, items: [...b.items, { exerciseId: e.id, name: e.name, sets: [newSet()] }], dirty: true };
     });
   }, []);
   const removeFromBuilder = useCallback((exerciseId: number) => {
-    setBuilder((b) => b && { ...b, items: b.items.filter((it) => it.exerciseId !== exerciseId) });
+    setBuilder((b) => b && { ...b, items: b.items.filter((it) => it.exerciseId !== exerciseId), dirty: true });
   }, []);
   const toggleBuilderTag = useCallback((tagId: number) => {
     setBuilder((b) => {
       if (!b) return b;
       const next = new Set(b.tagIds);
       if (next.has(tagId)) next.delete(tagId); else next.add(tagId);
-      return { ...b, tagIds: next };
+      return { ...b, tagIds: next, dirty: true };
     });
   }, []);
   /** Create a new WORKOUT tag and immediately assign it to the open builder. */
@@ -239,7 +241,7 @@ export function useExercises() {
     try {
       const t = await createWorkoutTag(n);
       setWorkoutTags((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
-      setBuilder((b) => b && { ...b, tagIds: new Set(b.tagIds).add(t.id) });
+      setBuilder((b) => b && { ...b, tagIds: new Set(b.tagIds).add(t.id), dirty: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create tag");
     }
@@ -247,7 +249,7 @@ export function useExercises() {
 
   // ── Per-set editing ──────────────────────────────────────────────────────────
   const updateItem = useCallback((exerciseId: number, f: (it: BuilderItem) => BuilderItem) => {
-    setBuilder((b) => b && { ...b, items: b.items.map((it) => (it.exerciseId === exerciseId ? f(it) : it)) });
+    setBuilder((b) => b && { ...b, items: b.items.map((it) => (it.exerciseId === exerciseId ? f(it) : it)), dirty: true });
   }, []);
   const updateSet = useCallback((exerciseId: number, index: number, f: (s: BuilderSet) => BuilderSet) => {
     updateItem(exerciseId, (it) => ({ ...it, sets: it.sets.map((s, i) => (i === index ? f(s) : s)) }));

@@ -59,8 +59,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.data.generated.model.ExerciseDto
 import com.mealplanplus.data.generated.model.TagDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.DisposableEffect
 import com.mealplanplus.ui.components.AppCard
 import com.mealplanplus.ui.components.Stepper
+import com.mealplanplus.ui.components.UnsavedChangesDialog
+import com.mealplanplus.ui.navigation.LocalUnsavedChangesController
+import com.mealplanplus.ui.navigation.UnsavedChangesController
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderCool
 import com.mealplanplus.ui.theme.CardBorder
@@ -582,8 +587,26 @@ private fun TagAssignBlock(tags: List<TagDto>, selected: Set<Long>, onToggle: (L
 @Composable
 private fun WorkoutBuilderScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
     val b = state.builder ?: return
+    var showConfirm by remember { mutableStateOf(false) }
+    fun attemptClose() { if (b.dirty) showConfirm = true else vm.closeBuilder() }
+    BackHandler { attemptClose() }
+
+    // Register with the app-level guard so bottom-nav taps also prompt while dirty.
+    val unsaved = LocalUnsavedChangesController.current
+    DisposableEffect(b.dirty, b.canSave) {
+        unsaved.guard = if (b.dirty) UnsavedChangesController.Guard(b.canSave, { vm.saveWorkout() }, { vm.closeBuilder() }) else null
+        onDispose { unsaved.guard = null }
+    }
+    if (showConfirm) {
+        UnsavedChangesDialog(
+            canSave = b.canSave,
+            onSave = { showConfirm = false; vm.saveWorkout() },
+            onDiscard = { showConfirm = false; vm.closeBuilder() },
+            onDismiss = { showConfirm = false },
+        )
+    }
     Column(Modifier.fillMaxSize().background(AppBg)) {
-        EditorHeader(if (b.id == null) "New workout" else "Edit workout", onBack = vm::closeBuilder)
+        EditorHeader(if (b.id == null) "New workout" else "Edit workout", onBack = { attemptClose() })
         // Scrollable middle so all exercises + their sets are reachable.
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Label("Name")

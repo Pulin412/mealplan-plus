@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
+import { UnsavedGuardProvider } from "@/hooks/useUnsavedGuard";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 // DM Mono for numerals (spec §3) — uncomment once @next/font is available:
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider><UnsavedGuardProvider>{children}</UnsavedGuardProvider></AuthProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

@@ -62,6 +62,8 @@ data class WorkoutBuilder(
     val tagIds: Set<Long> = emptySet(),
     val pickerOpen: Boolean = false,
     val pickerSearch: String = "",
+    /** True once the user edits anything — drives the unsaved-changes exit guard. */
+    val dirty: Boolean = false,
 ) {
     val canSave: Boolean get() = name.isNotBlank() && items.isNotEmpty()
 }
@@ -279,7 +281,7 @@ class ExercisesViewModel @Inject constructor(
         )
     }
     fun closeBuilder() { _state.value = _state.value.copy(builder = null) }
-    fun setBuilderName(name: String) { _state.value = _state.value.copy(builder = _state.value.builder?.copy(name = name)) }
+    fun setBuilderName(name: String) { _state.value = _state.value.copy(builder = _state.value.builder?.copy(name = name, dirty = true)) }
     fun openPicker() { _state.value = _state.value.copy(builder = _state.value.builder?.copy(pickerOpen = true, pickerSearch = "")) }
     fun closePicker() { _state.value = _state.value.copy(builder = _state.value.builder?.copy(pickerOpen = false)) }
     fun setPickerSearch(q: String) { _state.value = _state.value.copy(builder = _state.value.builder?.copy(pickerSearch = q)) }
@@ -288,17 +290,17 @@ class ExercisesViewModel @Inject constructor(
         val b = _state.value.builder ?: return
         val id = e.id ?: return
         if (b.items.any { it.exerciseId == id }) return
-        _state.value = _state.value.copy(builder = b.copy(items = b.items + BuilderItem(id, e.name), pickerOpen = false))
+        _state.value = _state.value.copy(builder = b.copy(items = b.items + BuilderItem(id, e.name), pickerOpen = false, dirty = true))
     }
     fun removeFromBuilder(exerciseId: Long) {
         val b = _state.value.builder ?: return
-        _state.value = _state.value.copy(builder = b.copy(items = b.items.filterNot { it.exerciseId == exerciseId }))
+        _state.value = _state.value.copy(builder = b.copy(items = b.items.filterNot { it.exerciseId == exerciseId }, dirty = true))
     }
 
     fun toggleBuilderTag(tagId: Long) {
         val b = _state.value.builder ?: return
         val next = if (tagId in b.tagIds) b.tagIds - tagId else b.tagIds + tagId
-        _state.value = _state.value.copy(builder = b.copy(tagIds = next))
+        _state.value = _state.value.copy(builder = b.copy(tagIds = next, dirty = true))
     }
 
     /** Create a new WORKOUT tag and immediately assign it to the open builder. */
@@ -308,7 +310,7 @@ class ExercisesViewModel @Inject constructor(
             val tag = workoutRepo.createTag(name) ?: return@launch
             _state.update { st ->
                 val wt = if (st.workoutTags.any { it.id == tag.id }) st.workoutTags else st.workoutTags + tag
-                st.copy(workoutTags = wt, builder = st.builder?.let { it.copy(tagIds = it.tagIds + tag.id) })
+                st.copy(workoutTags = wt, builder = st.builder?.let { it.copy(tagIds = it.tagIds + tag.id, dirty = true) })
             }
         }
     }
@@ -332,7 +334,7 @@ class ExercisesViewModel @Inject constructor(
     }
     private fun updateItem(exerciseId: Long, f: (BuilderItem) -> BuilderItem) {
         val b = _state.value.builder ?: return
-        _state.value = _state.value.copy(builder = b.copy(items = b.items.map { if (it.exerciseId == exerciseId) f(it) else it }))
+        _state.value = _state.value.copy(builder = b.copy(items = b.items.map { if (it.exerciseId == exerciseId) f(it) else it }, dirty = true))
     }
 
     /** Library exercises not already in the builder, filtered by the picker search. */
