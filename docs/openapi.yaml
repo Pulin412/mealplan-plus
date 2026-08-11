@@ -2444,6 +2444,39 @@ components:
 
   schemas:
 
+    ApiError:
+      type: object
+      description: >
+        Stable, user-safe error envelope returned for every handled 4xx/5xx response.
+        Never contains stacktraces or internal exception detail. `code` is a stable
+        machine string each client maps to a friendly, localized message; `requestId`
+        ties the error to server logs + Sentry (also returned in the `X-Request-Id`
+        response header) so a support ticket quoting it is traceable to one incident.
+      required: [code, message, requestId, timestamp, path]
+      properties:
+        code:
+          type: string
+          description: >
+            Stable error code. One of: VALIDATION, BAD_REQUEST, UNAUTHORIZED,
+            FORBIDDEN, NOT_FOUND, CONFLICT, INTERNAL, SERVICE_UNAVAILABLE.
+          example: INTERNAL
+        message:
+          type: string
+          description: Safe human-readable fallback; clients may override it via `code`.
+          example: Something went wrong. Please try again.
+        requestId:
+          type: string
+          description: Correlation id (also in the X-Request-Id response header).
+          example: a1b2c3d4
+        timestamp:
+          type: string
+          format: date-time
+          description: Server time the error was produced (UTC).
+        path:
+          type: string
+          description: Request path that produced the error.
+          example: /api/v1/diets
+
     FeedbackRequestDto:
       type: object
       required: [message]
