@@ -10,6 +10,7 @@ class Meal(
     val id: Long = 0,
     val firebaseUid: String = "",
     val name: String = "",
+    var notes: String? = null,
     var isFavorite: Boolean = false,
     @Convert(converter = StringListConverter::class)
     @Column(columnDefinition = "text")

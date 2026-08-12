@@ -53,7 +53,7 @@ class MealService(
 
     @Transactional
     fun create(dto: MealDto, firebaseUid: String): MealDto {
-        val meal = Meal(firebaseUid = firebaseUid, name = dto.name, isFavorite = dto.isFavorite ?: false,
+        val meal = Meal(firebaseUid = firebaseUid, name = dto.name, notes = dto.notes, isFavorite = dto.isFavorite ?: false,
             slots = dto.slots ?: emptyList())
             .also { if (dto.serverId != null) it.serverId = UUID.fromString(dto.serverId.toString()) }
         val saved = mealRepo.save(meal)
@@ -71,7 +71,7 @@ class MealService(
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         itemRepo.deleteByMealId(id)
         val updated = Meal(id = meal.id, firebaseUid = meal.firebaseUid,
-            name = dto.name, isFavorite = meal.isFavorite, slots = dto.slots ?: meal.slots)
+            name = dto.name, notes = dto.notes, isFavorite = meal.isFavorite, slots = dto.slots ?: meal.slots)
             .also { it.serverId = meal.serverId }
         val saved = mealRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
@@ -168,7 +168,7 @@ class MealService(
         itemRepo.deleteByMealId(existing.id)
         val updated = Meal(id = existing.id, firebaseUid = existing.firebaseUid,
             // Honour the client's favourite flag (sync-push is the only path clients use to toggle it).
-            name = dto.name, isFavorite = dto.isFavorite ?: existing.isFavorite, slots = dto.slots ?: existing.slots)
+            name = dto.name, notes = dto.notes ?: existing.notes, isFavorite = dto.isFavorite ?: existing.isFavorite, slots = dto.slots ?: existing.slots)
             .also { it.serverId = existing.serverId }
         val saved = mealRepo.save(updated)
         val items = (dto.items ?: emptyList()).map { item ->
@@ -194,6 +194,7 @@ fun Meal.toDto(items: List<MealFoodItem>, foodServerIds: Map<Long, UUID>) = Meal
     serverId    = serverId,
     firebaseUid = firebaseUid,
     name        = name,
+    notes       = notes,
     slots       = slots,
     items       = items.map { it.toDto(foodServerIds) },
     isFavorite  = isFavorite,
