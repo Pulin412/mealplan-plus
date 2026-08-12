@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NoteBadge } from "@/components/NoteBadge";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { useMeals, type BuildItem, type MealView } from "@/hooks/useMeals";
@@ -51,6 +52,7 @@ function MealCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEd
             <span className="text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{v.meal.name}</span>
             {slots[0] && <SlotBadge slot={slots[0]} />}
             {slots.length > 1 && <span className="text-[9px]" style={{ color: C.muted2 }}>+{slots.length - 1}</span>}
+            <NoteBadge note={v.meal.notes} />
           </div>
           <div className="text-[10.5px] truncate mt-0.5" style={{ color: C.muted2 }}>{v.summary}</div>
         </div>
@@ -146,10 +148,11 @@ function NewFoodForm({ onCancel, onCreate }: { onCancel: () => void; onCreate: (
 // ── Full-screen builder ────────────────────────────────────────────────────────
 function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onClose }: {
   editing: MealDto | null; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
-  saving: boolean; onSave: (name: string, slots: string[], items: BuildItem[]) => void;
+  saving: boolean; onSave: (name: string, slots: string[], items: BuildItem[], notes: string) => void;
   onDelete: () => void; onClose: () => void;
 }) {
   const [name, setName] = useState(editing?.name ?? "");
+  const [notes, setNotes] = useState(editing?.notes ?? "");
   const [slots, setSlots] = useState<string[]>(editing?.slots ?? []);
   const [items, setItems] = useState<BuildItem[]>(
     (editing?.items ?? []).filter((it) => it.foodId != null).map((it) => ({ foodId: it.foodId!, quantity: it.quantity, unit: it.unit }))
@@ -174,7 +177,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
   const addFood = (f: FoodDto) => { if (f.id != null && !items.some((it) => it.foodId === f.id)) { setItems((prev) => [...prev, { foodId: f.id!, quantity: defaultQtyFor(f.unit ?? "GRAM"), unit: (f.unit ?? "GRAM") }]); setDirty(true); } };
 
   const canSave = name.trim() !== "" && items.length > 0;
-  const doSave = () => onSave(name, slots, items);
+  const doSave = () => onSave(name, slots, items, notes);
 
   // Guard bottom-nav taps / ✕ while there are unsaved changes.
   const { setGuard, attempt } = useUnsavedGuard();
@@ -182,7 +185,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
     setGuard(dirty ? { canSave, onSave: doSave, onDiscard: onClose } : null);
     return () => setGuard(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, canSave, name, slots, items]);
+  }, [dirty, canSave, name, slots, items, notes]);
 
   const pickList = foods.filter((f) => !pickQuery || f.name.toLowerCase().includes(pickQuery.toLowerCase()));
 
@@ -214,6 +217,14 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
             );
           })}
         </div>
+
+        <div className="flex items-baseline mb-2">
+          <span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Notes</span>
+          <span className="text-[11px] ml-1" style={{ color: C.muted2 }}>· optional</span>
+        </div>
+        <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setDirty(true); }} rows={2}
+          placeholder="e.g. prep the night before"
+          className="w-full border rounded-[11px] px-3 py-[10px] text-[13px] mb-4 resize-none" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
 
         <div className="flex items-center mb-2">
           <span className="text-[12.5px] font-semibold" style={{ color: C.ink }}>Food items</span>
@@ -291,7 +302,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
       </div>
 
       <div className="flex-none p-4">
-        <button onClick={() => onSave(name, slots, items)} disabled={!canSave || saving}
+        <button onClick={() => onSave(name, slots, items, notes)} disabled={!canSave || saving}
           className="w-full rounded-[12px] py-[14px] text-[13px] font-semibold" style={{ background: canSave ? C.teal : C.bgAlt, color: canSave ? "#fff" : C.muted2 }}>
           {saving ? "Saving…" : editing ? "Save changes" : "Save meal"}
         </button>

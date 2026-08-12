@@ -163,11 +163,11 @@ export function useDiets() {
   const openEdit = useCallback((diet: DietDto) => { setEditing(diet); setBuilderOpen(true); }, []);
   const closeBuilder = useCallback(() => { setBuilderOpen(false); setEditing(null); }, []);
 
-  const saveDiet = useCallback(async (name: string, entries: DietEntryInput[], tagIds: number[]) => {
+  const saveDiet = useCallback(async (name: string, entries: DietEntryInput[], tagIds: number[], notes?: string | null) => {
     if (!name.trim() || entries.length === 0) return;
     setSaving(true);
     try {
-      const input = { name: name.trim(), entries, tagIds };
+      const input = { name: name.trim(), entries, tagIds, notes: notes?.trim() || null };
       if (editing?.id != null) await updateDiet(editing.id, input);
       else await createDiet(input);
       await reload();

@@ -12,7 +12,7 @@ import { foodMacros, unitLabel, MEAL_SLOTS, num } from "@/lib/nutrition";
 
 export interface DietLine { name: string; meta: string; header: boolean }
 export interface DietSlotView { slot: string; kcal: number; lines: DietLine[] }
-export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[]; tags: string[] }
+export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[]; tags: string[]; description?: string | null }
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
@@ -49,7 +49,7 @@ function resolveDiet(d: DietDto, mealsById: Map<number, MealDto>, foodsById: Map
   const order = [...MEAL_SLOTS.filter((s) => bySlot.has(s)), ...allSlots.filter((s) => !MEAL_SLOTS.includes(s))];
   const slots = order.map((slot) => ({ slot, kcal: Math.round(slotKcal.get(slot) ?? 0), lines: bySlot.get(slot)! }));
   const tags = (d.tags ?? []).map((t) => t.name);
-  return { id: d.id!, name: d.name, kcal: Math.round(total), slots, tags };
+  return { id: d.id!, name: d.name, kcal: Math.round(total), slots, tags, description: d.description ?? null };
 }
 
 export function usePlan() {

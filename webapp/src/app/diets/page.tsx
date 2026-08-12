@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NoteBadge } from "@/components/NoteBadge";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
@@ -59,7 +60,10 @@ function DietCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEd
     <div onClick={onToggle} className={wrapClass} style={wrapStyle}>
       <div className="flex items-center gap-[10px]">
         <div className="flex-1 min-w-0">
-          <div className="text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{v.diet.name}</div>
+          <div className="flex items-center gap-[6px]">
+            <span className="text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{v.diet.name}</span>
+            <NoteBadge note={v.diet.description} />
+          </div>
           <div className="text-[10.5px] truncate mt-0.5" style={{ color: C.muted2 }}>{v.summary}</div>
           {v.tagNames.length > 0 && (
             <div className="flex gap-[4px] mt-[4px] flex-wrap">
@@ -96,10 +100,11 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
   editing: DietDto | null; meals: MealDto[]; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
   mealSummaries: Map<number, MealSummary>; availableTags: TagDto[]; saving: boolean;
   onCreateTag: (name: string) => Promise<TagDto | null>;
-  onSave: (name: string, entries: DietEntryInput[], tagIds: number[]) => void;
+  onSave: (name: string, entries: DietEntryInput[], tagIds: number[], notes: string) => void;
   onDelete: () => void; onClose: () => void;
 }) {
   const [name, setName] = useState(editing?.name ?? "");
+  const [notes, setNotes] = useState(editing?.description ?? "");
   const [entries, setEntries] = useState<BuildEntry[]>(() => {
     const out: BuildEntry[] = [];
     (editing?.meals ?? []).forEach((dm) => { if (dm.mealId != null) out.push({ kind: "meal", refId: dm.mealId, slot: dm.slot, quantity: 1, unit: "GRAM", name: mealSummaries.get(dm.mealId)?.name ?? "Meal" }); });
@@ -130,7 +135,7 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
 
   const groupedSlots = slotOrderLocal(entries.map((e) => e.slot));
   const canSave = name.trim() !== "" && entries.length > 0;
-  const doSave = () => onSave(name, entries.map((e) => ({ kind: e.kind, refId: e.refId, slot: e.slot, quantity: e.quantity, unit: e.unit as DietEntryInput["unit"] })), selTags.map((t) => t.id));
+  const doSave = () => onSave(name, entries.map((e) => ({ kind: e.kind, refId: e.refId, slot: e.slot, quantity: e.quantity, unit: e.unit as DietEntryInput["unit"] })), selTags.map((t) => t.id), notes);
 
   // Guard bottom-nav taps / ✕ while there are unsaved changes.
   const { setGuard, attempt } = useUnsavedGuard();
@@ -138,7 +143,7 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
     setGuard(dirty ? { canSave, onSave: doSave, onDiscard: onClose } : null);
     return () => setGuard(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, canSave, name, entries, selTags]);
+  }, [dirty, canSave, name, entries, selTags, notes]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: C.bg }}>
@@ -155,6 +160,10 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
             <label className="block text-[11px] font-semibold mb-[5px] mt-2" style={{ color: C.muted3 }}>Diet name</label>
             <input value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} placeholder="e.g. High-protein day"
               className="w-full border rounded-[11px] px-3 py-[11px] text-[13px] mb-[14px]" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
+
+            <div className="flex items-baseline mb-2"><span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Notes</span><span className="text-[11px] ml-1" style={{ color: C.muted2 }}>· optional</span></div>
+            <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setDirty(true); }} rows={2} placeholder="e.g. cut day, keep carbs low"
+              className="w-full border rounded-[11px] px-3 py-[10px] text-[13px] mb-[14px] resize-none" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
 
             <div className="flex items-baseline mb-2"><span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Tags</span><span className="text-[11px] ml-1" style={{ color: C.muted2 }}>· optional</span></div>
             {shownTags.length > 0 && (

@@ -1672,6 +1672,8 @@ export interface components {
             /** Format: int64 */
             dietId?: number | null;
             dietName?: string | null;
+            /** @description The planned diet's free-text note, if any (shown on Home next to the diet name). */
+            dietNote?: string | null;
             calorieRing: components["schemas"]["CalorieRingDto"];
             macros: components["schemas"]["MacroPanelDto"];
             /** @description Planned meal slots enriched with logging state */
@@ -1728,6 +1730,8 @@ export interface components {
             /** Format: int64 */
             mealId?: number | null;
             mealName?: string | null;
+            /** @description The planned meal's free-text note, if any (shown on Home). */
+            mealNote?: string | null;
             /** @description Whether the user has toggled this slot as consumed today */
             isLogged: boolean;
             /** Format: double */
@@ -1875,6 +1879,8 @@ export interface components {
             serverId?: string | null;
             readonly firebaseUid?: string;
             name: string;
+            /** @description Optional free-text note for the meal (e.g. prep tips, context). */
+            notes?: string | null;
             /**
              * @description Meal slots this meal is tagged with (e.g. "Breakfast", "Post-workout").
              * @default []

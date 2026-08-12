@@ -125,21 +125,24 @@ export function useMeals() {
   const openEdit = useCallback((meal: MealDto) => { setEditing(meal); setBuilderOpen(true); }, []);
   const closeBuilder = useCallback(() => { setBuilderOpen(false); setEditing(null); }, []);
 
-  const saveMeal = useCallback(async (name: string, slots: string[], items: BuildItem[]) => {
+  const saveMeal = useCallback(async (name: string, slots: string[], items: BuildItem[], notes?: string | null) => {
     if (!name.trim() || items.length === 0) return;
     setSaving(true);
     try {
-      const input = { name: name.trim(), slots, items };
+      const input = { name: name.trim(), slots, items, notes: notes?.trim() || null };
       if (editing?.id != null) await updateMeal(editing.id, input);
       else await createMeal(input);
-      await reload();
+      // Refetch meals AND foods: a food created inline while building resolves only once the parent
+      // foods list includes it — otherwise the just-saved meal renders its item as "Unknown food".
+      const [m, f] = await Promise.all([listMeals(), listFoods()]);
+      setMeals(m); setFoods(f);
       closeBuilder();
     } catch (e) {
       setError(friendlyMessage(e));
     } finally {
       setSaving(false);
     }
-  }, [editing, reload, closeBuilder]);
+  }, [editing, closeBuilder]);
 
   return {
     meals: filtered, totalCount: meals.length, favCount, foods, foodsById,
