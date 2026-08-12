@@ -14,7 +14,7 @@ import com.mealplanplus.data.model.Meal
 
 @Database(
     entities  = [Food::class, Meal::class, Diet::class, CachedResponse::class],
-    version   = 10,  // v10: cached_response table — read-through cache via MIGRATION_9_10 (additive).
+    version   = 11,  // v11: meals.notes + diets.description — notes UI via MIGRATION_10_11 (additive).
     exportSchema = true
 )
 @TypeConverters(Converters::class)

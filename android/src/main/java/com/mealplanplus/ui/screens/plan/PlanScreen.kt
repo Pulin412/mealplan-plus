@@ -1,4 +1,5 @@
 package com.mealplanplus.ui.screens.plan
+import com.mealplanplus.ui.components.NoteBadge
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -509,7 +511,13 @@ private fun PickerDietCard(diet: DietSummary, selected: Boolean, expanded: Boole
         .clickable(onClick = onToggleExpand).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(diet.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(diet.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (!diet.description.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp)); NoteBadge(diet.description)
+                    }
+                }
                 if (diet.tags.isNotEmpty()) {
                     Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         diet.tags.take(3).forEach { tag ->

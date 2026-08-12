@@ -1,4 +1,5 @@
 package com.mealplanplus.ui.screens.meals
+import com.mealplanplus.ui.components.NoteBadge
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
@@ -321,6 +322,9 @@ private fun MealListCard(
                             Text("+${m.meal.slots.size - 1}", fontSize = 9.sp, color = MutedFaint)
                         }
                     }
+                    if (!m.meal.notes.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp)); NoteBadge(m.meal.notes)
+                    }
                 }
                 Text(m.itemsSummary, fontSize = 10.5.sp, color = MutedLight,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
@@ -393,6 +397,9 @@ private fun MealCompactRow(
                             Spacer(Modifier.width(4.dp))
                             Text("+${m.meal.slots.size - 1}", fontSize = 9.sp, color = MutedFaint)
                         }
+                    }
+                    if (!m.meal.notes.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp)); NoteBadge(m.meal.notes)
                     }
                 }
                 Text("${m.items.size} items", fontSize = 9.5.sp, color = MutedFaint)
@@ -499,6 +506,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
 
     val editing = state.editingMeal
     var name by remember(editing?.id) { mutableStateOf(editing?.name ?: "") }
+    var notes by remember(editing?.id) { mutableStateOf(editing?.notes ?: "") }
     val slots = remember(editing?.id) { mutableStateListOf<String>().apply { editing?.slots?.let { addAll(it) } } }
     val items = remember(editing?.id) {
         mutableStateListOf<BuildItem>().apply {
@@ -516,7 +524,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
     val canSave = name.isNotBlank() && items.isNotEmpty()
     fun save() {
         viewModel.createMeal(name.trim(), slots.toList(),
-            items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) })
+            items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) }, notes)
     }
     fun attemptClose() { if (dirty) showConfirm = true else viewModel.closeNewMeal() }
     BackHandler(enabled = addMode == AddMode.NONE) { attemptClose() }
@@ -586,6 +594,14 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                                 .padding(horizontal = 11.dp, vertical = 6.dp))
                     }
                 }
+
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Label("Notes")
+                    Text("  · optional", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.padding(bottom = 7.dp))
+                }
+                OutlinedTextField(value = notes, onValueChange = { notes = it; dirty = true },
+                    placeholder = { Text("e.g. prep the night before", fontSize = 13.sp, color = MutedLight) },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     Text("Food items", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)

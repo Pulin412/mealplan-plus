@@ -1,4 +1,5 @@
 package com.mealplanplus.ui.screens.diets
+import com.mealplanplus.ui.components.NoteBadge
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
@@ -306,8 +307,13 @@ private fun DietListCard(
     AppCard(modifier = Modifier.clickable(onClick = onToggleExpand)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
-                Text(d.diet.name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(d.diet.name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (!d.diet.description.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp)); NoteBadge(d.diet.description)
+                    }
+                }
                 Text(d.summary, fontSize = 10.5.sp, color = MutedLight,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
                 if (d.diet.tags.isNotEmpty()) {
@@ -407,8 +413,13 @@ private fun DietCompactRow(
     Column(Modifier.fillMaxWidth().clickable(onClick = onToggleExpand).padding(horizontal = 11.dp, vertical = 7.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(d.diet.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(d.diet.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (!d.diet.description.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp)); NoteBadge(d.diet.description)
+                    }
+                }
                 Text("${d.entryCount} items · ${d.slots.size} slots", fontSize = 9.5.sp, color = MutedFaint)
                 if (d.diet.tags.isNotEmpty()) {
                     Text(d.diet.tags.joinToString(" · ") { it.name },
@@ -485,6 +496,7 @@ private fun NewDietSheet(viewModel: DietViewModel) {
 
     val editing = state.editingDiet
     var name by remember(editing?.id) { mutableStateOf(editing?.name ?: "") }
+    var notes by remember(editing?.id) { mutableStateOf(editing?.description ?: "") }
     val entries = remember(editing?.id) {
         mutableStateListOf<BuildEntry>().apply {
             editing?.entries?.forEach { e ->
@@ -511,7 +523,7 @@ private fun NewDietSheet(viewModel: DietViewModel) {
     fun save() {
         viewModel.createDiet(name.trim(), entries.map {
             DietEntry(it.kind, it.refServerId, it.slot, it.quantity, it.unit)
-        }, selectedTags.toList())
+        }, selectedTags.toList(), notes)
     }
     fun attemptClose() { if (dirty) showConfirm = true else viewModel.closeNewDiet() }
     BackHandler { if (addOpen) addOpen = false else attemptClose() }
@@ -554,6 +566,14 @@ private fun NewDietSheet(viewModel: DietViewModel) {
                 Label("Diet name")
                 OutlinedTextField(value = name, onValueChange = { name = it; dirty = true }, singleLine = true,
                     placeholder = { Text("e.g. High-protein day", fontSize = 13.sp, color = MutedLight) },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp))
+
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Label("Notes")
+                    Text("  · optional", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.padding(bottom = 7.dp))
+                }
+                OutlinedTextField(value = notes, onValueChange = { notes = it; dirty = true },
+                    placeholder = { Text("e.g. cut day, keep carbs low", fontSize = 13.sp, color = MutedLight) },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp))
 
                 TagPicker(

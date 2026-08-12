@@ -25,14 +25,14 @@ class MealRepository @Inject constructor(
             meals.map { it.resolve(byId) }
         }
 
-    suspend fun create(name: String, slots: List<String>, items: List<MealItem>) {
-        mealDao.upsert(Meal(name = name.trim(), slots = slots, items = items, dirty = true))
+    suspend fun create(name: String, slots: List<String>, items: List<MealItem>, notes: String? = null) {
+        mealDao.upsert(Meal(name = name.trim(), notes = notes?.trim()?.ifBlank { null }, slots = slots, items = items, dirty = true))
     }
 
-    /** Overwrite an existing meal's name/slots/items (keeps id + favourite); marks dirty. */
-    suspend fun update(existing: Meal, name: String, slots: List<String>, items: List<MealItem>) {
+    /** Overwrite an existing meal's name/notes/slots/items (keeps id + favourite); marks dirty. */
+    suspend fun update(existing: Meal, name: String, slots: List<String>, items: List<MealItem>, notes: String? = null) {
         mealDao.upsert(existing.copy(
-            name = name.trim(), slots = slots, items = items,
+            name = name.trim(), notes = notes?.trim()?.ifBlank { null }, slots = slots, items = items,
             updatedAt = System.currentTimeMillis(), dirty = true,
         ))
     }

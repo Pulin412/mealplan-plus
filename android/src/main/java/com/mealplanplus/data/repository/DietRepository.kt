@@ -29,14 +29,14 @@ class DietRepository @Inject constructor(
             diets.map { it.resolve(mealsById, foodsById) }
         }
 
-    suspend fun create(name: String, entries: List<DietEntry>, tags: List<DietTag> = emptyList(), targetCalories: Double? = null) {
-        dietDao.upsert(Diet(name = name.trim(), entries = entries, tags = tags, targetCalories = targetCalories, dirty = true))
+    suspend fun create(name: String, entries: List<DietEntry>, tags: List<DietTag> = emptyList(), targetCalories: Double? = null, description: String? = null) {
+        dietDao.upsert(Diet(name = name.trim(), description = description?.trim()?.ifBlank { null }, entries = entries, tags = tags, targetCalories = targetCalories, dirty = true))
     }
 
-    /** Overwrite an existing diet's name/entries/tags (keeps id + favourite); marks dirty. */
-    suspend fun update(existing: Diet, name: String, entries: List<DietEntry>, tags: List<DietTag>) {
+    /** Overwrite an existing diet's name/notes/entries/tags (keeps id + favourite); marks dirty. */
+    suspend fun update(existing: Diet, name: String, entries: List<DietEntry>, tags: List<DietTag>, description: String? = null) {
         dietDao.upsert(existing.copy(
-            name = name.trim(), entries = entries, tags = tags,
+            name = name.trim(), description = description?.trim()?.ifBlank { null }, entries = entries, tags = tags,
             updatedAt = System.currentTimeMillis(), dirty = true,
         ))
     }
