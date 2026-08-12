@@ -145,7 +145,7 @@ export function useMeals() {
   }, [editing, closeBuilder]);
 
   return {
-    meals: filtered, totalCount: meals.length, favCount, foods, foodsById,
+    meals: filtered, allMeals: resolved, totalCount: meals.length, favCount, foods, foodsById,
     loading, error,
     query, setQuery, sort, setSort, sortOpen, setSortOpen,
     viewMode, setViewMode, favOnly, setFavOnly,

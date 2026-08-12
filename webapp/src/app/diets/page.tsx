@@ -5,7 +5,7 @@ import { NoteBadge } from "@/components/NoteBadge";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
-import { useDiets, type DietView, type MealSummary } from "@/hooks/useDiets";
+import { useDiets, type DietView, type DietSlotGroup, type DietEntryView, type MealSummary } from "@/hooks/useDiets";
 import { MEAL_SLOTS, unitLabel, defaultQtyFor, foodMacros, num, type FoodDto } from "@/lib/nutrition";
 import { Stepper } from "@/components/ui/Stepper";
 import type { DietDto, DietEntryInput } from "@/lib/api/diets";
@@ -96,8 +96,87 @@ function DietCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEd
 // ── builder types ──
 interface BuildEntry { kind: "meal" | "food"; refId: number; slot: string; quantity: number; unit: string; name: string; kcalPer100?: number }
 
-function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availableTags, saving, onCreateTag, onSave, onDelete, onClose }: {
-  editing: DietDto | null; meals: MealDto[]; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
+// One entry in the copy-diet preview — a food line, or a meal that expands to its ingredients.
+function EntryPreview({ e }: { e: DietEntryView }) {
+  const [open, setOpen] = useState(false);
+  const expandable = e.kind === "meal" && (e.foods?.length ?? 0) > 0;
+  return (
+    <div>
+      <div onClick={() => expandable && setOpen(!open)} className={`flex items-center justify-between py-[1px] ${expandable ? "cursor-pointer" : ""}`}>
+        <span className="text-[11px] truncate" style={{ color: C.muted3 }}>
+          {e.kind === "meal" ? "🍲 " : ""}{e.name}{expandable ? (open ? " ▲" : " ▼") : ""}
+        </span>
+        <span className="text-[10px] flex-none ml-2" style={{ color: C.muted2, fontFamily: mono }}>{e.meta}</span>
+      </div>
+      {expandable && open && (
+        <div className="pl-4">
+          {e.foods!.map((f, i) => (
+            <div key={i} className="flex items-center justify-between py-[1px]">
+              <span className="text-[10.5px] truncate" style={{ color: C.muted2 }}>• {f.name}</span>
+              <span className="text-[10px] flex-none ml-2" style={{ color: C.muted2, fontFamily: mono }}>{f.meta}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SlotPreview({ slot }: { slot: DietSlotGroup }) {
+  return (
+    <div className="py-1">
+      <span className="text-[8.5px] font-semibold rounded-[5px] px-[6px] py-[2px]" style={{ color: C.teal, background: "oklch(0.62 0.09 210 / .12)" }}>{slot.slot.toUpperCase()}</span>
+      <div className="mt-1">{slot.entries.map((e, i) => <EntryPreview key={i} e={e} />)}</div>
+    </div>
+  );
+}
+
+// Full-screen picker to prefill a new diet from an existing one — expandable cards preview the
+// diet's meals (tap a meal → its ingredients); the Copy pill loads it into the draft.
+function CopyDietPicker({ diets, onBack, onCopy }: { diets: DietView[]; onBack: () => void; onCopy: (d: DietView) => void }) {
+  const [query, setQuery] = useState("");
+  const [openId, setOpenId] = useState<number | null>(null);
+  const list = diets.filter((d) => !query || d.diet.name.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: C.bg }}>
+      <div className="flex-none flex items-center gap-2 px-3 pt-3 pb-2">
+        <button onClick={onBack} className="text-[20px]" style={{ color: C.ink }}>‹</button>
+        <span className="text-[17px] font-semibold" style={{ color: C.ink }}>Copy from a diet</span>
+        <span className="flex-1" />
+        <span className="text-[12px]" style={{ color: C.muted2 }}>{diets.length} saved</span>
+      </div>
+      <div className="px-4 pb-2">
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your diets…"
+          className="w-full border rounded-[11px] px-3 py-[10px] text-[13px]" style={{ border: `1.5px solid ${C.border}`, color: C.ink }} />
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
+        {list.length === 0 ? <p className="text-center text-[13px] mt-8" style={{ color: C.muted2 }}>No diets to copy from</p> :
+          list.map((d) => {
+            const open = openId === (d.diet.id ?? -1);
+            return (
+              <div key={d.diet.id} className="rounded-[12px] mb-[8px] p-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div className="flex items-center gap-[10px]">
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setOpenId(open ? null : (d.diet.id ?? -1))}>
+                    <div className="flex items-center gap-[4px]">
+                      <span className="text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{d.diet.name}</span>
+                      <span className="text-[9px]" style={{ color: C.muted2 }}>{open ? "▲" : "▼"}</span>
+                    </div>
+                    <div className="text-[10.5px] mt-0.5" style={{ color: C.muted2 }}>{d.totalKcal} kcal · {d.entryCount} item{d.entryCount === 1 ? "" : "s"} · {d.slots.length} slots</div>
+                    {d.tagNames.length > 0 && <div className="flex gap-[4px] mt-[4px] flex-wrap">{d.tagNames.slice(0, 3).map((t) => <TagPill key={t} name={t} />)}</div>}
+                  </div>
+                  <button onClick={() => onCopy(d)} className="flex-none text-[11px] font-semibold rounded-full px-[14px] py-[6px]" style={{ background: C.teal, color: "#fff" }}>Copy</button>
+                </div>
+                {open && <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.bgAlt}` }}>{d.slots.map((s, i) => <SlotPreview key={i} slot={s} />)}</div>}
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  );
+}
+
+function DietBuilder({ editing, diets, meals, foods, foodsById, mealSummaries, availableTags, saving, onCreateTag, onSave, onDelete, onClose }: {
+  editing: DietDto | null; diets: DietView[]; meals: MealDto[]; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
   mealSummaries: Map<number, MealSummary>; availableTags: TagDto[]; saving: boolean;
   onCreateTag: (name: string) => Promise<TagDto | null>;
   onSave: (name: string, entries: DietEntryInput[], tagIds: number[], notes: string) => void;
@@ -114,6 +193,24 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
   const [selTags, setSelTags] = useState<TagDto[]>(editing?.tags ?? []);
   const [newTag, setNewTag] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
+  // Prefill from an existing diet: copy its meals + foods into the draft, skipping any already in the same slot.
+  const copyFromDiet = (src: DietDto) => {
+    const add: BuildEntry[] = [];
+    const dup = (kind: string, refId: number, slot: string) =>
+      entries.some((e) => e.kind === kind && e.refId === refId && e.slot === slot) ||
+      add.some((e) => e.kind === kind && e.refId === refId && e.slot === slot);
+    (src.meals ?? []).forEach((dm) => {
+      if (dm.mealId == null || dup("meal", dm.mealId, dm.slot)) return;
+      add.push({ kind: "meal", refId: dm.mealId, slot: dm.slot, quantity: 1, unit: "GRAM", name: mealSummaries.get(dm.mealId)?.name ?? "Meal" });
+    });
+    (src.foodItems ?? []).forEach((fi) => {
+      if (fi.foodId == null || dup("food", fi.foodId, fi.slot)) return;
+      add.push({ kind: "food", refId: fi.foodId, slot: fi.slot, quantity: fi.quantity ?? 1, unit: fi.unit, name: foodsById.get(fi.foodId)?.name ?? "Food" });
+    });
+    if (add.length) { setEntries((p) => [...p, ...add]); setDirty(true); }
+    setCopyOpen(false);
+  };
   const [addOpen, setAddOpen] = useState(false);
   const [addSlot, setAddSlot] = useState(MEAL_SLOTS[0]);
   const [addTab, setAddTab] = useState<"meals" | "foods">("meals");
@@ -151,8 +248,12 @@ function DietBuilder({ editing, meals, foods, foodsById, mealSummaries, availabl
         <button onClick={() => attempt(onClose)} className="text-[20px]" style={{ color: C.ink }}>✕</button>
         <span className="text-[17px] font-semibold" style={{ color: C.ink }}>{editing ? "Edit diet" : "New diet"}</span>
         <span className="flex-1" />
-        {editing && <button onClick={onDelete} className="text-[13px] font-semibold" style={{ color: C.danger }}>Delete</button>}
+        {editing
+          ? <button onClick={onDelete} className="text-[13px] font-semibold" style={{ color: C.danger }}>Delete</button>
+          : diets.length > 0 && <button onClick={() => setCopyOpen(true)} className="text-[13px] font-semibold" style={{ color: C.teal }}>Copy from a diet</button>}
       </div>
+
+      {copyOpen && <CopyDietPicker diets={diets} onBack={() => setCopyOpen(false)} onCopy={(v) => copyFromDiet(v.diet)} />}
 
       {!addOpen ? (
         <>
@@ -271,7 +372,7 @@ function DietsPageInner() {
   const [sortOpen, setSortOpen] = useState(false);
 
   if (d.builderOpen) {
-    return <DietBuilder editing={d.editing} meals={d.meals} foods={d.foods} foodsById={d.foodsById} mealSummaries={d.mealSummaries}
+    return <DietBuilder editing={d.editing} diets={d.allDiets} meals={d.meals} foods={d.foods} foodsById={d.foodsById} mealSummaries={d.mealSummaries}
       availableTags={d.availableTags} saving={d.saving} onCreateTag={d.createTag} onSave={d.saveDiet}
       onDelete={() => { if (d.editing) { void d.handleDelete(d.editing); d.closeBuilder(); } }} onClose={d.closeBuilder} />;
   }

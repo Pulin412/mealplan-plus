@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -63,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -516,6 +518,7 @@ private fun NewDietSheet(viewModel: DietViewModel) {
     }
     val selectedTags = remember(editing?.id) { mutableStateListOf<DietTag>().apply { editing?.tags?.let { addAll(it) } } }
     var addOpen by remember { mutableStateOf(false) }
+    var copyOpen by remember { mutableStateOf(false) }
     var dirty by remember(editing?.id) { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
 
@@ -525,8 +528,28 @@ private fun NewDietSheet(viewModel: DietViewModel) {
             DietEntry(it.kind, it.refServerId, it.slot, it.quantity, it.unit)
         }, selectedTags.toList(), notes)
     }
+    /** Prefill from an existing diet: copy its meals + foods (resolved against the caches) into the
+     *  current draft, skipping any already present in the same slot. Name/tags/notes stay the user's. */
+    fun copyFromDiet(src: DietUi) {
+        src.diet.entries.forEach { e ->
+            if (entries.any { it.refServerId == e.refServerId && it.slot == e.slot }) return@forEach
+            when (e.kind) {
+                DietEntryKind.MEAL -> state.meals.find { it.meal.id == e.refServerId }?.let { m ->
+                    entries.add(BuildEntry(DietEntryKind.MEAL, m.meal.id, m.meal.name, e.slot,
+                        m.totalKcal.toDouble(), m.totalProtein, m.totalCarbs, m.totalFat))
+                }
+                DietEntryKind.FOOD -> state.foods.find { it.id == e.refServerId }?.let { food ->
+                    entries.add(BuildEntry(DietEntryKind.FOOD, food.id, food.name, e.slot,
+                        food.caloriesPer100, food.proteinPer100, food.carbsPer100, food.fatPer100,
+                        e.unit, food.gramsFor(1.0, e.unit), e.quantity))
+                }
+            }
+        }
+        dirty = true
+        copyOpen = false
+    }
     fun attemptClose() { if (dirty) showConfirm = true else viewModel.closeNewDiet() }
-    BackHandler { if (addOpen) addOpen = false else attemptClose() }
+    BackHandler { if (addOpen) addOpen = false else if (copyOpen) copyOpen = false else attemptClose() }
 
     // Register with the app-level guard so bottom-nav taps also prompt while dirty.
     val unsaved = LocalUnsavedChangesController.current
@@ -551,15 +574,19 @@ private fun NewDietSheet(viewModel: DietViewModel) {
     fun setQty(index: Int, q: Double) { if (index in entries.indices) { entries[index] = entries[index].copy(quantity = q); dirty = true } }
 
     Column(Modifier.fillMaxSize().background(AppBg)) {
-        if (!addOpen) {
+        if (!addOpen && !copyOpen) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
                 IconButton(onClick = { attemptClose() }) { Icon(Icons.Default.Close, "Close", tint = Ink) }
                 Text(if (editing != null) "Edit diet" else "New diet", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                Spacer(Modifier.weight(1f))
                 if (editing != null) {
-                    Spacer(Modifier.weight(1f))
                     Text("Delete", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Danger,
                         modifier = Modifier.padding(end = 8.dp).clickable { viewModel.deleteDiet(editing); viewModel.closeNewDiet() })
+                } else if (state.diets.isNotEmpty()) {
+                    // Prefill this draft's plan from an existing diet.
+                    Text("Copy from a diet", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                        modifier = Modifier.padding(end = 8.dp).clickable { copyOpen = true })
                 }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
@@ -634,6 +661,8 @@ private fun NewDietSheet(viewModel: DietViewModel) {
                 .clickable(enabled = canSave) { save() }.padding(vertical = 14.dp)) {
                 Text(if (editing != null) "Save changes" else "Save diet", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) OnAccent else MutedLight)
             }
+        } else if (copyOpen) {
+            CopyFromDietPanel(diets = state.diets, onBack = { copyOpen = false }, onCopy = ::copyFromDiet)
         } else {
             AddToDietPanel(
                 meals = state.meals, foods = state.foods, entries = entries,
@@ -641,6 +670,70 @@ private fun NewDietSheet(viewModel: DietViewModel) {
                 onAdd = { be -> if (entries.none { it.refServerId == be.refServerId && it.slot == be.slot }) { entries.add(be); dirty = true } },
                 onRemove = { ref, slot -> entries.removeAll { it.refServerId == ref && it.slot == slot }; dirty = true },
             )
+        }
+    }
+}
+
+/** Picker for the "copy from a diet" flow — mirrors the choose-a-diet picker (header + search +
+ *  card list with tags); tapping a diet hands it back to the draft to prefill its meals + foods. */
+@Composable
+private fun CopyFromDietPanel(diets: List<DietUi>, onBack: () -> Unit, onCopy: (DietUi) -> Unit) {
+    var query by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize().background(AppBg)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+            Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onBack), Alignment.Center) { Text("‹", fontSize = 24.sp, color = Ink) }
+            Text("Copy from a diet", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            Text("${diets.size} saved", fontSize = 12.sp, color = MutedLight)
+        }
+        SearchBar(query, { query = it }, "Search your diets…")
+        val list = diets.filter { query.isBlank() || it.diet.name.contains(query, ignoreCase = true) }
+        if (list.isEmpty()) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("🥗", fontSize = 40.sp)
+                Text("No diets to copy from", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(top = 8.dp))
+            }
+        } else {
+            var expandedId by remember { mutableStateOf<String?>(null) }
+            LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
+                items(list, key = { it.diet.id }) { d ->
+                    val open = expandedId == d.diet.id
+                    AppCard {
+                        Column(Modifier.fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f).clickable { expandedId = if (open) null else d.diet.id }) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(d.diet.name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                                        Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
+                                    }
+                                    Text("${d.totalKcal} kcal · ${d.entryCount} items · ${d.slots.size} slots", fontSize = 10.5.sp,
+                                        color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+                                    if (d.diet.tags.isNotEmpty()) {
+                                        Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            d.diet.tags.take(3).forEach { tag ->
+                                                Text(tag.name, fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                                                    modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text("Copy", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = OnAccent,
+                                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Teal).clickable { onCopy(d) }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp))
+                            }
+                            if (open) {
+                                Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                                    d.slots.inSlotOrder().forEach { SlotGroup(it) }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
         }
     }
 }
