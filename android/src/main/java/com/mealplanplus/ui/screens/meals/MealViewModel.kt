@@ -155,13 +155,13 @@ class MealViewModel @Inject constructor(
     suspend fun saveOnlineFood(dto: com.mealplanplus.data.generated.model.FoodDto): String =
         foodRepository.addOnline(dto)
 
-    fun createMeal(name: String, slots: List<String>, items: List<MealItem>) {
+    fun createMeal(name: String, slots: List<String>, items: List<MealItem>, notes: String? = null) {
         if (name.isBlank() || items.isEmpty()) return
         val editing = _state.value.editingMeal
         viewModelScope.launch {
             runCatching {
-                if (editing != null) repository.update(editing, name, slots, items)
-                else repository.create(name, slots, items)
+                if (editing != null) repository.update(editing, name, slots, items, notes)
+                else repository.create(name, slots, items, notes)
             }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             closeNewMeal()
             sync()

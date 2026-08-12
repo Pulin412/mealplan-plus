@@ -7,13 +7,13 @@ import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { naturalCompare } from "@/lib/utils/naturalCompare";
 import { listDietTags, createDietTag, type TagDto } from "@/lib/api/tags";
 import { toggleDietShare } from "@/lib/api/social";
-import { foodMacros, MEAL_SLOTS, type Macros } from "@/lib/nutrition";
+import { foodMacros, MEAL_SLOTS, unitLabel, type Macros } from "@/lib/nutrition";
 import { friendlyMessage, toastApiError } from "@/lib/api/errors";
 import type { DietSort, DietViewMode } from "@/types/diet";
 
 export interface MealSummary { id: number; name: string; totals: Macros }
 
-export interface DietEntryView { kind: "meal" | "food"; name: string; kcal: number; meta: string }
+export interface DietEntryView { kind: "meal" | "food"; name: string; kcal: number; meta: string; foods?: { name: string; meta: string }[] }
 export interface DietSlotGroup { slot: string; entries: DietEntryView[]; kcal: number }
 export interface DietView {
   diet: DietDto;
@@ -67,6 +67,19 @@ export function useDiets() {
     return map;
   }, [meals, foodsById]);
 
+  // meal id -> its ingredient lines (name + qty), for the "copy a diet" preview (meal → ingredients)
+  const mealFoodsById = useMemo(() => {
+    const map = new Map<number, { name: string; meta: string }[]>();
+    meals.forEach((meal) => {
+      if (meal.id == null) return;
+      map.set(meal.id, (meal.items ?? []).map((it) => {
+        const food = it.foodId != null ? foodsById.get(it.foodId) : undefined;
+        return { name: food?.name ?? "Unknown food", meta: `${it.quantity} ${unitLabel(it.unit)}` };
+      }));
+    });
+    return map;
+  }, [meals, foodsById]);
+
   useEffect(() => {
     setLoading(true);
     Promise.all([listDiets(), listMeals(), listFoods()])
@@ -83,7 +96,7 @@ export function useDiets() {
       const s = dm.mealId != null ? mealSummaries.get(dm.mealId) : undefined;
       const t = s?.totals ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
       kcal += t.kcal; p += t.protein; c += t.carbs; f += t.fat;
-      rows.push({ slot: dm.slot, kcal: t.kcal, view: { kind: "meal", name: s?.name ?? "Unknown meal", kcal: Math.round(t.kcal), meta: `meal · ${Math.round(t.kcal)} kcal` } });
+      rows.push({ slot: dm.slot, kcal: t.kcal, view: { kind: "meal", name: s?.name ?? "Unknown meal", kcal: Math.round(t.kcal), meta: `meal · ${Math.round(t.kcal)} kcal`, foods: dm.mealId != null ? mealFoodsById.get(dm.mealId) : undefined } });
     });
     (diet.foodItems ?? []).forEach((fi) => {
       const food = fi.foodId != null ? foodsById.get(fi.foodId) : undefined;
@@ -100,7 +113,7 @@ export function useDiets() {
     const tagNames = (diet.tags ?? []).map((t) => t.name);
     const summary = count === 0 ? "No items" : `${count} item${count === 1 ? "" : "s"} · ${names.join(", ")}`;
     return { diet, slots, totalKcal: Math.round(kcal), totalP: p, totalC: c, totalF: f, entryCount: count, summary, tagNames };
-  }), [diets, mealSummaries, foodsById]);
+  }), [diets, mealSummaries, foodsById, mealFoodsById]);
 
   const allTagNames = useMemo(
     () => Array.from(new Set([...availableTags.map((t) => t.name), ...diets.flatMap((d) => (d.tags ?? []).map((t) => t.name))])).sort(),
@@ -163,11 +176,11 @@ export function useDiets() {
   const openEdit = useCallback((diet: DietDto) => { setEditing(diet); setBuilderOpen(true); }, []);
   const closeBuilder = useCallback(() => { setBuilderOpen(false); setEditing(null); }, []);
 
-  const saveDiet = useCallback(async (name: string, entries: DietEntryInput[], tagIds: number[]) => {
+  const saveDiet = useCallback(async (name: string, entries: DietEntryInput[], tagIds: number[], notes?: string | null) => {
     if (!name.trim() || entries.length === 0) return;
     setSaving(true);
     try {
-      const input = { name: name.trim(), entries, tagIds };
+      const input = { name: name.trim(), entries, tagIds, notes: notes?.trim() || null };
       if (editing?.id != null) await updateDiet(editing.id, input);
       else await createDiet(input);
       await reload();
@@ -180,7 +193,7 @@ export function useDiets() {
   }, [editing, reload, closeBuilder]);
 
   return {
-    diets: filtered, totalCount: diets.length, favCount, meals, foods, foodsById, mealSummaries,
+    diets: filtered, allDiets: resolved, totalCount: diets.length, favCount, meals, foods, foodsById, mealSummaries,
     availableTags, allTagNames, loading, error,
     query, setQuery, sort, setSort, viewMode, setViewMode, favOnly, setFavOnly,
     importedOnly, setImportedOnly,

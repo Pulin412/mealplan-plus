@@ -38,6 +38,7 @@ data class DietSummary(
     val kcal: Int,
     val slots: List<DietSlotView> = emptyList(),
     val tags: List<String> = emptyList(),
+    val description: String? = null,
 )
 
 private val SLOT_ORDER = MEAL_SLOTS
@@ -263,7 +264,7 @@ class PlanViewModel @Inject constructor(
 
         val order = SLOT_ORDER.filter { lines.containsKey(it) } + lines.keys.filter { it !in SLOT_ORDER }
         val slots = order.map { slot -> DietSlotView(slot, (slotKcal[slot] ?: 0.0).roundToInt(), lines[slot].orEmpty()) }
-        return DietSummary(id, d.name, total.roundToInt(), slots, (d.tags ?: emptyList()).map { it.name })
+        return DietSummary(id, d.name, total.roundToInt(), slots, (d.tags ?: emptyList()).map { it.name }, d.description)
     }
 
     private fun trimNum(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else "%.1f".format(v)

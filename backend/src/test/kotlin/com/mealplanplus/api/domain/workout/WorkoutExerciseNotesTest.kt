@@ -88,6 +88,31 @@ class WorkoutExerciseNotesTest {
     }
 
     @Test
+    fun `duplicate notes for the same exercise in one payload are de-duped (last wins), not a 500`() {
+        // Repro for the recurring prod 500 (uq_wsen_session_exercise, PUT /workout-sessions): a client
+        // sent two notes for the same exercise in one session, so after the bulk-delete the 2nd insert
+        // collided with the 1st. The unique constraint allows one note per exercise → dedupe, last wins.
+        val created = service.createSession(
+            session("Push", completed = false, notes = listOf(
+                ExerciseNoteDto(exerciseId = benchId, note = "first"),
+                ExerciseNoteDto(exerciseId = benchId, note = "second"),
+            )),
+            uid,
+        )
+        assertEquals(listOf(benchId to "second"), created.exerciseNotes!!.map { it.exerciseId to it.note })
+
+        val updated = service.updateSession(
+            created.id!!,
+            session("Push", completed = true, notes = listOf(
+                ExerciseNoteDto(exerciseId = benchId, note = "a"),
+                ExerciseNoteDto(exerciseId = benchId, note = "b"),
+            )),
+            uid,
+        )
+        assertEquals(listOf(benchId to "b"), updated.exerciseNotes!!.map { it.exerciseId to it.note })
+    }
+
+    @Test
     fun `copy last surfaces the note from the last completed session, separate from the sets`() {
         service.createSession(
             session("Push", completed = true, notes = listOf(ExerciseNoteDto(exerciseId = benchId, note = "pause at chest"))),

@@ -29,3 +29,16 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         )
     }
 }
+
+/**
+ * v10 → v11: free-text notes on meals and diets (parity with the webapp + backend). Additive and
+ * nullable so all local data — including offline, not-yet-synced meals/diets — is preserved. Meals
+ * get a new `notes` column; diets reuse the server's existing `description` field for their note.
+ * Column shapes match Room's generated schema for [com.mealplanplus.data.model.Meal] / `Diet`.
+ */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `meals` ADD COLUMN `notes` TEXT")
+        db.execSQL("ALTER TABLE `diets` ADD COLUMN `description` TEXT")
+    }
+}

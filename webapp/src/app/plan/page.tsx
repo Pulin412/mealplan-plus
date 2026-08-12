@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { NoteBadge } from "@/components/NoteBadge";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -230,7 +231,10 @@ function DietPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: st
               style={{ cursor: "pointer", background: C.surface, border: `1px solid ${selected ? C.teal : C.border}`, borderRadius: 14, padding: 14, marginBottom: 8 }}>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ font: "700 13px system-ui", color: C.ink }}>{di.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ font: "700 13px system-ui", color: C.ink }}>{di.name}</span>
+                    <NoteBadge note={di.description} />
+                  </div>
                   {di.tags.length > 0 && (
                     <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
                       {di.tags.slice(0, 3).map((t) => <span key={t} style={{ font: "600 8.5px system-ui", color: C.teal, background: "rgba(45,140,150,0.12)", borderRadius: 5, padding: "2px 6px" }}>{t}</span>)}

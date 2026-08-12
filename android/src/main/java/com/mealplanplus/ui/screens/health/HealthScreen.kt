@@ -109,10 +109,6 @@ fun HealthScreen(viewModel: HealthViewModel = hiltViewModel()) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)) {
                 Text("Health", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Ink)
-                Spacer(Modifier.weight(1f))
-                Box(Modifier.size(34.dp).clip(CircleShape).background(Teal), Alignment.Center) {
-                    Icon(Icons.Default.Person, contentDescription = null, tint = OnAccent, modifier = Modifier.size(18.dp))
-                }
             }
 
             MetricTabs(tab, viewModel::setTab)

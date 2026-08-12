@@ -90,6 +90,7 @@ class HomeViewModel @Inject constructor(
     private val themeStore: ThemeStore,
     private val responseCache: ResponseCache,
     private val socialRepo: com.mealplanplus.data.repository.SocialRepository,
+    private val syncManager: com.mealplanplus.data.sync.SyncManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -129,6 +130,19 @@ class HomeViewModel @Inject constructor(
      * full ring) flashes before the fresh dashboard lands. Server [Resource.Success] is today's real
      * data, so it's shown as-is.
      */
+    /**
+     * Resume refresh: push any pending local edits (e.g. a food just added to a meal in the planned
+     * diet) so the server-computed dashboard reflects them, THEN reload. Without the push-first step,
+     * [load] can refetch the dashboard before the edit has synced, so Home lags behind the diet/meal
+     * screens (which read local Room directly). Cold start still uses [load] alone for an instant paint.
+     */
+    fun refresh() {
+        viewModelScope.launch {
+            runCatching { syncManager.sync() }   // no-op when nothing is dirty; best-effort on failure
+            load()
+        }
+    }
+
     fun load() {
         viewModelScope.launch {
             responseCache.stream("dashboard") {

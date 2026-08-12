@@ -13,6 +13,7 @@ import java.util.UUID
 data class Diet(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
+    val description: String? = null,
     val entries: List<DietEntry> = emptyList(),
     val tags: List<DietTag> = emptyList(),
     val targetCalories: Double? = null,

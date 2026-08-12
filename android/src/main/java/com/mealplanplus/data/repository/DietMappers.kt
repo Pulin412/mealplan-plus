@@ -25,6 +25,7 @@ fun DietDto.toEntity(dirty: Boolean = false): Diet {
     return Diet(
         id             = (serverId ?: UUID.randomUUID()).toString(),
         name           = name,
+        description    = description,
         entries        = mealEntries + foodEntries,
         tags           = (tags ?: emptyList()).map { DietTag(it.id, it.name, it.color) },
         targetCalories = targetCalories,
@@ -37,6 +38,7 @@ fun DietDto.toEntity(dirty: Boolean = false): Diet {
 
 fun Diet.toDto(): DietDto = DietDto(
     name           = name,
+    description    = description,
     serverId       = UUID.fromString(id),
     targetCalories = targetCalories,
     isFavorite     = isFavorite,

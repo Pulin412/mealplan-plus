@@ -1,4 +1,5 @@
 package com.mealplanplus.ui.screens.meals
+import com.mealplanplus.ui.components.NoteBadge
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -321,6 +323,9 @@ private fun MealListCard(
                             Text("+${m.meal.slots.size - 1}", fontSize = 9.sp, color = MutedFaint)
                         }
                     }
+                    if (!m.meal.notes.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp)); NoteBadge(m.meal.notes)
+                    }
                 }
                 Text(m.itemsSummary, fontSize = 10.5.sp, color = MutedLight,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
@@ -393,6 +398,9 @@ private fun MealCompactRow(
                             Spacer(Modifier.width(4.dp))
                             Text("+${m.meal.slots.size - 1}", fontSize = 9.sp, color = MutedFaint)
                         }
+                    }
+                    if (!m.meal.notes.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp)); NoteBadge(m.meal.notes)
                     }
                 }
                 Text("${m.items.size} items", fontSize = 9.5.sp, color = MutedFaint)
@@ -474,7 +482,7 @@ private fun EmptyState(icon: String, title: String, subtitle: String) {
 // ── New meal builder (design-exact) ──────────────────────────────────────────
 // Slot vocabulary is the shared MEAL_SLOTS (data.model) — see import above.
 
-private enum class AddMode { NONE, SEARCH, ONLINE, MANUAL }
+private enum class AddMode { NONE, SEARCH, ONLINE, MANUAL, COPY }
 
 private data class BuildItem(
     val foodId: String,
@@ -499,6 +507,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
 
     val editing = state.editingMeal
     var name by remember(editing?.id) { mutableStateOf(editing?.name ?: "") }
+    var notes by remember(editing?.id) { mutableStateOf(editing?.notes ?: "") }
     val slots = remember(editing?.id) { mutableStateListOf<String>().apply { editing?.slots?.let { addAll(it) } } }
     val items = remember(editing?.id) {
         mutableStateListOf<BuildItem>().apply {
@@ -516,7 +525,7 @@ private fun NewMealSheet(viewModel: MealViewModel) {
     val canSave = name.isNotBlank() && items.isNotEmpty()
     fun save() {
         viewModel.createMeal(name.trim(), slots.toList(),
-            items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) })
+            items.map { MealItem(foodServerId = it.foodId, quantity = it.quantity, unit = it.unit) }, notes)
     }
     fun attemptClose() { if (dirty) showConfirm = true else viewModel.closeNewMeal() }
     BackHandler(enabled = addMode == AddMode.NONE) { attemptClose() }
@@ -544,6 +553,18 @@ private fun NewMealSheet(viewModel: MealViewModel) {
     fun addItem(bi: BuildItem) {
         if (items.none { it.foodId == bi.foodId }) { items.add(bi); dirty = true }
     }
+    /** Prefill from an existing meal: copy its ingredients (resolved against the food cache) into
+     *  the current draft, skipping any already present. Name/slots/notes stay the user's to fill. */
+    fun copyFromMeal(src: MealUi) {
+        src.meal.items.forEach { mi ->
+            if (items.any { it.foodId == mi.foodServerId }) return@forEach
+            val food = state.foods.find { it.id == mi.foodServerId } ?: return@forEach
+            items.add(BuildItem(food.id, food.name, food.caloriesPer100, food.proteinPer100,
+                food.carbsPer100, food.fatPer100, mi.unit, food.gramsFor(1.0, mi.unit), mi.quantity))
+        }
+        dirty = true
+        addMode = AddMode.NONE
+    }
     fun setQty(foodId: String, q: Double) {
         val idx = items.indexOfFirst { it.foodId == foodId }
         if (idx >= 0) { items[idx] = items[idx].copy(quantity = q); dirty = true }
@@ -556,10 +577,14 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                 modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
                 IconButton(onClick = { attemptClose() }) { Icon(Icons.Default.Close, "Close", tint = Ink) }
                 Text(if (editing != null) "Edit meal" else "New meal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                Spacer(Modifier.weight(1f))
                 if (editing != null) {
-                    Spacer(Modifier.weight(1f))
                     Text("Delete", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Danger,
                         modifier = Modifier.clickable { viewModel.deleteMeal(editing); viewModel.closeNewMeal() })
+                } else if (state.meals.isNotEmpty()) {
+                    // Prefill this draft's ingredients from an existing meal.
+                    Text("Copy from a meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                        modifier = Modifier.clickable { addMode = AddMode.COPY })
                 }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
@@ -586,6 +611,14 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                                 .padding(horizontal = 11.dp, vertical = 6.dp))
                     }
                 }
+
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Label("Notes")
+                    Text("  · optional", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.padding(bottom = 7.dp))
+                }
+                OutlinedTextField(value = notes, onValueChange = { notes = it; dirty = true },
+                    placeholder = { Text("e.g. prep the night before", fontSize = 13.sp, color = MutedLight) },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     Text("Food items", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
@@ -628,6 +661,8 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                 .clickable(enabled = canSave) { save() }.padding(vertical = 14.dp)) {
                 Text(if (editing != null) "Save changes" else "Save meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (canSave) OnAccent else MutedLight)
             }
+        } else if (addMode == AddMode.COPY) {
+            CopyFromMealPanel(meals = state.meals, onBack = { addMode = AddMode.NONE }, onCopy = ::copyFromMeal)
         } else {
             // ── Add-food panel ───────────────────────────────────────────────
             AddFoodPanel(
@@ -643,6 +678,68 @@ private fun NewMealSheet(viewModel: MealViewModel) {
                 createManual = { n, k, pr, cb, ft, sv, u, gpu -> viewModel.createManualFood(n, k, pr, cb, ft, sv, u, gpu) },
                 scope = scope,
             )
+        }
+    }
+}
+
+/** Picker for the "copy from a meal" flow — mirrors the choose-a-diet picker (header + search +
+ *  card list); tapping a meal hands it back to the draft to prefill its ingredients. */
+@Composable
+private fun CopyFromMealPanel(meals: List<MealUi>, onBack: () -> Unit, onCopy: (MealUi) -> Unit) {
+    var query by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize().background(AppBg)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+            Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onBack), Alignment.Center) { Text("‹", fontSize = 24.sp, color = Ink) }
+            Text("Copy from a meal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            Text("${meals.size} saved", fontSize = 12.sp, color = MutedLight)
+        }
+        SearchField(query, { query = it }, "Search your meals…")
+        val list = meals.filter { query.isBlank() || it.meal.name.contains(query, ignoreCase = true) }
+        if (list.isEmpty()) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("🍲", fontSize = 40.sp)
+                Text("No meals to copy from", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(top = 8.dp))
+            }
+        } else {
+            var expandedId by remember { mutableStateOf<String?>(null) }
+            LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
+                items(list, key = { it.meal.id }) { m ->
+                    val open = expandedId == m.meal.id
+                    AppCard {
+                        Column(Modifier.fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f).clickable { expandedId = if (open) null else m.meal.id }) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(m.meal.name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                                        Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
+                                    }
+                                    Text("${m.totalKcal} kcal · ${m.items.size} item${if (m.items.size == 1) "" else "s"}",
+                                        fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text("Copy", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = OnAccent,
+                                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Teal).clickable { onCopy(m) }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp))
+                            }
+                            if (open) {
+                                Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                                    m.items.forEach { it ->
+                                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Text("• ${it.name}", fontSize = 11.sp, color = MutedLight,
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(it.meta, fontFamily = DmMono, fontSize = 9.5.sp, color = MutedFaint)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
         }
     }
 }
@@ -771,7 +868,7 @@ private fun AddFoodPanel(
                     Text("Add to meal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (ok) OnAccent else MutedLight)
                 }
             }
-            AddMode.NONE -> {}
+            AddMode.NONE, AddMode.COPY -> {}   // COPY is handled by CopyFromMealPanel, not here
         }
     }
 }
