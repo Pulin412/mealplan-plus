@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NoteBadge } from "@/components/NoteBadge";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { useMeals, type BuildItem, type MealView } from "@/hooks/useMeals";
@@ -51,6 +52,7 @@ function MealCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEd
             <span className="text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{v.meal.name}</span>
             {slots[0] && <SlotBadge slot={slots[0]} />}
             {slots.length > 1 && <span className="text-[9px]" style={{ color: C.muted2 }}>+{slots.length - 1}</span>}
+            <NoteBadge note={v.meal.notes} />
           </div>
           <div className="text-[10.5px] truncate mt-0.5" style={{ color: C.muted2 }}>{v.summary}</div>
         </div>
@@ -144,17 +146,71 @@ function NewFoodForm({ onCancel, onCreate }: { onCancel: () => void; onCreate: (
 }
 
 // ── Full-screen builder ────────────────────────────────────────────────────────
-function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onClose }: {
-  editing: MealDto | null; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
-  saving: boolean; onSave: (name: string, slots: string[], items: BuildItem[]) => void;
+// Full-screen picker to prefill a new meal from an existing one — expandable cards preview the
+// ingredients; the Copy pill loads them into the draft. Mirrors the choose-a-diet look.
+function CopyMealPicker({ meals, onBack, onCopy }: { meals: MealView[]; onBack: () => void; onCopy: (m: MealView) => void }) {
+  const [query, setQuery] = useState("");
+  const [openId, setOpenId] = useState<number | null>(null);
+  const list = meals.filter((m) => !query || m.meal.name.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: C.bg }}>
+      <div className="flex-none flex items-center gap-2 px-3 pt-3 pb-2">
+        <button onClick={onBack} className="text-[20px]" style={{ color: C.ink }}>‹</button>
+        <span className="text-[17px] font-semibold" style={{ color: C.ink }}>Copy from a meal</span>
+        <span className="flex-1" />
+        <span className="text-[12px]" style={{ color: C.muted2 }}>{meals.length} saved</span>
+      </div>
+      <div className="px-4 pb-2">
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your meals…"
+          className="w-full border rounded-[11px] px-3 py-[10px] text-[13px]" style={{ border: `1.5px solid ${C.border}`, color: C.ink }} />
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
+        {list.length === 0 ? <p className="text-center text-[13px] mt-8" style={{ color: C.muted2 }}>No meals to copy from</p> :
+          list.map((m) => {
+            const open = openId === (m.meal.id ?? -1);
+            return (
+              <div key={m.meal.id} className="rounded-[12px] mb-[8px] p-3" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div className="flex items-center gap-[10px]">
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setOpenId(open ? null : (m.meal.id ?? -1))}>
+                    <div className="flex items-center gap-[4px]">
+                      <span className="text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{m.meal.name}</span>
+                      <span className="text-[9px]" style={{ color: C.muted2 }}>{open ? "▲" : "▼"}</span>
+                    </div>
+                    <div className="text-[10.5px] mt-0.5" style={{ color: C.muted2 }}>{m.totalKcal} kcal · {m.items.length} item{m.items.length === 1 ? "" : "s"}</div>
+                  </div>
+                  <button onClick={() => onCopy(m)} className="flex-none text-[11px] font-semibold rounded-full px-[14px] py-[6px]" style={{ background: C.teal, color: "#fff" }}>Copy</button>
+                </div>
+                {open && (
+                  <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.bgAlt}` }}>
+                    {m.items.map((it, i) => (
+                      <div key={i} className="flex items-center justify-between py-[2px]">
+                        <span className="text-[11px] truncate" style={{ color: C.muted3 }}>• {it.name}</span>
+                        <span className="text-[10px] flex-none ml-2" style={{ color: C.muted2, fontFamily: mono }}>{num(it.quantity)} {unitLabel(it.unit)} · {it.kcal} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  );
+}
+
+function MealBuilder({ editing, meals, foods, foodsById, saving, onSave, onDelete, onClose }: {
+  editing: MealDto | null; meals: MealView[]; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
+  saving: boolean; onSave: (name: string, slots: string[], items: BuildItem[], notes: string) => void;
   onDelete: () => void; onClose: () => void;
 }) {
   const [name, setName] = useState(editing?.name ?? "");
+  const [notes, setNotes] = useState(editing?.notes ?? "");
   const [slots, setSlots] = useState<string[]>(editing?.slots ?? []);
   const [items, setItems] = useState<BuildItem[]>(
     (editing?.items ?? []).filter((it) => it.foodId != null).map((it) => ({ foodId: it.foodId!, quantity: it.quantity, unit: it.unit }))
   );
   const [dirty, setDirty] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickQuery, setPickQuery] = useState("");
   const [pickMode, setPickMode] = useState<"search" | "new">("search");
@@ -172,9 +228,20 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
   const setQty = (foodId: number, q: number) => { setItems((prev) => prev.map((it) => it.foodId === foodId ? { ...it, quantity: q } : it)); setDirty(true); };
   const removeItem = (foodId: number) => { setItems((prev) => prev.filter((it) => it.foodId !== foodId)); setDirty(true); };
   const addFood = (f: FoodDto) => { if (f.id != null && !items.some((it) => it.foodId === f.id)) { setItems((prev) => [...prev, { foodId: f.id!, quantity: defaultQtyFor(f.unit ?? "GRAM"), unit: (f.unit ?? "GRAM") }]); setDirty(true); } };
+  // Prefill from an existing meal: copy its ingredients into the draft, skipping any already present.
+  const copyFromMeal = (src: MealView) => {
+    const add: BuildItem[] = [];
+    (src.meal.items ?? []).forEach((it) => {
+      if (it.foodId == null) return;
+      if (items.some((x) => x.foodId === it.foodId) || add.some((x) => x.foodId === it.foodId)) return;
+      add.push({ foodId: it.foodId, quantity: it.quantity, unit: it.unit });
+    });
+    if (add.length) { setItems((prev) => [...prev, ...add]); setDirty(true); }
+    setCopyOpen(false);
+  };
 
   const canSave = name.trim() !== "" && items.length > 0;
-  const doSave = () => onSave(name, slots, items);
+  const doSave = () => onSave(name, slots, items, notes);
 
   // Guard bottom-nav taps / ✕ while there are unsaved changes.
   const { setGuard, attempt } = useUnsavedGuard();
@@ -182,7 +249,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
     setGuard(dirty ? { canSave, onSave: doSave, onDiscard: onClose } : null);
     return () => setGuard(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, canSave, name, slots, items]);
+  }, [dirty, canSave, name, slots, items, notes]);
 
   const pickList = foods.filter((f) => !pickQuery || f.name.toLowerCase().includes(pickQuery.toLowerCase()));
 
@@ -193,8 +260,12 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
         <button onClick={() => attempt(onClose)} className="text-[20px]" style={{ color: C.ink }}>✕</button>
         <span className="text-[17px] font-semibold" style={{ color: C.ink }}>{editing ? "Edit meal" : "New meal"}</span>
         <span className="flex-1" />
-        {editing && <button onClick={onDelete} className="text-[13px] font-semibold" style={{ color: C.danger }}>Delete</button>}
+        {editing
+          ? <button onClick={onDelete} className="text-[13px] font-semibold" style={{ color: C.danger }}>Delete</button>
+          : meals.length > 0 && <button onClick={() => setCopyOpen(true)} className="text-[13px] font-semibold" style={{ color: C.teal }}>Copy from a meal</button>}
       </div>
+
+      {copyOpen && <CopyMealPicker meals={meals} onBack={() => setCopyOpen(false)} onCopy={copyFromMeal} />}
 
       <div className="flex-1 overflow-y-auto px-4">
         <label className="block text-[11px] font-semibold mb-[5px] mt-2" style={{ color: C.muted3 }}>Meal name</label>
@@ -214,6 +285,14 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
             );
           })}
         </div>
+
+        <div className="flex items-baseline mb-2">
+          <span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Notes</span>
+          <span className="text-[11px] ml-1" style={{ color: C.muted2 }}>· optional</span>
+        </div>
+        <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setDirty(true); }} rows={2}
+          placeholder="e.g. prep the night before"
+          className="w-full border rounded-[11px] px-3 py-[10px] text-[13px] mb-4 resize-none" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
 
         <div className="flex items-center mb-2">
           <span className="text-[12.5px] font-semibold" style={{ color: C.ink }}>Food items</span>
@@ -291,7 +370,7 @@ function MealBuilder({ editing, foods, foodsById, saving, onSave, onDelete, onCl
       </div>
 
       <div className="flex-none p-4">
-        <button onClick={() => onSave(name, slots, items)} disabled={!canSave || saving}
+        <button onClick={() => onSave(name, slots, items, notes)} disabled={!canSave || saving}
           className="w-full rounded-[12px] py-[14px] text-[13px] font-semibold" style={{ background: canSave ? C.teal : C.bgAlt, color: canSave ? "#fff" : C.muted2 }}>
           {saving ? "Saving…" : editing ? "Save changes" : "Save meal"}
         </button>
@@ -306,7 +385,7 @@ function MealsPageInner() {
 
   if (m.builderOpen) {
     return (
-      <MealBuilder editing={m.editing} foods={m.foods} foodsById={m.foodsById} saving={m.saving}
+      <MealBuilder editing={m.editing} meals={m.allMeals} foods={m.foods} foodsById={m.foodsById} saving={m.saving}
         onSave={m.saveMeal}
         onDelete={() => { if (m.editing) { void m.handleDelete(m.editing); m.closeBuilder(); } }}
         onClose={m.closeBuilder} />

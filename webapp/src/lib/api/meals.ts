@@ -15,6 +15,7 @@ export interface MealInput {
   name: string;
   slots: string[];
   items: MealItemInput[];
+  notes?: string | null;
 }
 
 export function listMeals(): Promise<MealDto[]> {
@@ -46,6 +47,7 @@ export function toggleMealFavorite(id: number): Promise<MealDto> {
 function toDto(input: MealInput) {
   return {
     name: input.name,
+    notes: input.notes ?? null,
     slots: input.slots,
     items: input.items.map((it) => ({
       foodId: it.foodId,

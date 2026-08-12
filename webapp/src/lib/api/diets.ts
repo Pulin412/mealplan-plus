@@ -19,6 +19,7 @@ export interface DietInput {
   name: string;
   entries: DietEntryInput[];
   tagIds: number[];
+  notes?: string | null;
 }
 
 export function listDiets(): Promise<DietDto[]> {
@@ -44,6 +45,8 @@ export function toggleDietFavorite(id: number): Promise<DietDto> {
 function toDto(input: DietInput) {
   return {
     name: input.name,
+    // Diets store their note in the existing `description` column (no separate notes field).
+    description: input.notes ?? null,
     meals: input.entries.filter((e) => e.kind === "meal").map((e) => ({ mealId: e.refId, dayOfWeek: 0, slot: e.slot })),
     foodItems: input.entries.filter((e) => e.kind === "food").map((e) => ({ foodId: e.refId, slot: e.slot, quantity: e.quantity, unit: e.unit })),
     tagIds: input.tagIds,

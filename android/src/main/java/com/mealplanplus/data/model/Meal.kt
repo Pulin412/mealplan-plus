@@ -13,6 +13,7 @@ import java.util.UUID
 data class Meal(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
+    val notes: String? = null,
     val slots: List<String> = emptyList(),
     val items: List<MealItem> = emptyList(),
     val isFavorite: Boolean = false,

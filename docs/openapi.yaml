@@ -2965,6 +2965,10 @@ components:
         dietName:
           type: string
           nullable: true
+        dietNote:
+          type: string
+          nullable: true
+          description: The planned diet's free-text note, if any (shown on Home next to the diet name).
         calorieRing:
           $ref: '#/components/schemas/CalorieRingDto'
         macros:
@@ -3057,6 +3061,10 @@ components:
         mealName:
           type: string
           nullable: true
+        mealNote:
+          type: string
+          nullable: true
+          description: The planned meal's free-text note, if any (shown on Home).
         isLogged:
           type: boolean
           description: Whether the user has toggled this slot as consumed today
@@ -3314,6 +3322,10 @@ components:
           readOnly: true
         name:
           type: string
+        notes:
+          type: string
+          nullable: true
+          description: Optional free-text note for the meal (e.g. prep tips, context).
         slots:
           type: array
           description: Meal slots this meal is tagged with (e.g. "Breakfast", "Post-workout").

@@ -177,13 +177,13 @@ class DietViewModel @Inject constructor(
     fun openEditDiet(diet: Diet) { _state.value = _state.value.copy(newDietOpen = true, editingDiet = diet) }
     fun closeNewDiet() { _state.value = _state.value.copy(newDietOpen = false, editingDiet = null) }
 
-    fun createDiet(name: String, entries: List<DietEntry>, tags: List<DietTag> = emptyList()) {
+    fun createDiet(name: String, entries: List<DietEntry>, tags: List<DietTag> = emptyList(), description: String? = null) {
         if (name.isBlank() || entries.isEmpty()) return
         val editing = _state.value.editingDiet
         viewModelScope.launch {
             runCatching {
-                if (editing != null) repository.update(editing, name, entries, tags)
-                else repository.create(name, entries, tags)
+                if (editing != null) repository.update(editing, name, entries, tags, description)
+                else repository.create(name, entries, tags, description = description)
             }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             closeNewDiet()
             sync()

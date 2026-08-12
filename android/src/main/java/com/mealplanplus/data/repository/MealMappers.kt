@@ -14,6 +14,7 @@ import kotlin.math.roundToInt
 fun MealDto.toEntity(dirty: Boolean = false): Meal = Meal(
     id         = (serverId ?: UUID.randomUUID()).toString(),
     name       = name,
+    notes      = notes,
     slots      = slots ?: emptyList(),
     items      = (items ?: emptyList()).map { it.toItem() },
     isFavorite = isFavorite ?: false,
@@ -24,6 +25,7 @@ fun MealDto.toEntity(dirty: Boolean = false): Meal = Meal(
 
 fun Meal.toDto(): MealDto = MealDto(
     name       = name,
+    notes      = notes,
     serverId   = UUID.fromString(id),
     slots      = slots,
     items      = items.map { it.toDto() },

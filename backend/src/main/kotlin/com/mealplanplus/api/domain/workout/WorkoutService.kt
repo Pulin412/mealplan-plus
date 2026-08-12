@@ -359,10 +359,17 @@ class WorkoutService(
         return saved.toDto(sets, notes)
     }
 
-    /** Persist a session's per-exercise notes (blank ones dropped); callers clear existing first. */
+    /**
+     * Persist a session's per-exercise notes (blank ones dropped); callers clear existing first.
+     * De-duped by exerciseId (last non-blank wins) because `uq_wsen_session_exercise` allows only one
+     * note per (session, exercise) — a client that sends two notes for the same exercise in one payload
+     * (e.g. the exercise appears twice) would otherwise collide on the 2nd insert → 500.
+     */
     private fun saveExerciseNotes(sessionId: Long, notes: List<ExerciseNoteDto>?): List<WorkoutSessionExerciseNote> =
         (notes ?: emptyList())
             .filter { !it.note.isNullOrBlank() }
+            .associateBy { it.exerciseId }   // LinkedHashMap: keeps insertion order, last value wins per key
+            .values
             .map { exerciseNoteRepo.save(WorkoutSessionExerciseNote(sessionId = sessionId, exerciseId = it.exerciseId, note = it.note)) }
 
     /** Marks a session complete and upserts — replaces an existing log for the same (uid, date, name). */

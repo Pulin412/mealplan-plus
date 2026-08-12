@@ -1,4 +1,5 @@
 package com.mealplanplus.ui.screens.home
+import com.mealplanplus.ui.components.NoteBadge
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -133,7 +134,7 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) { viewModel.load(); viewModel.loadWorkouts(); viewModel.loadActivity(); viewModel.loadNotifications() }
+            if (event == Lifecycle.Event.ON_RESUME) { viewModel.refresh(); viewModel.loadWorkouts(); viewModel.loadActivity(); viewModel.loadNotifications() }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
@@ -384,6 +385,10 @@ private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, on
                 Spacer(Modifier.width(8.dp))
                 Text("· $it", fontSize = 12.sp, color = Teal, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 3.dp).clip(RoundedCornerShape(4.dp)).clickable(onClick = onDietClick))
+                if (!d.dietNote.isNullOrBlank()) {
+                    Spacer(Modifier.width(6.dp))
+                    NoteBadge(d.dietNote, modifier = Modifier.padding(bottom = 3.dp))
+                }
             }
         }
     }
@@ -504,7 +509,12 @@ private fun SlotRow(slot: SlotStatusDto, busy: Boolean, expanded: Boolean, locke
             Spacer(Modifier.width(9.dp))
             Column(Modifier.weight(1f)) {
                 Text(slot.slot, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                Text(slot.mealName ?: "—", fontSize = 10.5.sp, color = MutedLight)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(slot.mealName ?: "—", fontSize = 10.5.sp, color = MutedLight)
+                    if (!slot.mealNote.isNullOrBlank()) {
+                        Spacer(Modifier.width(5.dp)); NoteBadge(slot.mealNote)
+                    }
+                }
             }
             Text("${slot.kcal.roundToInt()}", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
             Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))

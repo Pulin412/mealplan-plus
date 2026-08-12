@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { NoteBadge } from "@/components/NoteBadge";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
@@ -95,7 +96,10 @@ function SlotRow({ slot, busy, locked, expanded, onToggle, onExpand, isLast }: {
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: "600 12.5px system-ui", color: C.ink }}>{slot.slot}</div>
-          <div style={{ font: "400 10.5px system-ui", color: C.muted2 }}>{slot.mealName ?? "—"}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ font: "400 10.5px system-ui", color: C.muted2 }}>{slot.mealName ?? "—"}</span>
+            <NoteBadge note={slot.mealNote} />
+          </div>
         </div>
         <span style={{ font: `700 12.5px ${mono}`, color: C.ink }}>{r(slot.kcal)}<span style={{ font: "400 9px system-ui", color: C.muted2 }}> kcal</span></span>
       </div>
@@ -327,7 +331,10 @@ function DietSheet({ open, d, onClose }: { open: boolean; d: DashboardDto; onClo
             <SlotBadge slot={slot.slot} /><span style={{ flex: 1 }} />
             <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{r(slot.kcal)} kcal</span>
           </div>
-          <div style={{ font: "600 12.5px system-ui", color: C.ink, marginTop: 2 }}>{slot.mealName ?? "—"}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+            <span style={{ font: "600 12.5px system-ui", color: C.ink }}>{slot.mealName ?? "—"}</span>
+            <NoteBadge note={slot.mealNote} />
+          </div>
           {slot.items.map((it, j) => (
             <div key={j} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
               <span style={{ font: "400 11px system-ui", color: C.muted3 }}>{it.foodName}</span>
@@ -455,6 +462,7 @@ function TodayInner() {
             {d ? new Date(isoOf(d.date)).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }) : ""}
           </span>
           {d?.dietName && <span onClick={() => setDietOpen(true)} style={{ cursor: "pointer", font: "600 12px system-ui", color: C.teal, marginLeft: 8 }}>· {d.dietName}</span>}
+          {d?.dietNote && <span style={{ marginLeft: 6 }}><NoteBadge note={d.dietNote} /></span>}
         </div>
       </div>
 
