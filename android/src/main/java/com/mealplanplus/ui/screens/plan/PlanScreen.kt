@@ -350,16 +350,31 @@ private fun WorkoutDetail(w: WorkoutTemplateDto, onBack: () -> Unit) {
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Surface)
                     .border(1.dp, CardBorder, RoundedCornerShape(14.dp)).padding(14.dp)) {
                     Text(te.exerciseName ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                    // No exercise-type on the template DTO here, so infer from the target data:
+                    // cardio/timed sets carry duration (and cardio, distance).
+                    val setsSorted = te.sets.orEmpty().sortedBy { it.setNumber }
+                    val cardio = setsSorted.any { it.durationSeconds != null }
+                    val distance = setsSorted.any { it.distanceMeters != null }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
                         Text("Set", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(48.dp))
-                        Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
-                        Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                        if (cardio) {
+                            Text("Time", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(80.dp))
+                            if (distance) Text("Distance", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                        } else {
+                            Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
+                            Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                        }
                     }
-                    te.sets.orEmpty().sortedBy { it.setNumber }.forEachIndexed { i, s ->
+                    setsSorted.forEachIndexed { i, s ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                             Text("${i + 1}", fontSize = 11.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(48.dp))
-                            Text(s.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
-                            Text(s.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                            if (cardio) {
+                                Text(com.mealplanplus.ui.components.fmtDuration(s.durationSeconds), fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(80.dp))
+                                if (distance) Text(com.mealplanplus.ui.components.fmtDistance(s.distanceMeters), fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                            } else {
+                                Text(s.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
+                                Text(s.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                            }
                         }
                     }
                 }

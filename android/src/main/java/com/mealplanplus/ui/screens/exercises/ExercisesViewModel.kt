@@ -13,6 +13,7 @@ import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.data.repository.ExerciseRepository
 import com.mealplanplus.data.repository.WorkoutRepository
 import com.mealplanplus.data.repository.WorkoutSessionRepository
+import com.mealplanplus.ui.components.ExerciseType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -38,19 +39,23 @@ data class ExerciseEditor(
     val id: Long? = null,
     val name: String = "",
     val description: String = "",
+    val type: String = ExerciseType.STRENGTH,
     val tagIds: Set<Long> = emptySet(),
 )
 
-/** One target set inside the builder: reps + optional weight (kg). */
+/** One target set inside the builder: reps + weight (STRENGTH) or duration + distance (CARDIO/TIMED). */
 data class BuilderSet(
     val reps: Int? = 10,
     val weightKg: Double? = null,
+    val durationSeconds: Int? = null,
+    val distanceMeters: Double? = null,
 )
 
 /** One exercise row inside the workout builder, with its ordered per-set targets. */
 data class BuilderItem(
     val exerciseId: Long,
     val name: String,
+    val type: String = ExerciseType.STRENGTH,
     val sets: List<BuilderSet> = listOf(BuilderSet()),
 )
 
@@ -88,6 +93,7 @@ data class ExercisesUiState(
     val tagName: Map<Long, String> get() = tags.associate { it.id to it.name }
     val workoutTagName: Map<Long, String> get() = workoutTags.associate { it.id to it.name }
     val exerciseName: Map<Long, String> get() = exercises.associate { (it.id ?: -1L) to it.name }
+    val exerciseTypeById: Map<Long, String> get() = exercises.associate { (it.id ?: -1L) to ExerciseType.normalize(it.type) }
 
     /** Tags actually used by at least one exercise, alphabetical — the filter chips. */
     val exerciseFilterTags: List<TagDto>
@@ -222,12 +228,13 @@ class ExercisesViewModel @Inject constructor(
     fun openEditExercise(e: ExerciseDto) {
         _state.value = _state.value.copy(
             editor = ExerciseEditor(id = e.id, name = e.name, description = e.description ?: "",
-                tagIds = (e.tagIds ?: emptyList()).toSet()),
+                type = ExerciseType.normalize(e.type), tagIds = (e.tagIds ?: emptyList()).toSet()),
         )
     }
     fun closeEditor() { _state.value = _state.value.copy(editor = null) }
     fun setEditorName(name: String) { _state.value = _state.value.copy(editor = _state.value.editor?.copy(name = name)) }
     fun setEditorDescription(desc: String) { _state.value = _state.value.copy(editor = _state.value.editor?.copy(description = desc)) }
+    fun setEditorType(type: String) { _state.value = _state.value.copy(editor = _state.value.editor?.copy(type = type)) }
     fun toggleEditorTag(tagId: Long) {
         val ed = _state.value.editor ?: return
         val next = if (tagId in ed.tagIds) ed.tagIds - tagId else ed.tagIds + tagId
@@ -251,8 +258,8 @@ class ExercisesViewModel @Inject constructor(
         if (ed.name.isBlank()) return
         val desc = ed.description.trim().ifBlank { null }
         viewModelScope.launch {
-            val result = if (ed.id == null) exerciseRepo.create(ed.name, desc, ed.tagIds.toList())
-            else exerciseRepo.update(ed.id, ed.name, desc, ed.tagIds.toList())
+            val result = if (ed.id == null) exerciseRepo.create(ed.name, desc, ed.type, ed.tagIds.toList())
+            else exerciseRepo.update(ed.id, ed.name, desc, ed.type, ed.tagIds.toList())
             result.onSuccess { closeEditor(); load() }
                 .onFailure { _state.value = _state.value.copy(error = it.message) }
         }
@@ -274,8 +281,10 @@ class ExercisesViewModel @Inject constructor(
                 tagIds = (w.tagIds ?: emptyList()).toSet(),
                 items = (w.exercises ?: emptyList()).map { te ->
                     val sets = (te.sets ?: emptyList()).sortedBy { it.setNumber }
-                        .map { BuilderSet(reps = it.reps, weightKg = it.weightKg) }
-                    BuilderItem(te.exerciseId, te.exerciseName ?: "Exercise", sets.ifEmpty { listOf(BuilderSet()) })
+                        .map { BuilderSet(reps = it.reps, weightKg = it.weightKg,
+                            durationSeconds = it.durationSeconds, distanceMeters = it.distanceMeters) }
+                    BuilderItem(te.exerciseId, te.exerciseName ?: "Exercise", exerciseType(te.exerciseId),
+                        sets.ifEmpty { listOf(BuilderSet()) })
                 },
             ),
         )
@@ -286,11 +295,25 @@ class ExercisesViewModel @Inject constructor(
     fun closePicker() { _state.value = _state.value.copy(builder = _state.value.builder?.copy(pickerOpen = false)) }
     fun setPickerSearch(q: String) { _state.value = _state.value.copy(builder = _state.value.builder?.copy(pickerSearch = q)) }
 
+    /** Resolve an exercise's tracking type from the loaded library (defaults to STRENGTH). */
+    private fun exerciseType(id: Long): String =
+        ExerciseType.normalize(_state.value.exercises.firstOrNull { it.id == id }?.type)
+
     fun addToBuilder(e: ExerciseDto) {
         val b = _state.value.builder ?: return
         val id = e.id ?: return
         if (b.items.any { it.exerciseId == id }) return
-        _state.value = _state.value.copy(builder = b.copy(items = b.items + BuilderItem(id, e.name), pickerOpen = false, dirty = true))
+        val type = ExerciseType.normalize(e.type)
+        _state.value = _state.value.copy(builder = b.copy(
+            items = b.items + BuilderItem(id, e.name, type, listOf(defaultSetFor(type))),
+            pickerOpen = false, dirty = true))
+    }
+
+    /** A sensible first target set for a newly added exercise, by type. */
+    private fun defaultSetFor(type: String): BuilderSet = when (ExerciseType.normalize(type)) {
+        ExerciseType.CARDIO -> BuilderSet(reps = null, durationSeconds = 600, distanceMeters = null)
+        ExerciseType.TIMED -> BuilderSet(reps = null, durationSeconds = 60)
+        else -> BuilderSet()
     }
     fun removeFromBuilder(exerciseId: Long) {
         val b = _state.value.builder ?: return
@@ -328,6 +351,10 @@ class ExercisesViewModel @Inject constructor(
         updateSet(exerciseId, index) { it.copy(reps = reps?.coerceIn(1, 100)) }
     fun setWeight(exerciseId: Long, index: Int, weightKg: Double?) =
         updateSet(exerciseId, index) { it.copy(weightKg = weightKg?.coerceAtLeast(0.0)) }
+    fun setDuration(exerciseId: Long, index: Int, seconds: Int?) =
+        updateSet(exerciseId, index) { it.copy(durationSeconds = seconds?.coerceAtLeast(0)) }
+    fun setDistance(exerciseId: Long, index: Int, metres: Double?) =
+        updateSet(exerciseId, index) { it.copy(distanceMeters = metres?.coerceAtLeast(0.0)) }
 
     private fun updateSet(exerciseId: Long, index: Int, f: (BuilderSet) -> BuilderSet) = updateItem(exerciseId) {
         it.copy(sets = it.sets.mapIndexed { i, s -> if (i == index) f(s) else s })
@@ -356,7 +383,8 @@ class ExercisesViewModel @Inject constructor(
         val entries = b.items.map { item ->
             TemplateExerciseDto(
                 exerciseId = item.exerciseId,
-                sets = item.sets.mapIndexed { i, s -> TemplateSetDto(setNumber = i, reps = s.reps, weightKg = s.weightKg) },
+                sets = item.sets.mapIndexed { i, s -> TemplateSetDto(setNumber = i, reps = s.reps, weightKg = s.weightKg,
+                    durationSeconds = s.durationSeconds, distanceMeters = s.distanceMeters) },
             )
         }
         val tagIds = b.tagIds.toList()

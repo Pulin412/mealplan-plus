@@ -22,12 +22,12 @@ class ExerciseRepository @Inject constructor(
     suspend fun list(): List<ExerciseDto> =
         runCatching { api.listExercises().body().orEmpty() }.getOrDefault(emptyList())
 
-    suspend fun create(name: String, description: String?, tagIds: List<Long>): Result<ExerciseDto> = runCatching {
-        api.createExercise(ExerciseDto(name = name.trim(), description = description, tagIds = tagIds)).body()!!
+    suspend fun create(name: String, description: String?, type: String, tagIds: List<Long>): Result<ExerciseDto> = runCatching {
+        api.createExercise(ExerciseDto(name = name.trim(), description = description, type = type, tagIds = tagIds)).body()!!
     }
 
-    suspend fun update(id: Long, name: String, description: String?, tagIds: List<Long>): Result<ExerciseDto> = runCatching {
-        api.updateExercise(id, ExerciseDto(name = name.trim(), id = id, description = description, tagIds = tagIds)).body()!!
+    suspend fun update(id: Long, name: String, description: String?, type: String, tagIds: List<Long>): Result<ExerciseDto> = runCatching {
+        api.updateExercise(id, ExerciseDto(name = name.trim(), id = id, description = description, type = type, tagIds = tagIds)).body()!!
     }
 
     suspend fun delete(id: Long): Result<Unit> = runCatching {

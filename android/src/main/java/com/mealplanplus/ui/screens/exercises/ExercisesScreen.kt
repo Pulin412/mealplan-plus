@@ -62,7 +62,13 @@ import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
 import com.mealplanplus.ui.components.AppCard
+import com.mealplanplus.ui.components.DurationInput
+import com.mealplanplus.ui.components.ExerciseType
 import com.mealplanplus.ui.components.Stepper
+import com.mealplanplus.ui.components.fmtDistance
+import com.mealplanplus.ui.components.fmtDuration
+import com.mealplanplus.ui.components.kmToMetres
+import com.mealplanplus.ui.components.metresToKm
 import com.mealplanplus.ui.components.UnsavedChangesDialog
 import com.mealplanplus.ui.navigation.LocalUnsavedChangesController
 import com.mealplanplus.ui.navigation.UnsavedChangesController
@@ -208,8 +214,11 @@ private fun ExerciseCard(e: ExerciseDto, tagName: Map<Long, String>, onClick: ()
     AppCard(modifier = Modifier.clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
-                Text(e.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(e.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Spacer(Modifier.width(6.dp)); TypeBadge(e.type)
+                }
                 val names = (e.tagIds ?: emptyList()).mapNotNull { tagName[it] }
                 if (names.isNotEmpty()) {
                     Row(Modifier.padding(top = 5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -428,12 +437,16 @@ private fun logMeta(s: com.mealplanplus.data.generated.model.WorkoutSessionDto, 
 private fun LogDetailScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
     val s = state.openLog ?: return
     val exName = state.exerciseName
+    val typeById = state.exerciseTypeById
     val grouped = (s.sets ?: emptyList()).groupBy { it.exerciseId }
     var editing by remember(s.id) { mutableStateOf(false) }
     // Editable buffers as raw strings (no input loss on partial "12." etc.), parallel to the sets.
+    // Strength sets use reps/weight; cardio/timed sets use duration (minutes) / distance (km).
     val baseSets = remember(s.id) { (s.sets ?: emptyList()).sortedBy { it.setNumber } }
     val repsStr = remember(s.id) { mutableStateListOf<String>().also { l -> baseSets.forEach { l.add(it.reps?.toString() ?: "") } } }
     val weightStr = remember(s.id) { mutableStateListOf<String>().also { l -> baseSets.forEach { l.add(it.weightKg?.let(::fmtKgPlain) ?: "") } } }
+    val durationSec = remember(s.id) { mutableStateListOf<Int?>().also { l -> baseSets.forEach { l.add(it.durationSeconds) } } }
+    val distanceStr = remember(s.id) { mutableStateListOf<String>().also { l -> baseSets.forEach { l.add(it.distanceMeters?.let { m -> fmtKmPlain(metresToKm(m)) } ?: "") } } }
 
     Column(Modifier.fillMaxSize().background(AppBg)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
@@ -441,7 +454,13 @@ private fun LogDetailScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
             Text(s.name, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
             if (editing) {
                 Text("Save", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable {
-                    val newSets = baseSets.mapIndexed { i, set -> set.copy(reps = repsStr[i].toIntOrNull(), weightKg = weightStr[i].toDoubleOrNull()) }
+                    val newSets = baseSets.mapIndexed { i, set ->
+                        if (ExerciseType.tracksDuration(typeById[set.exerciseId])) set.copy(
+                            reps = null, weightKg = null,
+                            durationSeconds = durationSec[i]?.takeIf { it > 0 },
+                            distanceMeters = distanceStr[i].toDoubleOrNull()?.let { kmToMetres(it) },
+                        ) else set.copy(reps = repsStr[i].toIntOrNull(), weightKg = weightStr[i].toDoubleOrNull())
+                    }
                     vm.updateLog(s.copy(sets = newSets)); editing = false
                 }.padding(8.dp))
             } else {
@@ -459,38 +478,76 @@ private fun LogDetailScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
                 // index into the reps/weight buffers so edits map back correctly.
                 val editGroups = baseSets.indices.groupBy { baseSets[it].exerciseId }
                 items(editGroups.entries.toList(), key = { it.key ?: 0L }) { (exId, idxs) ->
+                    val cardio = ExerciseType.tracksDuration(typeById[exId])
+                    val distance = ExerciseType.tracksDistance(typeById[exId])
                     AppCard {
-                        Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                            Spacer(Modifier.width(6.dp)); TypeBadge(typeById[exId])
+                        }
                         idxs.forEachIndexed { n, i ->
+                            if (cardio) {
+                                Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Set ${n + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
+                                        DurationInput(durationSec[i], { durationSec[i] = it })
+                                    }
+                                    if (distance) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                                            Spacer(Modifier.width(44.dp))
+                                            Text("km", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedFaint, modifier = Modifier.width(26.dp))
+                                            Stepper(value = distanceStr[i].toDoubleOrNull() ?: 0.0,
+                                                onChange = { distanceStr[i] = if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() },
+                                                min = 0.0, max = 1000.0, step = 0.1, decimals = 2, modifier = Modifier.width(150.dp))
+                                        }
+                                    }
+                                }
+                            } else {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
                                 Text("Set ${n + 1}", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.width(50.dp))
-                                // Uniform +/- and directly-editable controls (weight steps by 0.5), backed
-                                // by the same reps/weight string buffers the Save handler parses.
-                                Stepper(value = repsStr[i].toIntOrNull() ?: 0, onChange = { repsStr[i] = it.toString() },
-                                    min = 0, max = 100, modifier = Modifier.width(100.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Stepper(value = weightStr[i].toDoubleOrNull() ?: 0.0,
-                                    onChange = { weightStr[i] = if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() },
-                                    min = 0.0, max = 1000.0, step = 0.5, decimals = 1, suffix = "kg", modifier = Modifier.width(126.dp))
+                                    // Uniform +/- and directly-editable controls (weight steps by 0.5), backed
+                                    // by the same reps/weight string buffers the Save handler parses.
+                                    Stepper(value = repsStr[i].toIntOrNull() ?: 0, onChange = { repsStr[i] = it.toString() },
+                                        min = 0, max = 100, modifier = Modifier.width(100.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Stepper(value = weightStr[i].toDoubleOrNull() ?: 0.0,
+                                        onChange = { weightStr[i] = if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() },
+                                        min = 0.0, max = 1000.0, step = 0.5, decimals = 1, suffix = "kg", modifier = Modifier.width(126.dp))
+                            }
+                                }
                             }
                         }
-                    }
                     Spacer(Modifier.height(8.dp))
                 }
             } else {
                 items(grouped.entries.toList(), key = { it.key }) { (exId, sets) ->
+                    val cardio = ExerciseType.tracksDuration(typeById[exId])
+                    val distance = ExerciseType.tracksDistance(typeById[exId])
                     AppCard {
-                        Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(exName[exId] ?: "Exercise", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink)
+                            Spacer(Modifier.width(6.dp)); TypeBadge(typeById[exId])
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
                             Text("Set", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(48.dp))
-                            Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
-                            Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                            if (cardio) {
+                                Text("Time", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(80.dp))
+                                if (distance) Text("Distance", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                            } else {
+                                Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
+                                Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                            }
                         }
                         sets.sortedBy { it.setNumber }.forEachIndexed { i, set ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                                 Text("${i + 1}", fontSize = 11.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(48.dp))
-                                Text(set.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
-                                Text(set.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                                if (cardio) {
+                                    Text(fmtDuration(set.durationSeconds), fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(80.dp))
+                                    if (distance) Text(fmtDistance(set.distanceMeters), fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                                } else {
+                                    Text(set.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
+                                    Text(set.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+                                }
                             }
                         }
                     }
@@ -509,6 +566,7 @@ private fun LogDetailScreen(state: ExercisesUiState, vm: ExercisesViewModel) {
 }
 
 private fun fmtKgPlain(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()
+private fun fmtKmPlain(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else "%.2f".format(v)
 
 private fun fmtKg(v: Double): String = (if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()) + " kg"
 
@@ -525,6 +583,31 @@ private fun ExerciseEditorScreen(state: ExercisesUiState, vm: ExercisesViewModel
             Spacer(Modifier.height(14.dp))
             Label("Description")
             NameField(ed.description, vm::setEditorDescription, "Optional notes / how-to", singleLine = false)
+
+            Spacer(Modifier.height(18.dp))
+            Label("Type")
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ExerciseType.ALL.forEach { t ->
+                    val on = ed.type == t
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                            .then(if (on) Modifier.background(Teal) else Modifier.border(1.dp, BorderCool, RoundedCornerShape(10.dp)))
+                            .clickable { vm.setEditorType(t) }.padding(vertical = 11.dp),
+                    ) {
+                        Text(ExerciseType.label(t), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                            color = if (on) OnAccent else MutedDark)
+                    }
+                }
+            }
+            Text(
+                when (ed.type) {
+                    ExerciseType.CARDIO -> "Logs duration + distance (e.g. running, cycling)."
+                    ExerciseType.TIMED -> "Logs duration only (e.g. plank, jump rope)."
+                    else -> "Logs reps + weight (e.g. bench press, squat)."
+                },
+                fontSize = 10.5.sp, color = MutedFaint, modifier = Modifier.padding(top = 6.dp),
+            )
 
             Spacer(Modifier.height(18.dp))
             Label("Tags")
@@ -639,6 +722,8 @@ private fun WorkoutBuilderScreen(state: ExercisesUiState, vm: ExercisesViewModel
                         onRemoveSet = { vm.removeSet(item.exerciseId, it) },
                         onReps = { i, r -> vm.setReps(item.exerciseId, i, r) },
                         onWeight = { i, w -> vm.setWeight(item.exerciseId, i, w) },
+                        onDuration = { i, sec -> vm.setDuration(item.exerciseId, i, sec) },
+                        onDistance = { i, m -> vm.setDistance(item.exerciseId, i, m) },
                         onRemove = { vm.removeFromBuilder(item.exerciseId) },
                     )
                     Spacer(Modifier.height(8.dp))
@@ -669,36 +754,69 @@ private fun BuilderRow(
     onRemoveSet: (Int) -> Unit,
     onReps: (Int, Int?) -> Unit,
     onWeight: (Int, Double?) -> Unit,
+    onDuration: (Int, Int?) -> Unit,
+    onDistance: (Int, Double?) -> Unit,
     onRemove: () -> Unit,
 ) {
+    val cardio = ExerciseType.tracksDuration(item.type)
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(item.name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ink,
-                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            Spacer(Modifier.width(6.dp)); TypeBadge(item.type)
+            Spacer(Modifier.weight(1f))
             Text("${item.sets.size} set${if (item.sets.size == 1) "" else "s"}", fontSize = 10.sp, color = MutedFaint)
             Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable(onClick = onRemove).padding(start = 10.dp))
         }
-        // Column headers
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
-            Spacer(Modifier.width(40.dp))
-            Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(96.dp))
-            Spacer(Modifier.width(10.dp))
-            Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+        // Column headers — only for strength; cardio steppers are self-labelled (m / s / km).
+        if (!cardio) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
+                Spacer(Modifier.width(40.dp))
+                Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(96.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+            }
+        } else {
+            Spacer(Modifier.height(6.dp))
         }
         item.sets.forEachIndexed { i, s ->
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(40.dp))
-                // Uniform +/- and directly-editable controls (weight steps by 0.5).
-                Stepper(value = s.reps ?: 0, onChange = { onReps(i, it) }, min = 1, max = 100, modifier = Modifier.width(98.dp))
-                Spacer(Modifier.width(8.dp))
-                Stepper(value = s.weightKg ?: 0.0, onChange = { onWeight(i, it.takeIf { w -> w > 0.0 }) },
-                    min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(116.dp))
-                Spacer(Modifier.weight(1f))
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copy set", tint = MutedLight,
-                    modifier = Modifier.size(15.dp).clickable { onDuplicateSet(i) })
-                if (item.sets.size > 1) {
-                    Text("✕", fontSize = 12.sp, color = MutedLight,
-                        modifier = Modifier.clickable { onRemoveSet(i) }.padding(start = 12.dp))
+            if (cardio) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(40.dp))
+                        DurationInput(s.durationSeconds, { onDuration(i, it) })
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy set", tint = MutedLight,
+                            modifier = Modifier.size(15.dp).clickable { onDuplicateSet(i) })
+                        if (item.sets.size > 1) {
+                            Text("✕", fontSize = 12.sp, color = MutedLight,
+                                modifier = Modifier.clickable { onRemoveSet(i) }.padding(start = 12.dp))
+                        }
+                    }
+                    if (ExerciseType.tracksDistance(item.type)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                            Spacer(Modifier.width(40.dp))
+                            Text("km", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedFaint, modifier = Modifier.width(26.dp))
+                            Stepper(value = metresToKm(s.distanceMeters), onChange = { onDistance(i, kmToMetres(it)) },
+                                min = 0.0, max = 1000.0, step = 0.1, decimals = 2, modifier = Modifier.width(150.dp))
+                        }
+                    }
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                    Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(40.dp))
+                    // Uniform +/- and directly-editable controls (weight steps by 0.5).
+                    Stepper(value = s.reps ?: 0, onChange = { onReps(i, it) }, min = 1, max = 100, modifier = Modifier.width(98.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Stepper(value = s.weightKg ?: 0.0, onChange = { onWeight(i, it.takeIf { w -> w > 0.0 }) },
+                        min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(116.dp))
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy set", tint = MutedLight,
+                        modifier = Modifier.size(15.dp).clickable { onDuplicateSet(i) })
+                    if (item.sets.size > 1) {
+                        Text("✕", fontSize = 12.sp, color = MutedLight,
+                            modifier = Modifier.clickable { onRemoveSet(i) }.padding(start = 12.dp))
+                    }
                 }
             }
         }
@@ -808,6 +926,16 @@ private fun LoadingOrEmpty(text: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text, fontSize = 13.sp, color = MutedLight)
     }
+}
+
+/** Small pill naming an exercise's tracking type (Cardio / Timed) — shown when it isn't Strength. */
+@Composable
+private fun TypeBadge(type: String?) {
+    Text(
+        ExerciseType.label(type).uppercase(), fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+        modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
 }
 
 /** Minimal wrapping row layout for tag chips (avoids extra deps). */
