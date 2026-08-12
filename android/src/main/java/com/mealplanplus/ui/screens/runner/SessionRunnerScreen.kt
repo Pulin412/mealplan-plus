@@ -127,12 +127,13 @@ private fun ActivePhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
                     done = ex.exerciseId in state.doneExerciseIds,
                     onToggle = { expanded[ex.exerciseId] = !(expanded[ex.exerciseId] == true) },
                     onToggleDone = { vm.toggleExerciseDone(ex.exerciseId) },
+                    onRemove = { vm.removeExercise(ex.exerciseId) },
                     vm = vm,
                 )
                 Spacer(Modifier.height(8.dp))
             }
-            item {
-                // Add an exercise on the fly — logged to THIS session only, never the template.
+            // Add an exercise on the fly — only for a planned workout, never a standalone single-exercise log.
+            if (state.canAddExercise) item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -171,7 +172,7 @@ private fun ActivePhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
  * the card tints green so you can see what's finished vs left; unchecking makes it editable again.
  */
 @Composable
-private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onToggle: () -> Unit, onToggleDone: () -> Unit, vm: SessionRunnerViewModel) {
+private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onToggle: () -> Unit, onToggleDone: () -> Unit, onRemove: () -> Unit, vm: SessionRunnerViewModel) {
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             CheckToggle(done, onToggleDone)
@@ -183,6 +184,10 @@ private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onTo
                     Text("${ex.sets.size} set${if (ex.sets.size == 1) "" else "s"}${if (done) " · done" else ""}",
                         fontSize = 10.5.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
             }
+            // Only exercises added on the fly can be removed from the session; template ones stay.
+            if (!ex.fromTemplate)
+                Text("✕", fontSize = 13.sp, color = MutedLight,
+                    modifier = Modifier.clip(CircleShape).clickable(onClick = onRemove).padding(6.dp))
             Text(if (expanded) "▾" else "▸", fontSize = 13.sp, color = MutedLight,
                 modifier = Modifier.clickable(onClick = onToggle).padding(start = 8.dp))
         }
