@@ -1,5 +1,6 @@
 package com.mealplanplus.ui.screens.runner
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,10 +24,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,14 +68,28 @@ import com.mealplanplus.ui.theme.Teal
 @Composable
 fun SessionRunnerScreen(onBack: () -> Unit, viewModel: SessionRunnerViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
+    var showExitConfirm by remember { mutableStateOf(false) }
+    // Confirm before leaving a workout that's in progress (progress is auto-saved either way); other
+    // phases (Ready/Done) leave straight away.
+    val attemptBack: () -> Unit = { if (state.phase == RunPhase.ACTIVE) showExitConfirm = true else onBack() }
+    BackHandler(enabled = state.phase == RunPhase.ACTIVE) { showExitConfirm = true }
     Column(Modifier.fillMaxSize().background(AppBg)) {
-        Header(state.workoutName, phaseLabel(state.phase), onBack)
+        Header(state.workoutName, phaseLabel(state.phase), attemptBack)
         when (state.phase) {
             RunPhase.LOADING -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Loading…", fontSize = 13.sp, color = MutedLight) }
             RunPhase.READY -> ReadyPhase(state, viewModel)
             RunPhase.ACTIVE -> ActivePhase(state, viewModel)
             RunPhase.DONE -> DonePhase(state, viewModel, onBack)
         }
+    }
+    if (showExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { Text("Leave workout?") },
+            text = { Text("Your progress is saved — you can resume it from Home.") },
+            confirmButton = { TextButton(onClick = { showExitConfirm = false; onBack() }) { Text("Exit") } },
+            dismissButton = { TextButton(onClick = { showExitConfirm = false }) { Text("Keep editing") } },
+        )
     }
 }
 

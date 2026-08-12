@@ -50,5 +50,6 @@ cd webapp && npm install && npm run dev
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the tiers fit, data/sync model, auth, deployment, zero-billing.
 - [docs/FEATURES.md](docs/FEATURES.md) — what's built and what's planned.
+- [docs/RUNBOOK.md](docs/RUNBOOK.md) — ops: rollback, where to look when it breaks, monitoring setup.
 - `docs/openapi.yaml` — the API contract (build input; keep in sync with every API change).
 - `docs/agents/` — planning for the future AI-agent feature.

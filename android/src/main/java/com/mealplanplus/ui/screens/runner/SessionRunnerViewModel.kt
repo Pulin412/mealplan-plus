@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -276,10 +278,23 @@ class SessionRunnerViewModel @Inject constructor(
         sets = currentSets(), exerciseNotes = currentExerciseNotes(),
     )
 
+    // Serialize all session writes: exactly one updateSession in flight at a time, always writing the
+    // latest state. Without this, rapid edits fire concurrent PUTs and the backend's delete-all-then-
+    // reinsert races → duplicate sets + out-of-order (trimmed) notes on resume. `finishing` blocks a
+    // late autosave from re-writing isCompleted=false after finish().
+    private val saveMutex = Mutex()
+    private var finishing = false
+
     /** Save current sets + notes to the in-progress session so we can resume after leaving the screen. */
     private fun persist() {
-        val id = _state.value.sessionId ?: return
-        viewModelScope.launch { sessionRepo.update(sessionPayload(id)) }
+        if (_state.value.sessionId == null || finishing) return
+        viewModelScope.launch {
+            saveMutex.withLock {
+                val id = _state.value.sessionId ?: return@withLock
+                if (finishing) return@withLock
+                sessionRepo.update(sessionPayload(id))   // reads the latest _state inside the lock
+            }
+        }
     }
 
     // ── Finish / re-edit ────────────────────────────────────────────────────────────
@@ -287,13 +302,18 @@ class SessionRunnerViewModel @Inject constructor(
         val id = _state.value.sessionId ?: return
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null) }
-            sessionRepo.update(sessionPayload(id))
+            // Flush the final state under the same lock so no autosave races the finish; mark finishing
+            // first so any queued autosave becomes a no-op (won't flip isCompleted back to false).
+            saveMutex.withLock {
+                finishing = true
+                sessionRepo.update(sessionPayload(id))
+            }
             sessionRepo.finish(id)
                 .onSuccess { _state.update { it.copy(busy = false, phase = RunPhase.DONE) } }
-                .onFailure { e -> _state.update { it.copy(busy = false, error = e.message) } }
+                .onFailure { e -> finishing = false; _state.update { it.copy(busy = false, error = e.message) } }
         }
     }
 
     /** Re-open a completed log for editing (Done → Active); re-finishing upserts the same day's log. */
-    fun edit() { _state.update { it.copy(phase = RunPhase.ACTIVE) } }
+    fun edit() { finishing = false; _state.update { it.copy(phase = RunPhase.ACTIVE) } }
 }
