@@ -1996,6 +1996,11 @@ export interface components {
             /** @description Optional free-text notes / how-to for the exercise. */
             description?: string | null;
             /**
+             * @description How this exercise is logged and which fields the runner/builder show. One of STRENGTH (reps + weight), CARDIO (duration + distance), TIMED (duration only).
+             * @default STRENGTH
+             */
+            type: string;
+            /**
              * @description true = bundled system exercise visible to all users
              * @default false
              */
@@ -2042,6 +2047,13 @@ export interface components {
              * @description Target weight in kg (canonical); clients display in the user's unit.
              */
             weightKg?: number | null;
+            /** @description Target duration in seconds (CARDIO/TIMED exercises). */
+            durationSeconds?: number | null;
+            /**
+             * Format: double
+             * @description Target distance in metres (CARDIO exercises).
+             */
+            distanceMeters?: number | null;
         };
         WorkoutTemplateDto: {
             /** Format: int64 */
@@ -2084,6 +2096,13 @@ export interface components {
             reps?: number | null;
             /** Format: double */
             weightKg?: number | null;
+            /** @description Logged duration in seconds (CARDIO/TIMED exercises). */
+            durationSeconds?: number | null;
+            /**
+             * Format: double
+             * @description Logged distance in metres (CARDIO exercises).
+             */
+            distanceMeters?: number | null;
             notes?: string | null;
         };
         /** @description A completed (or in-progress) workout log for one day. */

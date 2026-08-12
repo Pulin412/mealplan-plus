@@ -4,7 +4,12 @@ import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Stepper } from "@/components/ui/Stepper";
+import { DurationInput } from "@/components/ui/DurationInput";
 import { useSession, type RunExercise, type RunSet, type LibExercise } from "@/hooks/useSession";
+import {
+  typeLabel, tracksDuration, tracksDistance,
+  fmtDuration, fmtDistance, metresToKm, kmToMetres, setSummaryFor,
+} from "@/lib/workoutMetrics";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
@@ -13,7 +18,17 @@ const C = {
 };
 const mono = "'DM Mono', monospace";
 const fmtKg = (v: number) => `${v} kg`;
-const setSummary = (s: RunSet) => (s.weightKg != null ? `${s.reps ?? "–"}×${fmtKg(s.weightKg)}` : `${s.reps ?? "–"}`);
+const setSummary = (type: string, s: RunSet) => setSummaryFor(type, s.reps, s.weightKg, s.durationSeconds, s.distanceMeters);
+
+/** Small pill naming an exercise's tracking type. */
+function TypeBadge({ type }: { type: string }) {
+  return (
+    <span className="text-[8.5px] font-semibold px-1.5 py-0.5 rounded-[5px] ml-1.5"
+      style={{ color: C.teal, background: "color-mix(in oklch, oklch(0.62 0.09 210) 12%, transparent)" }}>
+      {typeLabel(type).toUpperCase()}
+    </span>
+  );
+}
 
 function Header({ title, sub, onBack }: { title: string; sub: string; onBack: () => void }) {
   return (
@@ -27,7 +42,18 @@ function Header({ title, sub, onBack }: { title: string; sub: string; onBack: ()
   );
 }
 
-function ColHeaders({ actions }: { actions: boolean }) {
+function ColHeaders({ type, actions }: { type: string; actions: boolean }) {
+  // Editable cardio rows use self-labelled steppers (m / s) + a "km" label, so no header there.
+  if (tracksDuration(type) && actions) return null;
+  if (tracksDuration(type)) {
+    return (
+      <div className="flex mt-2 mb-0.5 text-[9.5px] font-semibold" style={{ color: C.faint }}>
+        <span className="w-11" />
+        <span className="w-16">Time</span>
+        {tracksDistance(type) && <span>Distance</span>}
+      </div>
+    );
+  }
   return (
     <div className="flex mt-2 mb-0.5 text-[9.5px] font-semibold" style={{ color: C.faint }}>
       <span className="w-11" />
@@ -54,12 +80,21 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-[12px] mb-2 px-3 py-[11px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>{children}</div>;
 }
 
-function ReadOnlyRow({ n, reps, weightKg }: { n: number; reps: number | null; weightKg: number | null }) {
+function ReadOnlyRow({ type, n, set }: { type: string; n: number; set: RunSet }) {
   return (
     <div className="flex items-center py-[3px] text-[12px] tabular-nums" style={{ color: C.ink, fontFamily: mono }}>
       <span className="w-11" style={{ color: C.muted3 }}>Set {n}</span>
-      <span className="w-16">{reps ?? "–"}</span>
-      <span>{weightKg != null ? fmtKg(weightKg) : "–"}</span>
+      {tracksDuration(type) ? (
+        <>
+          <span className="w-16">{fmtDuration(set.durationSeconds)}</span>
+          {tracksDistance(type) && <span>{fmtDistance(set.distanceMeters)}</span>}
+        </>
+      ) : (
+        <>
+          <span className="w-16">{set.reps ?? "–"}</span>
+          <span>{set.weightKg != null ? fmtKg(set.weightKg) : "–"}</span>
+        </>
+      )}
     </div>
   );
 }
@@ -96,7 +131,7 @@ function LastTimePanel({ ex, onCopy }: { ex: RunExercise; onCopy: () => void }) 
           {ex.lastNote && <NoteDisplay note={ex.lastNote} />}
           {ex.lastTime.length === 0
             ? <div className="text-[10px] mt-1" style={{ color: C.faint }}>No previous sets</div>
-            : ex.lastTime.map((set, i) => <div key={i} className="text-[10.5px] mt-0.5" style={{ color: C.faint, fontFamily: mono }}>Set {i + 1}:  {setSummary(set)}</div>)}
+            : ex.lastTime.map((set, i) => <div key={i} className="text-[10.5px] mt-0.5" style={{ color: C.faint, fontFamily: mono }}>Set {i + 1}:  {setSummary(ex.type, set)}</div>)}
         </div>
       )}
     </div>
@@ -110,12 +145,12 @@ function ReadyPhase({ s }: { s: ReturnType<typeof useSession> }) {
       <div className="flex-1 overflow-y-auto px-[14px] pt-1.5 pb-2">
         {s.exercises.map((ex) => (
           <Card key={ex.exerciseId}>
-            <div className="text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</div>
+            <div className="flex items-center"><span className="text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</span><TypeBadge type={ex.type} /></div>
             <Desc text={ex.description} />
-            <ColHeaders actions={false} />
-            {ex.templateSets.map((set, i) => <ReadOnlyRow key={i} n={i + 1} reps={set.reps} weightKg={set.weightKg} />)}
+            <ColHeaders type={ex.type} actions={false} />
+            {ex.templateSets.map((set, i) => <ReadOnlyRow key={i} type={ex.type} n={i + 1} set={set} />)}
             {ex.lastTime.length > 0 && (
-              <div className="text-[10px] mt-1.5" style={{ color: C.faint }}>Last time: {ex.lastTime.map(setSummary).join("  ")}</div>
+              <div className="text-[10px] mt-1.5" style={{ color: C.faint }}>Last time: {ex.lastTime.map((st) => setSummary(ex.type, st)).join("  ")}</div>
             )}
           </Card>
         ))}
@@ -151,7 +186,7 @@ function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExer
       <div className="flex items-center">
         <ExCheck done={done} onClick={(e) => { e.stopPropagation(); s.toggleDone(ex.exerciseId); }} />
         <div className="flex-1 cursor-pointer" onClick={() => setOpen((o) => !o)}>
-          <div className="text-[13px] font-bold" style={{ color: done ? C.muted3 : C.ink }}>{ex.name}</div>
+          <div className="flex items-center"><span className="text-[13px] font-bold" style={{ color: done ? C.muted3 : C.ink }}>{ex.name}</span><TypeBadge type={ex.type} /></div>
           <Desc text={ex.description} />
           {!open && <div className="text-[10.5px] mt-0.5" style={{ color: C.faint }}>{ex.sets.length} set{ex.sets.length === 1 ? "" : "s"}{done ? " · done" : ""}</div>}
         </div>
@@ -164,22 +199,39 @@ function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExer
       {open && (done ? (
         <>
           {/* Read-only recap while this exercise is checked off. */}
-          <ColHeaders actions={false} />
-          {ex.sets.map((set, i) => <ReadOnlyRow key={i} n={i + 1} reps={set.reps} weightKg={set.weightKg} />)}
+          <ColHeaders type={ex.type} actions={false} />
+          {ex.sets.map((set, i) => <ReadOnlyRow key={i} type={ex.type} n={i + 1} set={set} />)}
           {ex.note && <NoteDisplay note={ex.note} />}
         </>
       ) : (
         <>
           {(ex.lastTime.length > 0 || ex.lastNote) && <LastTimePanel ex={ex} onCopy={() => s.copyLast(ex.exerciseId)} />}
-          <ColHeaders actions />
+          <ColHeaders type={ex.type} actions />
           {ex.sets.map((set, i) => (
-            <div key={i} className="flex items-center py-[3px]">
-              <span className="w-11 text-[10.5px]" style={{ color: C.muted3, fontFamily: mono }}>Set {i + 1}</span>
-              <Stepper value={set.reps ?? 0} onChange={(v) => s.setReps(ex.exerciseId, i, v)} min={0} max={100} dense />
-              <div className="ml-[8px]"><Stepper value={set.weightKg ?? 0} onChange={(v) => s.setWeight(ex.exerciseId, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
-              <span className="flex-1" />
-              {ex.sets.length > 1 && <button onClick={() => s.removeSet(ex.exerciseId, i)} className="text-[12px] pl-2" style={{ color: C.muted2 }}>✕</button>}
-            </div>
+            tracksDuration(ex.type) ? (
+              <div key={i} className="py-[3px]">
+                <div className="flex items-center">
+                  <span className="w-11 text-[10.5px]" style={{ color: C.muted3, fontFamily: mono }}>Set {i + 1}</span>
+                  <DurationInput seconds={set.durationSeconds} onChange={(v) => s.setDuration(ex.exerciseId, i, v)} />
+                  <span className="flex-1" />
+                  {ex.sets.length > 1 && <button onClick={() => s.removeSet(ex.exerciseId, i)} className="text-[12px] pl-2" style={{ color: C.muted2 }}>✕</button>}
+                </div>
+                {tracksDistance(ex.type) && (
+                  <div className="flex items-center mt-1">
+                    <span className="w-11 text-[10.5px]" style={{ color: C.faint, fontFamily: mono }}>km</span>
+                    <Stepper value={metresToKm(set.distanceMeters)} onChange={(v) => s.setDistance(ex.exerciseId, i, kmToMetres(v))} min={0} max={1000} step={0.1} decimals={2} dense />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div key={i} className="flex items-center py-[3px]">
+                <span className="w-11 text-[10.5px]" style={{ color: C.muted3, fontFamily: mono }}>Set {i + 1}</span>
+                <Stepper value={set.reps ?? 0} onChange={(v) => s.setReps(ex.exerciseId, i, v)} min={0} max={100} dense />
+                <div className="ml-[8px]"><Stepper value={set.weightKg ?? 0} onChange={(v) => s.setWeight(ex.exerciseId, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
+                <span className="flex-1" />
+                {ex.sets.length > 1 && <button onClick={() => s.removeSet(ex.exerciseId, i)} className="text-[12px] pl-2" style={{ color: C.muted2 }}>✕</button>}
+              </div>
+            )
           ))}
           <button onClick={() => s.addSet(ex.exerciseId)} className="text-[11.5px] font-semibold mt-1.5" style={{ color: C.teal }}>＋ Add set</button>
           <NoteField value={ex.note} placeholder="Add a note for this exercise…" onChange={(v) => s.setExerciseNote(ex.exerciseId, v)} />
@@ -248,9 +300,9 @@ function DonePhase({ s, onDone }: { s: ReturnType<typeof useSession>; onDone: ()
       <div className="flex-1 overflow-y-auto px-[14px] pt-2 pb-2">
         {s.exercises.map((ex) => (
           <Card key={ex.exerciseId}>
-            <div className="text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</div>
-            <ColHeaders actions={false} />
-            {ex.sets.map((set, i) => <ReadOnlyRow key={i} n={i + 1} reps={set.reps} weightKg={set.weightKg} />)}
+            <div className="flex items-center"><span className="text-[13px] font-bold" style={{ color: C.ink }}>{ex.name}</span><TypeBadge type={ex.type} /></div>
+            <ColHeaders type={ex.type} actions={false} />
+            {ex.sets.map((set, i) => <ReadOnlyRow key={i} type={ex.type} n={i + 1} set={set} />)}
             {ex.note && <NoteDisplay note={ex.note} />}
           </Card>
         ))}

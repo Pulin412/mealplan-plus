@@ -13,6 +13,7 @@ import { toggleWorkoutShare } from "@/lib/api/social";
 import { listWorkoutSessions, updateSession, deleteSession, type WorkoutSessionDto } from "@/lib/api/sessions";
 import { isoOf } from "@/lib/api/plans";
 import { friendlyMessage, toastApiError } from "@/lib/api/errors";
+import { STRENGTH, CARDIO, TIMED, normalizeType } from "@/lib/workoutMetrics";
 
 export type LibTab = "exercises" | "workouts" | "logs";
 
@@ -21,19 +22,23 @@ export interface ExerciseEditor {
   id: number | null;
   name: string;
   description: string;
+  type: string;
   tagIds: Set<number>;
 }
 
-/** One target set inside the builder: reps + optional weight (kg). */
+/** One target set inside the builder: reps + weight (STRENGTH) or duration + distance (CARDIO/TIMED). */
 export interface BuilderSet {
   reps: number | null;
   weightKg: number | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
 }
 
 /** One exercise row inside the workout builder, with its ordered per-set targets. */
 export interface BuilderItem {
   exerciseId: number;
   name: string;
+  type: string;
   sets: BuilderSet[];
 }
 
@@ -49,7 +54,15 @@ export interface WorkoutBuilder {
   dirty: boolean;
 }
 
-const newSet = (): BuilderSet => ({ reps: 10, weightKg: null });
+const newSet = (): BuilderSet => ({ reps: 10, weightKg: null, durationSeconds: null, distanceMeters: null });
+/** A sensible first target set for a newly added exercise, by type. */
+const defaultSetFor = (type: string): BuilderSet => {
+  switch (normalizeType(type)) {
+    case CARDIO: return { reps: null, weightKg: null, durationSeconds: 600, distanceMeters: null };
+    case TIMED: return { reps: null, weightKg: null, durationSeconds: 60, distanceMeters: null };
+    default: return newSet();
+  }
+};
 
 export function useExercises() {
   const [tab, setTab]             = useState<LibTab>("exercises");
@@ -102,6 +115,11 @@ export function useExercises() {
     [exercises],
   );
 
+  const exerciseTypeById = useMemo(
+    () => new Map(exercises.filter((e) => e.id != null).map((e) => [e.id!, normalizeType(e.type)])),
+    [exercises],
+  );
+
   /** Tags used by at least one exercise, alphabetical — the filter chips. */
   const filterTags = useMemo(
     () => tags.filter((t) => exercises.some((e) => (e.tagIds ?? []).includes(t.id)))
@@ -135,17 +153,18 @@ export function useExercises() {
 
   // ── Exercise editor ──────────────────────────────────────────────────────────
   const openNewExercise = useCallback(() => {
-    setEditor({ id: null, name: "", description: "", tagIds: new Set() });
+    setEditor({ id: null, name: "", description: "", type: STRENGTH, tagIds: new Set() });
   }, []);
   const openEditExercise = useCallback((e: ExerciseDto) => {
     setEditor({
       id: e.id ?? null, name: e.name, description: e.description ?? "",
-      tagIds: new Set(e.tagIds ?? []),
+      type: normalizeType(e.type), tagIds: new Set(e.tagIds ?? []),
     });
   }, []);
   const closeEditor = useCallback(() => setEditor(null), []);
   const setEditorName = useCallback((name: string) => setEditor((ed) => ed && { ...ed, name }), []);
   const setEditorDescription = useCallback((description: string) => setEditor((ed) => ed && { ...ed, description }), []);
+  const setEditorType = useCallback((type: string) => setEditor((ed) => ed && { ...ed, type }), []);
   const toggleEditorTag = useCallback((tagId: number) => {
     setEditor((ed) => {
       if (!ed) return ed;
@@ -172,8 +191,8 @@ export function useExercises() {
     const desc = editor.description.trim() || null;
     const tagIds = Array.from(editor.tagIds);
     try {
-      if (editor.id == null) await createExercise(editor.name, desc, tagIds);
-      else await updateExercise(editor.id, editor.name, desc, tagIds);
+      if (editor.id == null) await createExercise(editor.name, desc, editor.type, tagIds);
+      else await updateExercise(editor.id, editor.name, desc, editor.type, tagIds);
       setEditor(null);
       await load();
     } catch (e) {
@@ -202,15 +221,16 @@ export function useExercises() {
       items: (w.exercises ?? []).map((te) => {
         const sets = [...(te.sets ?? [])]
           .sort((a, b) => a.setNumber - b.setNumber)
-          .map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null }));
+          .map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null, durationSeconds: s.durationSeconds ?? null, distanceMeters: s.distanceMeters ?? null }));
         return {
           exerciseId: te.exerciseId,
           name: te.exerciseName ?? "Exercise",
+          type: exerciseTypeById.get(te.exerciseId) ?? STRENGTH,
           sets: sets.length ? sets : [newSet()],
         };
       }),
     });
-  }, []);
+  }, [exerciseTypeById]);
   const closeBuilder = useCallback(() => setBuilder(null), []);
   const setBuilderName = useCallback((name: string) => setBuilder((b) => b && { ...b, name, dirty: true }), []);
   const openPicker = useCallback(() => setBuilder((b) => b && { ...b, pickerOpen: true, pickerSearch: "" }), []);
@@ -221,7 +241,8 @@ export function useExercises() {
     setBuilder((b) => {
       if (!b || e.id == null) return b;
       if (b.items.some((it) => it.exerciseId === e.id)) return b;
-      return { ...b, pickerOpen: false, items: [...b.items, { exerciseId: e.id, name: e.name, sets: [newSet()] }], dirty: true };
+      const type = normalizeType(e.type);
+      return { ...b, pickerOpen: false, items: [...b.items, { exerciseId: e.id, name: e.name, type, sets: [defaultSetFor(type)] }], dirty: true };
     });
   }, []);
   const removeFromBuilder = useCallback((exerciseId: number) => {
@@ -275,6 +296,12 @@ export function useExercises() {
   const setWeight = useCallback((exerciseId: number, index: number, weightKg: number | null) => {
     updateSet(exerciseId, index, (s) => ({ ...s, weightKg: weightKg == null ? null : Math.max(0, weightKg) }));
   }, [updateSet]);
+  const setDuration = useCallback((exerciseId: number, index: number, seconds: number | null) => {
+    updateSet(exerciseId, index, (s) => ({ ...s, durationSeconds: seconds == null ? null : Math.max(0, seconds) }));
+  }, [updateSet]);
+  const setDistance = useCallback((exerciseId: number, index: number, metres: number | null) => {
+    updateSet(exerciseId, index, (s) => ({ ...s, distanceMeters: metres == null ? null : Math.max(0, metres) }));
+  }, [updateSet]);
 
   /** Library exercises not already in the builder, filtered by the picker search. */
   const pickerCandidates = useMemo(() => {
@@ -296,7 +323,7 @@ export function useExercises() {
     const entries: TemplateExerciseDto[] = builder.items.map((item, orderIndex) => ({
       exerciseId: item.exerciseId,
       orderIndex,
-      sets: item.sets.map((s, i) => ({ setNumber: i, reps: s.reps, weightKg: s.weightKg })),
+      sets: item.sets.map((s, i) => ({ setNumber: i, reps: s.reps, weightKg: s.weightKg, durationSeconds: s.durationSeconds, distanceMeters: s.distanceMeters })),
     }));
     try {
       const tagIds = Array.from(builder.tagIds);
@@ -370,19 +397,19 @@ export function useExercises() {
 
   return {
     tab, setTab,
-    exercises, workouts, logs, tags, tagName, exerciseName, loading, error,
+    exercises, workouts, logs, tags, tagName, exerciseName, exerciseTypeById, loading, error,
     filterTags, filteredExercises, exerciseTagFilter, setExerciseTagFilter,
     workoutTags, workoutTagName, workoutFilterTags, filteredWorkouts, workoutTagFilter, setWorkoutTagFilter,
     openLog, openLogDetail, closeLogDetail, updateLog, deleteLog, clearAllLogs,
     logsMonth, prevLogsMonth, nextLogsMonth, todayIso, logsByDate,
     // exercise editor
     editor, openNewExercise, openEditExercise, closeEditor,
-    setEditorName, setEditorDescription, toggleEditorTag, createEditorTag, saveExercise, removeExercise,
+    setEditorName, setEditorDescription, setEditorType, toggleEditorTag, createEditorTag, saveExercise, removeExercise,
     // workout builder
     builder, openNewWorkout, openEditWorkout, closeBuilder, setBuilderName,
     openPicker, closePicker, setPickerSearch, addToBuilder, removeFromBuilder,
     toggleBuilderTag, createBuilderTag,
-    duplicateSet, removeSet, setReps, setWeight,
+    duplicateSet, removeSet, setReps, setWeight, setDuration, setDistance,
     pickerCandidates, canSaveWorkout, saveWorkout, removeWorkout, toggleWorkoutShare: toggleWorkoutShareFn,
   };
 }
