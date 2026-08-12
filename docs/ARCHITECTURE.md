@@ -59,9 +59,13 @@ billable SDK is imported.
 
 ## Design system
 
-Two component libraries (Compose + React) implement **one token set** (colours, DM Mono for
+Two component libraries (Compose + React) share **one token set** (colours, DM Mono for
 all numerals, ≥44px tap targets, WCAG 2.1 AA). Screens compose from the library rather than
 hand-rolling styling. The design source lives in `design_v2/` (local, gitignored).
+
+> Today the tokens are duplicated (Compose theme + Tailwind/`globals.css`) and can drift.
+> Planned before a third client (native iOS) lands: extract them to one neutral source
+> (e.g. Style Dictionary → CSS + Compose + Swift) so all clients generate from the same values.
 
 ---
 
@@ -113,10 +117,11 @@ Vercel domain.
 
 ### Android — manual APK
 
-`android-release.yml` is `workflow_dispatch` only (inputs: `versionName`, `versionCode`).
-It builds a **debug-signed** APK pointed at prod (`applicationId com.mealplanplus`, sideload
-variant `com.mealplanplus.dev`) and publishes it to a GitHub Release. No Play account yet —
-signed-AAB + Play upload is a placeholder in the workflow.
+`android-release.yml` is `workflow_dispatch` only (inputs: `versionName`, `versionCode`, `notes`).
+It builds a **release-signed** APK pointed at prod, signed with a stable keystore from the
+`ANDROID_KEYSTORE_*` secrets (its SHA registered in Firebase, so Google sign-in works)
+(`applicationId com.mealplanplus`, debug sideload variant `com.mealplanplus.dev`), and publishes
+it to a GitHub Release. No Play account yet — signed-AAB + Play upload is a placeholder in the workflow.
 
 ### Rollback
 

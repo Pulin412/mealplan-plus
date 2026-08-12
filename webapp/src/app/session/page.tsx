@@ -277,15 +277,30 @@ function Runner() {
   const name = params.get("name") ?? "Workout";
   const s = useSession(templateId ? Number(templateId) : null, exerciseId ? Number(exerciseId) : null, name);
   const goBack = () => router.push("/today");
+  const [confirmExit, setConfirmExit] = useState(false);
+  // Confirm before leaving a workout that's in progress (progress is auto-saved either way).
+  const attemptBack = () => { if (s.phase === "active") setConfirmExit(true); else goBack(); };
 
   const sub = s.phase === "ready" ? "Ready" : s.phase === "active" ? "In progress" : s.phase === "done" ? "Completed" : "";
   return (
     <div className="flex flex-col min-h-dvh" style={{ background: C.bg }}>
-      <Header title={s.workoutName} sub={sub} onBack={goBack} />
+      <Header title={s.workoutName} sub={sub} onBack={attemptBack} />
       {s.phase === "loading" && <div className="flex-1 flex items-center justify-center text-[13px]" style={{ color: C.muted2 }}>Loading…</div>}
       {s.phase === "ready" && <ReadyPhase s={s} />}
       {s.phase === "active" && <ActivePhase s={s} />}
       {s.phase === "done" && <DonePhase s={s} onDone={goBack} />}
+      {confirmExit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => setConfirmExit(false)}>
+          <div className="mx-6 w-full max-w-[320px] rounded-[14px] p-5" style={{ background: C.surface }} onClick={(e) => e.stopPropagation()}>
+            <div className="text-[15px] font-bold" style={{ color: C.ink }}>Leave workout?</div>
+            <div className="text-[12.5px] mt-1.5" style={{ color: C.muted3 }}>Your progress is saved — you can resume it from Today.</div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setConfirmExit(false)} className="px-3 py-2 text-[13px] font-semibold" style={{ color: C.muted3 }}>Keep editing</button>
+              <button onClick={() => { setConfirmExit(false); goBack(); }} className="px-3 py-2 text-[13px] font-semibold" style={{ color: C.teal }}>Exit</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

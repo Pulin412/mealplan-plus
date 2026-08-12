@@ -28,7 +28,9 @@ function SectionLabel({ text }: { text: string }) {
   return <div style={{ font: "700 10.5px system-ui", letterSpacing: 0.6, textTransform: "uppercase", color: C.faint, margin: "22px 0 8px 4px" }}>{text}</div>;
 }
 const cardStyle: React.CSSProperties = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16 };
-const APP_VERSION = "0.1.0"; // webapp package version (separate from the Android release)
+// Webapp version (separate track from the Android release). Single source of truth = package.json,
+// injected via next.config → NEXT_PUBLIC_APP_VERSION; bump it there per release.
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0";
 function Divider() { return <div style={{ height: 1, background: C.border, margin: "0 14px" }} />; }
 function ValueRow({ label, value, labelColor = C.ink }: { label: string; value: string; labelColor?: string }) {
   return (

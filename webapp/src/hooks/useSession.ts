@@ -156,9 +156,20 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const workoutNoteRef = useRef("");
   workoutNoteRef.current = workoutNote;
 
+  // Serialize saves: chain each updateSession after the previous so only one is ever in flight.
+  // Without this, rapid edits fire concurrent PUTs and the backend's delete-all-then-reinsert races
+  // → duplicate sets + out-of-order (trimmed) notes on resume. `finishingRef` blocks a late autosave
+  // from re-writing isCompleted=false after finish().
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const finishingRef = useRef(false);
+
   const persist = useCallback((list: RunExercise[]) => {
-    if (sessionId == null) return;
-    void updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(list), exerciseNotes: notesPayload(list), notes: workoutNoteRef.current || null }).catch(() => {});
+    if (sessionId == null || finishingRef.current) return;
+    const payload = { name, date: today, isCompleted: false, sets: setsPayload(list), exerciseNotes: notesPayload(list), notes: workoutNoteRef.current || null };
+    saveChainRef.current = saveChainRef.current.then(async () => {
+      if (finishingRef.current) return;
+      await updateSession(sessionId, payload).catch(() => {});
+    });
   }, [sessionId, name, today]);
 
   const mutate = useCallback((f: (list: RunExercise[]) => RunExercise[]) => {
@@ -169,7 +180,8 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     mutate((list) => list.map((ex) => ex.exerciseId === exId ? { ...ex, note } : ex));
   const setWorkoutNote = (note: string) => {
     setWorkoutNoteState(note);
-    if (sessionId != null) void updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises), exerciseNotes: notesPayload(exercises), notes: note || null }).catch(() => {});
+    workoutNoteRef.current = note;   // so the enqueued save picks up the new note now, not next render
+    persist(exercises);
   };
 
   const editSet = (exId: number, index: number, f: (s: RunSet) => RunSet) =>
@@ -228,15 +240,17 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const finish = useCallback(async () => {
     if (sessionId == null) return;
     setBusy(true); setError(null);
+    finishingRef.current = true;              // stop autosaves from racing / un-finishing
     try {
+      await saveChainRef.current;             // let any queued autosave drain first
       await updateSession(sessionId, { name, date: today, isCompleted: false, sets: setsPayload(exercises), exerciseNotes: notesPayload(exercises), notes: workoutNote || null });
       await finishSession(sessionId);
       setPhase("done");
-    } catch (e) { setError(friendlyMessage(e)); }
+    } catch (e) { finishingRef.current = false; setError(friendlyMessage(e)); }
     finally { setBusy(false); }
   }, [sessionId, name, today, exercises, workoutNote]);
 
-  const edit = useCallback(() => setPhase("active"), []);
+  const edit = useCallback(() => { finishingRef.current = false; setPhase("active"); }, []);
 
   return {
     phase, workoutName: name, exercises, library, doneIds, busy, error, workoutNote,

@@ -81,17 +81,32 @@ jobs:
           name: mealplanplus-${{ github.event.inputs.versionName }}
           path: ${{ steps.rename.outputs.apk }}
 
+      # Notes come from CHANGELOG.md (Android → the versionName block); if there's no matching block,
+      # fall back to the manual `notes` input. Rename the CHANGELOG [Unreleased] block before releasing.
+      - name: Assemble release notes
+        id: notes
+        env:
+          VERSION: ${{ github.event.inputs.versionName }}
+          VCODE: ${{ github.event.inputs.versionCode || github.run_number }}
+          MANUAL_NOTES: ${{ github.event.inputs.notes }}
+        run: |
+          NOTES="$(bash scripts/changelog.sh Android "$VERSION" || true)"
+          [ -n "$NOTES" ] || NOTES="$MANUAL_NOTES"
+          {
+            echo 'body<<CHANGELOG_EOF'
+            printf 'Installable release-signed APK (prod backend). Sideload / `adb install`.\n'
+            printf 'appId `com.mealplanplus` · versionCode %s\n\n' "$VCODE"
+            printf '%s\n' "$NOTES"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       # Permanent, versioned home for the APK.
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-v${{ github.event.inputs.versionName }}
           name: Android v${{ github.event.inputs.versionName }}
-          body: |
-            Installable release-signed APK (prod backend). Sideload / `adb install`.
-            appId `com.mealplanplus` · versionCode ${{ github.event.inputs.versionCode || github.run_number }}
-
-            ${{ github.event.inputs.notes }}
+          body: ${{ steps.notes.outputs.body }}
           files: ${{ steps.rename.outputs.apk }}
           draft: false
           prerelease: true

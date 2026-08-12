@@ -1,0 +1,62 @@
+name: Webapp Release (on merge to main)
+
+# On merge to main, publish a GitHub Release for the webapp version in webapp/package.json, with
+# notes pulled from CHANGELOG.md (Webapp → that version's block). The webapp itself deploys via
+# Vercel; this just gives it versioned tags + a release-notes home, mirroring android-v* releases.
+# Idempotent: skips if webapp-v<version> already exists, so non-version-bump merges do nothing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "webapp/**"
+      - "CHANGELOG.md"
+
+permissions:
+  contents: write   # create the tag + GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read webapp version
+        id: v
+        run: echo "version=$(node -p "require('./webapp/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already released
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "webapp-v${{ steps.v.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Assemble release notes
+        if: steps.check.outputs.exists == 'false'
+        id: notes
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          NOTES="$(bash scripts/changelog.sh Webapp "$VERSION" || true)"
+          [ -n "$NOTES" ] || NOTES="Webapp release v$VERSION."
+          {
+            echo 'body<<CHANGELOG_EOF'
+            printf 'Webapp v%s — live at https://mealplan-plus.vercel.app\n\n' "$VERSION"
+            printf '%s\n' "$NOTES"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: webapp-v${{ steps.v.outputs.version }}
+          name: Webapp v${{ steps.v.outputs.version }}
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
+          prerelease: true
