@@ -92,7 +92,8 @@ class WorkoutService(
 
     @Transactional
     fun createExercise(dto: ExerciseDto, firebaseUid: String): ExerciseDto {
-        val exercise = Exercise(firebaseUid = firebaseUid, name = dto.name, description = dto.description)
+        val exercise = Exercise(firebaseUid = firebaseUid, name = dto.name, description = dto.description,
+            type = dto.type ?: "STRENGTH")
             .also { if (dto.serverId != null) it.serverId = UUID.fromString(dto.serverId.toString()) }
         val saved = exerciseRepo.save(exercise)
         saveExerciseTags(saved.id, dto.tagIds ?: emptyList())
@@ -105,7 +106,8 @@ class WorkoutService(
         if (exercise.firebaseUid != firebaseUid)
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not your resource")
         val updated = Exercise(id = exercise.id, firebaseUid = exercise.firebaseUid,
-            name = dto.name, description = dto.description, isSystem = exercise.isSystem)
+            name = dto.name, description = dto.description, type = dto.type ?: exercise.type,
+            isSystem = exercise.isSystem)
             .also { it.serverId = exercise.serverId }
         val saved = exerciseRepo.save(updated)
         saveExerciseTags(saved.id, dto.tagIds ?: emptyList())
@@ -135,7 +137,8 @@ class WorkoutService(
         if (existing == null) return createExercise(dto, firebaseUid)
         if (shouldSkipUpdate(dto.updatedAt, existing.updatedAt)) return existing.toDtoWithTags()
         val updated = Exercise(id = existing.id, firebaseUid = existing.firebaseUid,
-            name = dto.name, description = dto.description, isSystem = existing.isSystem)
+            name = dto.name, description = dto.description, type = dto.type ?: existing.type,
+            isSystem = existing.isSystem)
             .also { it.serverId = existing.serverId }
         val saved = exerciseRepo.save(updated)
         saveExerciseTags(saved.id, dto.tagIds ?: emptyList())
@@ -156,7 +159,8 @@ class WorkoutService(
                 templateId = templateId, exerciseId = te.exerciseId ?: 0L, orderIndex = idx, notes = te.notes))
             (te.sets ?: emptyList()).forEachIndexed { setIdx, s ->
                 templateSetRepo.save(TemplateExerciseSet(
-                    templateExerciseId = savedTe.id, setNumber = setIdx, reps = s.reps, weightKg = s.weightKg))
+                    templateExerciseId = savedTe.id, setNumber = setIdx, reps = s.reps, weightKg = s.weightKg,
+                    durationSeconds = s.durationSeconds, distanceMeters = s.distanceMeters))
             }
         }
     }
@@ -299,7 +303,8 @@ class WorkoutService(
         texs.forEach { te ->
             (setsByTeId[te.id] ?: emptyList()).sortedBy { it.setNumber }.forEachIndexed { setIdx, ts ->
                 sets.add(setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = te.exerciseId,
-                    setNumber = setIdx, reps = ts.reps, weightKg = ts.weightKg)))
+                    setNumber = setIdx, reps = ts.reps, weightKg = ts.weightKg,
+                    durationSeconds = ts.durationSeconds, distanceMeters = ts.distanceMeters)))
             }
         }
         return saved.toDto(sets)
@@ -333,7 +338,8 @@ class WorkoutService(
         val saved = sessionRepo.save(session)
         val sets = (dto.sets ?: emptyList()).map { s ->
             setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = s.exerciseId ?: 0L,
-                setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg, notes = s.notes))
+                setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg,
+                durationSeconds = s.durationSeconds, distanceMeters = s.distanceMeters, notes = s.notes))
         }
         val notes = saveExerciseNotes(saved.id, dto.exerciseNotes)
         return saved.toDto(sets, notes)
@@ -353,7 +359,8 @@ class WorkoutService(
         val saved = sessionRepo.save(updated)
         val sets = (dto.sets ?: emptyList()).map { s ->
             setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = s.exerciseId ?: 0L,
-                setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg, notes = s.notes))
+                setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg,
+                durationSeconds = s.durationSeconds, distanceMeters = s.distanceMeters, notes = s.notes))
         }
         val notes = saveExerciseNotes(saved.id, dto.exerciseNotes)
         return saved.toDto(sets, notes)
@@ -439,20 +446,23 @@ class WorkoutService(
         val saved = sessionRepo.save(updated)
         val sets = (dto.sets ?: emptyList()).map { s ->
             setRepo.save(WorkoutSet(sessionId = saved.id, exerciseId = s.exerciseId ?: 0L,
-                setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg, notes = s.notes))
+                setNumber = s.setNumber, reps = s.reps, weightKg = s.weightKg,
+                durationSeconds = s.durationSeconds, distanceMeters = s.distanceMeters, notes = s.notes))
         }
         return saved.toDto(sets)
     }
 }
 
 fun WorkoutSet.toDto() = WorkoutSetDto(
-    id         = id,
-    sessionId  = sessionId,
-    exerciseId = exerciseId,
-    setNumber  = setNumber,
-    reps       = reps,
-    weightKg   = weightKg,
-    notes      = notes
+    id              = id,
+    sessionId       = sessionId,
+    exerciseId      = exerciseId,
+    setNumber       = setNumber,
+    reps            = reps,
+    weightKg        = weightKg,
+    durationSeconds = durationSeconds,
+    distanceMeters  = distanceMeters,
+    notes           = notes
 )
 
 fun WorkoutSession.toDto(sets: List<WorkoutSet>, exerciseNotes: List<WorkoutSessionExerciseNote> = emptyList()) = WorkoutSessionDto(
@@ -470,9 +480,11 @@ fun WorkoutSession.toDto(sets: List<WorkoutSet>, exerciseNotes: List<WorkoutSess
 )
 
 fun TemplateExerciseSet.toDto() = TemplateSetDto(
-    setNumber = setNumber,
-    reps      = reps,
-    weightKg  = weightKg
+    setNumber       = setNumber,
+    reps            = reps,
+    weightKg        = weightKg,
+    durationSeconds = durationSeconds,
+    distanceMeters  = distanceMeters
 )
 
 fun TemplateExercise.toDto(exercise: Exercise?, sets: List<TemplateExerciseSet>) = TemplateExerciseDto(
@@ -502,6 +514,7 @@ fun Exercise.toDto(tags: List<TagDto> = emptyList()) = ExerciseDto(
     serverId    = serverId,
     name        = name,
     description = description,
+    type        = type,
     isSystem    = isSystem,
     tagIds      = tags.map { it.id },
     tags        = tags,

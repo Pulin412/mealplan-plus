@@ -41,7 +41,10 @@ class TemplateExerciseSet(
     val templateExerciseId: Long = 0,
     val setNumber: Int = 0,
     val reps: Int? = null,
-    val weightKg: Double? = null
+    val weightKg: Double? = null,
+    // Cardio targets (mirror WorkoutSet): duration and/or distance for CARDIO/TIMED exercises.
+    val durationSeconds: Int? = null,
+    val distanceMeters: Double? = null
 )
 
 @Entity

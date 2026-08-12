@@ -3511,6 +3511,13 @@ components:
           type: string
           nullable: true
           description: Optional free-text notes / how-to for the exercise.
+        type:
+          type: string
+          default: STRENGTH
+          description: >-
+            How this exercise is logged and which fields the runner/builder show.
+            One of STRENGTH (reps + weight), CARDIO (duration + distance),
+            TIMED (duration only).
         isSystem:
           type: boolean
           default: false
@@ -3585,6 +3592,15 @@ components:
           format: double
           nullable: true
           description: Target weight in kg (canonical); clients display in the user's unit.
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: Target duration in seconds (CARDIO/TIMED exercises).
+        distanceMeters:
+          type: number
+          format: double
+          nullable: true
+          description: Target distance in metres (CARDIO exercises).
       required: [setNumber]
 
     WorkoutTemplateDto:
@@ -3659,6 +3675,15 @@ components:
           type: number
           format: double
           nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: Logged duration in seconds (CARDIO/TIMED exercises).
+        distanceMeters:
+          type: number
+          format: double
+          nullable: true
+          description: Logged distance in metres (CARDIO exercises).
         notes:
           type: string
           nullable: true
