@@ -442,6 +442,9 @@ function TodayInner() {
   const [dietOpen, setDietOpen] = useState(false);
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
   const d = t.dashboard;
+  // Hide workouts already planned for today from the add-picker — a same-named workout can't be
+  // logged twice in a day (uq_workout_session_uid_date_name), so re-planning it is a dead-end.
+  const plannedTemplateIds = new Set(tw.workouts.map((w) => w.templateId).filter((id): id is number => id != null));
 
   const openWorkout = (w: HomeWorkout) => {
     if (w.templateId != null) router.push(`/session?templateId=${w.templateId}&name=${encodeURIComponent(w.name)}`);
@@ -512,7 +515,7 @@ function TodayInner() {
       )}
       {d && <AddToTodaySheet open={addOpen} foods={t.foods} meals={t.meals} plannedSlots={d.slots.map((s) => s.slot)} onAdd={t.addFood} onAddOnline={t.addOnlineFood} onAddMeal={t.addMeal} onClose={() => setAddOpen(false)} />}
       {d && <DietSheet open={dietOpen} d={d} onClose={() => setDietOpen(false)} />}
-      <AddWorkoutSheet open={addWorkoutOpen} templates={tw.templates} exercises={tw.exercises}
+      <AddWorkoutSheet open={addWorkoutOpen} templates={tw.templates.filter((w) => w.id == null || !plannedTemplateIds.has(w.id))} exercises={tw.exercises}
         onPickWorkout={(w) => { setAddWorkoutOpen(false); void tw.addWorkout(w); }}
         onPickExercise={(e) => { setAddWorkoutOpen(false); if (e.id != null) router.push(`/session?exerciseId=${e.id}&name=${encodeURIComponent(e.name)}`); }}
         onClose={() => setAddWorkoutOpen(false)} />

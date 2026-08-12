@@ -205,10 +205,15 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
             onAddMeal = { meal, slot -> viewModel.addMeal(meal, slot); viewModel.clearOnlineResults(); sheet = HomeSheet.None },
             onClose = { viewModel.clearOnlineResults(); sheet = HomeSheet.None },
         )
-        is HomeSheet.AddWorkout -> AddWorkoutSheet(state.workoutTemplates, state.exercises,
-            onPickWorkout = { viewModel.addWorkout(it); sheet = HomeSheet.None },
-            onPickExercise = { ex -> sheet = HomeSheet.None; ex.id?.let { onOpenExerciseRunner(it, ex.name) } },
-            onClose = { sheet = HomeSheet.None })
+        is HomeSheet.AddWorkout -> {
+            // Hide workouts already planned for today — a same-named workout can't be logged twice
+            // in a day (uq_workout_session_uid_date_name), so re-planning it is a no-op dead-end.
+            val plannedTemplateIds = state.workouts.mapNotNull { it.templateId }.toSet()
+            AddWorkoutSheet(state.workoutTemplates.filter { it.id !in plannedTemplateIds }, state.exercises,
+                onPickWorkout = { viewModel.addWorkout(it); sheet = HomeSheet.None },
+                onPickExercise = { ex -> sheet = HomeSheet.None; ex.id?.let { onOpenExerciseRunner(it, ex.name) } },
+                onClose = { sheet = HomeSheet.None })
+        }
         HomeSheet.None -> {}
     }
 }
