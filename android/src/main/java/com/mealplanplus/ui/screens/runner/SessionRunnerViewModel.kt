@@ -38,6 +38,7 @@ data class RunExercise(
     val lastTime: List<RunSet> = emptyList(),
     val note: String = "",            // this session's per-exercise note-to-self
     val lastNote: String? = null,     // the note from last time (shown in the Copy-last preview)
+    val fromTemplate: Boolean = true, // true = part of the planned workout; false = added ad-hoc (removable)
 )
 
 data class RunnerUiState(
@@ -48,6 +49,7 @@ data class RunnerUiState(
     val exercises: List<RunExercise> = emptyList(),
     val library: List<LibExercise> = emptyList(),   // for the "Add exercise" picker
     val doneExerciseIds: Set<Long> = emptySet(),     // exercises checked off this session (persisted locally)
+    val canAddExercise: Boolean = false,             // only a planned workout can add exercises; a standalone single-exercise log cannot
     val error: String? = null,
     val busy: Boolean = false,
 )
@@ -75,7 +77,7 @@ class SessionRunnerViewModel @Inject constructor(
     private var libNames: Map<Long, String> = emptyMap()
     private val today = LocalDate.now()
 
-    private val _state = MutableStateFlow(RunnerUiState(workoutName = activityName))
+    private val _state = MutableStateFlow(RunnerUiState(workoutName = activityName, canAddExercise = templateId > 0))
     val state: StateFlow<RunnerUiState> = _state
 
     init { load() }
@@ -132,11 +134,15 @@ class SessionRunnerViewModel @Inject constructor(
         val names = exerciseNames()
         val noteByEx = (session.exerciseNotes ?: emptyList()).associate { it.exerciseId to it.note.orEmpty() }
         val order = (template?.exercises ?: emptyList()).sortedBy { it.orderIndex }.map { it.exerciseId }
+        // Exercises that belong to the plan (template members, or the base exercise of an ad-hoc
+        // single-exercise session) are NOT removable; anything else was added on the fly → removable.
+        val plannedIds = order.toSet() + (if (exerciseId > 0) setOf(exerciseId) else emptySet())
         val grouped = (session.sets ?: emptyList()).groupBy { it.exerciseId }
         val ids = (order + grouped.keys).distinct()
         return ids.mapNotNull { id ->
             val sets = grouped[id]?.sortedBy { it.setNumber }?.map { RunSet(it.reps, it.weightKg) } ?: return@mapNotNull null
-            RunExercise(id, names[id] ?: "Exercise", sets = sets, description = descById[id], note = noteByEx[id].orEmpty())
+            RunExercise(id, names[id] ?: "Exercise", sets = sets, description = descById[id], note = noteByEx[id].orEmpty(),
+                fromTemplate = id in plannedIds)
         }
     }
 
@@ -224,13 +230,27 @@ class SessionRunnerViewModel @Inject constructor(
         if (_state.value.exercises.any { it.exerciseId == exerciseId }) return
         val lib = _state.value.library.firstOrNull { it.id == exerciseId } ?: return
         val sets = List(3) { RunSet(10, null) }
-        _state.update { s -> s.copy(exercises = s.exercises + RunExercise(exerciseId, lib.name, sets = sets, description = lib.description)) }
+        _state.update { s -> s.copy(exercises = s.exercises + RunExercise(exerciseId, lib.name, sets = sets, description = lib.description, fromTemplate = false)) }
         persist()
         viewModelScope.launch {
             val l = sessionRepo.lastFullForExercise(exerciseId, activityName) ?: return@launch
             val last = l.sets.map { RunSet(it.reps, it.weightKg) }
             _state.update { s -> s.copy(exercises = s.exercises.map { if (it.exerciseId == exerciseId) it.copy(lastTime = last, lastNote = l.note) else it }) }
         }
+    }
+
+    /**
+     * Remove an on-the-fly-added exercise from THIS session (never a planned/template exercise).
+     * Its sets are dropped on the next persist; no-op for template exercises.
+     */
+    fun removeExercise(exId: Long) {
+        val ex = _state.value.exercises.firstOrNull { it.exerciseId == exId } ?: return
+        if (ex.fromTemplate) return
+        _state.update { s -> s.copy(
+            exercises = s.exercises.filterNot { it.exerciseId == exId },
+            doneExerciseIds = s.doneExerciseIds - exId,
+        ) }
+        persist()
     }
 
     private fun editSet(exId: Long, index: Int, f: (RunSet) -> RunSet) = editExercise(exId) {

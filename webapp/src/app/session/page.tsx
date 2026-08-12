@@ -155,6 +155,10 @@ function ExerciseCard({ s, ex }: { s: ReturnType<typeof useSession>; ex: RunExer
           <Desc text={ex.description} />
           {!open && <div className="text-[10.5px] mt-0.5" style={{ color: C.faint }}>{ex.sets.length} set{ex.sets.length === 1 ? "" : "s"}{done ? " · done" : ""}</div>}
         </div>
+        {/* Only exercises added on the fly can be removed from the session; template ones stay. */}
+        {!ex.fromTemplate && (
+          <span className="text-[13px] pl-2 cursor-pointer" onClick={() => s.removeExercise(ex.exerciseId)} style={{ color: C.muted2 }}>✕</span>
+        )}
         <span className="text-[13px] pl-2 cursor-pointer" onClick={() => setOpen((o) => !o)} style={{ color: C.muted2 }}>{open ? "▾" : "▸"}</span>
       </div>
       {open && (done ? (
@@ -212,8 +216,10 @@ function ActivePhase({ s }: { s: ReturnType<typeof useSession> }) {
     <>
       <div className="flex-1 overflow-y-auto px-[14px] pt-1.5 pb-2">
         {s.exercises.map((ex: RunExercise) => <ExerciseCard key={ex.exerciseId} s={s} ex={ex} />)}
-        {/* Add an exercise on the fly — logged to THIS session only, never the template. */}
-        <button onClick={() => setPickerOpen(true)} className="w-full rounded-[10px] py-3 text-[12.5px] font-semibold" style={{ border: `1px solid ${C.borderCool}`, color: C.teal }}>＋  Add exercise</button>
+        {/* Add an exercise on the fly — only for a planned workout, never a standalone single-exercise log. */}
+        {s.canAddExercise && (
+          <button onClick={() => setPickerOpen(true)} className="w-full rounded-[10px] py-3 text-[12.5px] font-semibold" style={{ border: `1px solid ${C.borderCool}`, color: C.teal }}>＋  Add exercise</button>
+        )}
         <div className="rounded-[12px] mt-2 px-3 py-[11px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
           <div className="text-[12px] font-semibold" style={{ color: C.ink }}>Workout notes</div>
           <NoteField value={s.workoutNote} placeholder="Notes for the whole session…" onChange={s.setWorkoutNote} />
