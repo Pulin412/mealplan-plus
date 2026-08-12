@@ -21,6 +21,7 @@ export interface RunExercise {
   lastTime: RunSet[];
   note: string;              // this session's per-exercise note-to-self
   lastNote: string | null;   // the note from last time (shown in the Copy-last preview)
+  fromTemplate: boolean;     // true = part of the planned workout; false = added ad-hoc (removable)
 }
 
 const todayIso = (): string => {
@@ -64,14 +65,14 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     const t = templateRef.current;
     return [...(t?.exercises ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((te) => {
       const sets = [...(te.sets ?? [])].sort((a, b) => a.setNumber - b.setNumber).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null }));
-      return { exerciseId: te.exerciseId, name: te.exerciseName ?? libNameRef.current.get(te.exerciseId) ?? "Exercise", description: descRef.current.get(te.exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null };
+      return { exerciseId: te.exerciseId, name: te.exerciseName ?? libNameRef.current.get(te.exerciseId) ?? "Exercise", description: descRef.current.get(te.exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null, fromTemplate: true };
     });
   }, []);
 
   const exerciseReadyList = useCallback((): RunExercise[] => {
     if (exerciseId == null) return [];
     const sets: RunSet[] = [0, 1, 2].map(() => ({ reps: 10, weightKg: null }));
-    return [{ exerciseId, name: libNameRef.current.get(exerciseId) ?? name, description: descRef.current.get(exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null }];
+    return [{ exerciseId, name: libNameRef.current.get(exerciseId) ?? name, description: descRef.current.get(exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null, fromTemplate: true }];
   }, [exerciseId, name]);
 
   const exercisesFromSession = useCallback((session: WorkoutSessionDto): RunExercise[] => {
@@ -79,6 +80,9 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     const grouped = new Map<number, WorkoutSetDto[]>();
     (session.sets ?? []).forEach((s) => { if (!grouped.has(s.exerciseId)) grouped.set(s.exerciseId, []); grouped.get(s.exerciseId)!.push(s); });
     const noteById = new Map((session.exerciseNotes ?? []).map((n) => [n.exerciseId, n.note ?? ""]));
+    // Planned exercises (template members, or the base exercise of an ad-hoc single-exercise
+    // session) are NOT removable; anything else was added on the fly → removable.
+    const plannedIds = new Set<number>([...order, ...(exerciseId != null ? [exerciseId] : [])]);
     const ids = Array.from(new Set([...order, ...Array.from(grouped.keys())])).filter((id) => grouped.has(id));
     return ids.map((id) => ({
       exerciseId: id,
@@ -89,8 +93,9 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       lastTime: [],
       note: noteById.get(id) ?? "",
       lastNote: null,
+      fromTemplate: plannedIds.has(id),
     }));
-  }, []);
+  }, [exerciseId]);
 
   const loadLastTimes = useCallback(async (list: RunExercise[]) => {
     // Scope "last time" to this same workout (by name) — the last time you did *this* workout.
@@ -188,13 +193,19 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     if (!lib) return;
     mutate((list) => list.some((e) => e.exerciseId === exId) ? list : [
       ...list,
-      { exerciseId: exId, name: lib.name, description: lib.description, sets: [0, 1, 2].map(() => ({ reps: 10, weightKg: null })), templateSets: [], lastTime: [], note: "", lastNote: null },
+      { exerciseId: exId, name: lib.name, description: lib.description, sets: [0, 1, 2].map(() => ({ reps: 10, weightKg: null })), templateSets: [], lastTime: [], note: "", lastNote: null, fromTemplate: false },
     ]);
     void lastFullForExercise(exId, name).then((l) => {
       if (!l) return;
       setExercises((prev) => prev.map((e) => e.exerciseId === exId
         ? { ...e, lastTime: (l.sets ?? []).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })), lastNote: l.note ?? null } : e));
     }).catch(() => {});
+  };
+
+  // Remove an on-the-fly-added exercise from THIS session (never a planned/template exercise).
+  const removeExercise = (exId: number) => {
+    mutate((list) => list.filter((e) => !(e.exerciseId === exId && !e.fromTemplate)));
+    setDoneIds((prev) => { if (!prev.has(exId)) return prev; const next = new Set(prev); next.delete(exId); return next; });
   };
 
   // ── phase transitions ────────────────────────────────────────────────────────
@@ -229,7 +240,9 @@ export function useSession(templateId: number | null, exerciseId: number | null,
 
   return {
     phase, workoutName: name, exercises, library, doneIds, busy, error, workoutNote,
+    // Only a planned workout can add exercises; a standalone single-exercise log cannot.
+    canAddExercise: templateId != null,
     start, finish, edit,
-    setReps, setWeight, addSet, removeSet, copyLast, addExercise, toggleDone, setExerciseNote, setWorkoutNote,
+    setReps, setWeight, addSet, removeSet, copyLast, addExercise, removeExercise, toggleDone, setExerciseNote, setWorkoutNote,
   };
 }
