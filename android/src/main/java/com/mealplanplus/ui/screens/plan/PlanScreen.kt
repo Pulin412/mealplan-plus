@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
+import com.mealplanplus.data.model.MEAL_SLOTS
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -92,12 +93,15 @@ fun PlanScreen() {
         when {
             openWorkout != null -> WorkoutDetail(openWorkout, onBack = viewModel::closeWorkoutDetail)
             state.workoutPickerOpen -> WorkoutPicker(date, state, viewModel)
+            state.mealPickerOpen -> MealPicker(date, state, viewModel)
             state.pickerOpen -> DietPicker(date, state, viewModel)
             else -> DayPlanSheet(date, state,
                 onPick = viewModel::openPicker,
                 onAddWorkout = viewModel::openWorkoutPicker,
                 onOpenWorkout = viewModel::openWorkoutDetail,
                 onRemoveWorkout = { id -> viewModel.removePlannedWorkout(date, id) },
+                onAddMeal = viewModel::openMealPicker,
+                onRemoveMeal = { id -> viewModel.removePlannedMeal(date, id) },
                 onClear = { viewModel.clearDay(date) },
                 onClose = { viewModel.selectDay(null) })
         }
@@ -155,7 +159,8 @@ private fun DayCell(date: LocalDate, state: PlanUiState, onDay: (LocalDate) -> U
         // day passed without completing. Workout dot: always blue.
         val completed = date in state.completedDays
         val past = date.isBefore(state.today)
-        val planned = plan?.dietId != null
+        // "Meals planned" = a diet and/or individual planned meals.
+        val planned = plan?.dietId != null || !plan?.plannedMeals.isNullOrEmpty()
         val mealDot = when {
             completed -> Success
             planned && past -> Danger
@@ -181,6 +186,10 @@ private fun NextSeven(state: PlanUiState, onDay: (LocalDate) -> Unit) {
             val plan = state.plansByDate[date]
             val diet = plan?.dietId?.let { id -> state.diets.firstOrNull { it.id == id } }
             val workouts = plan?.plannedWorkouts?.mapNotNull { it.activityName }?.takeIf { it.isNotEmpty() }
+            val plannedMeals = state.plannedMealsFor(date)
+            val mealCount = plannedMeals.size
+            val mealSuffix = if (mealCount == 1) "meal" else "meals"
+            val totalKcal = (diet?.kcal ?: 0) + plannedMeals.sumOf { it.kcal }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onDay(date) }.padding(horizontal = 12.dp, vertical = 11.dp)) {
                 Column(Modifier.width(52.dp)) {
                     Text(if (offset == 0) "Today" else date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()), fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ink)
@@ -188,11 +197,17 @@ private fun NextSeven(state: PlanUiState, onDay: (LocalDate) -> Unit) {
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    if (diet != null) Text(diet.name, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
-                    else Text("No diet", fontSize = 11.sp, color = MutedLight)
+                    when {
+                        diet != null -> Text(
+                            diet.name + if (mealCount > 0) "  +$mealCount $mealSuffix" else "",
+                            fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        mealCount > 0 -> Text("$mealCount $mealSuffix planned", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+                        else -> Text("No diet", fontSize = 11.sp, color = MutedLight)
+                    }
                     Text(workouts?.joinToString(", ") ?: "No workout", fontSize = 10.sp, color = if (workouts != null) Success else MutedFaint)
                 }
-                if (diet != null) Text("${diet.kcal}", fontFamily = DmMono, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+                if (diet != null || mealCount > 0) Text("$totalKcal", fontFamily = DmMono, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
         }
@@ -202,9 +217,10 @@ private fun NextSeven(state: PlanUiState, onDay: (LocalDate) -> Unit) {
 // ── Day plan sheet ──────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit, onAddWorkout: () -> Unit, onOpenWorkout: (Long?) -> Unit, onRemoveWorkout: (Long) -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
+private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit, onAddWorkout: () -> Unit, onOpenWorkout: (Long?) -> Unit, onRemoveWorkout: (Long) -> Unit, onAddMeal: () -> Unit, onRemoveMeal: (Long) -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
     val plan: DayPlanDto? = state.plansByDate[date]
     val workouts = plan?.plannedWorkouts.orEmpty()
+    val plannedMeals = state.plannedMealsFor(date)
     val selectedDiet = plan?.dietId?.let { id -> state.diets.firstOrNull { it.id == id } }
     ModalBottomSheet(onDismissRequest = onClose, containerColor = Surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
@@ -250,6 +266,28 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
                     .clip(RoundedCornerShape(12.dp)).background(Teal).clickable(onClick = onPick).padding(vertical = 13.dp)) {
                     Text("＋ Pick a diet", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnAccent)
                 }
+            }
+
+            // ── Individual meals (on top of any diet) ─────────────────────────────
+            SectionLabel("Meals")
+            if (plannedMeals.isEmpty()) {
+                Text("No individual meals planned.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(bottom = 8.dp))
+            } else {
+                Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    plannedMeals.forEach { pm ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                            SlotBadge(pm.slot)
+                            Spacer(Modifier.width(8.dp))
+                            Text(pm.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            Text("${pm.kcal} kcal", fontFamily = DmMono, fontSize = 10.5.sp, color = MutedFaint)
+                            Text("  ×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clickable { onRemoveMeal(pm.id) })
+                        }
+                    }
+                }
+            }
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddMeal).padding(vertical = 11.dp)) {
+                Text("＋ Add a meal", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
             }
 
             SectionLabel("Exercises")
@@ -298,6 +336,67 @@ private fun WorkoutPicker(date: LocalDate, state: PlanUiState, viewModel: PlanVi
             LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
                 items(state.workouts, key = { it.id ?: it.name.hashCode().toLong() }) { w ->
                     WorkoutPickerCard(w, added = w.id != null && w.id in plannedIds) { viewModel.addPlannedWorkout(date, w) }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+// ── Meal picker (choose a slot + a meal to add to the day) ───────────────────────
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun MealPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewModel) {
+    Column(Modifier.fillMaxSize().background(AppBg)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+            Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = viewModel::closeMealPicker), Alignment.Center) {
+                Text("‹", fontSize = 24.sp, color = Ink)
+            }
+            Text("Add meal", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Spacer(Modifier.weight(1f))
+            Text("${state.meals.size} saved", fontSize = 12.sp, color = MutedLight)
+        }
+        // Slot to assign the picked meal to.
+        Text("Slot", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)) {
+            MEAL_SLOTS.forEach { s ->
+                val on = s == state.mealPickerSlot
+                Text(s, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (on) OnAccent else MutedDark,
+                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Teal else SurfaceMuted)
+                        .clickable { viewModel.setMealPickerSlot(s) }.padding(horizontal = 12.dp, vertical = 6.dp))
+            }
+        }
+        // Search.
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(11.dp)).background(SurfaceMuted).padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Box(Modifier.weight(1f)) {
+                if (state.mealPickerSearch.isEmpty()) Text("Search your meals…", fontSize = 13.sp, color = MutedLight)
+                BasicTextField(state.mealPickerSearch, viewModel::setMealPickerSearch,
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Ink), singleLine = true,
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Teal), modifier = Modifier.fillMaxWidth())
+            }
+        }
+        val meals = state.filteredMeals
+        if (meals.isEmpty()) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("🍲", fontSize = 40.sp)
+                Text("No meals to add", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(top = 8.dp))
+                Text("Create meals in the Meals screen first.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(top = 4.dp))
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+                items(meals, key = { it.id }) { m ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                        .clickable { viewModel.addPlannedMeal(date, state.mealPickerSlot, m.id) }.padding(14.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(m.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("${m.kcal} kcal", fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text("+ Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
             }
