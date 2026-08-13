@@ -32,6 +32,10 @@ import kotlin.math.roundToInt
 
 data class DietLine(val name: String, val meta: String, val header: Boolean)
 data class DietSlotView(val slot: String, val kcal: Int, val lines: List<DietLine>)
+/** A meal offered by the "add meal to a day" picker, with its total kcal. */
+data class MealSummary(val id: Long, val name: String, val kcal: Int)
+/** A planned meal already assigned to a day, resolved for display. */
+data class PlannedMealView(val id: Long, val slot: String, val name: String, val kcal: Int)
 data class DietSummary(
     val id: Long,
     val name: String,
@@ -59,8 +63,25 @@ data class PlanUiState(
     val openWorkout: WorkoutTemplateDto? = null,
     val completedDays: Set<LocalDate> = emptySet(),
     val selectedDaySlots: List<LoggedMealSlotDto> = emptyList(),
+    val meals: List<MealSummary> = emptyList(),
+    val mealPickerOpen: Boolean = false,
+    val mealPickerSlot: String = MEAL_SLOTS.first(),
+    val mealPickerSearch: String = "",
 ) {
     val allTags: List<String> get() = diets.flatMap { it.tags }.distinct().sorted()
+    val filteredMeals: List<MealSummary> get() = meals.filter {
+        mealPickerSearch.isBlank() || it.name.contains(mealPickerSearch, ignoreCase = true)
+    }
+
+    /** This day's planned meals resolved to name + kcal, grouped in canonical slot order. */
+    fun plannedMealsFor(date: LocalDate): List<PlannedMealView> {
+        val byId = meals.associateBy { it.id }
+        return (plansByDate[date]?.plannedMeals ?: emptyList()).mapNotNull { pm ->
+            val id = pm.id ?: return@mapNotNull null
+            val m = byId[pm.mealId]
+            PlannedMealView(id, pm.slot, m?.name ?: "Meal", m?.kcal ?: 0)
+        }.sortedBy { SLOT_ORDER.indexOf(it.slot).let { i -> if (i < 0) Int.MAX_VALUE else i } }
+    }
     val filteredDiets: List<DietSummary> get() = diets.filter { d ->
         (pickerSearch.isBlank() || d.name.contains(pickerSearch, ignoreCase = true)) &&
             (pickerTag == null || d.tags.contains(pickerTag))
@@ -88,8 +109,29 @@ class PlanViewModel @Inject constructor(
 
     init {
         loadDiets()
+        loadMeals()
         loadWorkouts()
         loadPlans()
+    }
+
+    private fun loadMeals() {
+        viewModelScope.launch {
+            responseCache.stream<List<MealSummary>>("plan.meals") {
+                val meals = mealsApi.listMeals(false).body().orEmpty()
+                val foods = foodsApi.listFoods(false).body().orEmpty().associateBy { it.id }
+                meals.mapNotNull { m ->
+                    m.id?.let { id ->
+                        val kcal = (m.items ?: emptyList()).sumOf { foodKcal(foods[it.foodId], it.quantity, it.unit.value) }
+                        MealSummary(id, m.name, kcal.roundToInt())
+                    }
+                }
+            }.collect { res ->
+                _state.update { st ->
+                    val r = res.render(hasContent = st.meals.isNotEmpty())
+                    if (r.keep) st else st.copy(meals = r.value ?: st.meals)
+                }
+            }
+        }
     }
 
     private fun loadWorkouts() {
@@ -166,7 +208,7 @@ class PlanViewModel @Inject constructor(
     fun nextMonth() { _state.value = _state.value.copy(month = _state.value.month.plusMonths(1)); loadPlans() }
     fun selectDay(date: LocalDate?) {
         _state.value = _state.value.copy(selectedDate = date, selectedDaySlots = emptyList(),
-            pickerOpen = false, workoutPickerOpen = false, openWorkout = null)
+            pickerOpen = false, workoutPickerOpen = false, openWorkout = null, mealPickerOpen = false)
         // Past-day view: fetch which meal slots were logged so the sheet can show done / not-done.
         if (date != null) viewModelScope.launch {
             val slots = runCatching { loggingApi.getLoggedSlots(date).body().orEmpty() }.getOrDefault(emptyList())
@@ -218,12 +260,37 @@ class PlanViewModel @Inject constructor(
     fun setPickerSearch(q: String) { _state.value = _state.value.copy(pickerSearch = q) }
     fun setPickerTag(t: String?) { _state.value = _state.value.copy(pickerTag = t) }
 
+    // ── Planned meals ─────────────────────────────────────────────────────────────
+    fun openMealPicker() { _state.value = _state.value.copy(mealPickerOpen = true, mealPickerSearch = "", mealPickerSlot = MEAL_SLOTS.first()) }
+    fun closeMealPicker() { _state.value = _state.value.copy(mealPickerOpen = false) }
+    fun setMealPickerSlot(slot: String) { _state.value = _state.value.copy(mealPickerSlot = slot) }
+    fun setMealPickerSearch(q: String) { _state.value = _state.value.copy(mealPickerSearch = q) }
+
+    fun addPlannedMeal(date: LocalDate, slot: String, mealId: Long) {
+        viewModelScope.launch {
+            runCatching { plansApi.addPlannedMeal(date, com.mealplanplus.data.generated.model.PlannedMealDto(mealId = mealId, slot = slot)) }
+                .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            closeMealPicker()
+            loadPlans()
+        }
+    }
+
+    fun removePlannedMeal(date: LocalDate, mealPlanId: Long) {
+        viewModelScope.launch {
+            runCatching { plansApi.removePlannedMeal(date, mealPlanId) }
+                .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            loadPlans()
+        }
+    }
+
     fun chooseDiet(date: LocalDate, dietId: Long) { setDiet(date, dietId); closePicker() }
 
     fun setDiet(date: LocalDate, dietId: Long?) {
         val existing = _state.value.plansByDate[date]
         viewModelScope.launch {
-            runCatching { plansApi.upsertPlan(date, DayPlanDto(date = date, dietId = dietId, plannedWorkouts = existing?.plannedWorkouts ?: emptyList())) }
+            runCatching { plansApi.upsertPlan(date, DayPlanDto(date = date, dietId = dietId,
+                plannedWorkouts = existing?.plannedWorkouts ?: emptyList(),
+                plannedMeals = existing?.plannedMeals ?: emptyList())) }
                 .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
             loadPlans()
         }

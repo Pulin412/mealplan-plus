@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { friendlyMessage } from "@/lib/api/errors";
-import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, getCompletedDays, getLoggedSlots, isoOf, type DayPlanDto, type LoggedMealSlotDto } from "@/lib/api/plans";
+import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, addPlannedMeal, removePlannedMeal, getCompletedDays, getLoggedSlots, isoOf, type DayPlanDto, type LoggedMealSlotDto } from "@/lib/api/plans";
 import { listDiets, type DietDto } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
@@ -13,6 +13,10 @@ import { foodMacros, unitLabel, MEAL_SLOTS, num } from "@/lib/nutrition";
 export interface DietLine { name: string; meta: string; header: boolean }
 export interface DietSlotView { slot: string; kcal: number; lines: DietLine[] }
 export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[]; tags: string[]; description?: string | null }
+/** A meal offered by the "add meal to a day" picker, with its total kcal. */
+export interface MealSummary { id: number; name: string; kcal: number }
+/** A planned meal already assigned to a day, resolved for display. */
+export interface PlannedMealView { id: number; slot: string; name: string; kcal: number }
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
@@ -68,6 +72,10 @@ export function usePlan() {
   const [workouts, setWorkouts] = useState<WorkoutTemplateDto[]>([]);
   const [workoutPickerOpen, setWorkoutPickerOpen] = useState(false);
   const [openWorkout, setOpenWorkout] = useState<WorkoutTemplateDto | null>(null);
+  const [meals, setMeals] = useState<MealSummary[]>([]);
+  const [mealPickerOpen, setMealPickerOpen] = useState(false);
+  const [mealPickerSlot, setMealPickerSlot] = useState<string>(MEAL_SLOTS[0]);
+  const [mealPickerSearch, setMealPickerSearch] = useState("");
 
   const allTags = useMemo(() => Array.from(new Set(diets.flatMap((d) => d.tags))).sort(), [diets]);
   const filteredDiets = useMemo(() => diets.filter((d) =>
@@ -107,6 +115,10 @@ export function usePlan() {
       const mealsById = new Map<number, MealDto>(); ms.forEach((m) => m.id != null && mealsById.set(m.id, m));
       const foodsById = new Map<number, FoodDto>(); fs.forEach((f) => f.id != null && foodsById.set(f.id, f));
       setDiets(ds.filter((d) => d.id != null).map((d) => resolveDiet(d, mealsById, foodsById)));
+      setMeals(ms.filter((m) => m.id != null).map((m) => ({
+        id: m.id!, name: m.name,
+        kcal: Math.round((m.items ?? []).reduce((acc, it) => acc + foodMacros(it.foodId != null ? foodsById.get(it.foodId) : undefined, it.quantity, it.unit).kcal, 0)),
+      })));
     }).catch(() => {});
     listWorkouts().then(setWorkouts).catch(() => {});
   }, []);
@@ -118,9 +130,41 @@ export function usePlan() {
 
   const setDiet = useCallback(async (dateIso: string, dietId: number | null) => {
     const existing = plans[dateIso];
-    try { await upsertPlan(dateIso, dietId, existing?.plannedWorkouts ?? []); await loadPlans(ym.year, ym.month); }
+    try { await upsertPlan(dateIso, dietId, existing?.plannedWorkouts ?? [], existing?.plannedMeals ?? []); await loadPlans(ym.year, ym.month); }
     catch (e) { setError(friendlyMessage(e)); }
   }, [plans, ym, loadPlans]);
+
+  // ── Planned meals ─────────────────────────────────────────────────────────────
+  const mealsById = useMemo(() => new Map(meals.map((m) => [m.id, m])), [meals]);
+  const filteredMeals = useMemo(() =>
+    meals.filter((m) => mealPickerSearch.trim() === "" || m.name.toLowerCase().includes(mealPickerSearch.toLowerCase())),
+    [meals, mealPickerSearch]);
+
+  /** This day's planned meals resolved to name + kcal, in canonical slot order. */
+  const plannedMealsFor = useCallback((dateIso: string): PlannedMealView[] => {
+    const list = (plans[dateIso]?.plannedMeals ?? []).flatMap((pm) => {
+      if (pm.id == null) return [];
+      const m = mealsById.get(pm.mealId);
+      return [{ id: pm.id, slot: pm.slot, name: m?.name ?? "Meal", kcal: m?.kcal ?? 0 }];
+    });
+    return list.sort((a, b) => {
+      const ia = MEAL_SLOTS.indexOf(a.slot), ib = MEAL_SLOTS.indexOf(b.slot);
+      return (ia < 0 ? Number.MAX_SAFE_INTEGER : ia) - (ib < 0 ? Number.MAX_SAFE_INTEGER : ib);
+    });
+  }, [plans, mealsById]);
+
+  const openMealPicker = useCallback(() => { setMealPickerSearch(""); setMealPickerSlot(MEAL_SLOTS[0]); setMealPickerOpen(true); }, []);
+  const closeMealPicker = useCallback(() => setMealPickerOpen(false), []);
+
+  const addMeal = useCallback(async (dateIso: string, slot: string, mealId: number) => {
+    try { await addPlannedMeal(dateIso, mealId, slot); setMealPickerOpen(false); await loadPlans(ym.year, ym.month); }
+    catch (e) { setError(friendlyMessage(e)); }
+  }, [ym, loadPlans]);
+
+  const removeMeal = useCallback(async (dateIso: string, mealPlanId: number) => {
+    try { await removePlannedMeal(dateIso, mealPlanId); await loadPlans(ym.year, ym.month); }
+    catch (e) { setError(friendlyMessage(e)); }
+  }, [ym, loadPlans]);
 
   const openPicker = useCallback(() => { setPickerSearch(""); setPickerTag(null); setPickerOpen(true); }, []);
   const closePicker = useCallback(() => setPickerOpen(false), []);
@@ -169,5 +213,8 @@ export function usePlan() {
     openPicker, closePicker, chooseDiet,
     workouts, workoutPickerOpen, openWorkoutPicker, closeWorkoutPicker,
     addWorkout, removeWorkout, openWorkout, openWorkoutDetail, closeWorkoutDetail,
+    meals, filteredMeals, plannedMealsFor,
+    mealPickerOpen, mealPickerSlot, setMealPickerSlot, mealPickerSearch, setMealPickerSearch,
+    openMealPicker, closeMealPicker, addMeal, removeMeal,
   };
 }

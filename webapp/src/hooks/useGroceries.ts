@@ -78,15 +78,22 @@ function generateTotals(
     map.set(k, { name: nm, unit, total: (cur?.total ?? 0) + qty });
   };
   Array.from(sel).sort().forEach((key) => {
-    const dietId = plans[key]?.dietId;
-    if (dietId == null) return;
-    const diet = dietsById.get(dietId);
-    if (!diet) return;
-    (diet.meals ?? []).forEach((dm) => {
-      const meal = dm.mealId != null ? mealsById.get(dm.mealId) : undefined;
+    const plan = plans[key];
+    if (!plan) return;
+    // The day's diet (if any) …
+    const diet = plan.dietId != null ? dietsById.get(plan.dietId) : undefined;
+    if (diet) {
+      (diet.meals ?? []).forEach((dm) => {
+        const meal = dm.mealId != null ? mealsById.get(dm.mealId) : undefined;
+        (meal?.items ?? []).forEach((it) => add(it.foodId != null ? foodsById.get(it.foodId)?.name : undefined, it.quantity, it.unit));
+      });
+      (diet.foodItems ?? []).forEach((fi) => add(fi.foodId != null ? foodsById.get(fi.foodId)?.name : undefined, fi.quantity ?? 1, fi.unit));
+    }
+    // … plus any individual planned meals for that day.
+    (plan.plannedMeals ?? []).forEach((pm) => {
+      const meal = mealsById.get(pm.mealId);
       (meal?.items ?? []).forEach((it) => add(it.foodId != null ? foodsById.get(it.foodId)?.name : undefined, it.quantity, it.unit));
     });
-    (diet.foodItems ?? []).forEach((fi) => add(fi.foodId != null ? foodsById.get(fi.foodId)?.name : undefined, fi.quantity ?? 1, fi.unit));
   });
   return map;
 }
@@ -174,7 +181,7 @@ export function useGroceries() {
       const merged = { ...plansRef.current };
       list.forEach((p) => { merged[isoOf(p.date)] = p; });
       plansRef.current = merged;
-      setPlannedDates(new Set(Object.values(merged).filter((p) => p.dietId != null).map((p) => isoOf(p.date))));
+      setPlannedDates(new Set(Object.values(merged).filter((p) => p.dietId != null || (p.plannedMeals?.length ?? 0) > 0).map((p) => isoOf(p.date))));
     } catch (e) { setError(friendlyMessage(e)); }
   }, [today, todayIso]);
 

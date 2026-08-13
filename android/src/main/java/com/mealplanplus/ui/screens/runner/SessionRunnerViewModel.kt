@@ -11,6 +11,7 @@ import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.data.local.SessionProgressStore
 import com.mealplanplus.data.repository.ExerciseRepository
 import com.mealplanplus.data.repository.WorkoutSessionRepository
+import com.mealplanplus.ui.components.ExerciseType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,17 +25,23 @@ import javax.inject.Inject
 
 enum class RunPhase { LOADING, READY, ACTIVE, DONE }
 
-/** One target/logged set: reps + optional weight (kg). */
-data class RunSet(val reps: Int?, val weightKg: Double?)
+/** One target/logged set: reps + weight (STRENGTH) or duration + distance (CARDIO/TIMED). */
+data class RunSet(
+    val reps: Int?,
+    val weightKg: Double?,
+    val durationSeconds: Int? = null,
+    val distanceMeters: Double? = null,
+)
 
 /** A library exercise offered by the "Add exercise" picker during logging. */
-data class LibExercise(val id: Long, val name: String, val description: String?)
+data class LibExercise(val id: Long, val name: String, val description: String?, val type: String = ExerciseType.STRENGTH)
 
 /** One exercise in the runner with its editable sets, template targets, and last-session sets. */
 data class RunExercise(
     val exerciseId: Long,
     val name: String,
     val sets: List<RunSet>,
+    val type: String = ExerciseType.STRENGTH,
     val description: String? = null,
     val templateSets: List<RunSet> = emptyList(),
     val lastTime: List<RunSet> = emptyList(),
@@ -77,6 +84,7 @@ class SessionRunnerViewModel @Inject constructor(
     private var template: WorkoutTemplateDto? = null
     private var descById: Map<Long, String?> = emptyMap()
     private var libNames: Map<Long, String> = emptyMap()
+    private var typeById: Map<Long, String> = emptyMap()
     private val today = LocalDate.now()
 
     private val _state = MutableStateFlow(RunnerUiState(workoutName = activityName, canAddExercise = templateId > 0))
@@ -93,7 +101,8 @@ class SessionRunnerViewModel @Inject constructor(
             val lib = exerciseRepo.list()
             descById = lib.associate { (it.id ?: -1L) to it.description }
             libNames = lib.associate { (it.id ?: -1L) to it.name }
-            _state.update { it.copy(library = lib.mapNotNull { e -> e.id?.let { id -> LibExercise(id, e.name, e.description) } }) }
+            typeById = lib.associate { (it.id ?: -1L) to ExerciseType.normalize(it.type) }
+            _state.update { it.copy(library = lib.mapNotNull { e -> e.id?.let { id -> LibExercise(id, e.name, e.description, ExerciseType.normalize(e.type)) } }) }
             val existing = sessionRepo.listForDate(today).firstOrNull { it.name == activityName }
             if (existing != null) {
                 val exercises = exercisesFromSession(existing)
@@ -116,18 +125,29 @@ class SessionRunnerViewModel @Inject constructor(
         }
     }
 
+    private fun typeOf(id: Long): String = typeById[id] ?: ExerciseType.STRENGTH
+
+    /** A sensible first set for an exercise with no template targets, by type. */
+    private fun defaultSetFor(type: String): RunSet = when (ExerciseType.normalize(type)) {
+        ExerciseType.CARDIO -> RunSet(reps = null, weightKg = null, durationSeconds = 600)
+        ExerciseType.TIMED -> RunSet(reps = null, weightKg = null, durationSeconds = 60)
+        else -> RunSet(10, null)
+    }
+
     /** Build the Ready-phase view from template targets. */
     private fun exercisesFromTemplate(): List<RunExercise> =
         (template?.exercises ?: emptyList()).sortedBy { it.orderIndex }.map { te ->
-            val sets = (te.sets ?: emptyList()).sortedBy { it.setNumber }.map { RunSet(it.reps, it.weightKg) }
-            RunExercise(te.exerciseId, te.exerciseName ?: "Exercise", sets = sets, description = descById[te.exerciseId], templateSets = sets)
+            val sets = (te.sets ?: emptyList()).sortedBy { it.setNumber }.map { RunSet(it.reps, it.weightKg, it.durationSeconds, it.distanceMeters) }
+            RunExercise(te.exerciseId, te.exerciseName ?: "Exercise", sets = sets, type = typeOf(te.exerciseId),
+                description = descById[te.exerciseId], templateSets = sets)
         }
 
-    /** Ready view for an ad-hoc single exercise (no template): default 3 × 10. */
+    /** Ready view for an ad-hoc single exercise (no template): three default sets for its type. */
     private fun exerciseReadyList(): List<RunExercise> {
         if (exerciseId <= 0) return emptyList()
-        val sets = List(3) { RunSet(10, null) }
-        return listOf(RunExercise(exerciseId, libNames[exerciseId] ?: activityName, sets = sets,
+        val type = typeOf(exerciseId)
+        val sets = List(3) { defaultSetFor(type) }
+        return listOf(RunExercise(exerciseId, libNames[exerciseId] ?: activityName, sets = sets, type = type,
             description = descById[exerciseId], templateSets = sets))
     }
 
@@ -142,8 +162,8 @@ class SessionRunnerViewModel @Inject constructor(
         val grouped = (session.sets ?: emptyList()).groupBy { it.exerciseId }
         val ids = (order + grouped.keys).distinct()
         return ids.mapNotNull { id ->
-            val sets = grouped[id]?.sortedBy { it.setNumber }?.map { RunSet(it.reps, it.weightKg) } ?: return@mapNotNull null
-            RunExercise(id, names[id] ?: "Exercise", sets = sets, description = descById[id], note = noteByEx[id].orEmpty(),
+            val sets = grouped[id]?.sortedBy { it.setNumber }?.map { RunSet(it.reps, it.weightKg, it.durationSeconds, it.distanceMeters) } ?: return@mapNotNull null
+            RunExercise(id, names[id] ?: "Exercise", sets = sets, type = typeOf(id), description = descById[id], note = noteByEx[id].orEmpty(),
                 fromTemplate = id in plannedIds)
         }
     }
@@ -158,7 +178,7 @@ class SessionRunnerViewModel @Inject constructor(
                 s.copy(exercises = s.exercises.map { e ->
                     val l = last[e.exerciseId]
                     e.copy(
-                        lastTime = l?.sets?.map { RunSet(it.reps, it.weightKg) } ?: e.lastTime,
+                        lastTime = l?.sets?.map { RunSet(it.reps, it.weightKg, it.durationSeconds, it.distanceMeters) } ?: e.lastTime,
                         lastNote = l?.note ?: e.lastNote,
                     )
                 })
@@ -194,9 +214,13 @@ class SessionRunnerViewModel @Inject constructor(
         editSet(exId, index) { it.copy(reps = reps?.coerceIn(0, 100)) }
     fun setWeight(exId: Long, index: Int, weightKg: Double?) =
         editSet(exId, index) { it.copy(weightKg = weightKg?.coerceAtLeast(0.0)) }
+    fun setDuration(exId: Long, index: Int, seconds: Int?) =
+        editSet(exId, index) { it.copy(durationSeconds = seconds?.coerceAtLeast(0)) }
+    fun setDistance(exId: Long, index: Int, metres: Double?) =
+        editSet(exId, index) { it.copy(distanceMeters = metres?.coerceAtLeast(0.0)) }
 
     fun addSet(exId: Long) = editExercise(exId) {
-        val last = it.sets.lastOrNull() ?: RunSet(10, null)
+        val last = it.sets.lastOrNull() ?: defaultSetFor(it.type)
         it.copy(sets = it.sets + last.copy())
     }
     fun removeSet(exId: Long, index: Int) = editExercise(exId) {
@@ -231,12 +255,12 @@ class SessionRunnerViewModel @Inject constructor(
     fun addExercise(exerciseId: Long) {
         if (_state.value.exercises.any { it.exerciseId == exerciseId }) return
         val lib = _state.value.library.firstOrNull { it.id == exerciseId } ?: return
-        val sets = List(3) { RunSet(10, null) }
-        _state.update { s -> s.copy(exercises = s.exercises + RunExercise(exerciseId, lib.name, sets = sets, description = lib.description, fromTemplate = false)) }
+        val sets = List(3) { defaultSetFor(lib.type) }
+        _state.update { s -> s.copy(exercises = s.exercises + RunExercise(exerciseId, lib.name, sets = sets, type = lib.type, description = lib.description, fromTemplate = false)) }
         persist()
         viewModelScope.launch {
             val l = sessionRepo.lastFullForExercise(exerciseId, activityName) ?: return@launch
-            val last = l.sets.map { RunSet(it.reps, it.weightKg) }
+            val last = l.sets.map { RunSet(it.reps, it.weightKg, it.durationSeconds, it.distanceMeters) }
             _state.update { s -> s.copy(exercises = s.exercises.map { if (it.exerciseId == exerciseId) it.copy(lastTime = last, lastNote = l.note) else it }) }
         }
     }
@@ -265,7 +289,8 @@ class SessionRunnerViewModel @Inject constructor(
 
     private fun currentSets(): List<WorkoutSetDto> =
         _state.value.exercises.flatMap { ex ->
-            ex.sets.mapIndexed { i, s -> WorkoutSetDto(exerciseId = ex.exerciseId, setNumber = i, reps = s.reps, weightKg = s.weightKg) }
+            ex.sets.mapIndexed { i, s -> WorkoutSetDto(exerciseId = ex.exerciseId, setNumber = i, reps = s.reps, weightKg = s.weightKg,
+                durationSeconds = s.durationSeconds, distanceMeters = s.distanceMeters) }
         }
 
     private fun currentExerciseNotes(): List<ExerciseNoteDto> =

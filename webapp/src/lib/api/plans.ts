@@ -3,6 +3,7 @@ import type { components } from "@/lib/api/types.generated";
 
 export type DayPlanDto = components["schemas"]["DayPlanDto"];
 export type PlannedWorkoutDto = components["schemas"]["PlannedWorkoutDto"];
+export type PlannedMealDto = components["schemas"]["PlannedMealDto"];
 
 /** DayPlan `date` is an ISO "yyyy-mm-dd" string (per the spec). */
 export function isoOf(d: unknown): string {
@@ -18,8 +19,13 @@ export function getPlan(date: string): Promise<DayPlanDto | null> {
   return apiFetch<DayPlanDto>(`/api/v1/plans/${date}`).catch(() => null);
 }
 
-export function upsertPlan(date: string, dietId: number | null, plannedWorkouts: DayPlanDto["plannedWorkouts"] = []): Promise<DayPlanDto> {
-  return apiFetch<DayPlanDto>(`/api/v1/plans/${date}`, { method: "PUT", body: JSON.stringify({ date, dietId, plannedWorkouts }) });
+export function upsertPlan(
+  date: string,
+  dietId: number | null,
+  plannedWorkouts: DayPlanDto["plannedWorkouts"] = [],
+  plannedMeals: DayPlanDto["plannedMeals"] = [],
+): Promise<DayPlanDto> {
+  return apiFetch<DayPlanDto>(`/api/v1/plans/${date}`, { method: "PUT", body: JSON.stringify({ date, dietId, plannedWorkouts, plannedMeals }) });
 }
 
 export function deletePlan(date: string): Promise<void> {
@@ -37,6 +43,19 @@ export function addPlannedWorkout(date: string, workoutTemplateId: number, activ
 /** Remove a planned workout from a day by its planned-workout id. */
 export function removePlannedWorkout(date: string, workoutId: number): Promise<void> {
   return apiFetch<void>(`/api/v1/plans/${date}/workouts/${workoutId}`, { method: "DELETE" });
+}
+
+/** Add a planned meal to a day's slot. */
+export function addPlannedMeal(date: string, mealId: number, slot: string): Promise<DayPlanDto> {
+  return apiFetch<DayPlanDto>(`/api/v1/plans/${date}/meals`, {
+    method: "POST",
+    body: JSON.stringify({ mealId, slot }),
+  });
+}
+
+/** Remove a planned meal from a day by its planned-meal id. */
+export function removePlannedMeal(date: string, mealPlanId: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/plans/${date}/meals/${mealPlanId}`, { method: "DELETE" });
 }
 
 export type LoggedMealSlotDto = components["schemas"]["LoggedMealSlotDto"];

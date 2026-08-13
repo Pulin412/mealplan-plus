@@ -19,3 +19,9 @@ interface PlannedWorkoutRepository : JpaRepository<PlannedWorkout, Long> {
     fun findByDayPlanIdIn(dayPlanIds: Collection<Long>): List<PlannedWorkout>
     fun deleteByDayPlanId(dayPlanId: Long)
 }
+
+interface PlannedMealRepository : JpaRepository<PlannedMeal, Long> {
+    fun findByDayPlanId(dayPlanId: Long): List<PlannedMeal>
+    fun findByDayPlanIdIn(dayPlanIds: Collection<Long>): List<PlannedMeal>
+    fun deleteByDayPlanId(dayPlanId: Long)
+}
