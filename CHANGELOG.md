@@ -14,7 +14,13 @@ Keep entries short and user-facing, grouped under `#### Added` / `#### Fixed` / 
 
 ## Android
 
-### [Unreleased]
+### [2.3.0] - 2026-08-13
+
+#### Added
+- Workouts: exercises now have a type — Strength (reps + weight), Cardio (time + distance), or Timed (duration only). The runner, workout builder, and logs all adapt to each type.
+- Plan: assign individual meals to a day's slots — on top of, or instead of, a diet. Today and your shopping list include them.
+
+### [2.2.15] - 2026-08-12
 
 #### Fixed
 - Workout session: serialized auto-save — fixes duplicate sets and trimmed notes when resuming a session after leaving it.
@@ -29,6 +35,12 @@ Keep entries short and user-facing, grouped under `#### Added` / `#### Fixed` / 
 - Workout session: add/remove exercises on the fly (remove only the ones you added); a standalone single-exercise log no longer offers "add exercise".
 
 ## Webapp
+
+### [0.3.0] - 2026-08-13
+
+#### Added
+- Workouts: exercises now have a type — Strength (reps + weight), Cardio (time + distance), or Timed (duration only). The runner, workout builder, and logs all adapt to each type.
+- Plan: assign individual meals to a day's slots — on top of, or instead of, a diet. Today and your shopping list include them.
 
 ### [0.2.0] - 2026-08-12
 
