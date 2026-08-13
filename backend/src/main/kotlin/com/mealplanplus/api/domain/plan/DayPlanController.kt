@@ -2,6 +2,7 @@ package com.mealplanplus.api.domain.plan
 
 import com.mealplanplus.api.generated.api.PlansApi
 import com.mealplanplus.api.generated.model.DayPlanDto
+import com.mealplanplus.api.generated.model.PlannedMealDto
 import com.mealplanplus.api.generated.model.PlannedWorkoutDto
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -32,6 +33,13 @@ class DayPlanController(private val service: DayPlanService) : PlansApi {
 
     override fun removePlannedWorkout(date: LocalDate, workoutId: Long): ResponseEntity<Unit> {
         service.removeWorkout(currentUid(), date, workoutId); return ResponseEntity.noContent().build()
+    }
+
+    override fun addPlannedMeal(date: LocalDate, plannedMealDto: PlannedMealDto): ResponseEntity<DayPlanDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.addMeal(currentUid(), date, plannedMealDto))
+
+    override fun removePlannedMeal(date: LocalDate, mealPlanId: Long): ResponseEntity<Unit> {
+        service.removeMeal(currentUid(), date, mealPlanId); return ResponseEntity.noContent().build()
     }
 
     private fun currentUid() = SecurityContextHolder.getContext().authentication.name

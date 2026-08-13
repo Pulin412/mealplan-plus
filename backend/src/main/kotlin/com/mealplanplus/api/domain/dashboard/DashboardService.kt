@@ -36,6 +36,7 @@ class DashboardService(
     private val dietMealRepo: DietMealRepository,
     private val healthRepo: HealthMetricRepository,
     private val dayPlanRepo: DayPlanRepository,
+    private val plannedMealRepo: com.mealplanplus.api.domain.plan.PlannedMealRepository,
     private val mealRepo: MealRepository,
     private val mealFoodItemRepo: MealFoodItemRepository,
     private val userRepo: UserRepository,
@@ -53,7 +54,7 @@ class DashboardService(
         val loggedSlots = slotRepo.findByFirebaseUidAndDate(firebaseUid, today)
             .associateBy { it.slot }
 
-        val slots = buildSlots(diet?.id, loggedSlots)
+        val slots = buildSlots(plan, loggedSlots)
 
         // ── Additional individually logged foods ──────────────────────────────
         val todayLog = logRepo.findFirstByFirebaseUidAndDateOrderByIdDesc(firebaseUid, today)
@@ -129,14 +130,21 @@ class DashboardService(
         )
     }
 
+    /** One (slot → meal) reference feeding a dashboard slot — from a diet meal or a planned meal. */
+    private data class SlotMealRef(val slot: String, val mealId: Long)
+
     private fun buildSlots(
-        dietId: Long?,
+        plan: com.mealplanplus.api.domain.plan.DayPlan?,
         loggedSlots: Map<String, com.mealplanplus.api.domain.log.LoggedMealSlot>
     ): List<SlotStatusDto> {
-        if (dietId == null) return emptyList()
-        val dietMeals   = dietMealRepo.findByDietId(dietId)
-        if (dietMeals.isEmpty()) return emptyList()
-        val mealIds     = dietMeals.map { it.mealId }.distinct()
+        if (plan == null) return emptyList()
+        // A day's meals = the diet's meals (if any) PLUS loose planned meals — merged by slot.
+        val dietMeals   = plan.dietId?.let { dietMealRepo.findByDietId(it) } ?: emptyList()
+        val plannedMeals = plannedMealRepo.findByDayPlanId(plan.id)
+        val refs = dietMeals.map { SlotMealRef(it.slot, it.mealId) } +
+                   plannedMeals.map { SlotMealRef(it.slot, it.mealId) }
+        if (refs.isEmpty()) return emptyList()
+        val mealIds     = refs.map { it.mealId }.distinct()
         val mealsById   = mealRepo.findAllById(mealIds).associateBy { it.id }
         val itemsByMealId = mealFoodItemRepo.findByMealIdIn(mealIds).groupBy { it.mealId }
         val foodIds     = itemsByMealId.values.flatten().map { it.foodId }.toSet()
@@ -146,7 +154,7 @@ class DashboardService(
         // Emit slots in canonical display order — the Today screen (both clients) renders
         // dashboard.slots in server order without re-sorting, so ordering is authoritative here.
         // Unknown slot names sort to the end, preserving their relative DB order.
-        return dietMeals
+        return refs
             .sortedBy { CANONICAL_SLOTS.indexOf(it.slot).let { i -> if (i < 0) Int.MAX_VALUE else i } }
             .map { dm ->
             val meal  = mealsById[dm.mealId]
