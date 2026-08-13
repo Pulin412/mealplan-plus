@@ -50,6 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mealplanplus.ui.components.AppCard
+import com.mealplanplus.ui.components.DurationInput
+import com.mealplanplus.ui.components.ExerciseType
+import com.mealplanplus.ui.components.fmtDistance
+import com.mealplanplus.ui.components.fmtDuration
+import com.mealplanplus.ui.components.kmToMetres
+import com.mealplanplus.ui.components.metresToKm
+import com.mealplanplus.ui.components.setSummary
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderCool
 import com.mealplanplus.ui.components.Stepper
@@ -107,14 +114,17 @@ private fun ReadyPhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
         LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
             items(state.exercises, key = { it.exerciseId }) { ex ->
                 AppCard {
-                    Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Spacer(Modifier.width(6.dp)); TypeBadge(ex.type)
+                    }
                     ExerciseDesc(ex.description)
-                    ColumnHeaders(showActions = false)
+                    ColumnHeaders(ex.type, showActions = false)
                     ex.templateSets.forEachIndexed { i, s ->
-                        ReadOnlyRow(i + 1, s.reps, s.weightKg)
+                        ReadOnlyRow(ex.type, i + 1, s)
                     }
                     if (ex.lastTime.isNotEmpty()) {
-                        Text("Last time: " + ex.lastTime.joinToString("  ") { setSummary(it.reps, it.weightKg) },
+                        Text("Last time: " + ex.lastTime.joinToString("  ") { setSummary(ex.type, it.reps, it.weightKg, it.durationSeconds, it.distanceMeters) },
                             fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 6.dp))
                     }
                 }
@@ -195,7 +205,10 @@ private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onTo
             CheckToggle(done, onToggleDone)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f).clickable(onClick = onToggle)) {
-                Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (done) MutedDark else Ink)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (done) MutedDark else Ink)
+                    Spacer(Modifier.width(6.dp)); TypeBadge(ex.type)
+                }
                 ExerciseDesc(ex.description)
                 if (!expanded)
                     Text("${ex.sets.size} set${if (ex.sets.size == 1) "" else "s"}${if (done) " · done" else ""}",
@@ -211,25 +224,47 @@ private fun ExerciseCard(ex: RunExercise, expanded: Boolean, done: Boolean, onTo
         if (expanded) {
             if (done) {
                 // Read-only recap of the logged sets while this exercise is checked off.
-                ColumnHeaders(showActions = false)
-                ex.sets.forEachIndexed { i, s -> ReadOnlyRow(i + 1, s.reps, s.weightKg) }
+                ColumnHeaders(ex.type, showActions = false)
+                ex.sets.forEachIndexed { i, s -> ReadOnlyRow(ex.type, i + 1, s) }
                 if (ex.note.isNotBlank()) NoteDisplay(ex.note)
             } else {
                 if (ex.lastTime.isNotEmpty() || !ex.lastNote.isNullOrBlank())
                     LastTimePanel(ex, onCopy = { vm.copyLast(ex.exerciseId) })
-                ColumnHeaders(showActions = true)
+                ColumnHeaders(ex.type, showActions = true)
+                val cardio = ExerciseType.tracksDuration(ex.type)
                 ex.sets.forEachIndexed { i, s ->
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                        Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
-                        // Uniform +/- and directly-editable controls (weight steps by 0.5).
-                        Stepper(value = s.reps ?: 0, onChange = { vm.setReps(ex.exerciseId, i, it) },
-                            min = 0, max = 100, modifier = Modifier.width(100.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Stepper(value = s.weightKg ?: 0.0, onChange = { vm.setWeight(ex.exerciseId, i, it.takeIf { w -> w > 0.0 }) },
-                            min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(120.dp))
-                        Spacer(Modifier.weight(1f))
-                        if (ex.sets.size > 1)
-                            Text("✕", fontSize = 12.sp, color = MutedLight, modifier = Modifier.clickable { vm.removeSet(ex.exerciseId, i) }.padding(start = 8.dp))
+                    if (cardio) {
+                        // Duration on the first line (min + sec), distance stacked below so nothing is cramped.
+                        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
+                                DurationInput(s.durationSeconds, { vm.setDuration(ex.exerciseId, i, it) })
+                                Spacer(Modifier.weight(1f))
+                                if (ex.sets.size > 1)
+                                    Text("✕", fontSize = 12.sp, color = MutedLight, modifier = Modifier.clickable { vm.removeSet(ex.exerciseId, i) }.padding(start = 8.dp))
+                            }
+                            if (ExerciseType.tracksDistance(ex.type)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                                    Spacer(Modifier.width(44.dp))
+                                    Text("km", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedFaint, modifier = Modifier.width(26.dp))
+                                    Stepper(value = metresToKm(s.distanceMeters), onChange = { vm.setDistance(ex.exerciseId, i, kmToMetres(it)) },
+                                        min = 0.0, max = 1000.0, step = 0.1, decimals = 2, modifier = Modifier.width(150.dp))
+                                }
+                            }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                            Text("Set ${i + 1}", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
+                            // Uniform +/- and directly-editable controls (weight steps by 0.5).
+                            Stepper(value = s.reps ?: 0, onChange = { vm.setReps(ex.exerciseId, i, it) },
+                                min = 0, max = 100, modifier = Modifier.width(100.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Stepper(value = s.weightKg ?: 0.0, onChange = { vm.setWeight(ex.exerciseId, i, it.takeIf { w -> w > 0.0 }) },
+                                min = 0.0, max = 1000.0, step = 0.5, decimals = 1, modifier = Modifier.width(120.dp))
+                            Spacer(Modifier.weight(1f))
+                            if (ex.sets.size > 1)
+                                Text("✕", fontSize = 12.sp, color = MutedLight, modifier = Modifier.clickable { vm.removeSet(ex.exerciseId, i) }.padding(start = 8.dp))
+                        }
                     }
                 }
                 Text("＋ Add set", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
@@ -292,10 +327,13 @@ private fun DonePhase(state: RunnerUiState, vm: SessionRunnerViewModel, onBack: 
         LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
             items(state.exercises, key = { it.exerciseId }) { ex ->
                 AppCard {
-                    Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(ex.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Spacer(Modifier.width(6.dp)); TypeBadge(ex.type)
+                    }
                     ExerciseDesc(ex.description)
-                    ColumnHeaders(showActions = false)
-                    ex.sets.forEachIndexed { i, s -> ReadOnlyRow(i + 1, s.reps, s.weightKg) }
+                    ColumnHeaders(ex.type, showActions = false)
+                    ex.sets.forEachIndexed { i, s -> ReadOnlyRow(ex.type, i + 1, s) }
                     if (ex.note.isNotBlank()) NoteDisplay(ex.note)
                 }
                 Spacer(Modifier.height(8.dp))
@@ -369,12 +407,22 @@ private fun LastTimePanel(ex: RunExercise, onCopy: () -> Unit) {
                 if (ex.lastTime.isEmpty())
                     Text("No previous sets", fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 4.dp))
                 else ex.lastTime.forEachIndexed { i, s ->
-                    Text("Set ${i + 1}:  ${setSummary(s.reps, s.weightKg)}", fontSize = 10.5.sp,
+                    Text("Set ${i + 1}:  ${setSummary(ex.type, s.reps, s.weightKg, s.durationSeconds, s.distanceMeters)}", fontSize = 10.5.sp,
                         fontFamily = DmMono, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
                 }
             }
         }
     }
+}
+
+/** Small pill naming an exercise's tracking type (Cardio / Timed). */
+@Composable
+private fun TypeBadge(type: String?) {
+    Text(
+        ExerciseType.label(type).uppercase(), fontSize = 8.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+        modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Teal.copy(alpha = 0.12f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
 }
 
 @Composable
@@ -384,27 +432,35 @@ private fun ExerciseDesc(desc: String?) {
 }
 
 @Composable
-private fun ColumnHeaders(showActions: Boolean) {
+private fun ColumnHeaders(type: String, showActions: Boolean) {
+    // Editable cardio rows use self-labelled steppers (m / s / km), so no column header there.
+    if (ExerciseType.tracksDuration(type) && showActions) return
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)) {
         Spacer(Modifier.width(44.dp))
-        Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(if (showActions) 100.dp else 64.dp))
-        Spacer(Modifier.width(if (showActions) 10.dp else 0.dp))
-        Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+        if (ExerciseType.tracksDuration(type)) {
+            Text("Time", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(64.dp))
+            if (ExerciseType.tracksDistance(type))
+                Text("Distance", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+        } else {
+            Text("Reps", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.width(if (showActions) 100.dp else 64.dp))
+            Spacer(Modifier.width(if (showActions) 10.dp else 0.dp))
+            Text("Weight", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
+        }
     }
 }
 
 @Composable
-private fun ReadOnlyRow(setNo: Int, reps: Int?, weightKg: Double?) {
+private fun ReadOnlyRow(type: String, setNo: Int, s: RunSet) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Text("Set $setNo", fontSize = 10.5.sp, fontFamily = DmMono, color = MutedDark, modifier = Modifier.width(44.dp))
-        Text(reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
-        Text(weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+        if (ExerciseType.tracksDuration(type)) {
+            Text(fmtDuration(s.durationSeconds), fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
+            if (ExerciseType.tracksDistance(type)) Text(fmtDistance(s.distanceMeters), fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+        } else {
+            Text(s.reps?.toString() ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink, modifier = Modifier.width(64.dp))
+            Text(s.weightKg?.let { fmtKg(it) } ?: "–", fontSize = 12.sp, fontFamily = DmMono, color = Ink)
+        }
     }
-}
-
-private fun setSummary(reps: Int?, weightKg: Double?): String {
-    val r = reps?.toString() ?: "–"
-    return if (weightKg != null) "$r×${fmtKg(weightKg)}" else r
 }
 
 private fun fmtKg(v: Double): String = (if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()) + "kg"

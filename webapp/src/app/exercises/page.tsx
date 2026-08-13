@@ -6,6 +6,11 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { Stepper } from "@/components/ui/Stepper";
+import { DurationInput } from "@/components/ui/DurationInput";
+import {
+  EXERCISE_TYPES, CARDIO, TIMED, typeLabel, tracksDuration, tracksDistance,
+  fmtDuration, fmtDistance, metresToKm, kmToMetres,
+} from "@/lib/workoutMetrics";
 import { exerciseTagColor } from "@/lib/exerciseTags";
 import type { ExerciseDto } from "@/lib/api/exercises";
 import type { WorkoutTemplateDto } from "@/lib/api/workouts";
@@ -35,6 +40,16 @@ const isoYMD = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2
 
 const TAB_LABELS: Record<LibTab, string> = { exercises: "Exercises", workouts: "Workouts", logs: "Logs" };
 const TABS: LibTab[] = ["exercises", "workouts", "logs"];
+
+/** Small pill naming an exercise's tracking type (Strength / Cardio / Timed). */
+function TypeBadge({ type }: { type: string | null | undefined }) {
+  return (
+    <span className="text-[8.5px] font-semibold px-1.5 py-0.5 rounded-[5px] whitespace-nowrap"
+      style={{ color: C.teal, background: "color-mix(in oklch, oklch(0.62 0.09 210) 12%, transparent)" }}>
+      {typeLabel(type).toUpperCase()}
+    </span>
+  );
+}
 
 // ─── Tag chips ────────────────────────────────────────────────────────────────
 function TagChip({ name }: { name: string }) {
@@ -92,7 +107,10 @@ function ExerciseCard({ e, tagName, onClick }: { e: ExerciseDto; tagName: Map<nu
       style={{ background: C.surface, border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold truncate" style={{ color: C.ink }}>{e.name}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[13px] font-bold truncate" style={{ color: C.ink }}>{e.name}</span>
+            <TypeBadge type={e.type} />
+          </div>
           {names.length > 0 && (
             <div className="flex flex-wrap gap-[5px] mt-[5px]">
               {names.slice(0, 4).map((n) => <TagChip key={n} name={n} />)}
@@ -226,6 +244,25 @@ function ExerciseEditorOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) 
           className="w-full rounded-[12px] px-[14px] py-[13px] text-[14px] outline-none resize-none"
           style={{ background: C.bgAlt, color: C.ink }} />
 
+        <FieldLabel>Type</FieldLabel>
+        <div className="flex gap-2">
+          {EXERCISE_TYPES.map((t) => {
+            const on = ed.type === t;
+            return (
+              <button key={t} onClick={() => ex.setEditorType(t)}
+                className="flex-1 rounded-[10px] py-[11px] text-[12px] font-semibold"
+                style={on ? { background: C.teal, color: "#fff" } : { border: `1px solid ${C.borderCool}`, color: C.muted3 }}>
+                {typeLabel(t)}
+              </button>
+            );
+          })}
+        </div>
+        <div className="text-[10.5px] mt-1.5" style={{ color: C.faint }}>
+          {ed.type === CARDIO ? "Logs duration + distance (e.g. running, cycling)."
+            : ed.type === TIMED ? "Logs duration only (e.g. plank, jump rope)."
+            : "Logs reps + weight (e.g. bench press, squat)."}
+        </div>
+
         <FieldLabel>Tags</FieldLabel>
         <TagAssignSection tags={ex.tags} selected={ed.tagIds} onToggle={ex.toggleEditorTag} onCreate={(n) => void ex.createEditorTag(n)} />
 
@@ -249,31 +286,56 @@ function ExerciseEditorOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) 
 // ─── Workout builder (full-screen overlay) ─────────────────────────────────────
 function BuilderRow({ item, ex }: { item: BuilderItem; ex: ReturnType<typeof useExercises> }) {
   const id = item.exerciseId;
+  const cardio = tracksDuration(item.type);
   return (
     <div className="rounded-[12px] mb-2 px-3 py-[11px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-      <div className="flex items-center gap-2">
-        <span className="flex-1 min-w-0 text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{item.name}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="min-w-0 text-[12.5px] font-bold truncate" style={{ color: C.ink }}>{item.name}</span>
+        <TypeBadge type={item.type} />
+        <span className="flex-1" />
         <span className="text-[10px]" style={{ color: C.faint }}>{item.sets.length} set{item.sets.length === 1 ? "" : "s"}</span>
         <button onClick={() => ex.removeFromBuilder(id)} className="text-[13px] pl-2" style={{ color: C.muted2 }}>✕</button>
       </div>
-      {/* Column headers */}
-      <div className="flex items-center mt-2 mb-0.5 text-[9.5px] font-semibold" style={{ color: C.faint }}>
-        <span className="w-[40px]" />
-        <span className="w-[96px]">Reps</span>
-        <span className="ml-[10px]">Weight</span>
-      </div>
-      {item.sets.map((s, i) => (
-        <div key={i} className="flex items-center py-[3px]">
-          <span className="w-[40px] text-[10.5px]" style={{ color: C.muted3, fontFamily: "'DM Mono', monospace" }}>Set {i + 1}</span>
-          <Stepper value={s.reps ?? 0} onChange={(v) => ex.setReps(id, i, v)} min={1} max={100} dense />
-          <div className="ml-[8px]"><Stepper value={s.weightKg ?? 0} onChange={(v) => ex.setWeight(id, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
-          <span className="flex-1" />
-          <button onClick={() => ex.duplicateSet(id, i)} title="Copy set"
-            className="text-[13px] leading-none" style={{ color: C.muted2 }}>⧉</button>
-          {item.sets.length > 1 && (
-            <button onClick={() => ex.removeSet(id, i)} className="text-[12px] pl-3" style={{ color: C.muted2 }}>✕</button>
-          )}
+      {/* Column headers — only for strength; cardio steppers are self-labelled (m / s / km). */}
+      {!cardio && (
+        <div className="flex items-center mt-2 mb-0.5 text-[9.5px] font-semibold" style={{ color: C.faint }}>
+          <span className="w-[40px]" />
+          <span className="w-[96px]">Reps</span>
+          <span className="ml-[10px]">Weight</span>
         </div>
+      )}
+      {item.sets.map((s, i) => (
+        cardio ? (
+          <div key={i} className="py-[3px]">
+            <div className="flex items-center">
+              <span className="w-[40px] text-[10.5px]" style={{ color: C.muted3, fontFamily: "'DM Mono', monospace" }}>Set {i + 1}</span>
+              <DurationInput seconds={s.durationSeconds} onChange={(v) => ex.setDuration(id, i, v)} />
+              <span className="flex-1" />
+              <button onClick={() => ex.duplicateSet(id, i)} title="Copy set" className="text-[13px] leading-none" style={{ color: C.muted2 }}>⧉</button>
+              {item.sets.length > 1 && (
+                <button onClick={() => ex.removeSet(id, i)} className="text-[12px] pl-3" style={{ color: C.muted2 }}>✕</button>
+              )}
+            </div>
+            {tracksDistance(item.type) && (
+              <div className="flex items-center mt-1">
+                <span className="w-[40px] text-[10.5px]" style={{ color: C.faint, fontFamily: "'DM Mono', monospace" }}>km</span>
+                <Stepper value={metresToKm(s.distanceMeters)} onChange={(v) => ex.setDistance(id, i, kmToMetres(v))} min={0} max={1000} step={0.1} decimals={2} dense />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div key={i} className="flex items-center py-[3px]">
+            <span className="w-[40px] text-[10.5px]" style={{ color: C.muted3, fontFamily: "'DM Mono', monospace" }}>Set {i + 1}</span>
+            <Stepper value={s.reps ?? 0} onChange={(v) => ex.setReps(id, i, v)} min={1} max={100} dense />
+            <div className="ml-[8px]"><Stepper value={s.weightKg ?? 0} onChange={(v) => ex.setWeight(id, i, v > 0 ? v : null)} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense /></div>
+            <span className="flex-1" />
+            <button onClick={() => ex.duplicateSet(id, i)} title="Copy set"
+              className="text-[13px] leading-none" style={{ color: C.muted2 }}>⧉</button>
+            {item.sets.length > 1 && (
+              <button onClick={() => ex.removeSet(id, i)} className="text-[12px] pl-3" style={{ color: C.muted2 }}>✕</button>
+            )}
+          </div>
+        )
       ))}
     </div>
   );
@@ -408,7 +470,13 @@ function LogDetailOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
   const s = ex.openLog!;
   const sets = s.sets ?? [];
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(() => sets.map((st) => ({ reps: st.reps != null ? String(st.reps) : "", weight: st.weightKg != null ? String(st.weightKg) : "" })));
+  // Strength sets edit reps/weight (strings); cardio/timed edit duration (seconds) / distance (km string).
+  const [draft, setDraft] = useState(() => sets.map((st) => ({
+    reps: st.reps != null ? String(st.reps) : "",
+    weight: st.weightKg != null ? String(st.weightKg) : "",
+    durationSeconds: st.durationSeconds ?? null,
+    distanceKm: st.distanceMeters != null ? String(metresToKm(st.distanceMeters)) : "",
+  })));
 
   // Group set indices by exercise, preserving first-seen order.
   const order: number[] = [];
@@ -419,7 +487,14 @@ function LogDetailOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
   });
 
   const save = () => {
-    const newSets = sets.map((st, gi) => ({ ...st, reps: draft[gi].reps ? parseInt(draft[gi].reps, 10) : null, weightKg: draft[gi].weight ? parseFloat(draft[gi].weight) : null }));
+    const newSets = sets.map((st, gi) => {
+      if (tracksDuration(ex.exerciseTypeById.get(st.exerciseId))) {
+        return { ...st, reps: null, weightKg: null,
+          durationSeconds: draft[gi].durationSeconds && draft[gi].durationSeconds! > 0 ? draft[gi].durationSeconds : null,
+          distanceMeters: draft[gi].distanceKm ? kmToMetres(parseFloat(draft[gi].distanceKm)) : null };
+      }
+      return { ...st, reps: draft[gi].reps ? parseInt(draft[gi].reps, 10) : null, weightKg: draft[gi].weight ? parseFloat(draft[gi].weight) : null };
+    });
     void ex.updateLog({ ...s, sets: newSets });
     setEditing(false);
   };
@@ -436,33 +511,68 @@ function LogDetailOverlay({ ex }: { ex: ReturnType<typeof useExercises> }) {
       <div className="flex-1 overflow-y-auto px-4 pt-1 pb-6">
         <div className="text-[11px] mb-1.5" style={{ color: C.muted2 }}>{logMeta(s)}</div>
         {s.notes && <div className="text-[12px] mb-2" style={{ color: C.muted3 }}>{s.notes}</div>}
-        {order.map((exId) => (
+        {order.map((exId) => {
+          const type = ex.exerciseTypeById.get(exId) ?? "STRENGTH";
+          const cardio = tracksDuration(type);
+          const distance = tracksDistance(type);
+          return (
           <div key={exId} className="rounded-[14px] mb-2 p-[14px]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-            <div className="text-[12.5px] font-bold" style={{ color: C.ink }}>{ex.exerciseName.get(exId) ?? "Exercise"}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[12.5px] font-bold" style={{ color: C.ink }}>{ex.exerciseName.get(exId) ?? "Exercise"}</span>
+              <TypeBadge type={type} />
+            </div>
             {!editing && (
               <div className="flex mt-2 mb-0.5 text-[9.5px] font-semibold" style={{ color: C.faint }}>
-                <span className="w-12">Set</span><span className="w-16">Reps</span><span>Weight</span>
+                <span className="w-12">Set</span>
+                {cardio ? (<><span className="w-16">Time</span>{distance && <span>Distance</span>}</>)
+                        : (<><span className="w-16">Reps</span><span>Weight</span></>)}
               </div>
             )}
             {idxByExercise.get(exId)!.map((gi, n) => (
               editing ? (
-                <div key={gi} className="flex items-center gap-2 py-1">
-                  <span className="w-12 text-[11px]" style={{ color: C.muted2 }}>Set {n + 1}</span>
-                  <Stepper value={draft[gi].reps ? parseInt(draft[gi].reps, 10) : 0} min={0} max={100} dense
-                    onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, reps: String(v) } : x)))} />
-                  <Stepper value={draft[gi].weight ? parseFloat(draft[gi].weight) : 0} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense
-                    onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, weight: v > 0 ? String(v) : "" } : x)))} />
-                </div>
+                cardio ? (
+                  <div key={gi} className="py-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-12 text-[11px]" style={{ color: C.muted2 }}>Set {n + 1}</span>
+                      <DurationInput seconds={draft[gi].durationSeconds} onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, durationSeconds: v } : x)))} />
+                    </div>
+                    {distance && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="w-12 text-[11px]" style={{ color: C.faint }}>km</span>
+                        <Stepper value={draft[gi].distanceKm ? parseFloat(draft[gi].distanceKm) : 0} min={0} max={1000} step={0.1} decimals={2} dense
+                          onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, distanceKm: v > 0 ? String(v) : "" } : x)))} />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div key={gi} className="flex items-center gap-2 py-1">
+                    <span className="w-12 text-[11px]" style={{ color: C.muted2 }}>Set {n + 1}</span>
+                    <Stepper value={draft[gi].reps ? parseInt(draft[gi].reps, 10) : 0} min={0} max={100} dense
+                      onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, reps: String(v) } : x)))} />
+                    <Stepper value={draft[gi].weight ? parseFloat(draft[gi].weight) : 0} min={0} max={1000} step={0.5} decimals={1} suffix="kg" dense
+                      onChange={(v) => setDraft((d) => d.map((x, j) => (j === gi ? { ...x, weight: v > 0 ? String(v) : "" } : x)))} />
+                  </div>
+                )
               ) : (
                 <div key={gi} className="flex items-center py-[3px] text-[12px] tabular-nums" style={{ color: C.ink, fontFamily: "'DM Mono', monospace" }}>
                   <span className="w-12" style={{ color: C.muted3 }}>{n + 1}</span>
-                  <span className="w-16">{sets[gi].reps ?? "–"}</span>
-                  <span>{sets[gi].weightKg != null ? `${sets[gi].weightKg} kg` : "–"}</span>
+                  {cardio ? (
+                    <>
+                      <span className="w-16">{fmtDuration(sets[gi].durationSeconds)}</span>
+                      {distance && <span>{fmtDistance(sets[gi].distanceMeters)}</span>}
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-16">{sets[gi].reps ?? "–"}</span>
+                      <span>{sets[gi].weightKg != null ? `${sets[gi].weightKg} kg` : "–"}</span>
+                    </>
+                  )}
                 </div>
               )
             ))}
           </div>
-        ))}
+          );
+        })}
         {s.id != null && (
           <button onClick={() => void ex.deleteLog(s.id!)} className="w-full text-[13px] font-semibold py-3 mt-1" style={{ color: C.danger, background: "none", border: "none", cursor: "pointer" }}>✕ Delete this log</button>
         )}

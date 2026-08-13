@@ -167,7 +167,7 @@ class GroceryViewModel @Inject constructor(
         val to = maxOf(m.atEndOfMonth(), today.plusDays(13))
         val plans = plansApi.listPlans(from, to).body().orEmpty()
         plansByDate = plansByDate + plans.associateBy { it.date }
-        _state.update { it.copy(plannedDates = plansByDate.filterValues { p -> p.dietId != null }.keys) }
+        _state.update { it.copy(plannedDates = plansByDate.filterValues { p -> p.dietId != null || !p.plannedMeals.isNullOrEmpty() }.keys) }
     }
 
     /** Re-pull plan + library and reconcile the list: checked (bought) rows are kept, and each
@@ -191,13 +191,22 @@ class GroceryViewModel @Inject constructor(
             map[key] = FoodTotal(nm, unit, (cur?.total ?: 0.0) + qty)
         }
         dates.forEach { date ->
-            val dietId = plansByDate[date]?.dietId ?: return@forEach
-            val diet = dietsById[dietId] ?: return@forEach
-            (diet.meals ?: emptyList()).forEach { dm ->
-                val meal = mealsById[dm.mealId]
+            val plan = plansByDate[date] ?: return@forEach
+            // The day's diet (if any) …
+            plan.dietId?.let { dietId ->
+                dietsById[dietId]?.let { diet ->
+                    (diet.meals ?: emptyList()).forEach { dm ->
+                        val meal = mealsById[dm.mealId]
+                        (meal?.items ?: emptyList()).forEach { add(foodsById[it.foodId]?.name, it.quantity, it.unit.value) }
+                    }
+                    (diet.foodItems ?: emptyList()).forEach { fi -> add(foodsById[fi.foodId]?.name, fi.quantity, fi.unit.value) }
+                }
+            }
+            // … plus any individual planned meals for that day.
+            (plan.plannedMeals ?: emptyList()).forEach { pm ->
+                val meal = mealsById[pm.mealId]
                 (meal?.items ?: emptyList()).forEach { add(foodsById[it.foodId]?.name, it.quantity, it.unit.value) }
             }
-            (diet.foodItems ?: emptyList()).forEach { fi -> add(foodsById[fi.foodId]?.name, fi.quantity, fi.unit.value) }
         }
         return map
     }

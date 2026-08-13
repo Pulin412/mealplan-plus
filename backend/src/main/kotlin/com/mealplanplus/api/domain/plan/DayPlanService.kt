@@ -2,6 +2,7 @@ package com.mealplanplus.api.domain.plan
 import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.DayPlanDto
+import com.mealplanplus.api.generated.model.PlannedMealDto
 import com.mealplanplus.api.generated.model.PlannedWorkoutDto
 import com.mealplanplus.api.domain.sync.TombstoneService
 import org.springframework.http.HttpStatus
@@ -16,15 +17,18 @@ import java.util.UUID
 class DayPlanService(
     private val repo: DayPlanRepository,
     private val plannedWorkoutRepo: PlannedWorkoutRepository,
+    private val plannedMealRepo: PlannedMealRepository,
     private val tombstones: TombstoneService
 ) {
-    private fun DayPlan.toFullDto() = toDto(plannedWorkoutRepo.findByDayPlanId(id))
+    private fun DayPlan.toFullDto() = toDto(plannedWorkoutRepo.findByDayPlanId(id), plannedMealRepo.findByDayPlanId(id))
 
     private fun batchToDtos(plans: List<DayPlan>): List<DayPlanDto> {
         if (plans.isEmpty()) return emptyList()
         val workoutsByPlanId = plannedWorkoutRepo.findByDayPlanIdIn(plans.map { it.id })
             .groupBy { it.dayPlanId }
-        return plans.map { it.toDto(workoutsByPlanId[it.id] ?: emptyList()) }
+        val mealsByPlanId = plannedMealRepo.findByDayPlanIdIn(plans.map { it.id })
+            .groupBy { it.dayPlanId }
+        return plans.map { it.toDto(workoutsByPlanId[it.id] ?: emptyList(), mealsByPlanId[it.id] ?: emptyList()) }
     }
 
     fun list(firebaseUid: String, from: LocalDate? = null, to: LocalDate? = null): List<DayPlanDto> {
@@ -43,6 +47,7 @@ class DayPlanService(
         val existing = repo.findByFirebaseUidAndDate(firebaseUid, date)
         val plan = if (existing != null) {
             plannedWorkoutRepo.deleteByDayPlanId(existing.id)
+            plannedMealRepo.deleteByDayPlanId(existing.id)
             DayPlan(id = existing.id, firebaseUid = firebaseUid, date = date, dietId = dto.dietId)
                 .also { it.serverId = existing.serverId }
         } else {
@@ -54,7 +59,28 @@ class DayPlanService(
             plannedWorkoutRepo.save(PlannedWorkout(dayPlanId = saved.id,
                 workoutTemplateId = w.workoutTemplateId, activityName = w.activityName ?: ""))
         }
+        (dto.plannedMeals ?: emptyList()).forEach { m ->
+            plannedMealRepo.save(PlannedMeal(dayPlanId = saved.id, mealId = m.mealId, slot = m.slot))
+        }
         return saved.toFullDto()
+    }
+
+    @Transactional
+    fun addMeal(firebaseUid: String, date: LocalDate, dto: PlannedMealDto): DayPlanDto {
+        val plan = repo.findByFirebaseUidAndDate(firebaseUid, date)
+            ?: repo.save(DayPlan(firebaseUid = firebaseUid, date = date))
+        plannedMealRepo.save(PlannedMeal(dayPlanId = plan.id, mealId = dto.mealId, slot = dto.slot))
+        return plan.toFullDto()
+    }
+
+    @Transactional
+    fun removeMeal(firebaseUid: String, date: LocalDate, mealPlanId: Long) {
+        val plan = repo.findByFirebaseUidAndDate(firebaseUid, date)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "No plan for $date")
+        val meal = plannedMealRepo.findById(mealPlanId).orNotFound("Planned meal")
+        if (meal.dayPlanId != plan.id)
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Meal not on this day's plan")
+        plannedMealRepo.delete(meal)
     }
 
     @Transactional
@@ -80,6 +106,7 @@ class DayPlanService(
     fun delete(firebaseUid: String, date: LocalDate) {
         val existing = repo.findByFirebaseUidAndDate(firebaseUid, date) ?: return
         plannedWorkoutRepo.deleteByDayPlanId(existing.id)
+        plannedMealRepo.deleteByDayPlanId(existing.id)
         tombstones.record(firebaseUid, "day_plan", existing.serverId)
         repo.delete(existing)
     }
@@ -94,12 +121,19 @@ fun PlannedWorkout.toDto() = PlannedWorkoutDto(
     activityName      = activityName
 )
 
-fun DayPlan.toDto(workouts: List<PlannedWorkout> = emptyList()) = DayPlanDto(
+fun PlannedMeal.toDto() = PlannedMealDto(
+    id     = id,
+    mealId = mealId,
+    slot   = slot
+)
+
+fun DayPlan.toDto(workouts: List<PlannedWorkout> = emptyList(), meals: List<PlannedMeal> = emptyList()) = DayPlanDto(
     id              = id,
     serverId        = serverId,
     firebaseUid     = firebaseUid,
     date            = date,
     dietId          = dietId,
     plannedWorkouts = workouts.map { it.toDto() },
+    plannedMeals    = meals.map { it.toDto() },
     updatedAt       = updatedAt
 )

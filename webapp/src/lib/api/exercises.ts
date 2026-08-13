@@ -8,17 +8,17 @@ export function listExercises(): Promise<ExerciseDto[]> {
   return apiFetch<ExerciseDto[]>("/api/v1/exercises");
 }
 
-export function createExercise(name: string, description: string | null, tagIds: number[]): Promise<ExerciseDto> {
+export function createExercise(name: string, description: string | null, type: string, tagIds: number[]): Promise<ExerciseDto> {
   return apiFetch<ExerciseDto>("/api/v1/exercises", {
     method: "POST",
-    body: JSON.stringify({ name: name.trim(), description, tagIds }),
+    body: JSON.stringify({ name: name.trim(), description, type, tagIds }),
   });
 }
 
-export function updateExercise(id: number, name: string, description: string | null, tagIds: number[]): Promise<ExerciseDto> {
+export function updateExercise(id: number, name: string, description: string | null, type: string, tagIds: number[]): Promise<ExerciseDto> {
   return apiFetch<ExerciseDto>(`/api/v1/exercises/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ id, name: name.trim(), description, tagIds }),
+    body: JSON.stringify({ id, name: name.trim(), description, type, tagIds }),
   });
 }
 

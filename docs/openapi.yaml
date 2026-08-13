@@ -1287,6 +1287,51 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/plans/{date}/meals:
+    post:
+      tags: [Plans]
+      summary: Add a planned meal to a day
+      description: Appends a planned meal to the day plan, creating the plan if it doesn't exist.
+      operationId: addPlannedMeal
+      parameters:
+        - $ref: '#/components/parameters/DatePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlannedMealDto'
+      responses:
+        '201':
+          description: Updated day plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayPlanDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/plans/{date}/meals/{mealPlanId}:
+    delete:
+      tags: [Plans]
+      summary: Remove a planned meal from a day
+      operationId: removePlannedMeal
+      parameters:
+        - $ref: '#/components/parameters/DatePath'
+        - name: mealPlanId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ── Logging ──────────────────────────────────────────────────────────────────
   /api/v1/logging/slots:
     get:
@@ -3511,6 +3556,13 @@ components:
           type: string
           nullable: true
           description: Optional free-text notes / how-to for the exercise.
+        type:
+          type: string
+          default: STRENGTH
+          description: >-
+            How this exercise is logged and which fields the runner/builder show.
+            One of STRENGTH (reps + weight), CARDIO (duration + distance),
+            TIMED (duration only).
         isSystem:
           type: boolean
           default: false
@@ -3585,6 +3637,15 @@ components:
           format: double
           nullable: true
           description: Target weight in kg (canonical); clients display in the user's unit.
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: Target duration in seconds (CARDIO/TIMED exercises).
+        distanceMeters:
+          type: number
+          format: double
+          nullable: true
+          description: Target distance in metres (CARDIO exercises).
       required: [setNumber]
 
     WorkoutTemplateDto:
@@ -3659,6 +3720,15 @@ components:
           type: number
           format: double
           nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: Logged duration in seconds (CARDIO/TIMED exercises).
+        distanceMeters:
+          type: number
+          format: double
+          nullable: true
+          description: Logged distance in metres (CARDIO exercises).
         notes:
           type: string
           nullable: true
@@ -3759,6 +3829,22 @@ components:
           description: Display name (template name or custom activity)
       required: [activityName]
 
+    PlannedMealDto:
+      type: object
+      description: A single meal assigned to a day plan's slot, independent of any diet.
+      properties:
+        id:
+          type: integer
+          format: int64
+        mealId:
+          type: integer
+          format: int64
+          description: The Meal assigned to this slot.
+        slot:
+          type: string
+          description: Meal slot (BREAKFAST / LUNCH / DINNER / …).
+      required: [mealId, slot]
+
     DayPlanDto:
       type: object
       description: |
@@ -3788,6 +3874,12 @@ components:
           items:
             $ref: '#/components/schemas/PlannedWorkoutDto'
           default: []
+        plannedMeals:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlannedMealDto'
+          default: []
+          description: Individual meals assigned to this day's slots, on top of any diet.
         updatedAt:
           type: string
           format: date-time

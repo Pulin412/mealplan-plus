@@ -8,13 +8,15 @@ import {
   listSessionsForDate, startWorkout, createSession, updateSession, finishSession, lastFullForExercise,
   type WorkoutSessionDto, type WorkoutSetDto,
 } from "@/lib/api/sessions";
+import { STRENGTH, CARDIO, TIMED, normalizeType } from "@/lib/workoutMetrics";
 
 export type RunPhase = "loading" | "ready" | "active" | "done";
-export interface RunSet { reps: number | null; weightKg: number | null }
-export interface LibExercise { id: number; name: string; description: string | null }
+export interface RunSet { reps: number | null; weightKg: number | null; durationSeconds: number | null; distanceMeters: number | null }
+export interface LibExercise { id: number; name: string; description: string | null; type: string }
 export interface RunExercise {
   exerciseId: number;
   name: string;
+  type: string;
   description: string | null;
   sets: RunSet[];
   templateSets: RunSet[];
@@ -27,6 +29,19 @@ export interface RunExercise {
 const todayIso = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** A RunSet from any set-shaped DTO (session or template), carrying all four metrics. */
+const runSetFrom = (s: { reps?: number | null; weightKg?: number | null; durationSeconds?: number | null; distanceMeters?: number | null }): RunSet =>
+  ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null, durationSeconds: s.durationSeconds ?? null, distanceMeters: s.distanceMeters ?? null });
+
+/** A sensible first/added set for an exercise with no targets, by type. */
+const defaultRunSet = (type: string): RunSet => {
+  switch (normalizeType(type)) {
+    case CARDIO: return { reps: null, weightKg: null, durationSeconds: 600, distanceMeters: null };
+    case TIMED: return { reps: null, weightKg: null, durationSeconds: 60, distanceMeters: null };
+    default: return { reps: 10, weightKg: null, durationSeconds: null, distanceMeters: null };
+  }
 };
 
 export function useSession(templateId: number | null, exerciseId: number | null, name: string) {
@@ -60,19 +75,22 @@ export function useSession(templateId: number | null, exerciseId: number | null,
   const templateRef = useRef<WorkoutTemplateDto | null>(null);
   const descRef = useRef<Map<number, string | null>>(new Map());
   const libNameRef = useRef<Map<number, string>>(new Map());
+  const typeRef = useRef<Map<number, string>>(new Map());
+  const typeOf = (id: number): string => typeRef.current.get(id) ?? STRENGTH;
 
   const exercisesFromTemplate = useCallback((): RunExercise[] => {
     const t = templateRef.current;
     return [...(t?.exercises ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((te) => {
-      const sets = [...(te.sets ?? [])].sort((a, b) => a.setNumber - b.setNumber).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null }));
-      return { exerciseId: te.exerciseId, name: te.exerciseName ?? libNameRef.current.get(te.exerciseId) ?? "Exercise", description: descRef.current.get(te.exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null, fromTemplate: true };
+      const sets = [...(te.sets ?? [])].sort((a, b) => a.setNumber - b.setNumber).map(runSetFrom);
+      return { exerciseId: te.exerciseId, name: te.exerciseName ?? libNameRef.current.get(te.exerciseId) ?? "Exercise", type: typeOf(te.exerciseId), description: descRef.current.get(te.exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null, fromTemplate: true };
     });
   }, []);
 
   const exerciseReadyList = useCallback((): RunExercise[] => {
     if (exerciseId == null) return [];
-    const sets: RunSet[] = [0, 1, 2].map(() => ({ reps: 10, weightKg: null }));
-    return [{ exerciseId, name: libNameRef.current.get(exerciseId) ?? name, description: descRef.current.get(exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null, fromTemplate: true }];
+    const type = typeOf(exerciseId);
+    const sets: RunSet[] = [0, 1, 2].map(() => defaultRunSet(type));
+    return [{ exerciseId, name: libNameRef.current.get(exerciseId) ?? name, type, description: descRef.current.get(exerciseId) ?? null, sets, templateSets: sets, lastTime: [], note: "", lastNote: null, fromTemplate: true }];
   }, [exerciseId, name]);
 
   const exercisesFromSession = useCallback((session: WorkoutSessionDto): RunExercise[] => {
@@ -87,8 +105,9 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     return ids.map((id) => ({
       exerciseId: id,
       name: libNameRef.current.get(id) ?? "Exercise",
+      type: typeOf(id),
       description: descRef.current.get(id) ?? null,
-      sets: grouped.get(id)!.slice().sort((a, b) => a.setNumber - b.setNumber).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })),
+      sets: grouped.get(id)!.slice().sort((a, b) => a.setNumber - b.setNumber).map(runSetFrom),
       templateSets: [],
       lastTime: [],
       note: noteById.get(id) ?? "",
@@ -101,7 +120,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     // Scope "last time" to this same workout (by name) — the last time you did *this* workout.
     const entries = await Promise.all(list.map(async (e) => [e.exerciseId, await lastFullForExercise(e.exerciseId, name)] as const));
     const map = new Map(entries.map(([id, l]) => [id, {
-      sets: (l?.sets ?? []).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })),
+      sets: (l?.sets ?? []).map(runSetFrom),
       note: l?.note ?? null,
     }]));
     setExercises((prev) => prev.map((e) => {
@@ -121,7 +140,8 @@ export function useSession(templateId: number | null, exerciseId: number | null,
       templateRef.current = tpl;
       descRef.current = new Map(lib.filter((e) => e.id != null).map((e) => [e.id!, e.description ?? null]));
       libNameRef.current = new Map(lib.filter((e) => e.id != null).map((e) => [e.id!, e.name]));
-      setLibrary(lib.filter((e) => e.id != null).map((e) => ({ id: e.id!, name: e.name, description: e.description ?? null })));
+      typeRef.current = new Map(lib.filter((e) => e.id != null).map((e) => [e.id!, normalizeType(e.type)]));
+      setLibrary(lib.filter((e) => e.id != null).map((e) => ({ id: e.id!, name: e.name, description: e.description ?? null, type: normalizeType(e.type) })));
 
       const sessions = await listSessionsForDate(today).catch(() => []);
       if (cancelled) return;
@@ -148,7 +168,7 @@ export function useSession(templateId: number | null, exerciseId: number | null,
 
   // ── persistence ─────────────────────────────────────────────────────────────
   const setsPayload = (list: RunExercise[]): WorkoutSetDto[] =>
-    list.flatMap((ex) => ex.sets.map((s, i) => ({ exerciseId: ex.exerciseId, setNumber: i, reps: s.reps, weightKg: s.weightKg })));
+    list.flatMap((ex) => ex.sets.map((s, i) => ({ exerciseId: ex.exerciseId, setNumber: i, reps: s.reps, weightKg: s.weightKg, durationSeconds: s.durationSeconds, distanceMeters: s.distanceMeters })));
   const notesPayload = (list: RunExercise[]) =>
     list.filter((ex) => ex.note.trim()).map((ex) => ({ exerciseId: ex.exerciseId, note: ex.note }));
 
@@ -191,8 +211,12 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     editSet(exId, index, (s) => ({ ...s, reps: reps == null ? null : Math.min(100, Math.max(0, reps)) }));
   const setWeight = (exId: number, index: number, weightKg: number | null) =>
     editSet(exId, index, (s) => ({ ...s, weightKg: weightKg == null ? null : Math.max(0, weightKg) }));
+  const setDuration = (exId: number, index: number, seconds: number | null) =>
+    editSet(exId, index, (s) => ({ ...s, durationSeconds: seconds == null ? null : Math.max(0, seconds) }));
+  const setDistance = (exId: number, index: number, metres: number | null) =>
+    editSet(exId, index, (s) => ({ ...s, distanceMeters: metres == null ? null : Math.max(0, metres) }));
   const addSet = (exId: number) =>
-    mutate((list) => list.map((ex) => ex.exerciseId === exId ? { ...ex, sets: [...ex.sets, { ...(ex.sets[ex.sets.length - 1] ?? { reps: 10, weightKg: null }) }] } : ex));
+    mutate((list) => list.map((ex) => ex.exerciseId === exId ? { ...ex, sets: [...ex.sets, { ...(ex.sets[ex.sets.length - 1] ?? defaultRunSet(ex.type)) }] } : ex));
   const removeSet = (exId: number, index: number) =>
     mutate((list) => list.map((ex) => ex.exerciseId === exId && ex.sets.length > 1 ? { ...ex, sets: ex.sets.filter((_, i) => i !== index) } : ex));
   const copyLast = (exId: number) =>
@@ -205,12 +229,12 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     if (!lib) return;
     mutate((list) => list.some((e) => e.exerciseId === exId) ? list : [
       ...list,
-      { exerciseId: exId, name: lib.name, description: lib.description, sets: [0, 1, 2].map(() => ({ reps: 10, weightKg: null })), templateSets: [], lastTime: [], note: "", lastNote: null, fromTemplate: false },
+      { exerciseId: exId, name: lib.name, type: lib.type, description: lib.description, sets: [0, 1, 2].map(() => defaultRunSet(lib.type)), templateSets: [], lastTime: [], note: "", lastNote: null, fromTemplate: false },
     ]);
     void lastFullForExercise(exId, name).then((l) => {
       if (!l) return;
       setExercises((prev) => prev.map((e) => e.exerciseId === exId
-        ? { ...e, lastTime: (l.sets ?? []).map((s) => ({ reps: s.reps ?? null, weightKg: s.weightKg ?? null })), lastNote: l.note ?? null } : e));
+        ? { ...e, lastTime: (l.sets ?? []).map(runSetFrom), lastNote: l.note ?? null } : e));
     }).catch(() => {});
   };
 
@@ -257,6 +281,6 @@ export function useSession(templateId: number | null, exerciseId: number | null,
     // Only a planned workout can add exercises; a standalone single-exercise log cannot.
     canAddExercise: templateId != null,
     start, finish, edit,
-    setReps, setWeight, addSet, removeSet, copyLast, addExercise, removeExercise, toggleDone, setExerciseNote, setWorkoutNote,
+    setReps, setWeight, setDuration, setDistance, addSet, removeSet, copyLast, addExercise, removeExercise, toggleDone, setExerciseNote, setWorkoutNote,
   };
 }

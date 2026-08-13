@@ -6,6 +6,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { usePlan } from "@/hooks/usePlan";
+import { MEAL_SLOTS } from "@/lib/nutrition";
 import type { DayPlanDto } from "@/lib/api/plans";
 import type { WorkoutTemplateDto } from "@/lib/api/workouts";
 
@@ -44,7 +45,8 @@ function Calendar({ p }: { p: ReturnType<typeof usePlan> }) {
           // the day passed without completing. Workout dot: always blue.
           const completed = p.completedDays.has(dIso);
           const past = dIso < p.todayIso;
-          const planned = plan?.dietId != null;
+          // "Meals planned" = a diet and/or individual planned meals.
+          const planned = plan?.dietId != null || (plan?.plannedMeals?.length ?? 0) > 0;
           const mealColor = completed ? C.green : planned && past ? C.danger : planned ? C.blue : null;
           return (
             <div key={i} style={{ aspectRatio: "1", display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -70,25 +72,36 @@ function NextSeven({ p }: { p: ReturnType<typeof usePlan> }) {
     const plan = p.plans[dIso];
     const diet = plan?.dietId != null ? p.diets.find((x) => x.id === plan.dietId) : undefined;
     const workouts = plan?.plannedWorkouts?.map((w) => w.activityName).filter(Boolean) ?? [];
-    return { off, d, dIso, diet, workouts };
+    const plannedMeals = p.plannedMealsFor(dIso);
+    const totalKcal = (diet?.kcal ?? 0) + plannedMeals.reduce((s, m) => s + m.kcal, 0);
+    return { off, d, dIso, diet, workouts, mealCount: plannedMeals.length, totalKcal };
   });
   return (
     <>
       <div style={{ font: "600 12.5px system-ui", color: C.ink, margin: "18px 0 8px 2px" }}>Next 7 days</div>
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-        {rows.map(({ off, d, dIso, diet, workouts }) => (
+        {rows.map(({ off, d, dIso, diet, workouts, mealCount, totalKcal }) => {
+          const mealSuffix = mealCount === 1 ? "meal" : "meals";
+          return (
           <div key={off} onClick={() => p.setSelected(dIso)} style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "11px 12px", borderBottom: off < 6 ? `1px solid ${C.bgAlt}` : "none" }}>
             <div style={{ width: 52 }}>
               <div style={{ font: "700 11.5px system-ui", color: C.ink }}>{off === 0 ? "Today" : WD[(d.getDay() + 6) % 7]}</div>
               <div style={{ font: "400 9.5px system-ui", color: C.muted2 }}>{d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)}</div>
             </div>
-            <div style={{ flex: 1, marginLeft: 10 }}>
-              {diet ? <div style={{ font: "600 11.5px system-ui", color: C.teal }}>{diet.name}</div> : <div style={{ font: "400 11px system-ui", color: C.muted2 }}>No diet</div>}
+            <div style={{ flex: 1, marginLeft: 10, minWidth: 0 }}>
+              {diet ? (
+                <div style={{ font: "600 11.5px system-ui", color: C.teal, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{diet.name}{mealCount > 0 ? `  +${mealCount} ${mealSuffix}` : ""}</div>
+              ) : mealCount > 0 ? (
+                <div style={{ font: "600 11.5px system-ui", color: C.teal }}>{mealCount} {mealSuffix} planned</div>
+              ) : (
+                <div style={{ font: "400 11px system-ui", color: C.muted2 }}>No diet</div>
+              )}
               <div style={{ font: "400 10px system-ui", color: workouts.length ? C.green : C.muted2 }}>{workouts.length ? workouts.join(", ") : "No workout"}</div>
             </div>
-            {diet && <span style={{ font: `600 10.5px ${mono}`, color: C.muted2 }}>{diet.kcal}</span>}
+            {(diet || mealCount > 0) && <span style={{ font: `600 10.5px ${mono}`, color: C.muted2 }}>{totalKcal}</span>}
           </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
@@ -99,6 +112,7 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
   const [y, m, d] = dateIso.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
   const workouts = plan?.plannedWorkouts ?? [];
+  const plannedMeals = p.plannedMealsFor(dateIso);
   const selectedDiet = plan?.dietId != null ? p.diets.find((di) => di.id === plan.dietId) : undefined;
   return (
     <BottomSheet open onClose={() => p.setSelected(null)} title="">
@@ -144,6 +158,24 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
         ) : (
           <button onClick={p.openPicker} style={{ width: "100%", borderRadius: 12, padding: "13px", marginTop: 2, background: C.teal, border: "none", font: "600 13px system-ui", color: "#fff", cursor: "pointer" }}>＋ Pick a diet</button>
         )}
+
+        {/* Individual meals (on top of any diet) */}
+        <div style={{ font: "600 11px system-ui", color: C.muted2, margin: "16px 0 4px" }}>Meals</div>
+        {plannedMeals.length === 0 ? (
+          <div style={{ font: "400 11.5px system-ui", color: C.muted2, marginBottom: 8 }}>No individual meals planned.</div>
+        ) : (
+          <div style={{ marginBottom: 8 }}>
+            {plannedMeals.map((pm) => (
+              <div key={pm.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
+                <SlotBadge slot={pm.slot} />
+                <span style={{ flex: 1, minWidth: 0, font: "600 12.5px system-ui", color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pm.name}</span>
+                <span style={{ font: `400 10.5px ${mono}`, color: C.muted2 }}>{pm.kcal} kcal</span>
+                <span onClick={() => p.removeMeal(dateIso, pm.id)} style={{ cursor: "pointer", color: C.muted2, fontSize: 14, paddingLeft: 4 }}>✕</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={p.openMealPicker} style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.teal, cursor: "pointer" }}>＋ Add a meal</button>
 
         <div style={{ font: "600 11px system-ui", color: C.muted2, margin: "16px 0 4px" }}>Exercises</div>
         {workouts.length === 0 ? (
@@ -305,6 +337,54 @@ function WorkoutPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso:
   );
 }
 
+// ── Meal picker (choose a slot + a meal to add to the day) ───────────────────────
+function MealPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: string }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, background: C.bg, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", padding: "10px 12px 8px" }}>
+        <button onClick={p.closeMealPicker} style={{ font: "400 24px system-ui", color: C.ink, background: "none", border: "none", cursor: "pointer", width: 36 }}>‹</button>
+        <span style={{ font: "600 17px system-ui", color: C.ink }}>Add meal</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ font: "400 12px system-ui", color: C.muted2, paddingRight: 8 }}>{p.meals.length} saved</span>
+      </div>
+      {/* Slot to assign the picked meal to. */}
+      <div style={{ font: "600 11px system-ui", color: C.muted2, padding: "0 16px 4px" }}>Slot</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "0 16px 6px" }}>
+        {MEAL_SLOTS.map((s) => (
+          <button key={s} onClick={() => p.setMealPickerSlot(s)}
+            style={{ cursor: "pointer", border: "none", borderRadius: 20, padding: "6px 12px", font: "600 11px system-ui",
+              color: p.mealPickerSlot === s ? "#fff" : C.muted3, background: p.mealPickerSlot === s ? C.teal : C.bgAlt }}>{s}</button>
+        ))}
+      </div>
+      <div style={{ padding: "4px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", background: C.bgAlt, borderRadius: 12, padding: "11px 14px" }}>
+          <span style={{ fontSize: 13 }}>🔍</span>
+          <input value={p.mealPickerSearch} onChange={(e) => p.setMealPickerSearch(e.target.value)} placeholder="Search your meals…"
+            style={{ flex: 1, marginLeft: 10, border: "none", outline: "none", background: "transparent", font: "400 14px system-ui", color: C.ink }} />
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 14px 24px" }}>
+        {p.filteredMeals.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <div style={{ fontSize: 40 }}>🍲</div>
+            <div style={{ font: "600 14px system-ui", color: C.muted3, marginTop: 8 }}>No meals to add</div>
+            <div style={{ font: "400 11.5px system-ui", color: C.muted2, marginTop: 4 }}>Create meals in the Meals screen first.</div>
+          </div>
+        ) : p.filteredMeals.map((m) => (
+          <div key={m.id} onClick={() => p.addMeal(dateIso, p.mealPickerSlot, m.id)}
+            style={{ cursor: "pointer", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, marginBottom: 8, display: "flex", alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ font: "700 13px system-ui", color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+              <div style={{ font: "400 10.5px system-ui", color: C.muted2, marginTop: 2 }}>{m.kcal} kcal</div>
+            </div>
+            <span style={{ font: "600 12px system-ui", color: C.teal, marginLeft: 8, flex: "none" }}>+ Add</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Planned workout detail (read-only: exercises + per-set targets) ──────────────
 function WorkoutDetail({ w, onBack }: { w: WorkoutTemplateDto; onBack: () => void }) {
   const items = [...(w.exercises ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
@@ -354,9 +434,10 @@ function PlanInner() {
         <Calendar p={p} />
         <NextSeven p={p} />
       </div>
-      {p.selected && !p.pickerOpen && !p.workoutPickerOpen && !p.openWorkout && <DaySheet p={p} dateIso={p.selected} />}
+      {p.selected && !p.pickerOpen && !p.workoutPickerOpen && !p.mealPickerOpen && !p.openWorkout && <DaySheet p={p} dateIso={p.selected} />}
       {p.selected && p.pickerOpen && <DietPicker p={p} dateIso={p.selected} />}
       {p.selected && p.workoutPickerOpen && !p.openWorkout && <WorkoutPicker p={p} dateIso={p.selected} />}
+      {p.selected && p.mealPickerOpen && <MealPicker p={p} dateIso={p.selected} />}
       {p.openWorkout && <WorkoutDetail w={p.openWorkout} onBack={p.closeWorkoutDetail} />}
       <NutritionNav />
     </div>

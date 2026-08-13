@@ -26,3 +26,15 @@ class PlannedWorkout(
     val workoutTemplateId: Long? = null,
     val activityName: String = ""
 )
+
+/** A single meal assigned to a day plan's [slot], independent of any diet. A day can carry a diet
+ *  AND/OR loose planned meals; the dashboard merges both by slot. Mirrors [PlannedWorkout]. */
+@Entity
+@Table(name = "planned_meals")
+class PlannedMeal(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+    val dayPlanId: Long = 0,
+    val mealId: Long = 0,
+    val slot: String = ""
+)

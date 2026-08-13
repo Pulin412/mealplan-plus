@@ -656,6 +656,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plans/{date}/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a planned meal to a day
+         * @description Appends a planned meal to the day plan, creating the plan if it doesn't exist.
+         */
+        post: operations["addPlannedMeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plans/{date}/meals/{mealPlanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a planned meal from a day */
+        delete: operations["removePlannedMeal"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logging/slots": {
         parameters: {
             query?: never;
@@ -1996,6 +2033,11 @@ export interface components {
             /** @description Optional free-text notes / how-to for the exercise. */
             description?: string | null;
             /**
+             * @description How this exercise is logged and which fields the runner/builder show. One of STRENGTH (reps + weight), CARDIO (duration + distance), TIMED (duration only).
+             * @default STRENGTH
+             */
+            type: string;
+            /**
              * @description true = bundled system exercise visible to all users
              * @default false
              */
@@ -2042,6 +2084,13 @@ export interface components {
              * @description Target weight in kg (canonical); clients display in the user's unit.
              */
             weightKg?: number | null;
+            /** @description Target duration in seconds (CARDIO/TIMED exercises). */
+            durationSeconds?: number | null;
+            /**
+             * Format: double
+             * @description Target distance in metres (CARDIO exercises).
+             */
+            distanceMeters?: number | null;
         };
         WorkoutTemplateDto: {
             /** Format: int64 */
@@ -2084,6 +2133,13 @@ export interface components {
             reps?: number | null;
             /** Format: double */
             weightKg?: number | null;
+            /** @description Logged duration in seconds (CARDIO/TIMED exercises). */
+            durationSeconds?: number | null;
+            /**
+             * Format: double
+             * @description Logged distance in metres (CARDIO exercises).
+             */
+            distanceMeters?: number | null;
             notes?: string | null;
         };
         /** @description A completed (or in-progress) workout log for one day. */
@@ -2139,6 +2195,18 @@ export interface components {
             /** @description Display name (template name or custom activity) */
             activityName: string;
         };
+        /** @description A single meal assigned to a day plan's slot, independent of any diet. */
+        PlannedMealDto: {
+            /** Format: int64 */
+            id?: number;
+            /**
+             * Format: int64
+             * @description The Meal assigned to this slot.
+             */
+            mealId: number;
+            /** @description Meal slot (BREAKFAST / LUNCH / DINNER / …). */
+            slot: string;
+        };
         /**
          * @description A calendar entry linking a diet and planned workouts to a specific date.
          *     Identified by `(firebaseUid, date)` — only one plan per user per date.
@@ -2158,6 +2226,11 @@ export interface components {
             dietId?: number | null;
             /** @default [] */
             plannedWorkouts: components["schemas"]["PlannedWorkoutDto"][];
+            /**
+             * @description Individual meals assigned to this day's slots, on top of any diet.
+             * @default []
+             */
+            plannedMeals: components["schemas"]["PlannedMealDto"][];
             /** Format: date-time */
             readonly updatedAt?: string;
         };
@@ -3813,6 +3886,58 @@ export interface operations {
                 /** @description ISO-8601 date (YYYY-MM-DD) */
                 date: components["parameters"]["DatePath"];
                 workoutId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addPlannedMeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ISO-8601 date (YYYY-MM-DD) */
+                date: components["parameters"]["DatePath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlannedMealDto"];
+            };
+        };
+        responses: {
+            /** @description Updated day plan */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayPlanDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    removePlannedMeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ISO-8601 date (YYYY-MM-DD) */
+                date: components["parameters"]["DatePath"];
+                mealPlanId: number;
             };
             cookie?: never;
         };
