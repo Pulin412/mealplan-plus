@@ -62,6 +62,8 @@ import com.mealplanplus.ui.screens.social.ProfileEditScreen
 import com.mealplanplus.ui.screens.social.PublicProfileScreen
 import com.mealplanplus.ui.screens.social.SharedDetailScreen
 import com.mealplanplus.ui.screens.settings.SettingsScreen
+import com.mealplanplus.ui.screens.settings.AiProvidersScreen
+import com.mealplanplus.ui.screens.agent.AgentChatScreen
 import java.net.URLEncoder
 
 sealed class Screen(val route: String, val label: String) {
@@ -76,6 +78,8 @@ sealed class Screen(val route: String, val label: String) {
     object Misc      : Screen("misc",      "More")
     object Profile   : Screen("profile",   "Profile")
     object Settings  : Screen("settings",  "Settings")
+    object AgentChat : Screen("agentChat", "Assistant")
+    object AiProviders : Screen("aiProviders", "AI providers")
 }
 
 private val bottomNavItems = listOf(
@@ -125,8 +129,10 @@ fun MealPlanNavHost() {
     val navBackStack  by navController.currentBackStackEntryAsState()
     val currentDest   = navBackStack?.destination
 
-    // Persistent bottom nav on every in-app screen, except the full-screen Session Runner.
-    val showBottomBar = currentDest?.route?.startsWith("runner") != true
+    // Persistent bottom nav on every in-app screen, except full-screen ones (Session Runner, Assistant chat).
+    val fullScreenRoutes = setOf(Screen.AgentChat.route)
+    val showBottomBar = currentDest?.route?.startsWith("runner") != true &&
+        currentDest?.route !in fullScreenRoutes
 
     // First-run guided tour: a spotlight overlay drawn above the Scaffold (so it can dim the bottom
     // nav). The controller holds live target bounds, provided to inner screens via LocalTourController.
@@ -194,6 +200,7 @@ fun MealPlanNavHost() {
             composable(Screen.Today.route)     {
                 HomeScreen(onMenu = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
                     onProfile = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } },
+                    onAssistant = { navController.navigate(Screen.AgentChat.route) { launchSingleTop = true } },
                     onNotifications = { navController.navigate("notifications") { launchSingleTop = true } },
                     onOpenRunner = { templateId, name ->
                         navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
@@ -221,7 +228,14 @@ fun MealPlanNavHost() {
                     onBlockedAccounts = { navController.navigate("blockedAccounts") },
                 )
             }
-            composable(Screen.Settings.route)  { SettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(Screen.Settings.route)  {
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onAiProviders = { navController.navigate(Screen.AiProviders.route) { launchSingleTop = true } },
+                )
+            }
+            composable(Screen.AgentChat.route) { AgentChatScreen(onBack = { navController.popBackStack() }) }
+            composable(Screen.AiProviders.route) { AiProvidersScreen(onBack = { navController.popBackStack() }) }
             composable(Screen.Plan.route)      { PlanScreen() }
             composable(Screen.Exercises.route) { ExercisesScreen() }
             composable(Screen.Health.route)    { HealthScreen() }

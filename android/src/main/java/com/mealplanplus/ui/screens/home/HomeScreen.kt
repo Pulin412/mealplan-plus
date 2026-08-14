@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -120,6 +121,7 @@ private sealed interface HomeSheet {
 
 @Composable
 fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
+               onAssistant: () -> Unit = {},
                onNotifications: () -> Unit = {},
                onOpenRunner: (Long, String) -> Unit = { _, _ -> },
                onOpenExerciseRunner: (Long, String) -> Unit = { _, _ -> }) {
@@ -144,7 +146,7 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
         Column(Modifier.fillMaxSize()) {
             HomeAppBar(state.dashboard, isDark, onMenu, onProfile, onToggleTheme = { viewModel.toggleTheme(isDark) },
                 onDietClick = { if (state.dashboard?.dietName != null) sheet = HomeSheet.Diet },
-                unreadNotifications = state.unreadNotifications, onNotifications = onNotifications)
+                unreadNotifications = state.unreadNotifications, onNotifications = onNotifications, onAssistant = onAssistant)
             when {
                 state.loading && state.dashboard == null ->
                     Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Loading today…", fontSize = 13.sp, color = MutedLight) }
@@ -359,11 +361,12 @@ private fun PickerRow(title: String, sub: String, action: String, onClick: () ->
 
 @Composable
 private fun HomeAppBar(d: DashboardDto?, isDark: Boolean, onMenu: () -> Unit, onProfile: () -> Unit, onToggleTheme: () -> Unit, onDietClick: () -> Unit,
-                       unreadNotifications: Int = 0, onNotifications: () -> Unit = {}) {
+                       unreadNotifications: Int = 0, onNotifications: () -> Unit = {}, onAssistant: () -> Unit = {}) {
     val dateText = d?.date?.format(DateTimeFormatter.ofPattern("EEEE, d MMM")) ?: ""
     Column(Modifier.fillMaxWidth().padding(start = 6.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             IconButton(onClick = onMenu) { Icon(Icons.Default.Settings, "Settings", tint = Ink) }
+            IconButton(onClick = onAssistant) { Icon(Icons.Default.AutoAwesome, "Assistant", tint = Ink) }
             Spacer(Modifier.weight(1f))
             Box(contentAlignment = Alignment.TopEnd) {
                 IconButton(onClick = onNotifications) { Icon(Icons.Default.Notifications, "Notifications", tint = Ink) }

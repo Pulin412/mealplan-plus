@@ -1,5 +1,6 @@
 package com.mealplanplus.di
 
+import com.mealplanplus.data.generated.api.AssistantApi
 import com.mealplanplus.data.generated.api.DashboardApi
 import com.mealplanplus.data.generated.api.DietsApi
 import com.mealplanplus.data.generated.api.ExercisesApi
@@ -94,6 +95,11 @@ object AppModule {
     @Provides @Singleton
     fun provideFeedbackApi(retrofit: Retrofit): FeedbackApi =
         retrofit.create(FeedbackApi::class.java)
+
+    /** AI nutrition assistant — chat + read-only provider-chain status. */
+    @Provides @Singleton
+    fun provideAssistantApi(retrofit: Retrofit): AssistantApi =
+        retrofit.create(AssistantApi::class.java)
 
     // FoodRepository, SyncManager, SyncCursorStore use @Inject constructors — Hilt provides them.
 }
