@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { getDashboard, toggleMealSlot, toggleDayComplete as apiToggleDayComplete, addLoggedFood, removeLoggedFood, isoDate, type DashboardDto } from "@/lib/api/dashboard";
 import { listFoods, createFoodFromDto, type FoodDto } from "@/lib/api/foods";
 import { listMeals, type MealDto } from "@/lib/api/meals";
+import { removeMealFromDay } from "@/lib/api/plans";
 import type { FoodUnit } from "@/lib/nutrition";
 import { friendlyMessage } from "@/lib/api/errors";
 
@@ -111,5 +112,12 @@ export function useToday() {
     catch (e) { setError(friendlyMessage(e)); }
   }, [reload]);
 
-  return { dashboard, foods, meals, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, addMeal, toggleDayComplete, removeFood, removeFoods, refreshPickers };
+  /** Cancel a meal from today's plan: deletes a loose planned meal, or detaches today from its diet. */
+  const removeSlotMeal = useCallback(async (slot: string, mealId: number) => {
+    if (!date) return;
+    try { await removeMealFromDay(date, slot, mealId); await reload(); }
+    catch (e) { setError(friendlyMessage(e)); }
+  }, [date, reload]);
+
+  return { dashboard, foods, meals, foodsById, loading, error, expanded, toggleExpand, busySlot, toggleSlot, addFood, addOnlineFood, addMeal, toggleDayComplete, removeFood, removeFoods, removeSlotMeal, refreshPickers };
 }

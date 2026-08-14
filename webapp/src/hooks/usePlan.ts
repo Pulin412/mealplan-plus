@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { friendlyMessage } from "@/lib/api/errors";
-import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, addPlannedMeal, removePlannedMeal, getCompletedDays, getLoggedSlots, isoOf, type DayPlanDto, type LoggedMealSlotDto } from "@/lib/api/plans";
+import { listPlans, upsertPlan, deletePlan, addPlannedWorkout, removePlannedWorkout, addPlannedMeal, removePlannedMeal, removeMealFromDay, getCompletedDays, getLoggedSlots, isoOf, type DayPlanDto, type LoggedMealSlotDto } from "@/lib/api/plans";
 import { listDiets, type DietDto } from "@/lib/api/diets";
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
@@ -10,13 +10,13 @@ import { listWorkouts, type WorkoutTemplateDto } from "@/lib/api/workouts";
 import { listSessionsForDate, deleteSession } from "@/lib/api/sessions";
 import { foodMacros, unitLabel, MEAL_SLOTS, num } from "@/lib/nutrition";
 
-export interface DietLine { name: string; meta: string; header: boolean }
+export interface DietLine { name: string; meta: string; header: boolean; mealId?: number }
 export interface DietSlotView { slot: string; kcal: number; lines: DietLine[] }
 export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[]; tags: string[]; description?: string | null }
-/** A meal offered by the "add meal to a day" picker, with its total kcal. */
-export interface MealSummary { id: number; name: string; kcal: number }
-/** A planned meal already assigned to a day, resolved for display. */
-export interface PlannedMealView { id: number; slot: string; name: string; kcal: number }
+/** A meal offered by the "add meal to a day" picker, with its total kcal and ingredient lines. */
+export interface MealSummary { id: number; name: string; kcal: number; lines: DietLine[] }
+/** A planned meal already assigned to a day, resolved for display (with its ingredient lines). */
+export interface PlannedMealView { id: number; slot: string; name: string; kcal: number; lines: DietLine[] }
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
@@ -38,7 +38,7 @@ function resolveDiet(d: DietDto, mealsById: Map<number, MealDto>, foodsById: Map
       items.push({ name: f?.name ?? "Food", meta: `${num(it.quantity)} ${unitLabel(it.unit)}`, header: false });
     });
     const lines = ensure(dm.slot);
-    lines.push({ name: meal?.name ?? "Meal", meta: `${Math.round(mkcal)} kcal`, header: true });
+    lines.push({ name: meal?.name ?? "Meal", meta: `${Math.round(mkcal)} kcal`, header: true, mealId: dm.mealId ?? undefined });
     items.forEach((li) => lines.push(li));
     bump(dm.slot, mkcal);
   });
@@ -115,10 +115,17 @@ export function usePlan() {
       const mealsById = new Map<number, MealDto>(); ms.forEach((m) => m.id != null && mealsById.set(m.id, m));
       const foodsById = new Map<number, FoodDto>(); fs.forEach((f) => f.id != null && foodsById.set(f.id, f));
       setDiets(ds.filter((d) => d.id != null).map((d) => resolveDiet(d, mealsById, foodsById)));
-      setMeals(ms.filter((m) => m.id != null).map((m) => ({
-        id: m.id!, name: m.name,
-        kcal: Math.round((m.items ?? []).reduce((acc, it) => acc + foodMacros(it.foodId != null ? foodsById.get(it.foodId) : undefined, it.quantity, it.unit).kcal, 0)),
-      })));
+      setMeals(ms.filter((m) => m.id != null).map((m) => {
+        const items = m.items ?? [];
+        const lines: DietLine[] = items.map((it) => {
+          const f = it.foodId != null ? foodsById.get(it.foodId) : undefined;
+          return { name: f?.name ?? "Food", meta: `${num(it.quantity)} ${unitLabel(it.unit)}`, header: false };
+        });
+        return {
+          id: m.id!, name: m.name, lines,
+          kcal: Math.round(items.reduce((acc, it) => acc + foodMacros(it.foodId != null ? foodsById.get(it.foodId) : undefined, it.quantity, it.unit).kcal, 0)),
+        };
+      }));
     }).catch(() => {});
     listWorkouts().then(setWorkouts).catch(() => {});
   }, []);
@@ -145,7 +152,7 @@ export function usePlan() {
     const list = (plans[dateIso]?.plannedMeals ?? []).flatMap((pm) => {
       if (pm.id == null) return [];
       const m = mealsById.get(pm.mealId);
-      return [{ id: pm.id, slot: pm.slot, name: m?.name ?? "Meal", kcal: m?.kcal ?? 0 }];
+      return [{ id: pm.id, slot: pm.slot, name: m?.name ?? "Meal", kcal: m?.kcal ?? 0, lines: m?.lines ?? [] }];
     });
     return list.sort((a, b) => {
       const ia = MEAL_SLOTS.indexOf(a.slot), ib = MEAL_SLOTS.indexOf(b.slot);
@@ -163,6 +170,12 @@ export function usePlan() {
 
   const removeMeal = useCallback(async (dateIso: string, mealPlanId: number) => {
     try { await removePlannedMeal(dateIso, mealPlanId); await loadPlans(ym.year, ym.month); }
+    catch (e) { setError(friendlyMessage(e)); }
+  }, [ym, loadPlans]);
+
+  /** Cancel one meal from a single day: deletes a loose planned meal, or detaches the day from its diet. */
+  const removeMealFromDayCb = useCallback(async (dateIso: string, slot: string, mealId: number) => {
+    try { await removeMealFromDay(dateIso, slot, mealId); await loadPlans(ym.year, ym.month); }
     catch (e) { setError(friendlyMessage(e)); }
   }, [ym, loadPlans]);
 
@@ -215,6 +228,6 @@ export function usePlan() {
     addWorkout, removeWorkout, openWorkout, openWorkoutDetail, closeWorkoutDetail,
     meals, filteredMeals, plannedMealsFor,
     mealPickerOpen, mealPickerSlot, setMealPickerSlot, mealPickerSearch, setMealPickerSearch,
-    openMealPicker, closeMealPicker, addMeal, removeMeal,
+    openMealPicker, closeMealPicker, addMeal, removeMeal, removeMealFromDay: removeMealFromDayCb,
   };
 }

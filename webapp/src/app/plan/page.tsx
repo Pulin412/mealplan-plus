@@ -5,7 +5,7 @@ import { NoteBadge } from "@/components/NoteBadge";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { usePlan } from "@/hooks/usePlan";
+import { usePlan, type PlannedMealView } from "@/hooks/usePlan";
 import { MEAL_SLOTS } from "@/lib/nutrition";
 import type { DayPlanDto } from "@/lib/api/plans";
 import type { WorkoutTemplateDto } from "@/lib/api/workouts";
@@ -153,7 +153,7 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
         {selectedDiet ? (
           <>
             <div style={{ font: "700 14px system-ui", color: C.ink, marginTop: 2 }}>{selectedDiet.name}</div>
-            <DietDetail diet={selectedDiet} />
+            <DietDetail diet={selectedDiet} onRemoveMeal={(slot, mealId) => p.removeMealFromDay(dateIso, slot, mealId)} />
           </>
         ) : (
           <button onClick={p.openPicker} style={{ width: "100%", borderRadius: 12, padding: "13px", marginTop: 2, background: C.teal, border: "none", font: "600 13px system-ui", color: "#fff", cursor: "pointer" }}>＋ Pick a diet</button>
@@ -166,12 +166,7 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
         ) : (
           <div style={{ marginBottom: 8 }}>
             {plannedMeals.map((pm) => (
-              <div key={pm.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
-                <SlotBadge slot={pm.slot} />
-                <span style={{ flex: 1, minWidth: 0, font: "600 12.5px system-ui", color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pm.name}</span>
-                <span style={{ font: `400 10.5px ${mono}`, color: C.muted2 }}>{pm.kcal} kcal</span>
-                <span onClick={() => p.removeMeal(dateIso, pm.id)} style={{ cursor: "pointer", color: C.muted2, fontSize: 14, paddingLeft: 4 }}>✕</span>
-              </div>
+              <ExpandablePlannedMeal key={pm.id} pm={pm} onRemove={() => p.removeMeal(dateIso, pm.id)} />
             ))}
           </div>
         )}
@@ -201,7 +196,7 @@ function SlotBadge({ slot }: { slot: string }) {
   return <span style={{ font: `600 9px ${mono}`, letterSpacing: 0.5, color: C.teal, background: C.bgAlt, borderRadius: 6, padding: "3px 6px", textTransform: "uppercase" }}>{slot}</span>;
 }
 
-function DietDetail({ diet }: { diet: ReturnType<typeof usePlan>["diets"][number] }) {
+function DietDetail({ diet, onRemoveMeal }: { diet: ReturnType<typeof usePlan>["diets"][number]; onRemoveMeal?: (slot: string, mealId: number) => void }) {
   if (diet.slots.length === 0) return <div style={{ font: "400 11px system-ui", color: C.muted2, marginTop: 8 }}>This diet has no meals yet.</div>;
   return (
     <div style={{ marginTop: 10, borderTop: `1px solid ${C.bgAlt}`, paddingTop: 10 }}>
@@ -214,10 +209,37 @@ function DietDetail({ diet }: { diet: ReturnType<typeof usePlan>["diets"][number
           </div>
           {s.lines.map((li, i) => (
             <div key={i} style={{ display: "flex", alignItems: "baseline", padding: "3px 0", paddingLeft: li.header ? 0 : 8 }}>
+              {/* Cancel a single diet meal from this day (detaches the day from the diet). */}
+              {li.header && li.mealId != null && onRemoveMeal && (
+                <span onClick={() => onRemoveMeal(s.slot, li.mealId!)} style={{ cursor: "pointer", color: C.muted2, fontSize: 13, paddingRight: 6, alignSelf: "center" }}>✕</span>
+              )}
               <span style={{ flex: 1, font: `${li.header ? 600 : 400} ${li.header ? 12 : 11.5}px system-ui`, color: li.header ? C.ink : C.muted3 }}>{li.name}</span>
               <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{li.meta}</span>
             </div>
           ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── An individually-planned meal on a day — expands to show ingredients, like a diet meal. ──
+function ExpandablePlannedMeal({ pm, onRemove }: { pm: PlannedMealView; onRemove: () => void }) {
+  const [open, setOpen] = useState(false);
+  const expandable = pm.lines.length > 0;
+  return (
+    <div>
+      <div onClick={() => expandable && setOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", cursor: expandable ? "pointer" : "default" }}>
+        <SlotBadge slot={pm.slot} />
+        <span style={{ flex: 1, minWidth: 0, font: "600 12.5px system-ui", color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pm.name}</span>
+        {expandable && <span style={{ font: "400 9px system-ui", color: C.muted2 }}>{open ? "▾" : "▸"}</span>}
+        <span style={{ font: `400 10.5px ${mono}`, color: C.muted2 }}>{pm.kcal} kcal</span>
+        <span onClick={(e) => { e.stopPropagation(); onRemove(); }} style={{ cursor: "pointer", color: C.muted2, fontSize: 14, paddingLeft: 4 }}>✕</span>
+      </div>
+      {open && pm.lines.map((li, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "baseline", padding: "2px 0 2px 8px" }}>
+          <span style={{ flex: 1, font: "400 11.5px system-ui", color: C.muted3 }}>{li.name}</span>
+          <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{li.meta}</span>
         </div>
       ))}
     </div>
