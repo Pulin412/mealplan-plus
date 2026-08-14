@@ -91,6 +91,7 @@ class HomeViewModel @Inject constructor(
     private val responseCache: ResponseCache,
     private val socialRepo: com.mealplanplus.data.repository.SocialRepository,
     private val syncManager: com.mealplanplus.data.sync.SyncManager,
+    private val planRepository: com.mealplanplus.data.repository.PlanRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -409,6 +410,19 @@ class HomeViewModel @Inject constructor(
     fun removeFood(id: Long) {
         viewModelScope.launch {
             runCatching { loggingApi.removeLoggedFood(id) }
+                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            load()
+        }
+    }
+
+    /**
+     * Remove a planned meal from today's plan. If it's a loose planned meal it's deleted directly;
+     * if it's one of the day's diet meals, that day is detached from the diet (its meals become
+     * per-day planned meals) so the single meal can be dropped without touching the diet elsewhere.
+     */
+    fun removeSlotMeal(slot: String, mealId: Long) {
+        viewModelScope.launch {
+            planRepository.removeMealFromDay(today(), slot, mealId)
                 .onFailure { e -> _state.update { it.copy(error = e.message) } }
             load()
         }

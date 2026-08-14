@@ -26,7 +26,7 @@ class NotificationReceiver : BroadcastReceiver() {
         val slot = intent.getIntExtra(EXTRA_SLOT, 0)
 
         val settings = store.state.value
-        if (settings.enabled[type] == true) {
+        if (settings.isEnabled(type, slot)) {
             val nowMin = Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
             if (!settings.inQuietHours(nowMin)) NotificationHelper.post(context, type)
             scheduler.scheduleSlot(type, slot) // repeat for the next day/week

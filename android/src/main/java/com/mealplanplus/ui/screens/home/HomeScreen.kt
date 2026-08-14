@@ -160,7 +160,8 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
                             dayCompleted = d.dayCompleted ?: false,
                             onToggleDayComplete = viewModel::toggleDayComplete,
                             onToggle = viewModel::toggleSlot,
-                            onToggleExpand = { s -> expandedSlots = if (s in expandedSlots) expandedSlots - s else expandedSlots + s })
+                            onToggleExpand = { s -> expandedSlots = if (s in expandedSlots) expandedSlots - s else expandedSlots + s },
+                            onRemoveMeal = { s, mid -> viewModel.removeSlotMeal(s, mid) })
                         if (d.additionalFoods.isNotEmpty()) {
                             Spacer(Modifier.height(16.dp))
                             AddedTodaySection(d.additionalFoods, state.foods, viewModel::removeFoods)
@@ -463,6 +464,7 @@ private fun MealsChecklist(
     slots: List<SlotStatusDto>, toggling: String?, expanded: Set<String>,
     dayCompleted: Boolean, onToggleDayComplete: () -> Unit,
     onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit,
+    onRemoveMeal: (String, Long) -> Unit = { _, _ -> },
 ) {
     // Header carries a "Mark done" toggle — a day can be marked complete even if not every meal is
     // logged, and only marked-complete days count toward the streak.
@@ -492,17 +494,20 @@ private fun MealsChecklist(
     }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(12.dp))) {
         slots.forEachIndexed { i, slot ->
+            // Multiple cards can share a slot name (e.g. a diet breakfast + an independent breakfast),
+            // so expand/detail state is keyed per-card by slot + meal, not by the slot name alone.
+            val rowKey = "${slot.slot}#${slot.mealId ?: "idx$i"}"
             // When the day is marked complete the slots are read-only — un-complete the day to edit.
-            SlotRow(slot, toggling == slot.slot, slot.slot in expanded, dayCompleted, onToggle, onToggleExpand)
+            SlotRow(slot, toggling == slot.slot, rowKey in expanded, dayCompleted, onToggle, { onToggleExpand(rowKey) }, rowKey, onRemoveMeal)
             if (i < slots.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceMuted))
         }
     }
 }
 
 @Composable
-private fun SlotRow(slot: SlotStatusDto, busy: Boolean, expanded: Boolean, locked: Boolean, onToggle: (String) -> Unit, onToggleExpand: (String) -> Unit) {
+private fun SlotRow(slot: SlotStatusDto, busy: Boolean, expanded: Boolean, locked: Boolean, onToggle: (String) -> Unit, onToggleExpand: () -> Unit, rowKey: String, onRemoveMeal: (String, Long) -> Unit = { _, _ -> }) {
     Column(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onToggleExpand(slot.slot) }.padding(horizontal = 12.dp, vertical = 11.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onToggleExpand() }.padding(horizontal = 12.dp, vertical = 11.dp)) {
             // Check circle is its own tap target — logs/unlogs; the rest of the row expands/collapses.
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp).clip(CircleShape).clickable(enabled = !busy && !locked) { onToggle(slot.slot) }) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(22.dp).clip(CircleShape)
@@ -524,14 +529,14 @@ private fun SlotRow(slot: SlotStatusDto, busy: Boolean, expanded: Boolean, locke
             Text("${slot.kcal.roundToInt()}", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
             Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
         }
-        if (expanded) SlotDetail(slot)
+        if (expanded) SlotDetail(slot, rowKey, if (locked) null else onRemoveMeal)
     }
 }
 
 /** Inline meal detail: a cooking checklist (ticking does NOT log the meal) + macro totals. */
 @Composable
-private fun SlotDetail(slot: SlotStatusDto) {
-    var checked by remember(slot.slot) { mutableStateOf(setOf<Long>()) }
+private fun SlotDetail(slot: SlotStatusDto, rowKey: String, onRemoveMeal: ((String, Long) -> Unit)? = null) {
+    var checked by remember(rowKey) { mutableStateOf(setOf<Long>()) }
     Column(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
         slot.items.forEach { item ->
             val on = item.foodId in checked
@@ -546,7 +551,15 @@ private fun SlotDetail(slot: SlotStatusDto) {
                 Text("${item.quantity.trimNum()} ${unitLabel(item.unit.value)}", fontSize = 10.sp, color = MutedFaint, fontFamily = DmMono)
             }
         }
-        Text("P${slot.protein.roundToInt()} · C${slot.carbs.roundToInt()} · F${slot.fat.roundToInt()}", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+            Text("P${slot.protein.roundToInt()} · C${slot.carbs.roundToInt()} · F${slot.fat.roundToInt()}", fontFamily = DmMono, fontSize = 10.sp, color = MutedFaint)
+            val mealId = slot.mealId
+            if (onRemoveMeal != null && mealId != null) {
+                Spacer(Modifier.weight(1f))
+                Text("Remove from plan", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = MutedLight,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onRemoveMeal(slot.slot, mealId) }.padding(horizontal = 8.dp, vertical = 4.dp))
+            }
+        }
     }
 }
 

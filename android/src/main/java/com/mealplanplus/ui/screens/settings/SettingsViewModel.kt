@@ -71,6 +71,38 @@ class SettingsViewModel @Inject constructor(
         notificationScheduler.rescheduleAll()
     }
 
+    /** Master notifications switch — when off, everything is cancelled; when on, per-type flags apply. */
+    fun setMasterNotifications(on: Boolean) {
+        notificationStore.setMaster(on)
+        notificationScheduler.rescheduleAll()
+    }
+
+    /** Enable/disable a single meal-slot reminder, then reschedule. */
+    fun setMealSlot(slot: String, on: Boolean) {
+        notificationStore.setMealSlotEnabled(slot, on)
+        notificationScheduler.rescheduleAll()
+    }
+
+    fun setMealSlotTime(slot: String, minute: Int) {
+        notificationStore.setMealSlotTime(slot, minute)
+        notificationScheduler.rescheduleAll()
+    }
+
+    fun setWorkoutTime(minute: Int) {
+        notificationStore.setWorkoutTime(minute)
+        notificationScheduler.rescheduleAll()
+    }
+
+    fun setWeighinTime(minute: Int) {
+        notificationStore.setWeighinTime(minute)
+        notificationScheduler.rescheduleAll()
+    }
+
+    fun setWeighinDay(dayIso: Int) {
+        notificationStore.setWeighinDay(dayIso)
+        notificationScheduler.rescheduleAll()
+    }
+
     fun setQuietHours(on: Boolean) {
         notificationStore.setQuietHours(on)
     }
