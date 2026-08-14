@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { getDiet } from "./diets";
 import type { components } from "@/lib/api/types.generated";
 
 export type DayPlanDto = components["schemas"]["DayPlanDto"];
@@ -56,6 +57,41 @@ export function addPlannedMeal(date: string, mealId: number, slot: string): Prom
 /** Remove a planned meal from a day by its planned-meal id. */
 export function removePlannedMeal(date: string, mealPlanId: number): Promise<void> {
   return apiFetch<void>(`/api/v1/plans/${date}/meals/${mealPlanId}`, { method: "DELETE" });
+}
+
+/**
+ * Remove one meal from a single day — mirrors the Android PlanRepository.removeMealFromDay logic
+ * client-side, using existing endpoints (no backend change):
+ *  - a loose **planned meal** matching this slot+meal → delete just that row;
+ *  - a **diet meal** → detach only this day from its diet: materialise the diet's meals as per-day
+ *    planned meals (minus the cancelled one) and clear the diet link. The diet template and every
+ *    other planned day are untouched; this day falls back to the profile calorie target.
+ */
+export async function removeMealFromDay(date: string, slot: string, mealId: number): Promise<void> {
+  const plan = await getPlan(date);
+  const planned = plan?.plannedMeals ?? [];
+
+  // Case 1 — a loose planned meal matching this slot+meal: delete just that row.
+  const loose = planned.find((pm) => pm.slot === slot && pm.mealId === mealId && pm.id != null);
+  if (loose?.id != null) {
+    await removePlannedMeal(date, loose.id);
+    return;
+  }
+
+  // Case 2 — a diet meal: detach the day from the diet, keeping all its meals except this one.
+  const dietId = plan?.dietId;
+  if (dietId == null) return; // nothing else to remove
+  const diet = await getDiet(dietId);
+  let dropped = false;
+  const keptDietMeals = (diet.meals ?? []).filter((dm) => {
+    if (!dropped && dm.slot === slot && dm.mealId === mealId) { dropped = true; return false; }
+    return true;
+  });
+  const newPlanned: PlannedMealDto[] = [
+    ...planned.map((pm) => ({ mealId: pm.mealId, slot: pm.slot })),
+    ...keptDietMeals.map((dm) => ({ mealId: dm.mealId, slot: dm.slot })),
+  ];
+  await upsertPlan(date, null, plan?.plannedWorkouts ?? [], newPlanned);
 }
 
 export type LoggedMealSlotDto = components["schemas"]["LoggedMealSlotDto"];

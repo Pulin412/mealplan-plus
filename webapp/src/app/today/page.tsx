@@ -83,8 +83,8 @@ function SlotBadge({ slot }: { slot: string }) {
   return <span style={{ font: "600 8.5px system-ui", color: C.teal, background: "oklch(0.62 0.09 210 / .12)", borderRadius: 5, padding: "2px 6px" }}>{slot.toUpperCase()}</span>;
 }
 
-function SlotRow({ slot, busy, locked, expanded, onToggle, onExpand, isLast }: {
-  slot: SlotStatusDto; busy: boolean; locked: boolean; expanded: boolean; onToggle: () => void; onExpand: () => void; isLast: boolean;
+function SlotRow({ slot, busy, locked, expanded, onToggle, onExpand, onRemoveMeal, isLast }: {
+  slot: SlotStatusDto; busy: boolean; locked: boolean; expanded: boolean; onToggle: () => void; onExpand: () => void; onRemoveMeal: (slot: string, mealId: number) => void; isLast: boolean;
 }) {
   return (
     <div style={{ borderBottom: isLast ? "none" : `1px solid ${C.bgAlt}` }}>
@@ -106,7 +106,16 @@ function SlotRow({ slot, busy, locked, expanded, onToggle, onExpand, isLast }: {
       {expanded && (
         <div style={{ padding: "0 12px 12px 12px" }}>
           {slot.items.map((it, i) => <ItemTick key={i} name={it.foodName} meta={`${num(it.quantity)} ${unitLabel(it.unit)}`} />)}
-          <div style={{ font: `400 10px ${mono}`, color: C.muted2, marginTop: 6 }}>P{r(slot.protein)} · C{r(slot.carbs)} · F{r(slot.fat)}</div>
+          <div style={{ display: "flex", alignItems: "center", marginTop: 6 }}>
+            <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>P{r(slot.protein)} · C{r(slot.carbs)} · F{r(slot.fat)}</span>
+            {/* Cancel this meal from the day — a loose meal is deleted; a diet meal detaches just today. */}
+            {slot.mealId != null && !locked && (
+              <>
+                <span style={{ flex: 1 }} />
+                <span onClick={() => onRemoveMeal(slot.slot, slot.mealId!)} style={{ cursor: "pointer", font: "600 10.5px system-ui", color: C.muted2 }}>Remove from plan</span>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -491,10 +500,15 @@ function TodayInner() {
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "22px", textAlign: "center", font: "400 12px system-ui", color: C.muted2 }}>No diet planned for today.</div>
             ) : (
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-                {d.slots.map((slot, i) => (
-                  <SlotRow key={slot.slot} slot={slot} busy={t.busySlot === slot.slot} locked={d.dayCompleted ?? false} expanded={t.expanded.has(slot.slot)}
-                    onToggle={() => t.toggleSlot(slot.slot)} onExpand={() => t.toggleExpand(slot.slot)} isLast={i === d.slots.length - 1} />
-                ))}
+                {d.slots.map((slot, i) => {
+                  // Multiple cards can share a slot name (e.g. a diet breakfast + an independent
+                  // breakfast), so expand state is keyed per-card by slot + meal, not by slot name.
+                  const rowKey = `${slot.slot}#${slot.mealId ?? `idx${i}`}`;
+                  return (
+                    <SlotRow key={rowKey} slot={slot} busy={t.busySlot === slot.slot} locked={d.dayCompleted ?? false} expanded={t.expanded.has(rowKey)}
+                      onToggle={() => t.toggleSlot(slot.slot)} onExpand={() => t.toggleExpand(rowKey)} onRemoveMeal={t.removeSlotMeal} isLast={i === d.slots.length - 1} />
+                  );
+                })}
               </div>
             )}
 
