@@ -68,6 +68,10 @@ tags:
       Follow graph, public profiles, discovery, and safety (block/report).
       An online-only read layer over the offline-first personal data — others'
       data is fetched live and never written into the sync tables. See issue #175.
+  - name: Assistant
+    description: >-
+      Backend-mediated AI nutrition assistant — chat over the user's own data (grounded in
+      in-process tools) plus read-only status of the provider failover chain.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PATHS
@@ -2435,6 +2439,53 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  # ── Assistant (AI) ───────────────────────────────────────────────────────────
+  /api/v1/agent/chat:
+    post:
+      tags: [Assistant]
+      summary: Chat with the nutrition assistant
+      description: >-
+        Sends a message to the backend-mediated AI assistant. It answers questions about the user's
+        own data (profile, diets, meals, health metrics, logs) and can log food, grounded in
+        in-process tools. The provider is chosen from a server-side failover chain; the response's
+        `provider` field reports which one served the reply. Non-streaming.
+      operationId: agentChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentChatRequest'
+      responses:
+        '200':
+          description: Assistant reply
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentChatResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/agent/providers:
+    get:
+      tags: [Assistant]
+      summary: List AI provider chain status
+      description: >-
+        Read-only status of the ordered provider failover chain, for a settings screen. Never returns
+        API keys. `ready` is true only when the provider has a usable key configured server-side.
+      operationId: getAgentProviders
+      responses:
+        '200':
+          description: Ordered provider chain with per-provider status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProviderStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
 # ─────────────────────────────────────────────────────────────────────────────
 # COMPONENTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2557,6 +2608,70 @@ components:
           type: string
           format: date-time
           readOnly: true
+
+    # ── Assistant (AI) ──────────────────────────────────────────────────────────
+
+    AgentChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: The user's message to the assistant.
+        date:
+          type: string
+          format: date
+          nullable: true
+          description: Context date (YYYY-MM-DD); defaults to today on the server.
+        slot:
+          type: string
+          nullable: true
+          description: >-
+            Optional meal-slot hint — one of BREAKFAST, MORNING_SNACK, LUNCH, DINNER, EVENING_SNACK.
+
+    ToolAction:
+      type: object
+      description: A tool the assistant invoked while producing its reply.
+      required: [tool, result]
+      properties:
+        tool:
+          type: string
+        result:
+          type: string
+
+    AgentChatResponse:
+      type: object
+      required: [reply, actionsPerformed]
+      properties:
+        reply:
+          type: string
+          description: The assistant's natural-language reply (may contain light markdown).
+        actionsPerformed:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolAction'
+        provider:
+          type: string
+          nullable: true
+          description: Which provider in the chain served this reply (null if none did).
+
+    ProviderStatus:
+      type: object
+      required: [name, type, model, enabled, ready]
+      properties:
+        name:
+          type: string
+          description: Provider id (e.g. groq, gemini, mistral, anthropic).
+        type:
+          type: string
+          description: Adapter type — "openai" (OpenAI-compatible) or "anthropic".
+        model:
+          type: string
+        enabled:
+          type: boolean
+        ready:
+          type: boolean
+          description: True when a usable API key is configured server-side (keys are never returned).
 
     # ── Enums ─────────────────────────────────────────────────────────────────
 
