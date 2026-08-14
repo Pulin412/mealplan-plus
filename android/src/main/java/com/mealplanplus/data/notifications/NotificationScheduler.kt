@@ -23,13 +23,13 @@ class NotificationScheduler @Inject constructor(
 ) {
     private val alarmManager = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    /** Cancel every alarm, then (re)schedule the next occurrence of each slot of each enabled type. */
+    /** Cancel every alarm, then (re)schedule the next occurrence of each enabled slot of each type. */
     fun rescheduleAll() {
+        cancelLegacyGlucose()   // the GLUCOSE type was removed — drop any alarms it left behind.
         val settings = store.state.value
         NotificationType.entries.forEach { type ->
-            val enabled = settings.enabled[type] == true
-            for (slot in 0 until type.slotCount) {
-                if (enabled) scheduleSlot(type, slot) else cancelSlot(type, slot)
+            for (slot in 0 until settings.slotCount(type)) {
+                if (settings.isEnabled(type, slot)) scheduleSlot(type, slot) else cancelSlot(type, slot)
             }
         }
     }
@@ -38,6 +38,15 @@ class NotificationScheduler @Inject constructor(
     fun scheduleSlot(type: NotificationType, slot: Int) {
         val triggerAt = nextTrigger(type, slot)
         alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent(type, slot, create = true)!!)
+    }
+
+    /** Best-effort cancel of the removed glucose reminders (old requestBase 1400, up to 6 slots). */
+    private fun cancelLegacyGlucose() {
+        for (slot in 0 until 6) {
+            val intent = Intent(ctx, NotificationReceiver::class.java)
+            PendingIntent.getBroadcast(ctx, 1400 + slot, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE)
+                ?.let { alarmManager.cancel(it); it.cancel() }
+        }
     }
 
     private fun cancelSlot(type: NotificationType, slot: Int) {
@@ -49,16 +58,15 @@ class NotificationScheduler @Inject constructor(
 
     /** Epoch-ms of the next occurrence of this slot (tomorrow/next-week if today's time has passed). */
     private fun nextTrigger(type: NotificationType, slot: Int, now: Calendar = Calendar.getInstance()): Long {
+        val (minute, weeklyDay) = store.state.value.timeFor(type, slot)
         val c = now.clone() as Calendar
         c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
-        val weeklyDay = type.weeklyDayIso
+        setTime(c, minute)
         if (weeklyDay != null) {
-            setTime(c, type.weeklyTime)
             // Advance to the target ISO day-of-week (Mon=1…Sun=7), then +7 if already past.
             while (isoDayOfWeek(c) != weeklyDay) c.add(Calendar.DAY_OF_YEAR, 1)
             if (c.timeInMillis <= now.timeInMillis) c.add(Calendar.DAY_OF_YEAR, 7)
         } else {
-            setTime(c, type.dailyTimes[slot])
             if (c.timeInMillis <= now.timeInMillis) c.add(Calendar.DAY_OF_YEAR, 1)
         }
         return c.timeInMillis
