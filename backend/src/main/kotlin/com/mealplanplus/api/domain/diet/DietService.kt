@@ -259,7 +259,10 @@ class DietService(
 
     @Transactional
     fun createTag(name: String, color: String?, firebaseUid: String, entityType: TagEntityType): TagDto {
-        val existing = tagRepo.findByFirebaseUidAndName(firebaseUid, name)
+        // Scope the reuse-by-name to the same entity type. Tags are per-entity-type (listTags filters by
+        // entityType), so a name that already exists for another type (e.g. a DIET "Legs") must NOT be
+        // returned for an EXERCISE tag — otherwise the assigned tag never appears in the exercise tag list.
+        val existing = tagRepo.findByFirebaseUidAndNameAndEntityType(firebaseUid, name, entityType)
         if (existing != null) return existing.toDto()
         return tagRepo.save(Tag(firebaseUid = firebaseUid, name = name, color = color,
             entityType = entityType)).toDto()
