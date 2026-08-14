@@ -39,7 +39,34 @@ spring:
           model: ${OLLAMA_MODEL:qwen2.5:7b}
 
 agent:
-  provider: ${AGENT_PROVIDER:ollama}
+  # Ordered provider failover chain. The assistant tries providers top-to-bottom; on a rate-limit /
+  # quota / transient error it falls over to the next. `type: openai` uses the OpenAI-compatible wire
+  # format (works for Groq / Gemini / Mistral / OpenRouter); `type: anthropic` uses the dedicated client.
+  # A provider with a blank api-key (or, for anthropic, no ANTHROPIC_API_KEY) is skipped automatically.
+  providers:
+    - name: groq
+      type: openai
+      base-url: https://api.groq.com/openai
+      model: ${GROQ_MODEL:openai/gpt-oss-120b}
+      api-key: ${GROQ_API_KEY:}
+      enabled: true
+    - name: gemini
+      type: openai
+      base-url: https://generativelanguage.googleapis.com/v1beta/openai
+      completions-path: /chat/completions
+      model: ${GEMINI_MODEL:gemini-2.0-flash}
+      api-key: ${GEMINI_API_KEY:}
+      enabled: true
+    - name: mistral
+      type: openai
+      base-url: https://api.mistral.ai
+      model: ${MISTRAL_MODEL:mistral-large-latest}
+      api-key: ${MISTRAL_API_KEY:}
+      enabled: true
+    - name: anthropic
+      type: anthropic
+      model: ${AI_MODEL:claude-haiku-4-5-20251001}
+      enabled: true
 
 server:
   port: ${PORT:8080}

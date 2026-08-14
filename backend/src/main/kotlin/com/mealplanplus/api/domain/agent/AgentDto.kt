@@ -13,5 +13,6 @@ data class ToolAction(
 
 data class AgentChatResponse(
     val reply: String,
-    val actionsPerformed: List<ToolAction> = emptyList()
+    val actionsPerformed: List<ToolAction> = emptyList(),
+    val provider: String? = null   // which provider in the chain actually served this reply
 )

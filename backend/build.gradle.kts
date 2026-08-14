@@ -24,6 +24,9 @@ kotlin {
 dependencies {
     implementation("org.springframework.ai:spring-ai-starter-model-anthropic:1.0.0")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama:1.0.0")
+    // OpenAI *model* module (not the starter) — gives the OpenAI-compatible client classes without
+    // autoconfiguring a bean. We build one client per provider (Groq/Gemini/Mistral/OpenRouter) at runtime.
+    implementation("org.springframework.ai:spring-ai-openai:1.0.0")
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
