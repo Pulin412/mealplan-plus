@@ -275,17 +275,7 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
                 Text("No individual meals planned.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(bottom = 8.dp))
             } else {
                 Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                    plannedMeals.forEach { pm ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                            Text("×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clip(CircleShape).clickable { onRemoveMeal(pm.id) }.padding(horizontal = 6.dp, vertical = 2.dp))
-                            Spacer(Modifier.width(6.dp))
-                            SlotBadge(pm.slot)
-                            Spacer(Modifier.width(8.dp))
-                            Text(pm.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Text("${pm.kcal} kcal", fontFamily = DmMono, fontSize = 10.5.sp, color = MutedFaint)
-                        }
-                    }
+                    plannedMeals.forEach { pm -> ExpandablePlannedMeal(pm, onRemoveMeal) }
                 }
             }
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddMeal).padding(vertical = 11.dp)) {
@@ -538,6 +528,27 @@ private fun ExpandableMeal(header: DietLine, foods: List<DietLine>, slot: String
         Text(header.meta, fontSize = AppText.meta, color = MutedFaint, fontFamily = DmMono)
     }
     if (open) foods.forEach { FoodLineRow(it) }
+}
+
+/** An individually-planned meal on a day — same expandable look as a diet meal, with its ingredients. */
+@Composable
+private fun ExpandablePlannedMeal(pm: PlannedMealView, onRemove: (Long) -> Unit) {
+    var open by remember(pm.id) { mutableStateOf(false) }
+    val expandable = pm.lines.isNotEmpty()
+    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().then(if (expandable) Modifier.clickable { open = !open } else Modifier)) {
+            Text("×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clip(CircleShape).clickable { onRemove(pm.id) }.padding(horizontal = 6.dp, vertical = 2.dp))
+            Spacer(Modifier.width(6.dp))
+            SlotBadge(pm.slot)
+            Spacer(Modifier.width(8.dp))
+            Text(pm.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (expandable) Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
+            Text("${pm.kcal} kcal", fontFamily = DmMono, fontSize = 10.5.sp, color = MutedFaint)
+        }
+        if (open) pm.lines.forEach { FoodLineRow(it) }
+    }
 }
 
 @Composable

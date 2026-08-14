@@ -32,10 +32,10 @@ import kotlin.math.roundToInt
 
 data class DietLine(val name: String, val meta: String, val header: Boolean, val mealId: Long? = null)
 data class DietSlotView(val slot: String, val kcal: Int, val lines: List<DietLine>)
-/** A meal offered by the "add meal to a day" picker, with its total kcal. */
-data class MealSummary(val id: Long, val name: String, val kcal: Int)
-/** A planned meal already assigned to a day, resolved for display. */
-data class PlannedMealView(val id: Long, val slot: String, val name: String, val kcal: Int)
+/** A meal offered by the "add meal to a day" picker, with its total kcal and ingredient lines. */
+data class MealSummary(val id: Long, val name: String, val kcal: Int, val lines: List<DietLine> = emptyList())
+/** A planned meal already assigned to a day, resolved for display (with its ingredient lines). */
+data class PlannedMealView(val id: Long, val slot: String, val name: String, val kcal: Int, val lines: List<DietLine> = emptyList())
 data class DietSummary(
     val id: Long,
     val name: String,
@@ -79,7 +79,7 @@ data class PlanUiState(
         return (plansByDate[date]?.plannedMeals ?: emptyList()).mapNotNull { pm ->
             val id = pm.id ?: return@mapNotNull null
             val m = byId[pm.mealId]
-            PlannedMealView(id, pm.slot, m?.name ?: "Meal", m?.kcal ?: 0)
+            PlannedMealView(id, pm.slot, m?.name ?: "Meal", m?.kcal ?: 0, m?.lines ?: emptyList())
         }.sortedBy { SLOT_ORDER.indexOf(it.slot).let { i -> if (i < 0) Int.MAX_VALUE else i } }
     }
     val filteredDiets: List<DietSummary> get() = diets.filter { d ->
@@ -122,8 +122,12 @@ class PlanViewModel @Inject constructor(
                 val foods = foodsApi.listFoods(false).body().orEmpty().associateBy { it.id }
                 meals.mapNotNull { m ->
                     m.id?.let { id ->
-                        val kcal = (m.items ?: emptyList()).sumOf { foodKcal(foods[it.foodId], it.quantity, it.unit.value) }
-                        MealSummary(id, m.name, kcal.roundToInt())
+                        val items = m.items ?: emptyList()
+                        val kcal = items.sumOf { foodKcal(foods[it.foodId], it.quantity, it.unit.value) }
+                        val lines = items.map {
+                            DietLine(foods[it.foodId]?.name ?: "Food", "${trimNum(it.quantity)} ${unitLabel(it.unit.value)}", header = false)
+                        }
+                        MealSummary(id, m.name, kcal.roundToInt(), lines)
                     }
                 }
             }.collect { res ->
