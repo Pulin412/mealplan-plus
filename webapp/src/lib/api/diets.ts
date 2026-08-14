@@ -26,6 +26,10 @@ export function listDiets(): Promise<DietDto[]> {
   return apiFetch<DietDto[]>("/api/v1/diets");
 }
 
+export function getDiet(id: number): Promise<DietDto> {
+  return apiFetch<DietDto>(`/api/v1/diets/${id}`);
+}
+
 export function createDiet(input: DietInput): Promise<DietDto> {
   return apiFetch<DietDto>("/api/v1/diets", { method: "POST", body: JSON.stringify(toDto(input)) });
 }
