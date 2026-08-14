@@ -28,6 +28,7 @@ interface TagRepository : JpaRepository<Tag, Long> {
     fun findByName(name: String): Tag?
     fun findByFirebaseUid(firebaseUid: String): List<Tag>
     fun findByFirebaseUidAndName(firebaseUid: String, name: String): Tag?
+    fun findByFirebaseUidAndNameAndEntityType(firebaseUid: String, name: String, entityType: TagEntityType): Tag?
     fun findByEntityType(entityType: TagEntityType): List<Tag>
     fun findByFirebaseUidAndEntityType(firebaseUid: String, entityType: TagEntityType): List<Tag>
 }

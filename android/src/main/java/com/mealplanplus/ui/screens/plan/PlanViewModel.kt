@@ -30,12 +30,12 @@ import java.time.YearMonth
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
-data class DietLine(val name: String, val meta: String, val header: Boolean)
+data class DietLine(val name: String, val meta: String, val header: Boolean, val mealId: Long? = null)
 data class DietSlotView(val slot: String, val kcal: Int, val lines: List<DietLine>)
-/** A meal offered by the "add meal to a day" picker, with its total kcal. */
-data class MealSummary(val id: Long, val name: String, val kcal: Int)
-/** A planned meal already assigned to a day, resolved for display. */
-data class PlannedMealView(val id: Long, val slot: String, val name: String, val kcal: Int)
+/** A meal offered by the "add meal to a day" picker, with its total kcal and ingredient lines. */
+data class MealSummary(val id: Long, val name: String, val kcal: Int, val lines: List<DietLine> = emptyList())
+/** A planned meal already assigned to a day, resolved for display (with its ingredient lines). */
+data class PlannedMealView(val id: Long, val slot: String, val name: String, val kcal: Int, val lines: List<DietLine> = emptyList())
 data class DietSummary(
     val id: Long,
     val name: String,
@@ -79,7 +79,7 @@ data class PlanUiState(
         return (plansByDate[date]?.plannedMeals ?: emptyList()).mapNotNull { pm ->
             val id = pm.id ?: return@mapNotNull null
             val m = byId[pm.mealId]
-            PlannedMealView(id, pm.slot, m?.name ?: "Meal", m?.kcal ?: 0)
+            PlannedMealView(id, pm.slot, m?.name ?: "Meal", m?.kcal ?: 0, m?.lines ?: emptyList())
         }.sortedBy { SLOT_ORDER.indexOf(it.slot).let { i -> if (i < 0) Int.MAX_VALUE else i } }
     }
     val filteredDiets: List<DietSummary> get() = diets.filter { d ->
@@ -98,6 +98,7 @@ class PlanViewModel @Inject constructor(
     private val loggingApi: LoggingApi,
     private val sessionRepo: WorkoutSessionRepository,
     private val responseCache: ResponseCache,
+    private val planRepository: com.mealplanplus.data.repository.PlanRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlanUiState())
@@ -121,8 +122,12 @@ class PlanViewModel @Inject constructor(
                 val foods = foodsApi.listFoods(false).body().orEmpty().associateBy { it.id }
                 meals.mapNotNull { m ->
                     m.id?.let { id ->
-                        val kcal = (m.items ?: emptyList()).sumOf { foodKcal(foods[it.foodId], it.quantity, it.unit.value) }
-                        MealSummary(id, m.name, kcal.roundToInt())
+                        val items = m.items ?: emptyList()
+                        val kcal = items.sumOf { foodKcal(foods[it.foodId], it.quantity, it.unit.value) }
+                        val lines = items.map {
+                            DietLine(foods[it.foodId]?.name ?: "Food", "${trimNum(it.quantity)} ${unitLabel(it.unit.value)}", header = false)
+                        }
+                        MealSummary(id, m.name, kcal.roundToInt(), lines)
                     }
                 }
             }.collect { res ->
@@ -283,6 +288,18 @@ class PlanViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Remove one of the day's diet meals. Detaches the day from the diet (materialising its meals as
+     * per-day planned meals) minus this one, so the diet template and other days are untouched.
+     */
+    fun removeDietMeal(date: LocalDate, slot: String, mealId: Long) {
+        viewModelScope.launch {
+            planRepository.removeMealFromDay(date, slot, mealId)
+                .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            loadPlans()
+        }
+    }
+
     fun chooseDiet(date: LocalDate, dietId: Long) { setDiet(date, dietId); closePicker() }
 
     fun setDiet(date: LocalDate, dietId: Long?) {
@@ -319,7 +336,7 @@ class PlanViewModel @Inject constructor(
                 mkcal += foodKcal(foods[it.foodId], it.quantity, it.unit.value)
                 DietLine(foods[it.foodId]?.name ?: "Food", "${trimNum(it.quantity)} ${unitLabel(it.unit.value)}", header = false)
             }
-            add(dm.slot, DietLine(meal?.name ?: "Meal", "${mkcal.roundToInt()} kcal", header = true))
+            add(dm.slot, DietLine(meal?.name ?: "Meal", "${mkcal.roundToInt()} kcal", header = true, mealId = dm.mealId))
             items.forEach { add(dm.slot, it) }
             bump(dm.slot, mkcal)
         }

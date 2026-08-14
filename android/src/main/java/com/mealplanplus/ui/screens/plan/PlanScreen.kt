@@ -102,6 +102,7 @@ fun PlanScreen() {
                 onRemoveWorkout = { id -> viewModel.removePlannedWorkout(date, id) },
                 onAddMeal = viewModel::openMealPicker,
                 onRemoveMeal = { id -> viewModel.removePlannedMeal(date, id) },
+                onRemoveDietMeal = { slot, mealId -> viewModel.removeDietMeal(date, slot, mealId) },
                 onClear = { viewModel.clearDay(date) },
                 onClose = { viewModel.selectDay(null) })
         }
@@ -217,7 +218,7 @@ private fun NextSeven(state: PlanUiState, onDay: (LocalDate) -> Unit) {
 // ── Day plan sheet ──────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit, onAddWorkout: () -> Unit, onOpenWorkout: (Long?) -> Unit, onRemoveWorkout: (Long) -> Unit, onAddMeal: () -> Unit, onRemoveMeal: (Long) -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
+private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit, onAddWorkout: () -> Unit, onOpenWorkout: (Long?) -> Unit, onRemoveWorkout: (Long) -> Unit, onAddMeal: () -> Unit, onRemoveMeal: (Long) -> Unit, onRemoveDietMeal: (String, Long) -> Unit, onClear: () -> Unit, onClose: () -> Unit) {
     val plan: DayPlanDto? = state.plansByDate[date]
     val workouts = plan?.plannedWorkouts.orEmpty()
     val plannedMeals = state.plannedMealsFor(date)
@@ -260,7 +261,7 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
             }
             if (selectedDiet != null) {
                 Text(selectedDiet.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.padding(top = 2.dp))
-                DietSlots(selectedDiet)
+                DietSlots(selectedDiet, onRemoveMeal = onRemoveDietMeal)
             } else {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                     .clip(RoundedCornerShape(12.dp)).background(Teal).clickable(onClick = onPick).padding(vertical = 13.dp)) {
@@ -274,16 +275,7 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
                 Text("No individual meals planned.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(bottom = 8.dp))
             } else {
                 Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                    plannedMeals.forEach { pm ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                            SlotBadge(pm.slot)
-                            Spacer(Modifier.width(8.dp))
-                            Text(pm.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Text("${pm.kcal} kcal", fontFamily = DmMono, fontSize = 10.5.sp, color = MutedFaint)
-                            Text("  ×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clickable { onRemoveMeal(pm.id) })
-                        }
-                    }
+                    plannedMeals.forEach { pm -> ExpandablePlannedMeal(pm, onRemoveMeal) }
                 }
             }
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddMeal).padding(vertical = 11.dp)) {
@@ -296,12 +288,13 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
             } else {
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     workouts.forEach { w ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(SurfaceMuted).padding(start = 11.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(SurfaceMuted).padding(start = 8.dp, end = 11.dp, top = 6.dp, bottom = 6.dp)) {
+                            val wid = w.id
+                            Text("×", fontSize = 13.sp, color = MutedFaint,
+                                modifier = if (wid != null) Modifier.clickable { onRemoveWorkout(wid) } else Modifier)
+                            Spacer(Modifier.width(6.dp))
                             Text(w.activityName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ink,
                                 modifier = Modifier.clickable { onOpenWorkout(w.workoutTemplateId) })
-                            val wid = w.id
-                            Text("  ×", fontSize = 13.sp, color = MutedFaint,
-                                modifier = if (wid != null) Modifier.clickable { onRemoveWorkout(wid) } else Modifier)
                         }
                     }
                 }
@@ -487,7 +480,7 @@ private fun fmtKg(v: Double): String = (if (v % 1.0 == 0.0) v.toInt().toString()
 
 // ── Selected diet detail (slots + foods, like the Home diet view) ────────────────
 @Composable
-private fun DietSlots(diet: DietSummary) {
+private fun DietSlots(diet: DietSummary, onRemoveMeal: ((String, Long) -> Unit)? = null) {
     if (diet.slots.isEmpty()) {
         Text("This diet has no meals yet.", fontSize = 11.sp, color = MutedLight, modifier = Modifier.padding(top = 8.dp))
         return
@@ -502,7 +495,7 @@ private fun DietSlots(diet: DietSummary) {
             }
             // Group each meal header with the food lines that follow it; render meals expandable.
             mealBlocks(slot.lines).forEach { block ->
-                if (block.first != null) ExpandableMeal(block.first!!, block.second)
+                if (block.first != null) ExpandableMeal(block.first!!, block.second, slot.slot, onRemoveMeal)
                 else block.second.forEach { FoodLineRow(it) }
             }
         }
@@ -520,16 +513,42 @@ private fun mealBlocks(lines: List<DietLine>): List<Pair<DietLine?, List<DietLin
 }
 
 @Composable
-private fun ExpandableMeal(header: DietLine, foods: List<DietLine>) {
+private fun ExpandableMeal(header: DietLine, foods: List<DietLine>, slot: String = "", onRemoveMeal: ((String, Long) -> Unit)? = null) {
     var open by remember(header.name) { mutableStateOf(false) }
     val expandable = foods.isNotEmpty()
     Row(verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().then(if (expandable) Modifier.clickable { open = !open } else Modifier).padding(top = 4.dp)) {
+        val mealId = header.mealId
+        if (onRemoveMeal != null && mealId != null) {
+            Text("×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clip(CircleShape).clickable { onRemoveMeal(slot, mealId) }.padding(horizontal = 6.dp, vertical = 2.dp))
+            Spacer(Modifier.width(6.dp))
+        }
         Text(header.name, fontSize = AppText.itemName, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.weight(1f))
         if (expandable) Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
         Text(header.meta, fontSize = AppText.meta, color = MutedFaint, fontFamily = DmMono)
     }
     if (open) foods.forEach { FoodLineRow(it) }
+}
+
+/** An individually-planned meal on a day — same expandable look as a diet meal, with its ingredients. */
+@Composable
+private fun ExpandablePlannedMeal(pm: PlannedMealView, onRemove: (Long) -> Unit) {
+    var open by remember(pm.id) { mutableStateOf(false) }
+    val expandable = pm.lines.isNotEmpty()
+    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().then(if (expandable) Modifier.clickable { open = !open } else Modifier)) {
+            Text("×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clip(CircleShape).clickable { onRemove(pm.id) }.padding(horizontal = 6.dp, vertical = 2.dp))
+            Spacer(Modifier.width(6.dp))
+            SlotBadge(pm.slot)
+            Spacer(Modifier.width(8.dp))
+            Text(pm.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (expandable) Text(if (open) " ▲" else " ▼", fontSize = 9.sp, color = MutedFaint)
+            Text("${pm.kcal} kcal", fontFamily = DmMono, fontSize = 10.5.sp, color = MutedFaint)
+        }
+        if (open) pm.lines.forEach { FoodLineRow(it) }
+    }
 }
 
 @Composable

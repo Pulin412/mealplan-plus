@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -32,6 +33,8 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -89,11 +93,14 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
         viewModel.refreshHealthConnect()
     }
     LaunchedEffect(Unit) { viewModel.refreshHealthConnect() }
-    val onToggleNotif: (NotificationType, Boolean) -> Unit = { type, on ->
-        viewModel.setNotification(type, on)
+    // Prompt for the POST_NOTIFICATIONS runtime permission when the user enables any reminder.
+    val ensureNotifPerm: (Boolean) -> Unit = { on ->
         if (on && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !NotificationHelper.canPost(context)) {
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+    val onToggleNotif: (NotificationType, Boolean) -> Unit = { type, on ->
+        viewModel.setNotification(type, on); ensureNotifPerm(on)
     }
     LaunchedEffect(Unit) {
         viewModel.events.collect { ev ->
@@ -184,7 +191,17 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                 }
 
                 // ── Notifications (collapsible) ────────────────────────────────────
-                NotificationsSection(notifSettings, onToggleNotif, viewModel::setQuietHours)
+                NotificationsSection(
+                    settings = notifSettings,
+                    onSetMaster = { on -> viewModel.setMasterNotifications(on); ensureNotifPerm(on) },
+                    onSetMealSlot = { slot, on -> viewModel.setMealSlot(slot, on); ensureNotifPerm(on) },
+                    onSetMealTime = viewModel::setMealSlotTime,
+                    onToggleType = onToggleNotif,
+                    onSetWorkoutTime = viewModel::setWorkoutTime,
+                    onSetWeighinDay = viewModel::setWeighinDay,
+                    onSetWeighinTime = viewModel::setWeighinTime,
+                    onToggleQuiet = viewModel::setQuietHours,
+                )
 
                 // ── Social ─────────────────────────────────────────────────────────
                 SectionLabel("Social")
@@ -303,24 +320,34 @@ private fun shareCsv(context: Context, fileName: String, csv: String) {
     context.startActivity(Intent.createChooser(send, "Export data"))
 }
 
-private data class NotifDef(val key: String, val label: String, val hint: String, val icon: String, val bg: Long)
+private val WEEKDAYS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") // ISO 1..7
 
-private val NOTIF_DEFS = listOf(
-    NotifDef("meals", "Meal reminders", "At each planned slot", "🍽️", 0xFFF6EBE0),
-    NotifDef("water", "Water", "Every 2 hours, 8am–8pm", "💧", 0xFFDFEAF6),
-    NotifDef("workout", "Workout", "On scheduled days", "🏋️", 0xFFDFF2E7),
-    NotifDef("weighin", "Weigh-in", "Weekly, Sunday 8am", "⚖️", 0xFFEBE7F3),
-    NotifDef("glucose", "Glucose check", "Before & after meals", "🩸", 0xFFF6E4E2),
-)
+/** Minutes-since-midnight → "8:00 AM". */
+private fun formatMin(min: Int): String {
+    val h = min / 60; val m = min % 60
+    val h12 = ((h + 11) % 12) + 1
+    return "%d:%02d %s".format(h12, m, if (h < 12) "AM" else "PM")
+}
 
 @Composable
 private fun NotificationsSection(
     settings: NotificationSettings,
-    onToggle: (NotificationType, Boolean) -> Unit,
+    onSetMaster: (Boolean) -> Unit,
+    onSetMealSlot: (String, Boolean) -> Unit,
+    onSetMealTime: (String, Int) -> Unit,
+    onToggleType: (NotificationType, Boolean) -> Unit,
+    onSetWorkoutTime: (Int) -> Unit,
+    onSetWeighinDay: (Int) -> Unit,
+    onSetWeighinTime: (Int) -> Unit,
     onToggleQuiet: (Boolean) -> Unit,
 ) {
+    val context = LocalContext.current
     var open by remember { mutableStateOf(true) }
-    val onCount = settings.onCount
+    // Opens the native time picker seeded at [initial], reporting the chosen minutes-since-midnight.
+    val pickTime: (Int, (Int) -> Unit) -> Unit = { initial, onPicked ->
+        android.app.TimePickerDialog(context, { _, h, m -> onPicked(h * 60 + m) }, initial / 60, initial % 60,
+            android.text.format.DateFormat.is24HourFormat(context)).show()
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -328,7 +355,7 @@ private fun NotificationsSection(
     ) {
         Text("NOTIFICATIONS", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = MutedFaint, letterSpacing = 0.6.sp)
         Spacer(Modifier.width(8.dp))
-        Text("$onCount of ${NOTIF_DEFS.size} on", fontSize = 10.sp, color = MutedFaint)
+        Text(if (!settings.masterEnabled) "Off" else "${settings.onCount} of 4 on", fontSize = 10.sp, color = MutedFaint)
         Spacer(Modifier.weight(1f))
         Icon(
             if (open) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -341,31 +368,135 @@ private fun NotificationsSection(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface)
                 .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
         ) {
-            NOTIF_DEFS.forEachIndexed { i, n ->
-                val type = NotificationType.fromKey(n.key)
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 10.dp)) {
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(Color(n.bg)), Alignment.Center) {
-                        Text(n.icon, fontSize = 16.sp)
-                    }
-                    Spacer(Modifier.width(11.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(n.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                        Text(n.hint, fontSize = 11.5.sp, color = MutedLight)
-                    }
-                    AppSwitch(type != null && settings.enabled[type] == true) { on -> type?.let { onToggle(it, on) } }
-                }
-                if (i < NOTIF_DEFS.size - 1) Divider()
-            }
+            // Master switch — governs everything below it.
+            NotifRow("🔔", 0xFFEAF0F6, "Notifications", "", settings.masterEnabled, onToggle = onSetMaster)
             Divider()
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp)) {
-                Column(Modifier.weight(1f)) {
-                    Text("Quiet hours", fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = MutedDark)
-                    Text(if (settings.quietHours) "No reminders 10 PM – 7 AM" else "Off", fontSize = 11.5.sp, color = MutedLight)
+            // Everything below is greyed out + non-interactive when the master switch is off.
+            Box {
+                Column(Modifier.alpha(if (settings.masterEnabled) 1f else 0.4f)) {
+                    MealReminders(settings, onSetMealSlot, onSetMealTime, pickTime)
+                    Divider()
+                    // Water — fixed schedule, on/off only.
+                    NotifRow("💧", 0xFFDFEAF6, "Water", "Every 2 hours, 8am–8pm", settings.waterEnabled,
+                        onToggle = { onToggleType(NotificationType.WATER, it) })
+                    Divider()
+                    // Workout — editable daily time.
+                    NotifRow("🏋️", 0xFFDFF2E7, "Workout", "Daily at ${formatMin(settings.workoutMinute)}", settings.workoutEnabled,
+                        trailing = { if (settings.workoutEnabled) TimeChip(settings.workoutMinute) { pickTime(settings.workoutMinute, onSetWorkoutTime) } },
+                        onToggle = { onToggleType(NotificationType.WORKOUT, it) })
+                    Divider()
+                    // Weigh-in — editable weekday + time.
+                    WeighinRow(settings, onSetWeighinDay, { pickTime(settings.weighinMinute, onSetWeighinTime) },
+                        onToggle = { onToggleType(NotificationType.WEIGHIN, it) })
+                    Divider()
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Quiet hours", fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = MutedDark)
+                            Text(if (settings.quietHours) "No reminders 10 PM – 7 AM" else "Off", fontSize = 11.5.sp, color = MutedLight)
+                        }
+                        AppSwitch(settings.quietHours, onToggleQuiet)
+                    }
                 }
-                AppSwitch(settings.quietHours, onToggleQuiet)
+                if (!settings.masterEnabled) {
+                    // Transparent overlay swallows taps so the greyed rows can't be edited while paused.
+                    Box(Modifier.matchParentSize().clickable(
+                        interactionSource = remember { MutableInteractionSource() }, indication = null) {})
+                }
             }
         }
     }
+}
+
+/** Expandable meal-reminders block — a per-slot enable + time for every canonical meal slot. */
+@Composable
+private fun MealReminders(
+    settings: NotificationSettings,
+    onSet: (String, Boolean) -> Unit,
+    onTime: (String, Int) -> Unit,
+    pickTime: (Int, (Int) -> Unit) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    val onCount = settings.mealSlots.count { it.enabled }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { open = !open }.padding(horizontal = 15.dp, vertical = 10.dp)) {
+        Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFF6EBE0)), Alignment.Center) { Text("🍽️", fontSize = 16.sp) }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Meal reminders", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Text(if (onCount == 0) "Off — tap to set per slot" else "$onCount ${if (onCount == 1) "slot" else "slots"} on",
+                fontSize = 11.5.sp, color = MutedLight)
+        }
+        Icon(if (open) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            null, tint = MutedFaint, modifier = Modifier.size(18.dp))
+    }
+    if (open) {
+        Column(Modifier.fillMaxWidth().padding(start = 15.dp, end = 15.dp, bottom = 8.dp)) {
+            settings.mealSlots.forEach { r ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                    Text(r.slot, fontSize = 13.sp, color = Ink, modifier = Modifier.weight(1f))
+                    if (r.enabled) { TimeChip(r.minute) { pickTime(r.minute) { m -> onTime(r.slot, m) } }; Spacer(Modifier.width(8.dp)) }
+                    AppSwitch(r.enabled) { on -> onSet(r.slot, on) }
+                }
+            }
+        }
+    }
+}
+
+/** A notification row with an icon, label/hint, optional trailing content (e.g. a time chip), and a switch. */
+@Composable
+private fun NotifRow(
+    icon: String, bg: Long, label: String, hint: String, enabled: Boolean,
+    trailing: (@Composable () -> Unit)? = null,
+    onToggle: (Boolean) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 10.dp)) {
+        Box(Modifier.size(34.dp).clip(CircleShape).background(Color(bg)), Alignment.Center) { Text(icon, fontSize = 16.sp) }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            if (hint.isNotBlank()) Text(hint, fontSize = 11.5.sp, color = MutedLight)
+        }
+        if (trailing != null) { trailing(); Spacer(Modifier.width(8.dp)) }
+        AppSwitch(enabled, onToggle)
+    }
+}
+
+/** Weigh-in row: weekday dropdown + time chip when enabled. */
+@Composable
+private fun WeighinRow(
+    settings: NotificationSettings,
+    onSetDay: (Int) -> Unit,
+    onPickTime: () -> Unit,
+    onToggle: (Boolean) -> Unit,
+) {
+    var dayMenu by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 10.dp)) {
+        Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFEBE7F3)), Alignment.Center) { Text("⚖️", fontSize = 16.sp) }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Weigh-in", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+            Text("Weekly", fontSize = 11.5.sp, color = MutedLight)
+        }
+        if (settings.weighinEnabled) {
+            Box {
+                Text(WEEKDAYS[settings.weighinDayIso - 1], fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(SurfaceMuted).clickable { dayMenu = true }.padding(horizontal = 10.dp, vertical = 5.dp))
+                DropdownMenu(expanded = dayMenu, onDismissRequest = { dayMenu = false }) {
+                    WEEKDAYS.forEachIndexed { i, d -> DropdownMenuItem(text = { Text(d) }, onClick = { onSetDay(i + 1); dayMenu = false }) }
+                }
+            }
+            Spacer(Modifier.width(6.dp))
+            TimeChip(settings.weighinMinute, onPickTime)
+            Spacer(Modifier.width(8.dp))
+        }
+        AppSwitch(settings.weighinEnabled, onToggle)
+    }
+}
+
+/** Small tappable pill showing a formatted time. */
+@Composable
+private fun TimeChip(minute: Int, onClick: () -> Unit) {
+    Text(formatMin(minute), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(SurfaceMuted).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 5.dp))
 }
 
 // ── Building blocks ────────────────────────────────────────────────────────────
