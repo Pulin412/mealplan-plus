@@ -14,6 +14,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/scripts/local-seed.env"
 [ -f "$ENV_FILE" ] && { set -a; . "$ENV_FILE"; set +a; }
+# Also load backend/.env (provider API keys: GROQ_API_KEY / GEMINI_API_KEY / … — gitignored) so the
+# failover chain has real keys. Spring Boot won't read a .env file on its own; we export it here.
+[ -f "$ROOT/backend/.env" ] && { set -a; . "$ROOT/backend/.env"; set +a; }
 
 export API_BASE="${API_BASE:-http://localhost:8080}"
 export DEV_EMAIL="${DEV_EMAIL:-dev@mealplan.test}"
