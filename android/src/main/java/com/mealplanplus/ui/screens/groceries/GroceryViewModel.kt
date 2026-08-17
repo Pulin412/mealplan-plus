@@ -336,6 +336,23 @@ class GroceryViewModel @Inject constructor(
         }
     }
 
+    /** Empty the whole list (both to-buy and bought). Live list: also clears the picked dates so it
+     *  stays empty; a saved list: empties its items. Differs from uncheckAll (keeps items). */
+    fun clearList() {
+        val s = _state.value
+        val active = s.savedLists.firstOrNull { it.id == s.activeId }
+        if (active != null) {
+            val lists = s.savedLists.map { l -> if (l.id == active.id) l.copy(items = emptyList(), checked = emptyMap(), dateKeys = emptyList()) else l }
+            persist(lists)
+            _state.update { it.copy(savedLists = lists) }
+            showRows()
+        } else {
+            liveRows = emptyList()
+            _state.update { it.copy(selectedDates = emptySet()) }
+            showRows()
+        }
+    }
+
     // ── Saved lists ────────────────────────────────────────────────────────────────
     fun openSaved() { _state.update { it.copy(sheetSaved = true) } }
     fun closeSheet() { _state.update { it.copy(sheetSaved = false) } }

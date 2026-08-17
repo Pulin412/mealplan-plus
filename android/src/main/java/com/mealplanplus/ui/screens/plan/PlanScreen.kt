@@ -378,17 +378,33 @@ private fun MealPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewM
                 Text("Create meals in the Meals screen first.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(top = 4.dp))
             }
         } else {
+            var expandedMealId by remember { mutableStateOf<Long?>(null) }
             LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
                 items(meals, key = { it.id }) { m ->
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                        .clickable { viewModel.addPlannedMeal(date, state.mealPickerSlot, m.id) }.padding(14.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            Text(m.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("${m.kcal} kcal", fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+                    val open = expandedMealId == m.id
+                    val expandable = m.lines.isNotEmpty()
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Surface)
+                        .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                        .then(if (expandable) Modifier.clickable { expandedMealId = if (open) null else m.id } else Modifier)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text(m.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    "${m.kcal} kcal" + if (expandable) "  ·  ${m.lines.size} item${if (m.lines.size == 1) "" else "s"} ${if (open) "▾" else "▸"}" else "",
+                                    fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text("+ Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                                modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.addPlannedMeal(date, state.mealPickerSlot, m.id) }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp))
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Text("+ Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+                        if (open) {
+                            Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 12.dp)) {
+                                m.lines.forEach { FoodLineRow(it) }
+                            }
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                 }
@@ -584,15 +600,8 @@ private fun DietPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewM
             Text("${state.diets.size} saved", fontSize = 12.sp, color = MutedLight)
         }
         PickerSearchBar(state.pickerSearch, viewModel::setPickerSearch)
-        if (state.allTags.isNotEmpty()) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                item { PickerTagChip("All", state.pickerTag == null) { viewModel.setPickerTag(null) } }
-                items(state.allTags) { t -> PickerTagChip(t, state.pickerTag == t) { viewModel.setPickerTag(if (state.pickerTag == t) null else t) } }
-            }
-        }
+        PickerFilterRow("Tags", state.allTags, state.pickerTags, viewModel::togglePickerTag, viewModel::clearPickerTags)
+        PickerFilterRow("Slots", state.allSlots, state.pickerSlots, viewModel::togglePickerSlot, viewModel::clearPickerSlots)
         if (diets.isEmpty()) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text("🥗", fontSize = 40.sp)
@@ -636,6 +645,21 @@ private fun PickerTagChip(text: String, on: Boolean, onClick: () -> Unit) =
     Text(text, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) Surface else MutedDark,
         modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Ink else SurfaceMuted)
             .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp))
+
+/** Labeled multi-select chip row (match ANY): "All" clears, each chip toggles. */
+@Composable
+private fun PickerFilterRow(label: String, options: List<String>, selected: Set<String>, onToggle: (String) -> Unit, onClear: () -> Unit) {
+    if (options.isEmpty()) return
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        item { Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = MutedLight) }
+        item { PickerTagChip("All", selected.isEmpty(), onClear) }
+        items(options) { o -> PickerTagChip(o, o in selected) { onToggle(o) } }
+    }
+}
 
 @Composable
 private fun PickerDietCard(diet: DietSummary, selected: Boolean, expanded: Boolean, onToggleExpand: () -> Unit, onChoose: () -> Unit) {

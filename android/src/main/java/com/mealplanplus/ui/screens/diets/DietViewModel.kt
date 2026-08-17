@@ -6,6 +6,7 @@ import com.mealplanplus.data.model.Diet
 import com.mealplanplus.data.model.DietEntry
 import com.mealplanplus.data.model.DietTag
 import com.mealplanplus.data.model.Food
+import com.mealplanplus.data.model.MEAL_SLOTS
 import com.mealplanplus.data.repository.DietRepository
 import com.mealplanplus.data.repository.DietUi
 import com.mealplanplus.data.repository.FoodRepository
@@ -34,7 +35,9 @@ data class DietsUiState(
     val viewMode: DietViewMode = DietViewMode.LIST,
     val favOnly: Boolean = false,
     val importedOnly: Boolean = false,
-    val tagFilter: String? = null,
+    // Multi-select filters (match ANY); empty = no filter.
+    val tagFilters: Set<String> = emptySet(),
+    val slotFilters: Set<String> = emptySet(),
     val expandedIds: Set<String> = emptySet(),
     val sharedIds: Set<String> = emptySet(),   // diet serverIds currently shared with followers
     val importedIds: Set<String> = emptySet(), // diet serverIds copied from other users
@@ -47,19 +50,37 @@ data class DietsUiState(
         get() = (availableTags.map { it.name } + diets.flatMap { d -> d.diet.tags.map { it.name } })
             .distinct().sorted()
 
+    /** Slots present across diets, in canonical meal-slot order (unknowns appended). */
+    val allSlotNames: List<String>
+        get() {
+            val present = diets.flatMap { d -> d.slots.map { it.slot } }.toSet()
+            return MEAL_SLOTS.filter { it in present } + present.filter { it !in MEAL_SLOTS }.sorted()
+        }
+
     val filteredDiets: List<DietUi>
         get() {
-            var list = diets
-            if (searchQuery.isNotBlank()) {
-                val q = searchQuery.trim().lowercase()
-                list = list.filter { d ->
-                    d.diet.name.lowercase().contains(q) ||
-                        d.diet.tags.any { it.name.lowercase().contains(q) }
+            val q = searchQuery.trim().lowercase()
+            val hasSlot = slotFilters.isNotEmpty()
+            var list = diets.filter { d ->
+                // Slot filter: the diet must contain at least one selected slot.
+                val scopeSlots = if (hasSlot) d.slots.filter { it.slot in slotFilters } else d.slots
+                if (hasSlot && scopeSlots.isEmpty()) return@filter false
+                // When slots are selected, search only within those slots; otherwise the whole diet
+                // (name + tags + every meal & ingredient name).
+                if (q.isNotEmpty()) {
+                    val haystack = (if (hasSlot) {
+                        scopeSlots.flatMap { s -> s.entries.flatMap { e -> listOf(e.name) + e.mealFoods.map { it.name } } }
+                    } else {
+                        listOf(d.diet.name) + d.diet.tags.map { it.name } +
+                            d.slots.flatMap { s -> s.entries.flatMap { e -> listOf(e.name) + e.mealFoods.map { it.name } } }
+                    }).joinToString(" ").lowercase()
+                    if (!haystack.contains(q)) return@filter false
                 }
+                if (tagFilters.isNotEmpty() && d.diet.tags.none { it.name in tagFilters }) return@filter false
+                true
             }
             if (favOnly) list = list.filter { it.diet.isFavorite }
             if (importedOnly) list = list.filter { it.diet.id in importedIds }
-            tagFilter?.let { t -> list = list.filter { d -> d.diet.tags.any { it.name == t } } }
             return when (sortMode) {
                 DietSort.RECENT   -> list.sortedByDescending { it.diet.updatedAt }
                 DietSort.NAME     -> list.sortedWith(compareBy(NaturalOrder) { it.diet.name })
@@ -125,7 +146,16 @@ class DietViewModel @Inject constructor(
     fun setSort(s: DietSort)          { _state.value = _state.value.copy(sortMode = s) }
     fun setViewMode(m: DietViewMode)  { _state.value = _state.value.copy(viewMode = m) }
     fun toggleFavOnly()               { _state.value = _state.value.copy(favOnly = !_state.value.favOnly) }
-    fun setTagFilter(tag: String?)    { _state.value = _state.value.copy(tagFilter = tag) }
+    fun toggleTagFilter(tag: String) {
+        val cur = _state.value.tagFilters
+        _state.value = _state.value.copy(tagFilters = if (tag in cur) cur - tag else cur + tag)
+    }
+    fun clearTagFilters() { _state.value = _state.value.copy(tagFilters = emptySet()) }
+    fun toggleSlotFilter(slot: String) {
+        val cur = _state.value.slotFilters
+        _state.value = _state.value.copy(slotFilters = if (slot in cur) cur - slot else cur + slot)
+    }
+    fun clearSlotFilters() { _state.value = _state.value.copy(slotFilters = emptySet()) }
 
     fun toggleExpand(id: String) {
         val cur = _state.value.expandedIds

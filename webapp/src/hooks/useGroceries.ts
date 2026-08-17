@@ -301,6 +301,18 @@ export function useGroceries() {
     }
   }, [activeId]);
 
+  /** Empty the whole list (both to-buy and bought). Live list: also clears the picked dates so it
+   *  stays empty; a saved list: empties its items. Differs from Uncheck all (keeps items) and from
+   *  Clear-dates (regenerating keeps already-bought rows). */
+  const clearList = useCallback(() => {
+    if (activeId) {
+      setSavedLists((prev) => { const next = prev.map((l) => (l.id === activeId ? { ...l, items: [], checked: {}, dateKeys: [] } : l)); persistSaved(next); return next; });
+    } else {
+      setSelected(new Set());
+      setLiveRows([]);
+    }
+  }, [activeId]);
+
   // ── Saved lists ────────────────────────────────────────────────────────────────
   const openSaved = useCallback(() => setSheetSaved(true), []);
   const closeSheet = useCallback(() => setSheetSaved(false), []);
@@ -336,6 +348,6 @@ export function useGroceries() {
     rows, toBuy, bought, dateKeys, boughtCount: bought.length, total: rows.length,
     isSaved, activeName: active?.name ?? null, savedLists, activeId, sheetSaved, error,
     toggleCal, prevMonth, nextMonth, toggleDay, preset, clearDates,
-    toggleRow, uncheckAll, openSaved, closeSheet, saveList, loadSavedList, deleteSaved, newList,
+    toggleRow, uncheckAll, clearList, openSaved, closeSheet, saveList, loadSavedList, deleteSaved, newList,
   };
 }
