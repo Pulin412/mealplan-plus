@@ -266,9 +266,17 @@ function DietPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: st
         </div>
       </div>
       {p.allTags.length > 0 && (
-        <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 16px" }}>
-          <TagChip label="All" on={p.pickerTag == null} onClick={() => p.setPickerTag(null)} />
-          {p.allTags.map((t) => <TagChip key={t} label={t} on={p.pickerTag === t} onClick={() => p.setPickerTag(p.pickerTag === t ? null : t)} />)}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", padding: "8px 16px 4px" }}>
+          <span style={{ flex: "none", font: "600 10px system-ui", color: C.muted2, letterSpacing: 0.4, textTransform: "uppercase" }}>Tags</span>
+          <TagChip label="All" on={p.pickerTags.length === 0} onClick={p.clearPickerTags} />
+          {p.allTags.map((t) => <TagChip key={t} label={t} on={p.pickerTags.includes(t)} onClick={() => p.togglePickerTag(t)} />)}
+        </div>
+      )}
+      {p.allSlots.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", padding: "4px 16px 8px" }}>
+          <span style={{ flex: "none", font: "600 10px system-ui", color: C.muted2, letterSpacing: 0.4, textTransform: "uppercase" }}>Slots</span>
+          <TagChip label="All" on={p.pickerSlots.length === 0} onClick={p.clearPickerSlots} />
+          {p.allSlots.map((s) => <TagChip key={s} label={s} on={p.pickerSlots.includes(s)} onClick={() => p.togglePickerSlot(s)} />)}
         </div>
       )}
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 14px 24px" }}>
