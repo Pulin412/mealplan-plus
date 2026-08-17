@@ -43,7 +43,10 @@ data class MealsUiState(
             var list = meals
             if (searchQuery.isNotBlank()) {
                 val q = searchQuery.trim().lowercase()
-                list = list.filter { it.meal.name.lowercase().contains(q) }
+                // Match the meal name OR any of its ingredient/food names.
+                list = list.filter { m ->
+                    m.meal.name.lowercase().contains(q) || m.items.any { it.name.lowercase().contains(q) }
+                }
             }
             if (favOnly) list = list.filter { it.meal.isFavorite }
             if (importedOnly) list = list.filter { it.meal.id in importedIds }

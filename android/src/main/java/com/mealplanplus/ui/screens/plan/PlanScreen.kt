@@ -584,15 +584,8 @@ private fun DietPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewM
             Text("${state.diets.size} saved", fontSize = 12.sp, color = MutedLight)
         }
         PickerSearchBar(state.pickerSearch, viewModel::setPickerSearch)
-        if (state.allTags.isNotEmpty()) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                item { PickerTagChip("All", state.pickerTag == null) { viewModel.setPickerTag(null) } }
-                items(state.allTags) { t -> PickerTagChip(t, state.pickerTag == t) { viewModel.setPickerTag(if (state.pickerTag == t) null else t) } }
-            }
-        }
+        PickerFilterRow("Tags", state.allTags, state.pickerTags, viewModel::togglePickerTag, viewModel::clearPickerTags)
+        PickerFilterRow("Slots", state.allSlots, state.pickerSlots, viewModel::togglePickerSlot, viewModel::clearPickerSlots)
         if (diets.isEmpty()) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text("🥗", fontSize = 40.sp)
@@ -636,6 +629,21 @@ private fun PickerTagChip(text: String, on: Boolean, onClick: () -> Unit) =
     Text(text, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) Surface else MutedDark,
         modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Ink else SurfaceMuted)
             .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp))
+
+/** Labeled multi-select chip row (match ANY): "All" clears, each chip toggles. */
+@Composable
+private fun PickerFilterRow(label: String, options: List<String>, selected: Set<String>, onToggle: (String) -> Unit, onClear: () -> Unit) {
+    if (options.isEmpty()) return
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        item { Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = MutedLight) }
+        item { PickerTagChip("All", selected.isEmpty(), onClear) }
+        items(options) { o -> PickerTagChip(o, o in selected) { onToggle(o) } }
+    }
+}
 
 @Composable
 private fun PickerDietCard(diet: DietSummary, selected: Boolean, expanded: Boolean, onToggleExpand: () -> Unit, onChoose: () -> Unit) {

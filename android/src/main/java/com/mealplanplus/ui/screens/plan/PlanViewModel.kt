@@ -57,7 +57,9 @@ data class PlanUiState(
     val error: String? = null,
     val pickerOpen: Boolean = false,
     val pickerSearch: String = "",
-    val pickerTag: String? = null,
+    // Multi-select diet-picker filters (match ANY); empty = no filter.
+    val pickerTags: Set<String> = emptySet(),
+    val pickerSlots: Set<String> = emptySet(),
     val workouts: List<WorkoutTemplateDto> = emptyList(),
     val workoutPickerOpen: Boolean = false,
     val openWorkout: WorkoutTemplateDto? = null,
@@ -69,8 +71,16 @@ data class PlanUiState(
     val mealPickerSearch: String = "",
 ) {
     val allTags: List<String> get() = diets.flatMap { it.tags }.distinct().sorted()
-    val filteredMeals: List<MealSummary> get() = meals.filter {
-        mealPickerSearch.isBlank() || it.name.contains(mealPickerSearch, ignoreCase = true)
+    /** Diet slots present, in canonical order (unknowns appended) — for the diet-picker slot filter. */
+    val allSlots: List<String> get() {
+        val present = diets.flatMap { d -> d.slots.map { it.slot } }.toSet()
+        return MEAL_SLOTS.filter { it in present } + present.filter { it !in MEAL_SLOTS }.sorted()
+    }
+    val filteredMeals: List<MealSummary> get() {
+        val q = mealPickerSearch.trim().lowercase()
+        return meals.filter { m ->
+            q.isEmpty() || m.name.lowercase().contains(q) || m.lines.any { it.name.lowercase().contains(q) }
+        }
     }
 
     /** This day's planned meals resolved to name + kcal, grouped in canonical slot order. */
@@ -82,9 +92,25 @@ data class PlanUiState(
             PlannedMealView(id, pm.slot, m?.name ?: "Meal", m?.kcal ?: 0, m?.lines ?: emptyList())
         }.sortedBy { SLOT_ORDER.indexOf(it.slot).let { i -> if (i < 0) Int.MAX_VALUE else i } }
     }
-    val filteredDiets: List<DietSummary> get() = diets.filter { d ->
-        (pickerSearch.isBlank() || d.name.contains(pickerSearch, ignoreCase = true)) &&
-            (pickerTag == null || d.tags.contains(pickerTag))
+    val filteredDiets: List<DietSummary> get() {
+        val q = pickerSearch.trim().lowercase()
+        val hasSlot = pickerSlots.isNotEmpty()
+        return diets.filter { d ->
+            // Slot filter: the diet must contain at least one selected slot.
+            val scopeSlots = if (hasSlot) d.slots.filter { it.slot in pickerSlots } else d.slots
+            if (hasSlot && scopeSlots.isEmpty()) return@filter false
+            // When slots are selected, search only within those slots; otherwise the whole diet.
+            if (q.isNotEmpty()) {
+                val haystack = (if (hasSlot) {
+                    scopeSlots.flatMap { s -> s.lines.map { it.name } }
+                } else {
+                    listOf(d.name) + d.tags + d.slots.flatMap { s -> s.lines.map { it.name } }
+                }).joinToString(" ").lowercase()
+                if (!haystack.contains(q)) return@filter false
+            }
+            if (pickerTags.isNotEmpty() && d.tags.none { it in pickerTags }) return@filter false
+            true
+        }
     }
 }
 
@@ -221,7 +247,7 @@ class PlanViewModel @Inject constructor(
         }
     }
 
-    fun openPicker() { _state.value = _state.value.copy(pickerOpen = true, pickerSearch = "", pickerTag = null) }
+    fun openPicker() { _state.value = _state.value.copy(pickerOpen = true, pickerSearch = "", pickerTags = emptySet(), pickerSlots = emptySet()) }
     fun closePicker() { _state.value = _state.value.copy(pickerOpen = false) }
 
     // ── Planned workouts ──────────────────────────────────────────────────────────
@@ -263,7 +289,16 @@ class PlanViewModel @Inject constructor(
         session?.id?.let { sessionRepo.delete(it) }
     }
     fun setPickerSearch(q: String) { _state.value = _state.value.copy(pickerSearch = q) }
-    fun setPickerTag(t: String?) { _state.value = _state.value.copy(pickerTag = t) }
+    fun togglePickerTag(t: String) {
+        val cur = _state.value.pickerTags
+        _state.value = _state.value.copy(pickerTags = if (t in cur) cur - t else cur + t)
+    }
+    fun clearPickerTags() { _state.value = _state.value.copy(pickerTags = emptySet()) }
+    fun togglePickerSlot(s: String) {
+        val cur = _state.value.pickerSlots
+        _state.value = _state.value.copy(pickerSlots = if (s in cur) cur - s else cur + s)
+    }
+    fun clearPickerSlots() { _state.value = _state.value.copy(pickerSlots = emptySet()) }
 
     // ── Planned meals ─────────────────────────────────────────────────────────────
     fun openMealPicker() { _state.value = _state.value.copy(mealPickerOpen = true, mealPickerSearch = "", mealPickerSlot = MEAL_SLOTS.first()) }

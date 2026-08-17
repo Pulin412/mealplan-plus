@@ -154,7 +154,8 @@ fun DietsScreen(
                 viewMode = state.viewMode, onViewToggle = viewModel::setViewMode,
             )
 
-            TagFilterRow(state.allTagNames, state.tagFilter, viewModel::setTagFilter)
+            FilterChipRow("Tags", state.allTagNames, state.tagFilters, viewModel::toggleTagFilter, viewModel::clearTagFilters)
+            FilterChipRow("Slots", state.allSlotNames, state.slotFilters, viewModel::toggleSlotFilter, viewModel::clearSlotFilters)
 
             val diets = state.filteredDiets
             when {
@@ -279,15 +280,18 @@ private fun sortLabel(s: DietSort) = when (s) {
     DietSort.CALORIES -> "Calories"; DietSort.PROTEIN -> "Protein"
 }
 
+/** A labeled multi-select chip row (match ANY): "All" clears, each chip toggles. */
 @Composable
-private fun TagFilterRow(tags: List<String>, selected: String?, onSelect: (String?) -> Unit) {
-    if (tags.isEmpty()) return
+private fun FilterChipRow(label: String, options: List<String>, selected: Set<String>, onToggle: (String) -> Unit, onClear: () -> Unit) {
+    if (options.isEmpty()) return
     androidx.compose.foundation.lazy.LazyRow(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        item { TagChip("All", selected == null) { onSelect(null) } }
-        items(tags) { t -> TagChip(t, selected == t) { onSelect(if (selected == t) null else t) } }
+        item { Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = MutedDark) }
+        item { TagChip("All", selected.isEmpty(), onClear) }
+        items(options) { o -> TagChip(o, o in selected) { onToggle(o) } }
     }
 }
 
