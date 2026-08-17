@@ -82,6 +82,12 @@ management:
   endpoint:
     health:
       show-details: never
+      # DB-free health group for the uptime monitor: `/actuator/health/ping` returns UP using only
+      # the built-in `ping` indicator (no SELECT 1), so pinging it keeps Cloud Run warm WITHOUT waking
+      # the Neon compute. The full `/actuator/health` still runs the DB check for humans.
+      group:
+        ping:
+          include: ping
 
 logging:
   level:
