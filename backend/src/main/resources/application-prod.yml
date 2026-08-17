@@ -9,7 +9,9 @@ spring:
     hikari:
       # Cloud Run scales to 3 instances; keep each pool small so total connections stay within Neon.
       maximum-pool-size: 5
-      minimum-idle: 1
+      minimum-idle: 0        # drain to zero when idle so a warm Cloud Run instance stops holding a
+                             # Neon connection open — lets Neon scale-to-zero (compute) during quiet spells
+      idle-timeout: 30000    # close idle connections after 30s (down to minimum-idle=0)
       connection-timeout: 30000
       max-lifetime: 280000   # under Neon's idle cutoff so stale conns are recycled
       data-source-properties:
