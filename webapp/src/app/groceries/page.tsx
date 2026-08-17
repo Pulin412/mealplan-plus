@@ -60,9 +60,12 @@ function GroceriesInner() {
         {/* List header */}
         <div style={{ display: "flex", alignItems: "center", margin: "18px 0 12px" }}>
           <span style={{ font: "700 16px system-ui", color: C.ink }}>{g.isSaved ? "Saved list" : "Shopping list"}</span>
+          {!g.isSaved && g.total > 0 && (
+            <button onClick={g.clearList} style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", font: "600 12.5px system-ui", color: C.danger, padding: 4 }}>Clear list</button>
+          )}
           {!g.isSaved && (
             <button onClick={g.refresh} disabled={g.refreshing} title="Recalculate from plan"
-              style={{ marginLeft: "auto", border: "none", background: "none", cursor: g.refreshing ? "default" : "pointer", fontSize: 16, color: C.muted3, padding: 4, opacity: g.refreshing ? 0.4 : 1 }}>↻</button>
+              style={{ marginLeft: g.total > 0 ? 8 : "auto", border: "none", background: "none", cursor: g.refreshing ? "default" : "pointer", fontSize: 16, color: C.muted3, padding: 4, opacity: g.refreshing ? 0.4 : 1 }}>↻</button>
           )}
           <button onClick={() => (g.isSaved ? g.newList() : g.saveList())}
             disabled={!g.isSaved && (g.total === 0 || g.selected.size === 0)}
