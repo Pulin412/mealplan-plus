@@ -14,7 +14,7 @@ export interface DietLine { name: string; meta: string; header: boolean; mealId?
 export interface DietSlotView { slot: string; kcal: number; lines: DietLine[] }
 export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[]; tags: string[]; description?: string | null; searchText: string }
 /** A meal offered by the "add meal to a day" picker, with its total kcal and ingredient lines. */
-export interface MealSummary { id: number; name: string; kcal: number; lines: DietLine[]; searchText: string }
+export interface MealSummary { id: number; name: string; kcal: number; lines: DietLine[]; searchText: string; slots: string[] }
 /** A planned meal already assigned to a day, resolved for display (with its ingredient lines). */
 export interface PlannedMealView { id: number; slot: string; name: string; kcal: number; lines: DietLine[] }
 
@@ -78,7 +78,7 @@ export function usePlan() {
   const [openWorkout, setOpenWorkout] = useState<WorkoutTemplateDto | null>(null);
   const [meals, setMeals] = useState<MealSummary[]>([]);
   const [mealPickerOpen, setMealPickerOpen] = useState(false);
-  const [mealPickerSlot, setMealPickerSlot] = useState<string>(MEAL_SLOTS[0]);
+  const [mealPickerSlot, setMealPickerSlot] = useState<string>("Breakfast");
   const [mealPickerSearch, setMealPickerSearch] = useState("");
 
   const allTags = useMemo(() => Array.from(new Set(diets.flatMap((d) => d.tags))).sort(), [diets]);
@@ -152,7 +152,7 @@ export function usePlan() {
           return { name: f?.name ?? "Food", meta: `${num(it.quantity)} ${unitLabel(it.unit)}`, header: false };
         });
         return {
-          id: m.id!, name: m.name, lines,
+          id: m.id!, name: m.name, lines, slots: m.slots ?? [],
           searchText: [m.name, ...lines.map((l) => l.name)].join(" ").toLowerCase(),
           kcal: Math.round(items.reduce((acc, it) => acc + foodMacros(it.foodId != null ? foodsById.get(it.foodId) : undefined, it.quantity, it.unit).kcal, 0)),
         };
@@ -176,8 +176,9 @@ export function usePlan() {
   const mealsById = useMemo(() => new Map(meals.map((m) => [m.id, m])), [meals]);
   const filteredMeals = useMemo(() => {
     const q = mealPickerSearch.trim().toLowerCase();
-    return meals.filter((m) => q === "" || m.searchText.includes(q));
-  }, [meals, mealPickerSearch]);
+    // Only meals tagged for the currently-selected assign slot, then the ingredient-aware search.
+    return meals.filter((m) => m.slots.includes(mealPickerSlot) && (q === "" || m.searchText.includes(q)));
+  }, [meals, mealPickerSearch, mealPickerSlot]);
 
   /** This day's planned meals resolved to name + kcal, in canonical slot order. */
   const plannedMealsFor = useCallback((dateIso: string): PlannedMealView[] => {
@@ -192,7 +193,7 @@ export function usePlan() {
     });
   }, [plans, mealsById]);
 
-  const openMealPicker = useCallback(() => { setMealPickerSearch(""); setMealPickerSlot(MEAL_SLOTS[0]); setMealPickerOpen(true); }, []);
+  const openMealPicker = useCallback(() => { setMealPickerSearch(""); setMealPickerSlot("Breakfast"); setMealPickerOpen(true); }, []);
   const closeMealPicker = useCallback(() => setMealPickerOpen(false), []);
 
   const addMeal = useCallback(async (dateIso: string, slot: string, mealId: number) => {

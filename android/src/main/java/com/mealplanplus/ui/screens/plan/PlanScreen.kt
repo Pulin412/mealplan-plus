@@ -378,17 +378,33 @@ private fun MealPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewM
                 Text("Create meals in the Meals screen first.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(top = 4.dp))
             }
         } else {
+            var expandedMealId by remember { mutableStateOf<Long?>(null) }
             LazyColumn(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
                 items(meals, key = { it.id }) { m ->
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp)).background(Surface).border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                        .clickable { viewModel.addPlannedMeal(date, state.mealPickerSlot, m.id) }.padding(14.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            Text(m.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("${m.kcal} kcal", fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
+                    val open = expandedMealId == m.id
+                    val expandable = m.lines.isNotEmpty()
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Surface)
+                        .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                        .then(if (expandable) Modifier.clickable { expandedMealId = if (open) null else m.id } else Modifier)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text(m.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    "${m.kcal} kcal" + if (expandable) "  ·  ${m.lines.size} item${if (m.lines.size == 1) "" else "s"} ${if (open) "▾" else "▸"}" else "",
+                                    fontSize = 10.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text("+ Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                                modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.addPlannedMeal(date, state.mealPickerSlot, m.id) }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp))
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Text("+ Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
+                        if (open) {
+                            Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 12.dp)) {
+                                m.lines.forEach { FoodLineRow(it) }
+                            }
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                 }

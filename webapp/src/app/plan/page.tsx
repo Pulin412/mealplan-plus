@@ -5,7 +5,7 @@ import { NoteBadge } from "@/components/NoteBadge";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { usePlan, type PlannedMealView } from "@/hooks/usePlan";
+import { usePlan, type PlannedMealView, type MealSummary } from "@/hooks/usePlan";
 import { MEAL_SLOTS } from "@/lib/nutrition";
 import type { DayPlanDto } from "@/lib/api/plans";
 import type { WorkoutTemplateDto } from "@/lib/api/workouts";
@@ -367,6 +367,35 @@ function WorkoutPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso:
   );
 }
 
+// ── One meal in the add-meal picker: expands on tap to show its food items (like the Meals screen). ──
+function MealPickRow({ m, onAdd }: { m: MealSummary; onAdd: () => void }) {
+  const [open, setOpen] = useState(false);
+  const expandable = m.lines.length > 0;
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, marginBottom: 8 }}>
+      <div onClick={() => expandable && setOpen((v) => !v)} style={{ cursor: expandable ? "pointer" : "default", padding: 14, display: "flex", alignItems: "center" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ font: "700 13px system-ui", color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+          <div style={{ font: "400 10.5px system-ui", color: C.muted2, marginTop: 2 }}>
+            {m.kcal} kcal{expandable ? `  ·  ${m.lines.length} item${m.lines.length === 1 ? "" : "s"} ${open ? "▾" : "▸"}` : ""}
+          </div>
+        </div>
+        <span onClick={(e) => { e.stopPropagation(); onAdd(); }} style={{ cursor: "pointer", font: "600 12px system-ui", color: C.teal, marginLeft: 8, flex: "none" }}>+ Add</span>
+      </div>
+      {open && (
+        <div style={{ padding: "0 14px 12px", borderTop: `1px solid ${C.bgAlt}` }}>
+          {m.lines.map((li, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", padding: i === 0 ? "8px 0 3px" : "3px 0" }}>
+              <span style={{ font: "400 11.5px system-ui", color: C.muted3 }}>{li.name}</span>
+              <span style={{ font: `400 10px ${mono}`, color: C.muted2 }}>{li.meta}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Meal picker (choose a slot + a meal to add to the day) ───────────────────────
 function MealPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: string }) {
   return (
@@ -401,14 +430,7 @@ function MealPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: st
             <div style={{ font: "400 11.5px system-ui", color: C.muted2, marginTop: 4 }}>Create meals in the Meals screen first.</div>
           </div>
         ) : p.filteredMeals.map((m) => (
-          <div key={m.id} onClick={() => p.addMeal(dateIso, p.mealPickerSlot, m.id)}
-            style={{ cursor: "pointer", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, marginBottom: 8, display: "flex", alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ font: "700 13px system-ui", color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
-              <div style={{ font: "400 10.5px system-ui", color: C.muted2, marginTop: 2 }}>{m.kcal} kcal</div>
-            </div>
-            <span style={{ font: "600 12px system-ui", color: C.teal, marginLeft: 8, flex: "none" }}>+ Add</span>
-          </div>
+          <MealPickRow key={m.id} m={m} onAdd={() => p.addMeal(dateIso, p.mealPickerSlot, m.id)} />
         ))}
       </div>
     </div>

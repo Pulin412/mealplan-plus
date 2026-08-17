@@ -33,7 +33,7 @@ import kotlin.math.roundToInt
 data class DietLine(val name: String, val meta: String, val header: Boolean, val mealId: Long? = null)
 data class DietSlotView(val slot: String, val kcal: Int, val lines: List<DietLine>)
 /** A meal offered by the "add meal to a day" picker, with its total kcal and ingredient lines. */
-data class MealSummary(val id: Long, val name: String, val kcal: Int, val lines: List<DietLine> = emptyList())
+data class MealSummary(val id: Long, val name: String, val kcal: Int, val lines: List<DietLine> = emptyList(), val slots: List<String> = emptyList())
 /** A planned meal already assigned to a day, resolved for display (with its ingredient lines). */
 data class PlannedMealView(val id: Long, val slot: String, val name: String, val kcal: Int, val lines: List<DietLine> = emptyList())
 data class DietSummary(
@@ -67,7 +67,7 @@ data class PlanUiState(
     val selectedDaySlots: List<LoggedMealSlotDto> = emptyList(),
     val meals: List<MealSummary> = emptyList(),
     val mealPickerOpen: Boolean = false,
-    val mealPickerSlot: String = MEAL_SLOTS.first(),
+    val mealPickerSlot: String = "Breakfast",
     val mealPickerSearch: String = "",
 ) {
     val allTags: List<String> get() = diets.flatMap { it.tags }.distinct().sorted()
@@ -78,8 +78,10 @@ data class PlanUiState(
     }
     val filteredMeals: List<MealSummary> get() {
         val q = mealPickerSearch.trim().lowercase()
+        // Only meals tagged for the currently-selected assign slot, then the ingredient-aware search.
         return meals.filter { m ->
-            q.isEmpty() || m.name.lowercase().contains(q) || m.lines.any { it.name.lowercase().contains(q) }
+            mealPickerSlot in m.slots &&
+                (q.isEmpty() || m.name.lowercase().contains(q) || m.lines.any { it.name.lowercase().contains(q) })
         }
     }
 
@@ -153,7 +155,7 @@ class PlanViewModel @Inject constructor(
                         val lines = items.map {
                             DietLine(foods[it.foodId]?.name ?: "Food", "${trimNum(it.quantity)} ${unitLabel(it.unit.value)}", header = false)
                         }
-                        MealSummary(id, m.name, kcal.roundToInt(), lines)
+                        MealSummary(id, m.name, kcal.roundToInt(), lines, m.slots.orEmpty())
                     }
                 }
             }.collect { res ->
@@ -301,7 +303,7 @@ class PlanViewModel @Inject constructor(
     fun clearPickerSlots() { _state.value = _state.value.copy(pickerSlots = emptySet()) }
 
     // ── Planned meals ─────────────────────────────────────────────────────────────
-    fun openMealPicker() { _state.value = _state.value.copy(mealPickerOpen = true, mealPickerSearch = "", mealPickerSlot = MEAL_SLOTS.first()) }
+    fun openMealPicker() { _state.value = _state.value.copy(mealPickerOpen = true, mealPickerSearch = "", mealPickerSlot = "Breakfast") }
     fun closeMealPicker() { _state.value = _state.value.copy(mealPickerOpen = false) }
     fun setMealPickerSlot(slot: String) { _state.value = _state.value.copy(mealPickerSlot = slot) }
     fun setMealPickerSearch(q: String) { _state.value = _state.value.copy(mealPickerSearch = q) }
