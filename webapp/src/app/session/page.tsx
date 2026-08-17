@@ -152,6 +152,10 @@ function ReadyPhase({ s }: { s: ReturnType<typeof useSession> }) {
             {ex.lastTime.length > 0 && (
               <div className="text-[10px] mt-1.5" style={{ color: C.faint }}>Last time: {ex.lastTime.map((st) => setSummary(ex.type, st)).join("  ")}</div>
             )}
+            {/* Last session's note for this exercise (note-to-self, e.g. "add 2.5kg", "elbows tucked"). */}
+            {ex.lastNote && (
+              <div className="text-[10px] mt-0.5" style={{ color: C.faint }}>📝  {ex.lastNote}</div>
+            )}
           </Card>
         ))}
       </div>
