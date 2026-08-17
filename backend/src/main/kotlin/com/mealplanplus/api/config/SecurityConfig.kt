@@ -103,6 +103,7 @@ class SecurityConfig(private val firebaseTokenFilter: FirebaseTokenFilter) {
                 auth
                     .requestMatchers(
                         "/actuator/health",
+                        "/actuator/health/**",  // health groups (e.g. /health/ping for the DB-free uptime check)
                         "/error",            // servlet error dispatch — must pass through or it masks the real status
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
