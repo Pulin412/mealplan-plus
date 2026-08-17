@@ -50,6 +50,7 @@ import com.mealplanplus.data.repository.unitLabel
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.BorderMuted
 import com.mealplanplus.ui.theme.CardBorder
+import com.mealplanplus.ui.theme.Danger
 import com.mealplanplus.ui.theme.DmMono
 import com.mealplanplus.ui.theme.Ink
 import com.mealplanplus.ui.theme.Muted
@@ -243,6 +244,11 @@ private fun ListHeader(state: GroceryUiState, vm: GroceryViewModel) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(if (state.isSaved) "Saved list" else "Shopping list", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
         Spacer(Modifier.weight(1f))
+        if (!state.isSaved && state.total > 0) {
+            Text("Clear list", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Danger,
+                modifier = Modifier.clickable(onClick = vm::clearList).padding(4.dp))
+            Spacer(Modifier.width(6.dp))
+        }
         if (!state.isSaved) {
             IconButton(onClick = vm::refresh, enabled = !state.refreshing, modifier = Modifier.size(34.dp)) {
                 if (state.refreshing) {

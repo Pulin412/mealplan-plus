@@ -17,6 +17,8 @@ export interface MealView {
   items: ResolvedItem[];
   totalKcal: number; totalP: number; totalC: number; totalF: number;
   summary: string;
+  /** Lowercased haystack for search: meal name + ingredient/food names. */
+  searchText: string;
 }
 
 export function useMeals() {
@@ -64,7 +66,8 @@ export function useMeals() {
     const names = items.map((i) => i.name);
     const summary = items.length === 0 ? "No items"
       : `${items.length} item${items.length === 1 ? "" : "s"} · ${names.join(", ")}`;
-    return { meal, items, totalKcal: Math.round(kcal), totalP: p, totalC: c, totalF: f, summary };
+    const searchText = [meal.name, ...names].join(" ").toLowerCase();
+    return { meal, items, totalKcal: Math.round(kcal), totalP: p, totalC: c, totalF: f, summary, searchText };
   }), [meals, foodsById]);
 
   const allSlots = useMemo(
@@ -76,7 +79,7 @@ export function useMeals() {
     let list = resolved;
     if (query.trim()) {
       const q = query.toLowerCase();
-      list = list.filter((v) => v.meal.name.toLowerCase().includes(q));
+      list = list.filter((v) => v.searchText.includes(q));
     }
     if (favOnly) list = list.filter((v) => v.meal.isFavorite);
     if (importedOnly) list = list.filter((v) => v.meal.imported);

@@ -20,6 +20,8 @@ export interface DietView {
   slots: DietSlotGroup[];
   totalKcal: number; totalP: number; totalC: number; totalF: number;
   entryCount: number; summary: string; tagNames: string[];
+  /** Lowercased haystack for search: diet name + tags + meal names + ingredient/food names. */
+  searchText: string;
 }
 
 function slotOrder(present: string[]): string[] {
@@ -42,7 +44,9 @@ export function useDiets() {
   const [viewMode, setViewMode] = useState<DietViewMode>("list");
   const [favOnly, setFavOnly] = useState(false);
   const [importedOnly, setImportedOnly] = useState(false);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  // Multi-select filters: empty = no filter, else keep diets matching ANY selected tag / slot.
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [slotFilters, setSlotFilters] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -111,8 +115,10 @@ export function useDiets() {
     const count = rows.length;
     const names = rows.map((r) => r.view.name);
     const tagNames = (diet.tags ?? []).map((t) => t.name);
+    const ingredientNames = rows.flatMap((r) => r.view.foods?.map((fd) => fd.name) ?? []);
+    const searchText = [diet.name, ...tagNames, ...names, ...ingredientNames].join(" ").toLowerCase();
     const summary = count === 0 ? "No items" : `${count} item${count === 1 ? "" : "s"} · ${names.join(", ")}`;
-    return { diet, slots, totalKcal: Math.round(kcal), totalP: p, totalC: c, totalF: f, entryCount: count, summary, tagNames };
+    return { diet, slots, totalKcal: Math.round(kcal), totalP: p, totalC: c, totalF: f, entryCount: count, summary, tagNames, searchText };
   }), [diets, mealSummaries, foodsById, mealFoodsById]);
 
   const allTagNames = useMemo(
@@ -120,22 +126,47 @@ export function useDiets() {
     [availableTags, diets]
   );
 
+  // Slots actually present across the user's diets, in canonical meal-slot order (unknowns appended).
+  const allSlotNames = useMemo(() => {
+    const present = new Set<string>();
+    resolved.forEach((v) => v.slots.forEach((s) => present.add(s.slot)));
+    const known = MEAL_SLOTS.filter((s) => present.has(s));
+    const unknown = Array.from(present).filter((s) => !MEAL_SLOTS.includes(s)).sort();
+    return [...known, ...unknown];
+  }, [resolved]);
+
+  const toggleTagFilter = useCallback((name: string) => setTagFilters((p) => p.includes(name) ? p.filter((t) => t !== name) : [...p, name]), []);
+  const clearTagFilters = useCallback(() => setTagFilters([]), []);
+  const toggleSlotFilter = useCallback((name: string) => setSlotFilters((p) => p.includes(name) ? p.filter((s) => s !== name) : [...p, name]), []);
+  const clearSlotFilters = useCallback(() => setSlotFilters([]), []);
+
   const filtered = useMemo(() => {
-    let list = resolved;
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter((v) => v.diet.name.toLowerCase().includes(q) || v.tagNames.some((t) => t.toLowerCase().includes(q)));
-    }
-    if (favOnly) list = list.filter((v) => v.diet.isFavorite);
-    if (importedOnly) list = list.filter((v) => v.diet.imported);
-    if (tagFilter) list = list.filter((v) => v.tagNames.includes(tagFilter));
+    const q = query.trim().toLowerCase();
+    const hasSlot = slotFilters.length > 0;
+    const list = resolved.filter((v) => {
+      // Slot filter: the diet must contain at least one selected slot.
+      const scopeSlots = hasSlot ? v.slots.filter((s) => slotFilters.includes(s.slot)) : v.slots;
+      if (hasSlot && scopeSlots.length === 0) return false;
+      // Text search: when slots are selected, match ONLY within those slots (e.g. "oatmeal" in Evening);
+      // otherwise match the whole diet (name + tags + every meal/ingredient).
+      if (q) {
+        const haystack = hasSlot
+          ? scopeSlots.flatMap((s) => s.entries.flatMap((e) => [e.name, ...(e.foods?.map((fd) => fd.name) ?? [])])).join(" ").toLowerCase()
+          : v.searchText;
+        if (!haystack.includes(q)) return false;
+      }
+      if (favOnly && !v.diet.isFavorite) return false;
+      if (importedOnly && !v.diet.imported) return false;
+      if (tagFilters.length && !v.tagNames.some((t) => tagFilters.includes(t))) return false;
+      return true;
+    });
     switch (sort) {
       case "name": return [...list].sort((a, b) => naturalCompare(a.diet.name, b.diet.name));
       case "calories": return [...list].sort((a, b) => b.totalKcal - a.totalKcal);
       case "protein": return [...list].sort((a, b) => b.totalP - a.totalP);
       default: return list;
     }
-  }, [resolved, query, favOnly, importedOnly, tagFilter, sort]);
+  }, [resolved, query, favOnly, importedOnly, tagFilters, slotFilters, sort]);
 
   const favCount = useMemo(() => diets.filter((d) => d.isFavorite).length, [diets]);
 
@@ -194,10 +225,12 @@ export function useDiets() {
 
   return {
     diets: filtered, allDiets: resolved, totalCount: diets.length, favCount, meals, foods, foodsById, mealSummaries,
-    availableTags, allTagNames, loading, error,
+    availableTags, allTagNames, allSlotNames, loading, error,
     query, setQuery, sort, setSort, viewMode, setViewMode, favOnly, setFavOnly,
     importedOnly, setImportedOnly,
-    tagFilter, setTagFilter, expandedIds, toggleExpand,
+    tagFilters, toggleTagFilter, clearTagFilters,
+    slotFilters, toggleSlotFilter, clearSlotFilters,
+    expandedIds, toggleExpand,
     handleToggleFav, handleToggleShare, handleDelete, createTag,
     builderOpen, editing, openNew, openEdit, closeBuilder, saveDiet, saving,
   };

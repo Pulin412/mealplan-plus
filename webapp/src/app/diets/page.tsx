@@ -401,9 +401,17 @@ function DietsPageInner() {
           </div>
         </div>
         {d.allTagNames.length > 0 && (
-          <div className="flex gap-[6px] mt-[10px] overflow-x-auto">
-            <TagFilterChip label="All" on={d.tagFilter === null} onClick={() => d.setTagFilter(null)} />
-            {d.allTagNames.map((t) => <TagFilterChip key={t} label={t} on={d.tagFilter === t} onClick={() => d.setTagFilter(d.tagFilter === t ? null : t)} />)}
+          <div className="flex items-center gap-[6px] mt-[10px] overflow-x-auto">
+            <span className="flex-none text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.muted2 }}>Tags</span>
+            <TagFilterChip label="All" on={d.tagFilters.length === 0} onClick={d.clearTagFilters} />
+            {d.allTagNames.map((t) => <TagFilterChip key={t} label={t} on={d.tagFilters.includes(t)} onClick={() => d.toggleTagFilter(t)} />)}
+          </div>
+        )}
+        {d.allSlotNames.length > 0 && (
+          <div className="flex items-center gap-[6px] mt-[8px] overflow-x-auto">
+            <span className="flex-none text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.muted2 }}>Slots</span>
+            <TagFilterChip label="All" on={d.slotFilters.length === 0} onClick={d.clearSlotFilters} />
+            {d.allSlotNames.map((s) => <TagFilterChip key={s} label={s} on={d.slotFilters.includes(s)} onClick={() => d.toggleSlotFilter(s)} />)}
           </div>
         )}
       </div>

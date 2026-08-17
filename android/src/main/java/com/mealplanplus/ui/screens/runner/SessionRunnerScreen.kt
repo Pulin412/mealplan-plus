@@ -127,6 +127,10 @@ private fun ReadyPhase(state: RunnerUiState, vm: SessionRunnerViewModel) {
                         Text("Last time: " + ex.lastTime.joinToString("  ") { setSummary(ex.type, it.reps, it.weightKg, it.durationSeconds, it.distanceMeters) },
                             fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 6.dp))
                     }
+                    // Last session's note for this exercise (note-to-self, e.g. "add 2.5kg", "elbows tucked").
+                    if (!ex.lastNote.isNullOrBlank()) {
+                        Text("📝  ${ex.lastNote}", fontSize = 10.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
