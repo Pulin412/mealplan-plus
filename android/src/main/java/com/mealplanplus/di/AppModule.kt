@@ -1,5 +1,6 @@
 package com.mealplanplus.di
 
+import com.mealplanplus.data.generated.api.AdminApi
 import com.mealplanplus.data.generated.api.DashboardApi
 import com.mealplanplus.data.generated.api.DietsApi
 import com.mealplanplus.data.generated.api.ExercisesApi
@@ -54,6 +55,11 @@ object AppModule {
     @Provides @Singleton
     fun provideUsersApi(retrofit: Retrofit): UsersApi =
         retrofit.create(UsersApi::class.java)
+
+    /** Admin-only feature-flag management (online-only; gated server-side by the email allowlist). */
+    @Provides @Singleton
+    fun provideAdminApi(retrofit: Retrofit): AdminApi =
+        retrofit.create(AdminApi::class.java)
 
     /** Social — follow graph, profiles, discovery, shared-library reads, copy (online-only, direct REST). */
     @Provides @Singleton

@@ -82,11 +82,12 @@ import com.mealplanplus.ui.tour.LocalTourController
 /** UI-only Settings screen (matches design 13a). Toggles/collapse flip locally; buttons + dropdowns
  *  are placeholders — functionality (backup, Health Connect, export, notifications) comes next. */
 @Composable
-fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(onBack: () -> Unit = {}, onOpenAdmin: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val exporting by viewModel.exporting.collectAsState()
     val notifSettings by viewModel.notifications.collectAsState()
     val socialNotifications by viewModel.socialNotifications.collectAsState()
+    val isAdmin by viewModel.isAdmin.collectAsState()
     val hcState by viewModel.healthConnectState.collectAsState()
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val hcLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) {
@@ -253,6 +254,28 @@ fun SettingsScreen(onBack: () -> Unit = {}, viewModel: SettingsViewModel = hiltV
                             Column(Modifier.weight(1f)) {
                                 Text("Replay app tour", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                                 Text("Walk through the app's sections again", fontSize = 11.5.sp, color = MutedLight)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MutedFaint, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+
+                // ── Admin ──────────────────────────────────────────────────────────
+                // Visible only to server admins (email allowlist); the endpoints 403 for everyone else.
+                if (isAdmin) {
+                    SectionLabel("Admin")
+                    Card {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { onOpenAdmin() }.padding(horizontal = 14.dp, vertical = 12.dp),
+                        ) {
+                            Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFF0E6F6)), Alignment.Center) {
+                                Text("🛠️", fontSize = 16.sp)
+                            }
+                            Spacer(Modifier.width(11.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Feature flags", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                                Text("Toggle server features on/off", fontSize = 11.5.sp, color = MutedLight)
                             }
                             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MutedFaint, modifier = Modifier.size(18.dp))
                         }
