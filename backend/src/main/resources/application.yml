@@ -56,6 +56,9 @@ app:
     # Basic-auth credentials for Swagger/OpenAPI — only enforced by the `prod` profile.
     user: ${SWAGGER_USER:dev}
     password: ${SWAGGER_PASSWORD:dev}
+  # Comma-separated emails granted admin (feature-flag management), matched against the Firebase token email.
+  # Env-only (no committed default): set ADMIN_EMAILS in the gitignored backend/.env for local, and in Cloud Run for prod.
+  admin-emails: "${ADMIN_EMAILS:}"
 
 # Web Push (VAPID) for PWA reminders. Keys/token are secrets — set via env in Cloud Run; blank
 # locally disables sending (subscriptions are still stored). Generate a VAPID keypair with:
