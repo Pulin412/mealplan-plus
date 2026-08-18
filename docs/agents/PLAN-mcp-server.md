@@ -56,9 +56,10 @@ adapter, not a rewrite. We **keep both** surfaces (in-app assistant for casual, 
 - [x] Write tools: `logFood` + `createMeal` (call `LoggingService`/`MealService` directly)
 - [x] Write guardrails: write-scope check, slot/unit/quantity validation, size caps, food-existence, idempotency
 - [x] Tests: `McpTokenServiceTest` + `McpServerIntegrationTest` (real MCP client over SSE: connect→auth→list→read→write→read-only-refusal)
-- [ ] **1d:** admin "Connect Claude" section — mint + show/copy the bearer connector token, scope select
-- [ ] **1d:** document the MCP tool contract alongside `docs/openapi.yaml`
-- [ ] **1d:** manual E2E against a real MCP client (Inspector / Claude via Messages-API connector)
+- [x] **1d:** admin "Connect Claude" section — mint + show/copy the bearer connector token, scope select
+      (`GET /api/v1/admin/mcp/connector-token` → `McpConnectorTokenResponse`; Android admin screen)
+- [x] **1d:** document the MCP tool contract → `docs/agents/MCP-TOOLS.md`
+- [x] **1d:** manual E2E against a real MCP client — verified via MCP Inspector (SSE + bearer token → list/read/write tools OK)
 - [ ] (Phase 3) structured tool-call logging + minimal write audit
 
 **Gotchas found (saved to memory):** Spring AI runs tools OFF the servlet thread → thread-local
