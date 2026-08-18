@@ -51,6 +51,17 @@ spring:
 mcp:
   token-secret: "${MCP_TOKEN_SECRET:}"
 
+# Stytch Connected-Apps OAuth (Phase 2): the MCP server validates access tokens issued by our Stytch
+# project so a user's own Claude can connect via the standard OAuth add-connector flow. All non-secret
+# (the project id / domain are public); env-driven so test vs live use different Stytch projects. Unset
+# jwk-set-uri/audience = OAuth is off and only the HMAC connector token is accepted.
+stytch:
+  jwk-set-uri: "${STYTCH_JWKS_URI:}"      # e.g. https://<project-domain>/.well-known/jwks.json
+  issuer: "${STYTCH_ISSUER:}"             # the `iss` on issued tokens (confirm from OIDC discovery once the authorize URL is set)
+  audience: "${STYTCH_PROJECT_ID:}"       # access-token `aud` == Stytch project id
+  write-scope: "${STYTCH_WRITE_SCOPE:mcp:write}"  # scope string that grants MCP writes; anything valid gets read
+  uid-claim: "${STYTCH_UID_CLAIM:sub}"    # claim carrying the app (Firebase) uid; Trusted Auth Token Profile maps it (Phase 2b)
+
 agent:
   provider: ${AGENT_PROVIDER:ollama}
 

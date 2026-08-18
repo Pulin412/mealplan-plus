@@ -17,6 +17,10 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.TestPropertySource
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 
 /**
  * End-to-end proof of the MCP server: a real MCP client connects over SSE to the embedded server,
@@ -99,6 +103,28 @@ class McpServerIntegrationTest {
             assertThat(client.callTool(McpSchema.CallToolRequest("listDiets", emptyMap<String, Any>())).text())
                 .contains("no diets")
         }
+    }
+
+    @Test
+    fun `an unauthenticated mcp request gets a 401 pointing at the resource metadata`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val resp = HttpClient.newHttpClient().send(
+            HttpRequest.newBuilder(URI.create("http://localhost:$port/mcp/sse")).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertThat(resp.statusCode()).isEqualTo(401)
+        assertThat(resp.headers().firstValue("WWW-Authenticate").orElse(""))
+            .contains("resource_metadata").contains("/.well-known/oauth-protected-resource")
+    }
+
+    @Test
+    fun `protected resource metadata is publicly served`() {
+        val resp = HttpClient.newHttpClient().send(
+            HttpRequest.newBuilder(URI.create("http://localhost:$port/.well-known/oauth-protected-resource")).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertThat(resp.statusCode()).isEqualTo(200)
+        assertThat(resp.body()).contains("\"resource\"").contains("/mcp").contains("mcp:read")
     }
 
     @Test

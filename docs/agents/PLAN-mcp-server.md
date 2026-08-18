@@ -66,11 +66,24 @@ adapter, not a rewrite. We **keep both** surfaces (in-app assistant for casual, 
 SecurityContext lost → fixed via micrometer `ThreadLocalAccessor` + `Hooks.enableAutomaticContextPropagation()`.
 Kotlin has nested block comments → a literal `/`+`*` in a KDoc (e.g. writing `/mcp` + `/**`) breaks compilation.
 
-### Phase 2 — OAuth 2.1 (public)  *— ⚠️ approval-gated (auth + CORS), deferred until multi-user*
-- [ ] PRM `/.well-known/oauth-protected-resource` + AS metadata; `/authorize`+PKCE, `/token`, DCR `/register`, JWKS
-- [ ] Firebase-bridge login at the authorize step; uid-scoped, audience-bound tokens + scopes
-- [ ] Resource-server validation + `401 WWW-Authenticate`
-- [ ] Decide then: Spring Authorization Server (self-host) vs managed vendor (must clear zero-billing free-tier check)
+### Phase 2 — OAuth 2.1 (public)  *— ⚠️ approval-gated (auth + CORS)*
+**AS decision (2026-08-18): managed = Stytch Connected Apps (Consumer/B2C).** Free ≤10k active users
+(clears zero-billing at our scale), full MCP spec (DCR + PKCE + PRM), and purpose-built to sit ON TOP of
+existing Firebase auth — a **Trusted Auth Token Profile** maps our Firebase uid onto a custom claim so the
+resource server stays keyed by Firebase uid with no second identity store. Stytch HOSTS the AS (DCR,
+`/token`, consent, OIDC discovery, JWKS); we build only the resource-server side + an `/authorize` page.
+Test project: `project-test-8bb9e5a9-…`, domain `agreeable-cauliflower-1174.customers.stytch.dev`,
+JWKS live at `…/.well-known/jwks.json`.
+
+- [x] **2a** Resource server: `StytchTokenService` (JWKS/RS256, aud+iss, scope→authority, configurable
+      uid-claim), wired into `McpAuthFilter` alongside the connector token (JWT=2 dots → Stytch, else HMAC)
+- [x] **2a** PRM `/.well-known/oauth-protected-resource` + `401 WWW-Authenticate: resource_metadata="…"`
+- [x] **2a** Tests: `StytchTokenServiceTest` (in-memory JWKS) + integration 401-challenge/PRM
+- [ ] **2b** Set the authorize URL in the Stytch dashboard → an `/authorize` page (Next.js webapp) that
+      bridges to Firebase login and mounts the Stytch consent component
+- [ ] **2b** Configure the Trusted Auth Token Profile (Firebase ID token → uid custom claim); confirm it's
+      free-tier; set `STYTCH_UID_CLAIM`/`STYTCH_ISSUER`/`STYTCH_JWKS_URI`/`STYTCH_PROJECT_ID`
+- [ ] **2c** Local E2E, then **deploy to Cloud Run** (public HTTPS) + real Claude add-connector test — CORS/deploy approval-gated
 
 ### Phase 3 — Observability + evals  *(keep in mind, later)*
 - [ ] Tool-call telemetry (name, uid, latency, outcome) + Micrometer via actuator; write audit table; per-session correlation id
