@@ -17,22 +17,32 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mealplanplus.BuildConfig
 import com.mealplanplus.ui.theme.AppBg
 import com.mealplanplus.ui.theme.CardBorder
 import com.mealplanplus.ui.theme.Ink
@@ -108,8 +118,105 @@ fun AdminScreen(onBack: () -> Unit = {}, viewModel: AdminViewModel = hiltViewMod
                 }
             }
 
+            if (state.mcpEnabled) {
+                SectionLabel("Connect Claude")
+                ConnectorTokenCard(state = state, onMint = { rw -> viewModel.mintConnectorToken(rw) })
+            }
+
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/**
+ * "Connect Claude" panel: mint a bearer connector token (read-only vs read-write) and show/copy it together
+ * with the MCP connector URL. Only rendered when the `mcp_server` flag is on. The token is a secret the admin
+ * pastes into their own Claude connector, so it's shown in full for copying — this screen is admin-gated.
+ */
+@Composable
+private fun ConnectorTokenCard(state: AdminUiState, onMint: (Boolean) -> Unit) {
+    var readWrite by remember { mutableStateOf(true) }
+    val clipboard = LocalClipboardManager.current
+
+    Card {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            Text(
+                "Generate a token to connect your own Claude to your meal plan.",
+                fontSize = 12.sp, color = MutedLight,
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text("Allow writes", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    Text(
+                        if (readWrite) "Read-write: can log food and create meals" else "Read-only: can view, cannot change anything",
+                        fontSize = 11.5.sp, color = MutedLight,
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Switch(
+                    checked = readWrite,
+                    onCheckedChange = { readWrite = it },
+                    enabled = !state.minting,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = androidx.compose.ui.graphics.Color.White,
+                        checkedTrackColor = Teal,
+                    ),
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { onMint(readWrite) },
+                enabled = !state.minting,
+                colors = ButtonDefaults.buttonColors(containerColor = Teal),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (state.minting) {
+                    CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(if (state.connectorToken == null) "Generate token" else "Regenerate token", color = androidx.compose.ui.graphics.Color.White)
+                }
+            }
+
+            state.mintError?.let { msg ->
+                Text(msg, fontSize = 12.sp, color = Color_Error, modifier = Modifier.padding(top = 8.dp))
+            }
+
+            state.connectorToken?.let { token ->
+                val connectorUrl = BuildConfig.API_BASE_URL.trimEnd('/') + token.sseEndpointPath
+                Spacer(Modifier.height(14.dp))
+                CopyableField("Connector URL", connectorUrl) { clipboard.setText(AnnotatedString(connectorUrl)) }
+                Spacer(Modifier.height(10.dp))
+                CopyableField("Bearer token (${token.scope.value})", token.token) { clipboard.setText(AnnotatedString(token.token)) }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Add this as a custom connector in Claude (Settings → Connectors), pasting the token as the bearer credential.",
+                    fontSize = 11.sp, color = MutedFaint,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CopyableField(label: String, value: String, onCopy: () -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint, modifier = Modifier.weight(1f))
+            TextButton(onClick = onCopy) { Text("Copy", fontSize = 12.sp, color = Teal) }
+        }
+        Text(
+            value,
+            fontSize = 12.sp, color = Ink, fontFamily = FontFamily.Monospace,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(AppBg)
+                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        )
     }
 }
 

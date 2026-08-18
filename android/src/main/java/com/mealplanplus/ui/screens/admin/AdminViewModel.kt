@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.data.generated.api.AdminApi
 import com.mealplanplus.data.generated.model.FeatureFlagResponse
 import com.mealplanplus.data.generated.model.FeatureFlagUpdateRequest
+import com.mealplanplus.data.generated.model.McpConnectorTokenResponse
 import com.mealplanplus.data.remote.ApiErrors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,14 @@ data class AdminUiState(
     val error: String? = null,
     /** Keys currently being written, so their row shows a pending state and ignores re-taps. */
     val pending: Set<String> = emptySet(),
-)
+    /** The most recently minted MCP connector token (null until the admin generates one). */
+    val connectorToken: McpConnectorTokenResponse? = null,
+    val minting: Boolean = false,
+    val mintError: String? = null,
+) {
+    /** The MCP surface is only usable when the `mcp_server` flag is on — hide the connector section otherwise. */
+    val mcpEnabled: Boolean get() = flags.any { it.key == "mcp_server" && it.enabled }
+}
 
 /**
  * Admin feature-flag management. Online-only (no Room) — the server gates every call by the email
@@ -76,6 +84,33 @@ class AdminViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e -> revert(key, ApiErrors.messageFor(e)) }
+        }
+    }
+
+    /**
+     * Mint a fresh MCP connector token for the signed-in admin at the chosen scope. Stateless on the server
+     * (HMAC of uid+scope), so this can be regenerated any time; toggling scope re-mints. Clears any prior token
+     * while in flight so the UI never shows a token that doesn't match the selected scope.
+     */
+    fun mintConnectorToken(readWrite: Boolean) {
+        if (_state.value.minting) return
+        _state.update { it.copy(minting = true, mintError = null, connectorToken = null) }
+        val scope = if (readWrite) {
+            AdminApi.ScopeMintMcpConnectorToken.READ_WRITE
+        } else {
+            AdminApi.ScopeMintMcpConnectorToken.READ
+        }
+        viewModelScope.launch {
+            runCatching { adminApi.mintMcpConnectorToken(scope) }
+                .onSuccess { resp ->
+                    val body = resp.body()
+                    if (resp.isSuccessful && body != null) {
+                        _state.update { it.copy(minting = false, connectorToken = body, mintError = null) }
+                    } else {
+                        _state.update { it.copy(minting = false, mintError = ApiErrors.messageFor(resp)) }
+                    }
+                }
+                .onFailure { e -> _state.update { it.copy(minting = false, mintError = ApiErrors.messageFor(e)) } }
         }
     }
 
