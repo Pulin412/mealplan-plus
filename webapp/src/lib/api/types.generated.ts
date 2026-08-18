@@ -32,6 +32,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List feature flags
+         * @description Admin-only. Lists all runtime feature flags and their state.
+         */
+        get: operations["listFeatureFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feature-flags/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a feature flag
+         * @description Admin-only. Enables or disables a single feature flag by key.
+         */
+        put: operations["setFeatureFlag"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -1543,6 +1583,21 @@ export interface components {
             avatarSeed?: string | null;
             /** @description Whether this user appears in user search. Defaults to true. */
             isSearchable?: boolean;
+            /** @description Whether the caller's email is on the server admin allowlist (feature-flag management). */
+            readonly isAdmin?: boolean;
+        };
+        /** @description A runtime feature flag and its current state. */
+        FeatureFlagResponse: {
+            /** @description Flag key, e.g. `mcp_server`. */
+            key: string;
+            enabled: boolean;
+            /** @description Admin who last changed it (null if never changed). */
+            updatedBy?: string | null;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        FeatureFlagUpdateRequest: {
+            enabled: boolean;
         };
         /** @description Fields accepted on PUT /api/v1/users/me (all optional — only send what changed). */
         UserUpdateRequest: {
@@ -2599,6 +2654,57 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listFeatureFlags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All feature flags */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagResponse"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setFeatureFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Flag key, e.g. `mcp_server`. */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated flag */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getDashboard: {

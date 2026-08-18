@@ -68,6 +68,8 @@ tags:
       Follow graph, public profiles, discovery, and safety (block/report).
       An online-only read layer over the offline-first personal data — others'
       data is fetched live and never written into the sync tables. See issue #175.
+  - name: Admin
+    description: Admin-only operations (feature-flag management); gated by the server email allowlist
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PATHS
@@ -123,6 +125,57 @@ paths:
           description: Account and all associated data deleted
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  # ── Admin ──────────────────────────────────────────────────────────────────
+  /api/v1/admin/feature-flags:
+    get:
+      tags: [Admin]
+      summary: List feature flags
+      description: Admin-only. Lists all runtime feature flags and their state.
+      operationId: listFeatureFlags
+      responses:
+        '200':
+          description: All feature flags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeatureFlagResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/feature-flags/{key}:
+    put:
+      tags: [Admin]
+      summary: Set a feature flag
+      description: Admin-only. Enables or disables a single feature flag by key.
+      operationId: setFeatureFlag
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Flag key, e.g. `mcp_server`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlagUpdateRequest'
+      responses:
+        '200':
+          description: Updated flag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlagResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   # ── Dashboard ───────────────────────────────────────────────────────────────
   /api/v1/dashboard:
@@ -2670,7 +2723,37 @@ components:
         isSearchable:
           type: boolean
           description: Whether this user appears in user search. Defaults to true.
+        isAdmin:
+          type: boolean
+          readOnly: true
+          description: Whether the caller's email is on the server admin allowlist (feature-flag management).
       required: [id, firebaseUid]
+
+    FeatureFlagResponse:
+      type: object
+      description: A runtime feature flag and its current state.
+      properties:
+        key:
+          type: string
+          description: Flag key, e.g. `mcp_server`.
+        enabled:
+          type: boolean
+        updatedBy:
+          type: string
+          nullable: true
+          description: Admin who last changed it (null if never changed).
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [key, enabled]
+
+    FeatureFlagUpdateRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+      required: [enabled]
 
     UserUpdateRequest:
       type: object
