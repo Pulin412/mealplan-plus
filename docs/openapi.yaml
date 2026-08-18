@@ -177,6 +177,43 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/v1/admin/mcp/connector-token:
+    get:
+      tags: [Admin]
+      summary: Mint an MCP connector token
+      description: >-
+        Admin-only. Mints a stateless bearer token that the caller pastes into their own AI client
+        (e.g. Claude) to connect to the MCP server **as themselves**. The token encodes the caller's
+        user id and the chosen scope and is signed with a server-side secret — nothing is stored, so
+        rotating the secret revokes every token at once. Requires the `mcp_server` flag to be enabled
+        and the signing secret to be configured, otherwise `409`.
+      operationId: mintMcpConnectorToken
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          description: >-
+            Access scope for the token. `READ` = read-only tools; `READ_WRITE` additionally allows
+            logging food and creating meals. Defaults to `READ_WRITE`.
+          schema:
+            type: string
+            enum: [READ, READ_WRITE]
+      responses:
+        '200':
+          description: A freshly minted connector token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpConnectorTokenResponse'
+        '400':
+          description: Invalid scope
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: MCP server disabled, or the signing secret is not configured
+
   # ── Dashboard ───────────────────────────────────────────────────────────────
   /api/v1/dashboard:
     get:
@@ -2754,6 +2791,25 @@ components:
         enabled:
           type: boolean
       required: [enabled]
+
+    McpConnectorTokenResponse:
+      type: object
+      description: >-
+        A stateless bearer token for connecting an external AI agent (e.g. Claude) to the MCP server.
+        The full connector URL is the API base URL joined with `sseEndpointPath`; the token goes in an
+        `Authorization: Bearer <token>` header.
+      properties:
+        token:
+          type: string
+          description: "Bearer token — send as `Authorization: Bearer <token>` from the MCP client."
+        scope:
+          type: string
+          enum: [READ, READ_WRITE]
+          description: The token's access scope.
+        sseEndpointPath:
+          type: string
+          description: Path of the MCP SSE endpoint, relative to the API base URL (e.g. `/mcp/sse`).
+      required: [token, scope, sseEndpointPath]
 
     UserUpdateRequest:
       type: object

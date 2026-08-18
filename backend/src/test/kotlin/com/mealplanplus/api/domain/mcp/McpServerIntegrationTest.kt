@@ -1,5 +1,6 @@
 package com.mealplanplus.api.domain.mcp
 
+import com.mealplanplus.api.domain.admin.AdminController
 import com.mealplanplus.api.domain.featureflag.FeatureFlagKey
 import com.mealplanplus.api.domain.featureflag.FeatureFlagService
 import com.mealplanplus.api.domain.food.FoodService
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.TestPropertySource
 
 /**
@@ -21,13 +24,18 @@ import org.springframework.test.context.TestPropertySource
  * covering the flag gate, McpAuthFilter, uid resolution, read/write scope, and the write guardrails.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestPropertySource(properties = ["firebase.project-id=test-project", "mcp.token-secret=integration-test-secret"])
+@TestPropertySource(properties = [
+    "firebase.project-id=test-project",
+    "mcp.token-secret=integration-test-secret",
+    "app.admin-emails=admin@test",
+])
 class McpServerIntegrationTest {
 
     @LocalServerPort var port: Int = 0
     @Autowired lateinit var tokens: McpTokenService
     @Autowired lateinit var flags: FeatureFlagService
     @Autowired lateinit var foodService: FoodService
+    @Autowired lateinit var adminController: AdminController
 
     private val uid = "uid-mcp-test"
 
@@ -68,6 +76,28 @@ class McpServerIntegrationTest {
             // Write: create a meal from the food.
             val mealArgs = mapOf("name" to "Test Meal", "foods" to listOf(mapOf("foodId" to food.id, "quantity" to 100.0, "unit" to "GRAM")))
             assertThat(client.callTool(McpSchema.CallToolRequest("createMeal", mealArgs)).text()).contains("Created meal 'Test Meal'")
+        }
+    }
+
+    @Test
+    fun `a token minted through the admin endpoint drives the MCP tools`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+
+        // Mint through the real admin endpoint as an allow-listed admin (uid = the token's subject).
+        val auth = UsernamePasswordAuthenticationToken(uid, null, emptyList()).apply { details = "admin@test" }
+        SecurityContextHolder.getContext().authentication = auth
+        val minted = try {
+            adminController.mintMcpConnectorToken("READ_WRITE").body!!
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+        assertThat(minted.sseEndpointPath).isEqualTo("/mcp/sse")
+
+        // The minted token authenticates a real MCP client end-to-end.
+        connect(minted.token).use { client ->
+            client.initialize()
+            assertThat(client.callTool(McpSchema.CallToolRequest("listDiets", emptyMap<String, Any>())).text())
+                .contains("no diets")
         }
     }
 
