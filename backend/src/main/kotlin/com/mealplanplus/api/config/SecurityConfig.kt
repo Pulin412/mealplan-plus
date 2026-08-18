@@ -1,5 +1,6 @@
 package com.mealplanplus.api.config
 
+import com.mealplanplus.api.domain.mcp.McpAuthFilter
 import com.mealplanplus.api.filter.FirebaseTokenFilter
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.beans.factory.annotation.Qualifier
@@ -25,7 +26,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
-class SecurityConfig(private val firebaseTokenFilter: FirebaseTokenFilter) {
+class SecurityConfig(
+    private val firebaseTokenFilter: FirebaseTokenFilter,
+    private val mcpAuthFilter: McpAuthFilter,
+) {
 
     /**
      * Allowed CORS origins come from `app.cors.allowed-origins` (comma-separated) so they differ per
@@ -80,6 +84,13 @@ class SecurityConfig(private val firebaseTokenFilter: FirebaseTokenFilter) {
     ): FilterRegistrationBean<FirebaseTokenFilter> =
         FilterRegistrationBean(filter).apply { isEnabled = false }
 
+    /** Same reasoning as [disableFirebaseFilterAutoRegistration] — McpAuthFilter runs only inside the chain. */
+    @Bean
+    fun disableMcpFilterAutoRegistration(
+        filter: McpAuthFilter,
+    ): FilterRegistrationBean<McpAuthFilter> =
+        FilterRegistrationBean(filter).apply { isEnabled = false }
+
     @Bean
     @Profile("prod")
     fun swaggerUserDetailsService(
@@ -110,11 +121,14 @@ class SecurityConfig(private val firebaseTokenFilter: FirebaseTokenFilter) {
                         "/swagger-ui.html",
                         "/h2-console/**",
                         "/api/v1/internal/reminders/run", // scheduler-triggered; authed by X-Reminder-Token in-controller
+                        "/mcp/**",           // MCP server — authed by McpAuthFilter (bearer connector token), not Firebase
                     ).permitAll()
                     .anyRequest().authenticated()
             }
             // Allow H2 console iframes in dev
             .headers { it.frameOptions { fo -> fo.disable() } }
+            // MCP auth (bearer connector token) runs before Firebase so /mcp/** requests never fall through it.
+            .addFilterBefore(mcpAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(firebaseTokenFilter, UsernamePasswordAuthenticationFilter::class.java)
             .build()
 }

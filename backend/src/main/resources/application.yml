@@ -37,6 +37,19 @@ spring:
       chat:
         options:
           model: ${OLLAMA_MODEL:qwen2.5:7b}
+    # MCP server (SSE over Spring MVC) — exposes our tools to a user's own Claude. Endpoints live under
+    # /mcp/** so they can be permitted + auth-filtered as a unit. Runtime-gated by the mcp_server flag.
+    mcp:
+      server:
+        name: mealplan-mcp
+        version: 0.1.0
+        sse-endpoint: /mcp/sse
+        sse-message-endpoint: /mcp/message
+
+# MCP connector-token signing secret (HMAC). Env-only, no committed default: set MCP_TOKEN_SECRET in the
+# gitignored backend/.env for local, and in Cloud Run for prod. Unset = the MCP server rejects every token.
+mcp:
+  token-secret: "${MCP_TOKEN_SECRET:}"
 
 agent:
   provider: ${AGENT_PROVIDER:ollama}

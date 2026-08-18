@@ -24,6 +24,8 @@ kotlin {
 dependencies {
     implementation("org.springframework.ai:spring-ai-starter-model-anthropic:1.0.0")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama:1.0.0")
+    // MCP server (SSE over Spring MVC) — exposes our tools to users' own Claude. Isolated in domain/mcp.
+    implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.0.0")
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
