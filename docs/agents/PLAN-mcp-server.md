@@ -45,17 +45,25 @@ adapter, not a rewrite. We **keep both** surfaces (in-app assistant for casual, 
 - [ ] Android `AdminScreen` + VM (list/toggle flags); Settings entry visible only when `isAdmin`
 - [ ] Tests: flag service, admin authz (403 path), Android VM
 
-### Phase 1 — MCP server (personal, URL-token)  *(behind `mcp_server` flag)*
-- [ ] Spring AI MCP-server dep; Streamable-HTTP endpoint in isolated `mcp/` package, flag-gated
-- [ ] URL-token auth filter → resolve `uid` + scope (stateless HMAC token; read vs read-write)
-- [ ] Read tools: `listDiets`, `todayDashboard`, `getProfile`, `searchFoods` (thin adapters over services)
-- [ ] Write tools: `logFood` (reuse `logFoodByName`) + `createMeal` (new → `MealService`)
-- [ ] Write guardrails — see cross-cutting list; **required, not optional**
-- [ ] Structured tool-call logging + minimal write audit (cheap observability hook now)
-- [ ] Admin screen "Connect Claude" section: show/copy connector URL+token, read-only vs read-write scope
-- [ ] Document the MCP tool contract alongside `docs/openapi.yaml`
-- [ ] Manual E2E: add to real Claude on iPhone → exercise reads + `logFood` + `createMeal`, verify via non-LLM `GET`
-- [ ] Tests: tool adapters (keyless/H2), auth filter, guardrail validations
+### Phase 1 — MCP server  *(behind `mcp_server` flag)*
+> **Auth pivot (2026-08-18):** header **bearer** token, not URL-token. Spring AI 1.0.0 MCP server = SSE
+> (two endpoints); a URL token isn't reattached to the message POSTs, and consumer Claude's add-connector
+> allows no custom headers — so URL-token can't drive the phone app anyway. Header token proves the tools
+> now (via MCP Inspector / Messages-API connector); **OAuth (Phase 2) is the real phone-connector path.**
+- [x] Spring AI MCP-server dep (`spring-ai-starter-mcp-server-webmvc:1.0.0`, SSE) in isolated `domain/mcp/`, flag-gated
+- [x] Bearer-token auth filter → resolve `uid` + scope (stateless HMAC token; read vs read-write) + Reactor context propagation
+- [x] Read tools: `listDiets`, `todayDashboard`, `getProfile`, `searchFoods`
+- [x] Write tools: `logFood` + `createMeal` (call `LoggingService`/`MealService` directly)
+- [x] Write guardrails: write-scope check, slot/unit/quantity validation, size caps, food-existence, idempotency
+- [x] Tests: `McpTokenServiceTest` + `McpServerIntegrationTest` (real MCP client over SSE: connect→auth→list→read→write→read-only-refusal)
+- [ ] **1d:** admin "Connect Claude" section — mint + show/copy the bearer connector token, scope select
+- [ ] **1d:** document the MCP tool contract alongside `docs/openapi.yaml`
+- [ ] **1d:** manual E2E against a real MCP client (Inspector / Claude via Messages-API connector)
+- [ ] (Phase 3) structured tool-call logging + minimal write audit
+
+**Gotchas found (saved to memory):** Spring AI runs tools OFF the servlet thread → thread-local
+SecurityContext lost → fixed via micrometer `ThreadLocalAccessor` + `Hooks.enableAutomaticContextPropagation()`.
+Kotlin has nested block comments → a literal `/`+`*` in a KDoc (e.g. writing `/mcp` + `/**`) breaks compilation.
 
 ### Phase 2 — OAuth 2.1 (public)  *— ⚠️ approval-gated (auth + CORS), deferred until multi-user*
 - [ ] PRM `/.well-known/oauth-protected-resource` + AS metadata; `/authorize`+PKCE, `/token`, DCR `/register`, JWKS
