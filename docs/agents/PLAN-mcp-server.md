@@ -93,13 +93,19 @@ JWKS live at `…/.well-known/jwks.json`.
       **`firebase_uid=3XJDfhbo…` (the dev user's real Firebase uid — the Trusted-Auth-Token bridge works)**.
       Found + fixed a real bug: nimbus's default JWKS retriever times out on Stytch's Cloudflare JWKS (~1s
       cold) → set explicit 3s/5s timeouts (`a0df7ea`).
-- [~] **2c** MCP Inspector 2.2.0 can't finish the flow (rejects post-consent on RFC 9207 — Stytch's *default*
-      domain stamps authorization-response `iss=stytch.com/<project_id>` ≠ metadata `issuer=…customers.stytch.dev`;
-      no on-origin facade satisfies both §3.3 and §9207). NB the *access-token* iss IS the customers domain and
-      validates fine — only the RFC 9207 *authorization-response* iss differs. Inspector is a dead end; the real
-      Claude app is looser. If Claude is also strict → add a **Stytch custom domain (CNAME)** for a consistent issuer.
-- [ ] **2c** **Deploy** backend (Cloud Run) + webapp (Vercel), set prod Stytch authorize URL + authorized
-      domain, add the connector in claude.ai for the true end-to-end — ⚠️ CORS/deploy approval-gated.
+- [x] **2c RFC 9207 SOLVED via Stytch custom domain.** Root cause confirmed real (not Inspector-only): the
+      MCP spec mandates RFC 9207 and Stytch's *default* domain issuer (`stytch.com/<project_id>`) is non-OIDC-
+      compliant. Fix = **Stytch custom auth domain** `login-test.eatmyplan.com` (domain bought on Cloudflare;
+      CNAME→`agreeable-cauliflower-1174.customers.stytch.dev` grey-cloud + 3 CAA on root). Then the webapp SDK
+      must use it: `createStytchUIClient(token, { customBaseUrl })` (`fix(webapp)`), else the IdP authorize still
+      stamps the legacy iss. **VERIFIED end-to-end (incognito, to dodge the PWA service-worker cache):
+      authorization-response iss == access-token iss == metadata issuer == `https://login-test.eatmyplan.com`,
+      and the token validates at `/mcp/sse` (200).** Config now: `STYTCH_ISSUER`/`STYTCH_JWKS_URI` → custom domain.
+      ⚠️ Gotcha: the webapp PWA service worker (`public/sw.js`, stale-while-revalidate) served stale `/authorize`
+      JS during dev — use incognito/hard-refresh when iterating (non-issue in prod: hashed assets).
+- [ ] **2c** **Deploy** backend (Cloud Run) + webapp (Vercel); set prod Stytch authorize URL + authorized domain
+      to the deployed webapp; Vercel env `NEXT_PUBLIC_STYTCH_CUSTOM_DOMAIN=https://login-test.eatmyplan.com`;
+      add the connector in claude.ai → real end-to-end (now fully de-risked). ⚠️ CORS/deploy approval-gated.
 
 ### Phase 3 — Observability + evals  *(keep in mind, later)*
 - [ ] Tool-call telemetry (name, uid, latency, outcome) + Micrometer via actuator; write audit table; per-session correlation id
