@@ -32,6 +32,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List feature flags
+         * @description Admin-only. Lists all runtime feature flags and their state.
+         */
+        get: operations["listFeatureFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feature-flags/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a feature flag
+         * @description Admin-only. Enables or disables a single feature flag by key.
+         */
+        put: operations["setFeatureFlag"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/mcp/connector-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mint an MCP connector token
+         * @description Admin-only. Mints a stateless bearer token that the caller pastes into their own AI client (e.g. Claude) to connect to the MCP server **as themselves**. The token encodes the caller's user id and the chosen scope and is signed with a server-side secret — nothing is stored, so rotating the secret revokes every token at once. Requires the `mcp_server` flag to be enabled and the signing secret to be configured, otherwise `409`.
+         */
+        get: operations["mintMcpConnectorToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -1543,6 +1603,33 @@ export interface components {
             avatarSeed?: string | null;
             /** @description Whether this user appears in user search. Defaults to true. */
             isSearchable?: boolean;
+            /** @description Whether the caller's email is on the server admin allowlist (feature-flag management). */
+            readonly isAdmin?: boolean;
+        };
+        /** @description A runtime feature flag and its current state. */
+        FeatureFlagResponse: {
+            /** @description Flag key, e.g. `mcp_server`. */
+            key: string;
+            enabled: boolean;
+            /** @description Admin who last changed it (null if never changed). */
+            updatedBy?: string | null;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        FeatureFlagUpdateRequest: {
+            enabled: boolean;
+        };
+        /** @description A stateless bearer token for connecting an external AI agent (e.g. Claude) to the MCP server. The full connector URL is the API base URL joined with `sseEndpointPath`; the token goes in an `Authorization: Bearer <token>` header. */
+        McpConnectorTokenResponse: {
+            /** @description Bearer token — send as `Authorization: Bearer <token>` from the MCP client. */
+            token: string;
+            /**
+             * @description The token's access scope.
+             * @enum {string}
+             */
+            scope: "READ" | "READ_WRITE";
+            /** @description Path of the MCP SSE endpoint, relative to the API base URL (e.g. `/mcp/sse`). */
+            sseEndpointPath: string;
         };
         /** @description Fields accepted on PUT /api/v1/users/me (all optional — only send what changed). */
         UserUpdateRequest: {
@@ -2599,6 +2686,96 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listFeatureFlags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All feature flags */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagResponse"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setFeatureFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Flag key, e.g. `mcp_server`. */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureFlagUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated flag */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureFlagResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    mintMcpConnectorToken: {
+        parameters: {
+            query?: {
+                /** @description Access scope for the token. `READ` = read-only tools; `READ_WRITE` additionally allows logging food and creating meals. Defaults to `READ_WRITE`. */
+                scope?: "READ" | "READ_WRITE";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A freshly minted connector token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpConnectorTokenResponse"];
+                };
+            };
+            /** @description Invalid scope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description MCP server disabled, or the signing secret is not configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getDashboard: {
