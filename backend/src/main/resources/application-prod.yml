@@ -36,7 +36,7 @@ spring:
 
 app:
   cors:
-    allowed-origins: "https://mealplan-plus.vercel.app"   # locked to the prod webapp only
+    allowed-origins: "https://mealplan-plus.vercel.app,https://eatmyplan.com,https://www.eatmyplan.com"   # prod webapp origins
 
 server:
   shutdown: graceful          # let Cloud Run drain in-flight requests on scale-down

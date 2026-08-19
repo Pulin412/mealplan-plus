@@ -32,7 +32,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setError(null);
     try {
       await fn();
-      router.replace("/today");
+      // Honor an internal ?next= (used by the OAuth /authorize page to return after Firebase login).
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.replace(next && next.startsWith("/") ? next : "/today");
     } catch (e) {
       setError(e instanceof Error ? e.message.replace(/^Firebase:\s*/, "") : "Something went wrong");
     } finally {

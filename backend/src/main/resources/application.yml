@@ -37,12 +37,41 @@ spring:
       chat:
         options:
           model: ${OLLAMA_MODEL:qwen2.5:7b}
+    # MCP server (SSE over Spring MVC) — exposes our tools to a user's own Claude. Endpoints live under
+    # /mcp/** so they can be permitted + auth-filtered as a unit. Runtime-gated by the mcp_server flag.
+    mcp:
+      server:
+        name: mealplan-mcp
+        version: 0.1.0
+        sse-endpoint: /mcp/sse
+        sse-message-endpoint: /mcp/message
+
+# MCP connector-token signing secret (HMAC). Env-only, no committed default: set MCP_TOKEN_SECRET in the
+# gitignored backend/.env for local, and in Cloud Run for prod. Unset = the MCP server rejects every token.
+mcp:
+  token-secret: "${MCP_TOKEN_SECRET:}"
+
+# Stytch Connected-Apps OAuth (Phase 2): the MCP server validates access tokens issued by our Stytch
+# project so a user's own Claude can connect via the standard OAuth add-connector flow. All non-secret
+# (the project id / domain are public); env-driven so test vs live use different Stytch projects. Unset
+# jwk-set-uri/audience = OAuth is off and only the HMAC connector token is accepted.
+stytch:
+  jwk-set-uri: "${STYTCH_JWKS_URI:}"      # e.g. https://<project-domain>/.well-known/jwks.json
+  issuer: "${STYTCH_ISSUER:}"             # the `iss` on issued tokens (confirm from OIDC discovery once the authorize URL is set)
+  audience: "${STYTCH_PROJECT_ID:}"       # access-token `aud` == Stytch project id
+  write-scope: "${STYTCH_WRITE_SCOPE:mcp:write}"  # scope string that grants MCP writes; anything valid gets read
+  uid-claim: "${STYTCH_UID_CLAIM:sub}"    # claim carrying the app (Firebase) uid; Trusted Auth Token Profile maps it (Phase 2b)
 
 agent:
   provider: ${AGENT_PROVIDER:ollama}
 
 server:
   port: ${PORT:8080}
+  # Behind Cloud Run's TLS-terminating proxy the app sees plain HTTP, so request-derived absolute URLs
+  # (OAuth Protected Resource Metadata `resource`, the WWW-Authenticate `resource_metadata` challenge)
+  # would come out as http://. Honor X-Forwarded-Proto/Host so they're https:// — required for MCP/Claude
+  # discovery. No-op locally (no forwarded headers).
+  forward-headers-strategy: framework
 
 firebase:
   project-id: ${FIREBASE_PROJECT_ID:mealplan-plus}
@@ -56,6 +85,9 @@ app:
     # Basic-auth credentials for Swagger/OpenAPI — only enforced by the `prod` profile.
     user: ${SWAGGER_USER:dev}
     password: ${SWAGGER_PASSWORD:dev}
+  # Comma-separated emails granted admin (feature-flag management), matched against the Firebase token email.
+  # Env-only (no committed default): set ADMIN_EMAILS in the gitignored backend/.env for local, and in Cloud Run for prod.
+  admin-emails: "${ADMIN_EMAILS:}"
 
 # Web Push (VAPID) for PWA reminders. Keys/token are secrets — set via env in Cloud Run; blank
 # locally disables sending (subscriptions are still stored). Generate a VAPID keypair with:

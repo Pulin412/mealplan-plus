@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mealplanplus.BuildConfig
 import com.mealplanplus.data.export.CsvExporter
 import com.mealplanplus.data.export.ExportRepository
+import com.mealplanplus.data.generated.api.UsersApi
 import com.mealplanplus.data.repository.FeedbackRepository
 import com.mealplanplus.data.healthconnect.HealthConnectManager
 import com.mealplanplus.data.healthconnect.HealthConnectSummary
@@ -43,10 +44,21 @@ class SettingsViewModel @Inject constructor(
     private val notificationScheduler: NotificationScheduler,
     private val healthConnect: HealthConnectManager,
     private val socialRepository: com.mealplanplus.data.repository.SocialRepository,
+    private val usersApi: UsersApi,
 ) : ViewModel() {
 
     private val _exporting = MutableStateFlow(false)
     val exporting: StateFlow<Boolean> = _exporting.asStateFlow()
+
+    /** Whether the signed-in user is a server admin — gates the Admin entry. Defaults false until confirmed. */
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            runCatching { usersApi.getMe().body()?.isAdmin }.getOrNull()?.let { _isAdmin.value = it }
+        }
+    }
 
     /** Server-backed master switch for follow/share notifications. */
     private val _socialNotifications = MutableStateFlow(true)
