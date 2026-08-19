@@ -3,6 +3,7 @@ package com.mealplanplus.api.domain.mcp
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.source.JWKSource
 import com.nimbusds.jose.jwk.source.RemoteJWKSet
+import com.nimbusds.jose.util.DefaultResourceRetriever
 import com.nimbusds.jose.proc.JWSVerificationKeySelector
 import com.nimbusds.jose.proc.SecurityContext
 import com.nimbusds.jwt.JWTClaimsSet
@@ -44,7 +45,10 @@ class StytchTokenService private constructor(
         @Value("\${stytch.write-scope:mcp:write}") writeScope: String,
         @Value("\${stytch.uid-claim:sub}") uidClaim: String,
     ) : this(
-        jwkSource = jwkSetUri.takeIf { it.isNotBlank() }?.let { RemoteJWKSet(URL(it)) },
+        // Explicit timeouts: nimbus's default RemoteJWKSet retriever times out before Stytch's
+        // Cloudflare-fronted JWKS answers a cold request (~1s), unlike Google's fast Firebase JWKS.
+        jwkSource = jwkSetUri.takeIf { it.isNotBlank() }
+            ?.let { RemoteJWKSet(URL(it), DefaultResourceRetriever(3000, 5000)) },
         issuer = issuer,
         audience = audience,
         writeScope = writeScope,
