@@ -67,6 +67,11 @@ agent:
 
 server:
   port: ${PORT:8080}
+  # Behind Cloud Run's TLS-terminating proxy the app sees plain HTTP, so request-derived absolute URLs
+  # (OAuth Protected Resource Metadata `resource`, the WWW-Authenticate `resource_metadata` challenge)
+  # would come out as http://. Honor X-Forwarded-Proto/Host so they're https:// — required for MCP/Claude
+  # discovery. No-op locally (no forwarded headers).
+  forward-headers-strategy: framework
 
 firebase:
   project-id: ${FIREBASE_PROJECT_ID:mealplan-plus}
