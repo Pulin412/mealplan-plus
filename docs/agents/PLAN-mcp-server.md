@@ -79,11 +79,22 @@ JWKS live at `…/.well-known/jwks.json`.
       uid-claim), wired into `McpAuthFilter` alongside the connector token (JWT=2 dots → Stytch, else HMAC)
 - [x] **2a** PRM `/.well-known/oauth-protected-resource` + `401 WWW-Authenticate: resource_metadata="…"`
 - [x] **2a** Tests: `StytchTokenServiceTest` (in-memory JWKS) + integration 401-challenge/PRM
-- [ ] **2b** Set the authorize URL in the Stytch dashboard → an `/authorize` page (Next.js webapp) that
-      bridges to Firebase login and mounts the Stytch consent component
-- [ ] **2b** Configure the Trusted Auth Token Profile (Firebase ID token → uid custom claim); confirm it's
-      free-tier; set `STYTCH_UID_CLAIM`/`STYTCH_ISSUER`/`STYTCH_JWKS_URI`/`STYTCH_PROJECT_ID`
-- [ ] **2c** Local E2E, then **deploy to Cloud Run** (public HTTPS) + real Claude add-connector test — CORS/deploy approval-gated
+- [x] **2b** `/authorize` page (Next.js webapp) bridges Firebase login → Stytch `<IdentityProvider>` (Trusted
+      Auth Token). Authorize URL set to `http://localhost:3000/authorize`; DCR enabled; scope normalized
+      client-side (strip `full_access`). `@stytch/nextjs` + `@stytch/vanilla-js` added.
+- [x] **2b** Trusted Auth Token Profile created (Firebase issuer/JWKS/aud=`mealplan-plus`; `external_user_id`←`sub`;
+      access-token template `{"firebase_uid": {{ user.external_id }}}`); `STYTCH_UID_CLAIM=firebase_uid`.
+      Config: `STYTCH_JWKS_URI` (`…customers.stytch.dev/.well-known/jwks.json`), `STYTCH_PROJECT_ID` (=aud),
+      `STYTCH_ISSUER`, `STYTCH_WRITE_SCOPE=openid` (only grantable connected-app scope; = read-write).
+- [~] **2c** Local OAuth E2E via MCP Inspector: **flow works through DCR → Firebase login → consent → token**,
+      but Inspector 2.2.0 **rejects the result on RFC 9207** — Stytch's *default* (non-custom) domain stamps
+      `iss=stytch.com/<project_id>` while its metadata advertises `issuer=…customers.stytch.dev`; the two
+      disagree and no on-origin facade can satisfy both §3.3 and §9207. Stytch documents non-custom domains as
+      "not fully OIDC compliant." → **Inspector is a dead end here; validate on deploy with real Claude**
+      (looser than Inspector) or add a **Stytch custom domain** (CNAME) for a consistent issuer.
+- [ ] **2c** **Deploy** backend (Cloud Run) + webapp (Vercel), set prod Stytch authorize URL + authorized
+      domain, add the connector in claude.ai, real end-to-end — ⚠️ CORS/deploy approval-gated. Decode a real
+      access token first to confirm `iss`/`aud`/`firebase_uid` and finalize `STYTCH_ISSUER`/`STYTCH_PROJECT_ID`.
 
 ### Phase 3 — Observability + evals  *(keep in mind, later)*
 - [ ] Tool-call telemetry (name, uid, latency, outcome) + Micrometer via actuator; write audit table; per-session correlation id
