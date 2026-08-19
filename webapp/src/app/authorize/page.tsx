@@ -17,10 +17,28 @@ import { useAuth } from "@/hooks/useAuth";
  */
 const TOKEN_PROFILE_ID = process.env.NEXT_PUBLIC_STYTCH_TOKEN_PROFILE_ID as string | undefined;
 
+// Scopes a Stytch connected app can actually be granted. Clients (e.g. an over-eager DCR registration)
+// may request scopes like `full_access` that aren't grantable to third-party apps, which fails the
+// authorize with "invalid scope". We normalize the request down to the supported set before consent.
+const ALLOWED_SCOPES = new Set(["openid", "offline_access", "profile", "email"]);
+
 export default function AuthorizePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [idToken, setIdToken] = useState<string | null>(null);
+
+  // Strip unsupported scopes from the OAuth request before <IdentityProvider> reads them from the URL.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const scope = url.searchParams.get("scope");
+    if (!scope) return;
+    const kept = scope.split(/\s+/).filter((s) => ALLOWED_SCOPES.has(s));
+    const normalized = (kept.length ? kept : ["openid"]).join(" ");
+    if (normalized !== scope) {
+      url.searchParams.set("scope", normalized);
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, []);
 
   useEffect(() => {
     if (loading) return;
