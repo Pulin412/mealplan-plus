@@ -86,15 +86,20 @@ JWKS live at `…/.well-known/jwks.json`.
       access-token template `{"firebase_uid": {{ user.external_id }}}`); `STYTCH_UID_CLAIM=firebase_uid`.
       Config: `STYTCH_JWKS_URI` (`…customers.stytch.dev/.well-known/jwks.json`), `STYTCH_PROJECT_ID` (=aud),
       `STYTCH_ISSUER`, `STYTCH_WRITE_SCOPE=openid` (only grantable connected-app scope; = read-write).
-- [~] **2c** Local OAuth E2E via MCP Inspector: **flow works through DCR → Firebase login → consent → token**,
-      but Inspector 2.2.0 **rejects the result on RFC 9207** — Stytch's *default* (non-custom) domain stamps
-      `iss=stytch.com/<project_id>` while its metadata advertises `issuer=…customers.stytch.dev`; the two
-      disagree and no on-origin facade can satisfy both §3.3 and §9207. Stytch documents non-custom domains as
-      "not fully OIDC compliant." → **Inspector is a dead end here; validate on deploy with real Claude**
-      (looser than Inspector) or add a **Stytch custom domain** (CNAME) for a consistent issuer.
+- [x] **2c (server-side VERIFIED)** Captured a **real Stytch access token** via a scripted PKCE client
+      (DCR → Firebase login → consent → token; bypasses Inspector's strict checks) and confirmed the resource
+      server accepts it end-to-end at `/mcp/sse` (HTTP 200, was 401). Token facts: `iss=…customers.stytch.dev`
+      (matches `STYTCH_ISSUER`), `aud=[project-test-8bb9e5a9-…]` (=`STYTCH_PROJECT_ID`), `scope=openid`,
+      **`firebase_uid=3XJDfhbo…` (the dev user's real Firebase uid — the Trusted-Auth-Token bridge works)**.
+      Found + fixed a real bug: nimbus's default JWKS retriever times out on Stytch's Cloudflare JWKS (~1s
+      cold) → set explicit 3s/5s timeouts (`a0df7ea`).
+- [~] **2c** MCP Inspector 2.2.0 can't finish the flow (rejects post-consent on RFC 9207 — Stytch's *default*
+      domain stamps authorization-response `iss=stytch.com/<project_id>` ≠ metadata `issuer=…customers.stytch.dev`;
+      no on-origin facade satisfies both §3.3 and §9207). NB the *access-token* iss IS the customers domain and
+      validates fine — only the RFC 9207 *authorization-response* iss differs. Inspector is a dead end; the real
+      Claude app is looser. If Claude is also strict → add a **Stytch custom domain (CNAME)** for a consistent issuer.
 - [ ] **2c** **Deploy** backend (Cloud Run) + webapp (Vercel), set prod Stytch authorize URL + authorized
-      domain, add the connector in claude.ai, real end-to-end — ⚠️ CORS/deploy approval-gated. Decode a real
-      access token first to confirm `iss`/`aud`/`firebase_uid` and finalize `STYTCH_ISSUER`/`STYTCH_PROJECT_ID`.
+      domain, add the connector in claude.ai for the true end-to-end — ⚠️ CORS/deploy approval-gated.
 
 ### Phase 3 — Observability + evals  *(keep in mind, later)*
 - [ ] Tool-call telemetry (name, uid, latency, outcome) + Micrometer via actuator; write audit table; per-session correlation id
