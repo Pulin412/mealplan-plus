@@ -122,7 +122,7 @@ class SecurityConfig(
                         "/h2-console/**",
                         "/api/v1/internal/reminders/run", // scheduler-triggered; authed by X-Reminder-Token in-controller
                         "/mcp/**",           // MCP server — authed by McpAuthFilter (bearer connector token), not Firebase
-                        "/.well-known/oauth-protected-resource", // OAuth Protected Resource Metadata (RFC 9728) — public discovery
+                        "/.well-known/**",   // OAuth discovery (PRM RFC 9728 + AS metadata RFC 8414) — public, incl. path-suffixed probes
                     ).permitAll()
                     .anyRequest().authenticated()
             }

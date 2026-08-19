@@ -124,7 +124,7 @@ class McpServerIntegrationTest {
             HttpResponse.BodyHandlers.ofString(),
         )
         assertThat(resp.statusCode()).isEqualTo(200)
-        assertThat(resp.body()).contains("\"resource\"").contains("/mcp").contains("mcp:read")
+        assertThat(resp.body()).contains("\"resource\"").contains("/mcp").contains("scopes_supported")
     }
 
     @Test
