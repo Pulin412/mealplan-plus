@@ -65,7 +65,7 @@ class AdminController(
                     McpTokenService.Scope.READ -> McpConnectorTokenResponse.Scope.READ
                     McpTokenService.Scope.READ_WRITE -> McpConnectorTokenResponse.Scope.READ_WRITE
                 },
-                sseEndpointPath = MCP_SSE_ENDPOINT_PATH,
+                sseEndpointPath = MCP_ENDPOINT_PATH,
             )
         )
     }
@@ -77,8 +77,8 @@ class AdminController(
     }
 
     private companion object {
-        /** Kept in sync with `spring.ai.mcp.server.sse-endpoint` in application.yml. */
-        const val MCP_SSE_ENDPOINT_PATH = "/mcp/sse"
+        /** The Streamable HTTP MCP endpoint; kept in sync with `spring.ai.mcp.server.streamable-http.mcp-endpoint`. */
+        const val MCP_ENDPOINT_PATH = "/mcp"
     }
 }
 

@@ -121,7 +121,7 @@ class SecurityConfig(
                         "/swagger-ui.html",
                         "/h2-console/**",
                         "/api/v1/internal/reminders/run", // scheduler-triggered; authed by X-Reminder-Token in-controller
-                        "/mcp/**",           // MCP server — authed by McpAuthFilter (bearer connector token), not Firebase
+                        "/mcp", "/mcp/**",   // MCP server (Streamable HTTP = single /mcp) — authed by McpAuthFilter, not Firebase
                         "/.well-known/**",   // OAuth discovery (PRM RFC 9728 + AS metadata RFC 8414) — public, incl. path-suffixed probes
                     ).permitAll()
                     .anyRequest().authenticated()
