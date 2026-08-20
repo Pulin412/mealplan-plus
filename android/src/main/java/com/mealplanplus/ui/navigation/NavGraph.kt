@@ -1,15 +1,15 @@
 package com.mealplanplus.ui.navigation
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.foundation.layout.size
+import androidx.annotation.DrawableRes
 import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.mealplanplus.R
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -29,6 +29,11 @@ import com.mealplanplus.ui.tour.TourOverlay
 import com.mealplanplus.ui.tour.TourViewModel
 import com.mealplanplus.ui.tour.rememberTourController
 import com.mealplanplus.ui.tour.tourTarget
+import androidx.compose.ui.text.font.FontWeight
+import com.mealplanplus.ui.theme.Ink
+import com.mealplanplus.ui.theme.MutedLight
+import com.mealplanplus.ui.theme.Teal
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -80,12 +85,18 @@ sealed class Screen(val route: String, val label: String) {
     object Admin     : Screen("admin",     "Admin")
 }
 
+/**
+ * A bottom-bar tab. [icon] is a Phosphor duotone drawable (two paths at different alpha); tinting it
+ * with a single colour keeps the duotone contrast, so selected (teal) vs idle (grey) is one colour swap.
+ */
+private data class NavItem(val screen: Screen, @DrawableRes val icon: Int)
+
 private val bottomNavItems = listOf(
-    Screen.Today     to Icons.Default.Home,
-    Screen.Plan      to Icons.Default.CalendarMonth,
-    Screen.Exercises to Icons.Default.FitnessCenter,
-    Screen.Health    to Icons.Default.MonitorHeart,
-    Screen.Misc      to Icons.Default.GridView,
+    NavItem(Screen.Today,     R.drawable.ic_nav_home_duotone),
+    NavItem(Screen.Plan,      R.drawable.ic_nav_calendar_duotone),
+    NavItem(Screen.Exercises, R.drawable.ic_nav_barbell_duotone),
+    NavItem(Screen.Health,    R.drawable.ic_nav_heartbeat_duotone),
+    NavItem(Screen.Misc,      R.drawable.ic_nav_grid_duotone),
 )
 
 /**
@@ -160,10 +171,20 @@ fun MealPlanNavHost() {
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
-                    bottomNavItems.forEach { (screen, icon) ->
+                    val navColors = NavigationBarItemDefaults.colors(
+                        selectedIconColor   = Teal,
+                        selectedTextColor   = Ink,
+                        indicatorColor      = Teal.copy(alpha = 0.16f),
+                        unselectedIconColor = Teal,
+                        unselectedTextColor = MutedLight,
+                    )
+                    bottomNavItems.forEach { item ->
+                        val screen = item.screen
+                        val selected = currentDest?.hierarchy?.any { it.route == screen.route } == true
                         NavigationBarItem(
                             modifier = Modifier.tourTarget("nav_${screen.route}", tour),
-                            selected = currentDest?.hierarchy?.any { it.route == screen.route } == true,
+                            selected = selected,
+                            colors = navColors,
                             onClick  = {
                                 // Tapping a tab returns to that top-level screen, clearing any
                                 // transient screens (Profile, Settings, Meals…) pushed on top.
@@ -179,8 +200,15 @@ fun MealPlanNavHost() {
                                     }
                                 }
                             },
-                            icon  = { Icon(icon, contentDescription = screen.label) },
-                            label = { Text(screen.label) }
+                            icon  = {
+                                Icon(
+                                    painter = painterResource(item.icon),
+                                    contentDescription = screen.label,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = Color(0xFF1E7169), // darker teal
+                                )
+                            },
+                            label = { Text(screen.label, fontWeight = FontWeight.Bold) }
                         )
                     }
                 }
