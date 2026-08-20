@@ -55,7 +55,7 @@ function RemindersSection() {
   useEffect(() => {
     remindersEnabled().then(setEnabled).catch(() => {});
     if (isIos() && !isStandalone()) {
-      setHint("On iPhone/iPad, add MealPlan+ to your Home Screen first (Share → Add to Home Screen) to turn on reminders.");
+      setHint("On iPhone/iPad, add EatMyPlan to your Home Screen first (Share → Add to Home Screen) to turn on reminders.");
     }
   }, []);
 
@@ -72,7 +72,7 @@ function RemindersSection() {
         setEnabled(r.ok);
         if (!r.ok) {
           setHint(
-            r.reason === "ios-not-installed" ? "Add MealPlan+ to your Home Screen first (Share → Add to Home Screen), then turn on reminders."
+            r.reason === "ios-not-installed" ? "Add EatMyPlan to your Home Screen first (Share → Add to Home Screen), then turn on reminders."
             : r.reason === "denied" ? "Notifications are blocked — allow them in your browser settings, then try again."
             : r.reason === "unsupported" ? "This browser doesn't support notifications."
             : r.reason === "no-key" ? "Reminders aren't configured on this deployment yet."
@@ -131,7 +131,7 @@ function SettingsInner() {
     setExporting(true);
     try {
       const csv = buildCsv(await collectExportData());
-      downloadCsv(`mealplan-export-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      downloadCsv(`eatmyplan-export-${new Date().toISOString().slice(0, 10)}.csv`, csv);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Export failed");
     } finally {
@@ -215,7 +215,7 @@ function SettingsInner() {
           </a>
         </div>
 
-        <div style={{ textAlign: "center", font: "400 11px system-ui", color: "#9aa4aa", margin: "24px 0" }}>© MealPlan+ · v{APP_VERSION}</div>
+        <div style={{ textAlign: "center", font: "400 11px system-ui", color: "#9aa4aa", margin: "24px 0" }}>© EatMyPlan · v{APP_VERSION}</div>
       </div>
 
       {feedbackOpen && (

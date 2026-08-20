@@ -6,5 +6,5 @@ object Legal {
     const val PRIVACY_POLICY_VERSION = "2026-07-29"
 
     /** Public, hosted policy — opened in the browser from onboarding + profile. */
-    const val PRIVACY_POLICY_URL = "https://mealplan-plus.vercel.app/privacy"
+    const val PRIVACY_POLICY_URL = "https://eatmyplan.com/privacy"
 }

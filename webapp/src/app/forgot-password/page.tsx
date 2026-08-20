@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-5" style={{ background: C.bg }}>
       <div className="w-full max-w-[360px]">
         <div className="text-center mb-6">
-          <div className="text-[22px] font-bold" style={{ color: C.teal }}>MealPlan+</div>
+          <div className="text-[22px] font-bold" style={{ color: C.teal }}>EatMyPlan</div>
           <div className="text-[13px] mt-1" style={{ color: C.muted }}>
             {sentTo ? "Check your inbox" : "Reset password"}
           </div>
