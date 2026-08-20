@@ -13,6 +13,10 @@ export interface ManualFoodForm {
   protein: string;
   carbs: string;
   fat: string;
+  fiber: string;
+  sugars: string;
+  satFat: string;
+  sodium: string;
   category: string;
   unit: string;
   gramsPerUnit: string;

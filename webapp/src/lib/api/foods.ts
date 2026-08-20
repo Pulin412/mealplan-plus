@@ -31,6 +31,11 @@ function foodBody(form: ManualFoodForm) {
     proteinPer100:  parseFloat(form.protein) || 0,
     carbsPer100:    parseFloat(form.carbs)   || 0,
     fatPer100:      parseFloat(form.fat)     || 0,
+    // Extra nutrients: blank stays null ("unknown"), not 0.
+    fiberPer100:         form.fiber.trim()  === "" ? null : parseFloat(form.fiber),
+    sugarsPer100:        form.sugars.trim() === "" ? null : parseFloat(form.sugars),
+    saturatedFatPer100:  form.satFat.trim() === "" ? null : parseFloat(form.satFat),
+    sodiumPer100:        form.sodium.trim() === "" ? null : parseFloat(form.sodium),
     unit:          form.unit,
     gramsPerPiece: form.unit === "PIECE" ? gpu : null,
     gramsPerCup:   form.unit === "CUP"   ? gpu : null,

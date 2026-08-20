@@ -200,10 +200,14 @@ function SettingsInner() {
             <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
           </div>
           <div onClick={() => { ob.reset(); router.push("/today"); }}
-            style={{ display: "flex", alignItems: "center", padding: "13px 14px", cursor: "pointer" }}>
+            style={{ display: "flex", alignItems: "center", padding: "13px 14px", cursor: "pointer", borderBottom: `1px solid ${C.border}` }}>
             <span style={{ font: "500 13.5px system-ui", color: C.ink }}>Replay setup / onboarding</span>
             <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
           </div>
+          <a href="/help" style={{ display: "flex", alignItems: "center", padding: "13px 14px", textDecoration: "none" }}>
+            <span style={{ font: "500 13.5px system-ui", color: C.ink }}>Help</span>
+            <span style={{ marginLeft: "auto", color: "#c4ccd1", fontSize: 15 }}>›</span>
+          </a>
         </div>
 
         {/* About */}

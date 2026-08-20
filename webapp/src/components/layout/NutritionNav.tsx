@@ -14,7 +14,7 @@ const TABS = [
   { href: "/misc", label: "More", icon: "▦" },
 ];
 // Sub-pages that keep the "More" tab highlighted.
-const MISC_PAGES = ["/misc", "/foods", "/meals", "/diets", "/groceries"];
+const MISC_PAGES = ["/misc", "/foods", "/meals", "/diets", "/groceries", "/help"];
 
 const teal = "oklch(0.62 0.09 210)";
 

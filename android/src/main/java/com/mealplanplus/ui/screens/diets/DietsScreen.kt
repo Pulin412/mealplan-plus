@@ -119,6 +119,7 @@ private fun List<DietSlotUi>.inSlotOrder(): List<DietSlotUi> =
 @Composable
 fun DietsScreen(
     onBack: () -> Unit = {},
+    onOpenDetails: (String) -> Unit = {},
     viewModel: DietViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -177,6 +178,7 @@ fun DietsScreen(
                                 onToggleShare = { viewModel.toggleShare(d.diet) },
                                 onDelete = { viewModel.deleteDiet(d.diet) },
                                 onEdit = { viewModel.openEditDiet(d.diet) },
+                                onInfo = { onOpenDetails(d.diet.id) },
                             )
                             Spacer(Modifier.height(8.dp))
                         } else {
@@ -189,6 +191,7 @@ fun DietsScreen(
                                 onToggleShare = { viewModel.toggleShare(d.diet) },
                                 onDelete = { viewModel.deleteDiet(d.diet) },
                                 onEdit = { viewModel.openEditDiet(d.diet) },
+                                onInfo = { onOpenDetails(d.diet.id) },
                             )
                             Divider(color = SurfaceMuted)
                         }
@@ -309,6 +312,7 @@ private fun TagChip(text: String, on: Boolean, onClick: () -> Unit) {
 private fun DietListCard(
     d: DietUi, expanded: Boolean, shared: Boolean, imported: Boolean,
     onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onToggleShare: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
+    onInfo: () -> Unit = {},
 ) {
     AppCard(modifier = Modifier.clickable(onClick = onToggleExpand)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -335,6 +339,11 @@ private fun DietListCard(
                 }
             }
             Spacer(Modifier.width(8.dp))
+            Box(contentAlignment = Alignment.Center,
+                modifier = Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onInfo)) {
+                Text("ⓘ", fontSize = 15.sp, color = MutedFaint)
+            }
+            Spacer(Modifier.width(4.dp))
             // Fixed-width action columns + right-aligned calories so the globe/star/kcal line up
             // across rows regardless of calorie length. Imported rows reserve the globe's slot.
             if (!imported) {
@@ -415,6 +424,7 @@ fun SlotGroup(slot: DietSlotUi) {
 private fun DietCompactRow(
     d: DietUi, expanded: Boolean, shared: Boolean, imported: Boolean,
     onToggleExpand: () -> Unit, onToggleFav: () -> Unit, onToggleShare: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit,
+    onInfo: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth().clickable(onClick = onToggleExpand).padding(horizontal = 11.dp, vertical = 7.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -433,6 +443,11 @@ private fun DietCompactRow(
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 1.dp))
                 }
             }
+            Box(contentAlignment = Alignment.Center,
+                modifier = Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onInfo)) {
+                Text("ⓘ", fontSize = 13.sp, color = MutedFaint)
+            }
+            Spacer(Modifier.width(4.dp))
             if (!imported) {
                 ShareToggle(shared = shared, onClick = onToggleShare, size = 22.dp)
             } else {

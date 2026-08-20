@@ -58,4 +58,24 @@ export function foodMacros(food: FoodDto | undefined, quantity: number, unit: st
   };
 }
 
+/** Extra per-100g nutrients (V17). `null` = unknown for that food (not entered / not in OFF). */
+export interface ExtraNutrients { fiber: number | null; sugars: number | null; saturatedFat: number | null; sodium: number | null }
+
+/** Extra nutrients contributed by `quantity` (in `unit`) of `food`; each stays null when the food lacks it. */
+export function foodExtras(food: FoodDto | undefined, quantity: number, unit: string): ExtraNutrients {
+  if (!food) return { fiber: null, sugars: null, saturatedFat: null, sodium: null };
+  const factor = (quantity * gramsPerUnit(food, unit)) / 100;
+  const scale = (v?: number | null) => (v == null ? null : v * factor);
+  return { fiber: scale(food.fiberPer100), sugars: scale(food.sugarsPer100), saturatedFat: scale(food.saturatedFatPer100), sodium: scale(food.sodiumPer100) };
+}
+
+/** Sum a list of ExtraNutrients: null unless at least one food reported that nutrient (then sum the known ones). */
+export function sumExtras(list: ExtraNutrients[]): ExtraNutrients {
+  const add = (key: keyof ExtraNutrients): number | null => {
+    const vals = list.map((e) => e[key]).filter((v): v is number => v != null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+  };
+  return { fiber: add("fiber"), sugars: add("sugars"), saturatedFat: add("saturatedFat"), sodium: add("sodium") };
+}
+
 export const num = (d: number): string => (d % 1 === 0 ? String(d) : d.toFixed(1));

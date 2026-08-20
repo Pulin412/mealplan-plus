@@ -24,6 +24,12 @@ class Food(
     val carbsPer100: Double = 0.0,
     val fatPer100: Double = 0.0,
 
+    // Extra per-100g nutrients (V17) — nullable = unknown (OFF-auto or manual entry).
+    val fiberPer100: Double? = null,
+    val sugarsPer100: Double? = null,
+    val saturatedFatPer100: Double? = null,
+    val sodiumPer100: Double? = null,
+
     /** The food's natural measurement unit (GRAM/ML/PIECE/CUP/TBSP/TSP). Stored as the enum name. */
     val unit: String = "GRAM",
 

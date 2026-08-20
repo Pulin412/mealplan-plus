@@ -164,7 +164,7 @@ fun HomeScreen(onMenu: () -> Unit = {}, onProfile: () -> Unit = {},
                             onRemoveMeal = { s, mid -> viewModel.removeSlotMeal(s, mid) })
                         if (d.additionalFoods.isNotEmpty()) {
                             Spacer(Modifier.height(16.dp))
-                            AddedTodaySection(d.additionalFoods, state.foods, viewModel::removeFoods)
+                            AddedTodaySection(d.additionalFoods, state.foods, viewModel::removeFoods, readOnly = d.dayCompleted ?: false)
                         }
                         Spacer(Modifier.height(16.dp))
                         WorkoutSection(state.workouts,
@@ -571,7 +571,7 @@ private sealed interface AddedUnit {
 }
 
 @Composable
-private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<FoodDto>, onRemove: (List<Long>) -> Unit) {
+private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<FoodDto>, onRemove: (List<Long>) -> Unit, readOnly: Boolean = false) {
     val byId = foods.associateBy { it.id }
     fun kcalOf(lf: LoggedFoodResponseDto): Int {
         val food = byId[lf.foodId]
@@ -596,7 +596,7 @@ private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<Fo
                     val lf = unit.lf
                     AddedRow(byId[lf.foodId]?.name ?: "Food", lf.mealSlot,
                         "${lf.quantity.trimNum()} ${unitLabel((lf.unit ?: FoodUnit.GRAM).value)}", kcalOf(lf),
-                        onRemove = { onRemove(listOf(lf.id)) })
+                        onRemove = if (readOnly) null else ({ onRemove(listOf(lf.id)) }))
                 }
                 is AddedUnit.MealGroup -> {
                     val open = expanded[unit.name] == true
@@ -613,8 +613,10 @@ private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<Fo
                         }
                         Text("$total", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
                         Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
-                        Spacer(Modifier.width(10.dp))
-                        Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable { onRemove(unit.items.map { it.id }) })
+                        if (!readOnly) {
+                            Spacer(Modifier.width(10.dp))
+                            Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable { onRemove(unit.items.map { it.id }) })
+                        }
                     }
                     if (open) unit.items.forEach { lf ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 2.dp, bottom = 6.dp)) {
@@ -632,7 +634,7 @@ private fun AddedTodaySection(added: List<LoggedFoodResponseDto>, foods: List<Fo
 }
 
 @Composable
-private fun AddedRow(name: String, slot: String, qtyLabel: String, kcal: Int, onRemove: () -> Unit) {
+private fun AddedRow(name: String, slot: String, qtyLabel: String, kcal: Int, onRemove: (() -> Unit)?) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
         Column(Modifier.weight(1f)) {
             Text(name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink)
@@ -644,8 +646,10 @@ private fun AddedRow(name: String, slot: String, qtyLabel: String, kcal: Int, on
         }
         Text("$kcal", fontFamily = DmMono, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Ink)
         Text(" kcal", fontSize = 9.sp, color = MutedFaint, modifier = Modifier.padding(top = 2.dp))
-        Spacer(Modifier.width(10.dp))
-        Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable(onClick = onRemove))
+        if (onRemove != null) {
+            Spacer(Modifier.width(10.dp))
+            Text("✕", fontSize = 13.sp, color = MutedLight, modifier = Modifier.clickable(onClick = onRemove))
+        }
     }
 }
 

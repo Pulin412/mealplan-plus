@@ -30,6 +30,13 @@ export function getDiet(id: number): Promise<DietDto> {
   return apiFetch<DietDto>(`/api/v1/diets/${id}`);
 }
 
+export type DietUsageDto = components["schemas"]["DietUsageDto"];
+
+/** How frequently a diet is assigned to days in the plan (this user). */
+export function getDietUsage(id: number): Promise<DietUsageDto> {
+  return apiFetch<DietUsageDto>(`/api/v1/diets/${id}/usage`);
+}
+
 export function createDiet(input: DietInput): Promise<DietDto> {
   return apiFetch<DietDto>("/api/v1/diets", { method: "POST", body: JSON.stringify(toDto(input)) });
 }

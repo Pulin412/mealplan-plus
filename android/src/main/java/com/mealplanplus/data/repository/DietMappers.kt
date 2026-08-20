@@ -66,6 +66,11 @@ data class DietUi(
     val totalFat: Double,
     val entryCount: Int,
     val summary: String,
+    // Extra nutrients — null when no food in the diet reported that value.
+    val totalFiber: Double? = null,
+    val totalSugars: Double? = null,
+    val totalSatFat: Double? = null,
+    val totalSodium: Double? = null,
 )
 
 data class DietSlotUi(val slot: String, val entries: List<DietEntryUi>, val kcal: Int)
@@ -85,6 +90,7 @@ private class Macros { var kcal = 0.0; var p = 0.0; var c = 0.0; var f = 0.0 }
 /** Resolve a diet's entries against the meal + food caches, grouped by slot. */
 fun Diet.resolve(mealsById: Map<String, MealUi>, foodsById: Map<String, Food>): DietUi {
     val total = Macros()
+    var tFiber: Double? = null; var tSugars: Double? = null; var tSatFat: Double? = null; var tSodium: Double? = null
     val uiByEntry = entries.map { e ->
         val m = Macros()
         val ui = when (e.kind) {
@@ -95,6 +101,10 @@ fun Diet.resolve(mealsById: Map<String, MealUi>, foodsById: Map<String, Food>): 
                 m.p = (meal?.totalProtein ?: 0.0) * q
                 m.c = (meal?.totalCarbs ?: 0.0) * q
                 m.f = (meal?.totalFat ?: 0.0) * q
+                tFiber = addNullable(tFiber, meal?.totalFiber?.times(q))
+                tSugars = addNullable(tSugars, meal?.totalSugars?.times(q))
+                tSatFat = addNullable(tSatFat, meal?.totalSatFat?.times(q))
+                tSodium = addNullable(tSodium, meal?.totalSodium?.times(q))
                 DietEntryUi(e.kind, meal?.meal?.name ?: "Unknown meal", m.kcal.roundToInt(),
                     "meal · ${m.kcal.roundToInt()} kcal",
                     mealFoods = meal?.items?.map { MealFoodLine(it.name, it.meta) } ?: emptyList())
@@ -107,6 +117,10 @@ fun Diet.resolve(mealsById: Map<String, MealUi>, foodsById: Map<String, Food>): 
                 m.p = (food?.proteinPer100 ?: 0.0) * factor
                 m.c = (food?.carbsPer100 ?: 0.0) * factor
                 m.f = (food?.fatPer100 ?: 0.0) * factor
+                tFiber = addNullable(tFiber, food?.fiberPer100?.times(factor))
+                tSugars = addNullable(tSugars, food?.sugarsPer100?.times(factor))
+                tSatFat = addNullable(tSatFat, food?.saturatedFatPer100?.times(factor))
+                tSodium = addNullable(tSodium, food?.sodiumPer100?.times(factor))
                 DietEntryUi(e.kind, food?.name ?: "Unknown food", m.kcal.roundToInt(),
                     "${e.quantity.trim1()} ${unitLabel(e.unit)} · ${m.kcal.roundToInt()} kcal")
             }
@@ -124,7 +138,8 @@ fun Diet.resolve(mealsById: Map<String, MealUi>, foodsById: Map<String, Food>): 
         entries.isEmpty() -> "No items"
         else -> "${entries.size} item${if (entries.size == 1) "" else "s"} · ${names.joinToString(", ")}"
     }
-    return DietUi(this, slots, total.kcal.roundToInt(), total.p, total.c, total.f, entries.size, summary)
+    return DietUi(this, slots, total.kcal.roundToInt(), total.p, total.c, total.f, entries.size, summary,
+        tFiber, tSugars, tSatFat, tSodium)
 }
 
 /** Canonical slot order for the slots present, unknowns appended in first-seen order. */

@@ -102,7 +102,7 @@ function FForm({ label, value, onChange, placeholder, numeric, wrap = "mb-[11px]
 }
 
 function NewFoodForm({ onCancel, onCreate }: { onCancel: () => void; onCreate: (form: ManualFoodForm) => Promise<void> }) {
-  const [f, setF] = useState<ManualFoodForm>({ name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "", unit: "GRAM", gramsPerUnit: "" });
+  const [f, setF] = useState<ManualFoodForm>({ name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", fiber: "", sugars: "", satFat: "", sodium: "", category: "", unit: "GRAM", gramsPerUnit: "" });
   const [saving, setSaving] = useState(false);
   const set = (k: keyof ManualFoodForm, v: string) => setF((p) => ({ ...p, [k]: v }));
   const gpuOk = !isCountUnit(f.unit) || (parseFloat(f.gramsPerUnit) || 0) > 0;

@@ -2,6 +2,7 @@ package com.mealplanplus.api.domain.diet
 
 import com.mealplanplus.api.generated.api.DietsApi
 import com.mealplanplus.api.generated.model.DietDto
+import com.mealplanplus.api.generated.model.DietUsageDto
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
@@ -15,6 +16,9 @@ class DietController(private val service: DietService) : DietsApi {
 
     override fun getDiet(id: Long): ResponseEntity<DietDto> =
         ResponseEntity.ok(service.get(id, currentUid()))
+
+    override fun getDietUsage(id: Long): ResponseEntity<DietUsageDto> =
+        ResponseEntity.ok(service.usage(id, currentUid()))
 
     override fun createDiet(dietDto: DietDto): ResponseEntity<DietDto> =
         ResponseEntity.status(HttpStatus.CREATED).body(service.create(dietDto, currentUid()))

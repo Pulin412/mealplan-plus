@@ -2,12 +2,14 @@ package com.mealplanplus.api.domain.diet
 import com.mealplanplus.api.error.orNotFound
 
 import com.mealplanplus.api.generated.model.DietDto
+import com.mealplanplus.api.generated.model.DietUsageDto
 import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.DietFoodItemDto
 import com.mealplanplus.api.generated.model.DietMealDto
 import com.mealplanplus.api.generated.model.TagDto
 import com.mealplanplus.api.domain.food.FoodRepository
 import com.mealplanplus.api.domain.meal.MealRepository
+import com.mealplanplus.api.domain.plan.DayPlanRepository
 import com.mealplanplus.api.domain.sync.TombstoneService
 import com.mealplanplus.api.domain.sync.shouldSkipUpdate
 import org.springframework.http.HttpStatus
@@ -26,9 +28,27 @@ class DietService(
     private val entityTagRepo: EntityTagRepository,
     private val mealRepo: MealRepository,
     private val foodRepo: FoodRepository,
+    private val dayPlanRepo: DayPlanRepository,
     private val tombstones: TombstoneService,
     private val notificationService: com.mealplanplus.api.domain.social.NotificationService,
 ) {
+
+    /** How frequently this diet is assigned to days in the plan calendar (this user's plans only). */
+    fun usage(id: Long, firebaseUid: String): DietUsageDto {
+        get(id, firebaseUid) // 404/403 if the diet isn't visible to this user
+        val dates = dayPlanRepo.findByFirebaseUidAndDietId(firebaseUid, id).map { it.date }
+        val today = java.time.LocalDate.now()
+        fun withinLast(days: Long) = dates.count { !it.isBefore(today.minusDays(days - 1)) && !it.isAfter(today) }
+        return DietUsageDto(
+            dietId = id,
+            timesAssigned = dates.size,
+            last7Days = withinLast(7),
+            last30Days = withinLast(30),
+            last90Days = withinLast(90),
+            firstUsedDate = dates.minOrNull(),
+            lastUsedDate = dates.maxOrNull(),
+        )
+    }
     // ── serverId ↔ id resolution so offline clients (UUID identity) work ─────────
     /** UUID a client sent → local meal id (falls back to the numeric mealId). */
     private fun resolveMealId(dto: DietMealDto): Long {

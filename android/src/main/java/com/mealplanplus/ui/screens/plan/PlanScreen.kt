@@ -223,20 +223,21 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
     val workouts = plan?.plannedWorkouts.orEmpty()
     val plannedMeals = state.plannedMealsFor(date)
     val selectedDiet = plan?.dietId?.let { id -> state.diets.firstOrNull { it.id == id } }
+    // A completed day is a finished record — lock it so past days can't be edited (no remove/add/clear).
+    val readOnly = date in state.completedDays
     ModalBottomSheet(onDismissRequest = onClose, containerColor = Surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) {
                     Text(date.format(DateTimeFormatter.ofPattern("EEEE, d MMM")), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
                 }
-                if (plan != null) Text("Clear day", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Danger, modifier = Modifier.clickable(onClick = onClear))
+                if (plan != null && !readOnly) Text("Clear day", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Danger, modifier = Modifier.clickable(onClick = onClear))
             }
 
             // Past-day recap: whether the day was marked complete and which meal slots were logged.
             if (date.isBefore(state.today)) {
                 val completed = date in state.completedDays
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                    Text("This day", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
                     Spacer(Modifier.weight(1f))
                     Text(if (completed) "Completed" else "Not completed", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold,
                         color = if (completed) Success else MutedFaint)
@@ -257,11 +258,13 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp)) {
                 Text("Diet plan", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
                 Spacer(Modifier.weight(1f))
-                if (selectedDiet != null) Text("Change diet", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable(onClick = onPick))
+                if (selectedDiet != null && !readOnly) Text("Change diet", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal, modifier = Modifier.clickable(onClick = onPick))
             }
             if (selectedDiet != null) {
                 Text(selectedDiet.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.padding(top = 2.dp))
-                DietSlots(selectedDiet, onRemoveMeal = onRemoveDietMeal)
+                DietSlots(selectedDiet, onRemoveMeal = if (readOnly) null else onRemoveDietMeal)
+            } else if (readOnly) {
+                Text("No diet planned.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(top = 2.dp))
             } else {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                     .clip(RoundedCornerShape(12.dp)).background(Teal).clickable(onClick = onPick).padding(vertical = 13.dp)) {
@@ -275,10 +278,10 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
                 Text("No individual meals planned.", fontSize = 11.5.sp, color = MutedLight, modifier = Modifier.padding(bottom = 8.dp))
             } else {
                 Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                    plannedMeals.forEach { pm -> ExpandablePlannedMeal(pm, onRemoveMeal) }
+                    plannedMeals.forEach { pm -> ExpandablePlannedMeal(pm, if (readOnly) null else onRemoveMeal) }
                 }
             }
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddMeal).padding(vertical = 11.dp)) {
+            if (!readOnly) Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddMeal).padding(vertical = 11.dp)) {
                 Text("＋ Add a meal", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
             }
 
@@ -290,16 +293,18 @@ private fun DayPlanSheet(date: LocalDate, state: PlanUiState, onPick: () -> Unit
                     workouts.forEach { w ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(SurfaceMuted).padding(start = 8.dp, end = 11.dp, top = 6.dp, bottom = 6.dp)) {
                             val wid = w.id
-                            Text("×", fontSize = 13.sp, color = MutedFaint,
-                                modifier = if (wid != null) Modifier.clickable { onRemoveWorkout(wid) } else Modifier)
-                            Spacer(Modifier.width(6.dp))
+                            if (wid != null && !readOnly) {
+                                Text("×", fontSize = 13.sp, color = MutedFaint,
+                                    modifier = Modifier.clickable { onRemoveWorkout(wid) })
+                                Spacer(Modifier.width(6.dp))
+                            }
                             Text(w.activityName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ink,
                                 modifier = Modifier.clickable { onOpenWorkout(w.workoutTemplateId) })
                         }
                     }
                 }
             }
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddWorkout).padding(vertical = 11.dp)) {
+            if (!readOnly) Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp)).border(1.5.dp, CardBorder, RoundedCornerShape(11.dp)).clickable(onClick = onAddWorkout).padding(vertical = 11.dp)) {
                 Text("＋ Add from library", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal)
             }
         }
@@ -548,14 +553,16 @@ private fun ExpandableMeal(header: DietLine, foods: List<DietLine>, slot: String
 
 /** An individually-planned meal on a day — same expandable look as a diet meal, with its ingredients. */
 @Composable
-private fun ExpandablePlannedMeal(pm: PlannedMealView, onRemove: (Long) -> Unit) {
+private fun ExpandablePlannedMeal(pm: PlannedMealView, onRemove: ((Long) -> Unit)? = null) {
     var open by remember(pm.id) { mutableStateOf(false) }
     val expandable = pm.lines.isNotEmpty()
     Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().then(if (expandable) Modifier.clickable { open = !open } else Modifier)) {
-            Text("×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clip(CircleShape).clickable { onRemove(pm.id) }.padding(horizontal = 6.dp, vertical = 2.dp))
-            Spacer(Modifier.width(6.dp))
+            if (onRemove != null) {
+                Text("×", fontSize = 14.sp, color = MutedFaint, modifier = Modifier.clip(CircleShape).clickable { onRemove(pm.id) }.padding(horizontal = 6.dp, vertical = 2.dp))
+                Spacer(Modifier.width(6.dp))
+            }
             SlotBadge(pm.slot)
             Spacer(Modifier.width(8.dp))
             Text(pm.name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Ink,

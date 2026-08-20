@@ -215,6 +215,16 @@ function ManualSheet({ open, editing, form, isSaveEnabled, saving, onField, onSa
         <SheetField label="Fat" placeholder="g" inputMode="numeric"
           value={form.fat} onChange={(v) => onField("fat", v)} className="flex-1" />
       </div>
+      <div className="flex gap-[10px] mb-5">
+        <SheetField label="Fiber" placeholder="g" inputMode="numeric"
+          value={form.fiber} onChange={(v) => onField("fiber", v)} className="flex-1" />
+        <SheetField label="Sugars" placeholder="g" inputMode="numeric"
+          value={form.sugars} onChange={(v) => onField("sugars", v)} className="flex-1" />
+        <SheetField label="Sat. fat" placeholder="g" inputMode="numeric"
+          value={form.satFat} onChange={(v) => onField("satFat", v)} className="flex-1" />
+        <SheetField label="Sodium" placeholder="g" inputMode="numeric"
+          value={form.sodium} onChange={(v) => onField("sodium", v)} className="flex-1" />
+      </div>
       <SheetField label="Category" placeholder="Pick one below or type your own"
         value={form.category} onChange={(v) => onField("category", v)} className="mb-[8px]" />
       <div className="flex flex-wrap gap-[6px] mb-5">

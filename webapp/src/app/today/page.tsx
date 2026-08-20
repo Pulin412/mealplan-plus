@@ -262,7 +262,7 @@ type LoggedFood = DashboardDto["additionalFoods"][number];
 type AddedUnit = { kind: "single"; lf: LoggedFood } | { kind: "meal"; name: string; items: LoggedFood[] };
 
 // Meal-tagged foods (mealName) group into one collapsible 🍲 row; lone foods stay individual.
-function AddedToday({ added, foodsById, onRemove }: { added: LoggedFood[]; foodsById: Map<number, FoodDto>; onRemove: (ids: number[]) => void }) {
+function AddedToday({ added, foodsById, onRemove, readOnly }: { added: LoggedFood[]; foodsById: Map<number, FoodDto>; onRemove: (ids: number[]) => void; readOnly: boolean }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const kcalOf = (lf: LoggedFood) => r(foodMacros(lf.foodId != null ? foodsById.get(lf.foodId) : undefined, lf.quantity, (lf.unit ?? "GRAM") as FoodUnit).kcal);
 
@@ -293,7 +293,7 @@ function AddedToday({ added, foodsById, onRemove }: { added: LoggedFood[]; foods
                   </div>
                 </div>
                 <span style={{ font: `700 12.5px ${mono}`, color: C.ink }}>{kcalOf(lf)}<span style={{ font: "400 9px system-ui", color: C.muted2 }}> kcal</span></span>
-                <button onClick={() => onRemove([lf.id])} style={{ fontSize: 13, color: C.muted2, marginLeft: 6 }}>✕</button>
+                {!readOnly && <button onClick={() => onRemove([lf.id])} style={{ fontSize: 13, color: C.muted2, marginLeft: 6 }}>✕</button>}
               </div>
             );
           }
@@ -310,7 +310,7 @@ function AddedToday({ added, foodsById, onRemove }: { added: LoggedFood[]; foods
                   </div>
                 </div>
                 <span style={{ font: `700 12.5px ${mono}`, color: C.ink }}>{total}<span style={{ font: "400 9px system-ui", color: C.muted2 }}> kcal</span></span>
-                <button onClick={(e) => { e.stopPropagation(); onRemove(u.items.map((x) => x.id)); }} style={{ fontSize: 13, color: C.muted2, marginLeft: 6 }}>✕</button>
+                {!readOnly && <button onClick={(e) => { e.stopPropagation(); onRemove(u.items.map((x) => x.id)); }} style={{ fontSize: 13, color: C.muted2, marginLeft: 6 }}>✕</button>}
               </div>
               {isOpen && u.items.map((lf) => {
                 const unit = (lf.unit ?? "GRAM") as FoodUnit;
@@ -513,7 +513,7 @@ function TodayInner() {
             )}
 
             {d.additionalFoods.length > 0 && (
-              <AddedToday added={d.additionalFoods} foodsById={t.foodsById} onRemove={t.removeFoods} />
+              <AddedToday added={d.additionalFoods} foodsById={t.foodsById} onRemove={t.removeFoods} readOnly={d.dayCompleted ?? false} />
             )}
 
             <WorkoutSection workouts={tw.workouts} onOpen={openWorkout} onRemove={tw.removeWorkout} onAdd={() => setAddWorkoutOpen(true)} />
