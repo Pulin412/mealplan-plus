@@ -24,7 +24,7 @@ Module-specific rules live in each module's own `CLAUDE.md` — this file holds 
 | `docs/`    | `ARCHITECTURE.md`, `FEATURES.md`, `openapi.yaml`, `agents/` (AI-agent planning) |
 | `scripts/` | One-off setup scripts |
 
-Live: API `https://mealplan-api-rfo22lhanq-ez.a.run.app` · Web `https://mealplan-plus.vercel.app` · health `…/actuator/health`.
+Live (brand = **EatMyPlan**; internal ids stay `mealplan-*`/`com.mealplanplus`): Web `https://eatmyplan.com` · API `https://api.eatmyplan.com` (Cloud Run default `https://mealplan-api-rfo22lhanq-ez.a.run.app` still valid) · health `…/actuator/health` · MCP connector `https://api.eatmyplan.com/mcp` (OAuth via Stytch).
 Backend is the source of truth and shared layer for both clients.
 
 ## Hard rules — never break (cross-cutting)

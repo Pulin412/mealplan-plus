@@ -46,6 +46,13 @@ only lives in a client if it *must* run offline. The backend is the de-duplicati
 Firebase issues a JWT → client sends `Authorization: Bearer <token>` → backend validates
 via Firebase's JWKS endpoint → data is scoped to `firebaseUid`. No server-side session.
 
+**External MCP connector** (bring-your-own-Claude, `/mcp`) uses a second auth path: OAuth 2.1
+(PKCE + Dynamic Client Registration) via **Stytch Connected Apps**, bridged to Firebase. The
+webapp's `/authorize` page exchanges the Firebase session for a Stytch access token (Trusted Auth
+Token profile), and `McpAuthFilter` validates it (RS256/JWKS) — the token carries `firebase_uid`,
+so MCP tools resolve the same user as the REST API. Authorization server is `login.eatmyplan.com`.
+Gated by the `mcp_server` DB feature flag. Full config: [RUNBOOK → Domains & external MCP connector](RUNBOOK.md#domains--external-mcp-connector).
+
 ## Zero-billing guardrail (hard rule)
 
 Every Google/Firebase service in use is **free-tier only**, and the build fails if a
@@ -90,17 +97,21 @@ feature/*  ──PR──▶  develop  ──PR──▶  main  ──merge─�
 Build+test → Docker image → push to Artifact Registry → `gcloud run deploy` → health check
 → prune old images. Runs under `SPRING_PROFILES_ACTIVE=prod` (`application-prod.yml`):
 hardened logging, Hikari pool, `ddl-auto=validate`, Flyway `clean` disabled, CORS locked to
-the prod webapp origin, **Swagger behind Basic auth**.
+the prod webapp origins (`eatmyplan.com`, `www`, `mealplan-plus.vercel.app`), **Swagger behind Basic auth**.
 
 | Property | Value |
 |---|---|
 | Service / region | `mealplan-api` · `europe-west4` |
+| Public URLs | `https://api.eatmyplan.com` (free Cloud Run domain mapping) + `https://mealplan-api-rfo22lhanq-ez.a.run.app` |
 | GCP project | `mealplan-plus` |
 | Deployer SA | `mealplan-deployer@mealplan-plus.iam.gserviceaccount.com` |
 | Image | `europe-west4-docker.pkg.dev/mealplan-plus/mealplan/mealplan-api` |
 
 **GitHub secrets:** `GCP_PROJECT_ID`, `GCP_SA_KEY`, `FIREBASE_PROJECT_ID`.
-**Secret Manager:** `mealplan-db-{url,user,password}`, `mealplan-swagger-{user,password}`.
+**Secret Manager:** `mealplan-db-{url,user,password}`, `mealplan-swagger-{user,password}`,
+`mealplan-mcp-token-secret`, `mealplan-admin-emails`.
+Stytch/MCP config (issuer, project id, uid-claim) is inlined in the workflow's `--set-env-vars`
+because that flag **replaces** the whole env set each deploy — see [RUNBOOK](RUNBOOK.md#backend-env--secrets-cloud-run-set-by-backend-deployyml).
 
 ### Database — Neon Postgres
 
@@ -111,9 +122,11 @@ the baseline. To rebuild from empty (clean slate): back up first (Neon branch/PI
 
 ### Webapp — Vercel
 
-Auto-deploys on `main` (Root Directory `webapp/`). Env: `NEXT_PUBLIC_FIREBASE_*`,
-`NEXT_PUBLIC_API_BASE_URL` = the prod API. Firebase authorized domains must include the
-Vercel domain.
+Auto-deploys on `main` (Root Directory `webapp/`). Served on `eatmyplan.com` (+ `www`). Env:
+`NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_API_BASE_URL` = the prod API, and `NEXT_PUBLIC_STYTCH_*`
+(public token, token-profile id, custom domain `login.eatmyplan.com`) for the MCP OAuth `/authorize`
+page. `NEXT_PUBLIC_*` are build-time — changing them needs a **redeploy**. Firebase authorized
+domains + the Stytch **SDK-authorized-domains** list must both include `eatmyplan.com`.
 
 ### Android — manual APK
 
