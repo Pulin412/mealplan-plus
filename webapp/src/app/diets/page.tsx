@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { NoteBadge } from "@/components/NoteBadge";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -56,6 +57,7 @@ function DietCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEd
 }) {
   const wrapClass = compact ? "cursor-pointer px-[11px] py-[7px]" : "cursor-pointer rounded-[12px] mb-[8px] px-3 py-[9px]";
   const wrapStyle = compact ? { borderBottom: isLast ? "none" : `1px solid ${C.bgAlt}` } : { background: C.surface, border: `1px solid ${C.border}` };
+  const router = useRouter();
   return (
     <div onClick={onToggle} className={wrapClass} style={wrapStyle}>
       <div className="flex items-center gap-[10px]">
@@ -72,6 +74,10 @@ function DietCard({ v, expanded, compact, isLast, onToggle, onFav, onShare, onEd
             </div>
           )}
         </div>
+        {v.diet.id != null && (
+          <button onClick={(e) => { e.stopPropagation(); router.push(`/diets/${v.diet.id}`); }} aria-label="Diet details"
+            className="flex-none w-[26px] h-[26px] flex items-center justify-center rounded-full text-[13px] font-bold" style={{ color: C.muted2, border: `1.3px solid ${C.border}` }}>ⓘ</button>
+        )}
         {!v.diet.imported && <GlobeBtn active={!!v.diet.isShared} onClick={(e) => { e.stopPropagation(); onShare(e); }} />}
         <StarBtn active={!!v.diet.isFavorite} onClick={(e) => { e.stopPropagation(); onFav(e); }} />
         <span className="flex-none text-[12.5px] font-bold tabular-nums" style={{ color: C.ink, fontFamily: mono }}>
