@@ -21,7 +21,7 @@ android {
         versionName = providers.gradleProperty("versionName").orNull ?: "2.0"
         buildConfigField("boolean", "ZERO_BILLING_MODE", "true")
         buildConfigField("boolean", "FORBID_PAID_FIREBASE_FEATURES", "true")
-        buildConfigField("String", "API_BASE_URL", "\"https://mealplan-api-rfo22lhanq-ez.a.run.app\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://api.eatmyplan.com\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
