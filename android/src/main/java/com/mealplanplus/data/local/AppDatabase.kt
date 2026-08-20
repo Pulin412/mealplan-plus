@@ -14,7 +14,7 @@ import com.mealplanplus.data.model.Meal
 
 @Database(
     entities  = [Food::class, Meal::class, Diet::class, CachedResponse::class],
-    version   = 11,  // v11: meals.notes + diets.description — notes UI via MIGRATION_10_11 (additive).
+    version   = 12,  // v12: foods extra nutrients (fiber/sugars/sat-fat/sodium) via MIGRATION_11_12 (additive).
     exportSchema = true
 )
 @TypeConverters(Converters::class)

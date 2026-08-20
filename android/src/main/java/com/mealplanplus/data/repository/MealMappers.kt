@@ -56,8 +56,16 @@ data class MealUi(
     val totalProtein: Double,
     val totalCarbs: Double,
     val totalFat: Double,
+    // Extra nutrients — null when no food in the meal reported that value.
+    val totalFiber: Double?,
+    val totalSugars: Double?,
+    val totalSatFat: Double?,
+    val totalSodium: Double?,
     val itemsSummary: String,
 )
+
+/** Add a scaled nutrient contribution, keeping null ("unknown") distinct from 0. */
+fun addNullable(cur: Double?, v: Double?): Double? = if (v == null) cur else (cur ?: 0.0) + v
 
 data class MealItemUi(
     val name: String,
@@ -121,6 +129,7 @@ fun Meal.resolve(foodsById: Map<String, Food>): MealUi {
         )
     }
     var kcal = 0.0; var p = 0.0; var c = 0.0; var f = 0.0
+    var fiber: Double? = null; var sugars: Double? = null; var satFat: Double? = null; var sodium: Double? = null
     items.forEach { item ->
         val food = foodsById[item.foodServerId] ?: return@forEach
         val factor = food.gramsFor(item.quantity, item.unit) / 100.0
@@ -128,13 +137,17 @@ fun Meal.resolve(foodsById: Map<String, Food>): MealUi {
         p += food.proteinPer100 * factor
         c += food.carbsPer100 * factor
         f += food.fatPer100 * factor
+        fiber = addNullable(fiber, food.fiberPer100?.times(factor))
+        sugars = addNullable(sugars, food.sugarsPer100?.times(factor))
+        satFat = addNullable(satFat, food.saturatedFatPer100?.times(factor))
+        sodium = addNullable(sodium, food.sodiumPer100?.times(factor))
     }
     val names = resolved.map { it.name }
     val summary = when {
         items.isEmpty() -> "No items"
         else -> "${items.size} item${if (items.size == 1) "" else "s"} · ${names.joinToString(", ")}"
     }
-    return MealUi(this, resolved, kcal.roundToInt(), p, c, f, summary)
+    return MealUi(this, resolved, kcal.roundToInt(), p, c, f, fiber, sugars, satFat, sodium, summary)
 }
 
 private fun Double.trimNum(): String =

@@ -49,6 +49,7 @@ import com.mealplanplus.ui.screens.auth.AuthScreen
 import com.mealplanplus.ui.screens.auth.AuthViewModel
 import com.mealplanplus.ui.screens.auth.ForgotPasswordScreen
 import com.mealplanplus.ui.screens.diets.DietsScreen
+import com.mealplanplus.ui.screens.diets.DietDetailScreen
 import com.mealplanplus.ui.screens.exercises.ExercisesScreen
 import com.mealplanplus.ui.screens.foods.FoodsScreen
 import com.mealplanplus.ui.screens.groceries.GroceryScreen
@@ -273,7 +274,16 @@ fun MealPlanNavHost() {
                 MealsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Diets.route)     {
-                DietsScreen(onBack = { navController.popBackStack() })
+                DietsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenDetails = { dietId -> navController.navigate("dietDetail/$dietId") },
+                )
+            }
+            composable(
+                route = "dietDetail/{dietId}",
+                arguments = listOf(navArgument("dietId") { type = NavType.StringType }),
+            ) {
+                DietDetailScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Foods.route)     {
                 FoodsScreen(onBack = { navController.popBackStack() })

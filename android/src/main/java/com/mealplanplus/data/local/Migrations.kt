@@ -42,3 +42,13 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         db.execSQL("ALTER TABLE `diets` ADD COLUMN `description` TEXT")
     }
 }
+
+// v12: extra per-100g nutrients on foods (fiber/sugars/saturated fat/sodium), all nullable.
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `foods` ADD COLUMN `fiberPer100` REAL")
+        db.execSQL("ALTER TABLE `foods` ADD COLUMN `sugarsPer100` REAL")
+        db.execSQL("ALTER TABLE `foods` ADD COLUMN `saturatedFatPer100` REAL")
+        db.execSQL("ALTER TABLE `foods` ADD COLUMN `sodiumPer100` REAL")
+    }
+}
