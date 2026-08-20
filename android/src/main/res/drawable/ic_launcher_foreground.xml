@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  EatMyPlan launcher foreground: a fork-and-knife plate inside a calorie progress ring
+  (echoes the dashboard's calorie ring). Content kept inside the ~72dp adaptive safe zone.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ring track -->
+    <path
+        android:pathData="M22,54 a32,32 0 1,0 64,0 a32,32 0 1,0 -64,0"
+        android:strokeColor="#33FFFFFF"
+        android:strokeWidth="6.2"
+        android:fillColor="#00000000" />
+
+    <!-- progress arc (~72%), coral -->
+    <path
+        android:pathData="M54,22 A32,32 0 1 1 22.6,60"
+        android:strokeColor="#FF6A45"
+        android:strokeWidth="6.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- plate -->
+    <path
+        android:pathData="M32,54 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0"
+        android:fillColor="#FBF6EC" />
+
+    <!-- plate rim -->
+    <path
+        android:pathData="M37.5,54 a16.5,16.5 0 1,0 33,0 a16.5,16.5 0 1,0 -33,0"
+        android:strokeColor="#E4D8C1"
+        android:strokeWidth="1.8"
+        android:fillColor="#00000000" />
+
+    <!-- fork -->
+    <path
+        android:pathData="M48,46 L48,62"
+        android:strokeColor="#17915A"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M45,43.5 L45,49 M48,43.5 L48,49 M51,43.5 L51,49"
+        android:strokeColor="#17915A"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- knife -->
+    <path
+        android:pathData="M60,46 L60,62"
+        android:strokeColor="#17915A"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon (Android 13+) silhouette: single colour, the system tints it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ring -->
+    <path
+        android:pathData="M22,54 a32,32 0 1,0 64,0 a32,32 0 1,0 -64,0"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:fillColor="#00000000" />
+
+    <!-- plate rim -->
+    <path
+        android:pathData="M37.5,54 a16.5,16.5 0 1,0 33,0 a16.5,16.5 0 1,0 -33,0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+
+    <!-- fork -->
+    <path
+        android:pathData="M48,46 L48,62"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M45,43.5 L45,49 M48,43.5 L48,49 M51,43.5 L51,49"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- knife -->
+    <path
+        android:pathData="M60,46 L60,62"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

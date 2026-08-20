@@ -70,7 +70,7 @@ jobs:
         id: rename
         run: |
           SRC=$(find android/build/outputs/apk/release -name "*.apk" | head -1)
-          OUT="mealplanplus-${{ github.event.inputs.versionName }}.apk"
+          OUT="eatmyplan-${{ github.event.inputs.versionName }}.apk"
           cp "$SRC" "$OUT"
           echo "apk=$OUT" >> "$GITHUB_OUTPUT"
 
@@ -78,7 +78,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mealplanplus-${{ github.event.inputs.versionName }}
+          name: eatmyplan-${{ github.event.inputs.versionName }}
           path: ${{ steps.rename.outputs.apk }}
 
       # Notes come from CHANGELOG.md (Android → the versionName block); if there's no matching block,
