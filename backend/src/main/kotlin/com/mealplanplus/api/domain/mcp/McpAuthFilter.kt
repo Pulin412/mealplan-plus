@@ -37,8 +37,11 @@ class McpAuthFilter(
     private val featureFlags: FeatureFlagService,
 ) : OncePerRequestFilter() {
 
-    override fun shouldNotFilter(request: HttpServletRequest): Boolean =
-        !request.requestURI.startsWith("/mcp/")
+    override fun shouldNotFilter(request: HttpServletRequest): Boolean {
+        // The Streamable HTTP transport is a single endpoint at exactly /mcp (no trailing slash).
+        val uri = request.requestURI
+        return uri != "/mcp" && !uri.startsWith("/mcp/")
+    }
 
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
         if (!featureFlags.isEnabled(FeatureFlagKey.MCP_SERVER.key)) {

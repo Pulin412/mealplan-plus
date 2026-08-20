@@ -87,7 +87,7 @@ class AdminControllerTest {
         val body = controller.mintMcpConnectorToken("READ_WRITE").body!!
 
         assertThat(body.scope).isEqualTo(McpConnectorTokenResponse.Scope.READ_WRITE)
-        assertThat(body.sseEndpointPath).isEqualTo("/mcp/sse")
+        assertThat(body.sseEndpointPath).isEqualTo("/mcp")
         val principal = mcpTokens.verify(body.token)!!
         assertThat(principal.uid).isEqualTo("uid-1")
         assertThat(principal.scope).isEqualTo(McpTokenService.Scope.READ_WRITE)

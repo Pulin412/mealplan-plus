@@ -37,14 +37,16 @@ spring:
       chat:
         options:
           model: ${OLLAMA_MODEL:qwen2.5:7b}
-    # MCP server (SSE over Spring MVC) — exposes our tools to a user's own Claude. Endpoints live under
-    # /mcp/** so they can be permitted + auth-filtered as a unit. Runtime-gated by the mcp_server flag.
+    # MCP server (Streamable HTTP over Spring MVC) — exposes our tools to a user's own Claude. The single
+    # /mcp endpoint is permitted + auth-filtered as a unit and runtime-gated by the mcp_server flag.
+    # Streamable HTTP (not legacy SSE) is what Claude speaks, and it lets Cloud Run scale to zero.
     mcp:
       server:
         name: mealplan-mcp
         version: 0.1.0
-        sse-endpoint: /mcp/sse
-        sse-message-endpoint: /mcp/message
+        protocol: STREAMABLE
+        streamable-http:
+          mcp-endpoint: /mcp
 
 # MCP connector-token signing secret (HMAC). Env-only, no committed default: set MCP_TOKEN_SECRET in the
 # gitignored backend/.env for local, and in Cloud Run for prod. Unset = the MCP server rejects every token.
