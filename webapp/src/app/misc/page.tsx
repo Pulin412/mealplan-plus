@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/meals", icon: "🍲", title: "Meals", subtitle: "Reusable meals" },
   { href: "/diets", icon: "🥗", title: "Diets", subtitle: "Day-plan templates" },
   { href: "/groceries", icon: "🛒", title: "Groceries", subtitle: "Shopping lists from your plan" },
+  { href: "/help", icon: "📖", title: "Help", subtitle: "Guides for every feature" },
 ];
 
 function MiscInner() {

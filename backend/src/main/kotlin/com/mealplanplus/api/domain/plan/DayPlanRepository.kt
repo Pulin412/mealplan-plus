@@ -9,6 +9,7 @@ interface DayPlanRepository : JpaRepository<DayPlan, Long> {
     fun findByFirebaseUid(firebaseUid: String): List<DayPlan>
     fun findByFirebaseUidAndDateBetween(firebaseUid: String, from: LocalDate, to: LocalDate): List<DayPlan>
     fun findByFirebaseUidAndDate(firebaseUid: String, date: LocalDate): DayPlan?
+    fun findByFirebaseUidAndDietId(firebaseUid: String, dietId: Long): List<DayPlan>
     fun findByServerId(serverId: UUID): DayPlan?
     fun findByFirebaseUidAndUpdatedAtAfter(firebaseUid: String, since: Instant): List<DayPlan>
     fun deleteByFirebaseUidAndDate(firebaseUid: String, date: LocalDate)

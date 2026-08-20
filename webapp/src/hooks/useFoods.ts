@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { listFoods, createFood, updateFood, deleteFood, toggleFavorite, searchFoodsOnline, type FoodDto } from "@/lib/api/foods";
+import { listFoods, createFood, updateFood, deleteFood, toggleFavorite, searchFoodsOnline, createFoodFromDto, type FoodDto } from "@/lib/api/foods";
 import { createScannedFood, type ScannedProduct } from "@/lib/api/barcode";
 import type { FoodSort, FoodViewMode, FoodSheet, ManualFoodForm } from "@/types/food";
 import { naturalCompare } from "@/lib/utils/naturalCompare";
 
-const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", category: "", unit: "GRAM", gramsPerUnit: "" };
+const EMPTY_FORM: ManualFoodForm = { name: "", servingLabel: "", kcal: "", protein: "", carbs: "", fat: "", fiber: "", sugars: "", satFat: "", sodium: "", category: "", unit: "GRAM", gramsPerUnit: "" };
 
 export function useFoods() {
   const [foods, setFoods]               = useState<FoodDto[]>([]);
@@ -125,6 +125,10 @@ export function useFoods() {
       name: food.name, servingLabel: "",
       kcal: numStr(food.caloriesPer100), protein: numStr(food.proteinPer100),
       carbs: numStr(food.carbsPer100), fat: numStr(food.fatPer100),
+      fiber: food.fiberPer100 != null ? numStr(food.fiberPer100) : "",
+      sugars: food.sugarsPer100 != null ? numStr(food.sugarsPer100) : "",
+      satFat: food.saturatedFatPer100 != null ? numStr(food.saturatedFatPer100) : "",
+      sodium: food.sodiumPer100 != null ? numStr(food.sodiumPer100) : "",
       category: food.category ?? "", unit: u, gramsPerUnit: gpu != null ? numStr(gpu) : "",
     });
     setEditingId(food.id ?? null);
@@ -175,15 +179,8 @@ export function useFoods() {
   const addOnlineFood = useCallback(async (food: FoodDto) => {
     setSaving(true);
     try {
-      const created = await createScannedFood({
-        name: food.name,
-        brand: food.brand ?? null,
-        barcode: food.barcode ?? "",
-        kcal: food.caloriesPer100,
-        protein: food.proteinPer100,
-        carbs: food.carbsPer100,
-        fat: food.fatPer100,
-      });
+      // Send the whole OFF DTO so the extra nutrients (fiber/sugars/sat-fat/sodium) are preserved.
+      const created = await createFoodFromDto(food);
       setFoods((prev) => [created, ...prev]);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to add food");

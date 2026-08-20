@@ -690,6 +690,28 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/diets/{id}/usage:
+    get:
+      tags: [Diets]
+      summary: Diet usage stats
+      description: How frequently this diet has been assigned to days in the plan calendar.
+      operationId: getDietUsage
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Usage stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DietUsageDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/diets/{id}/duplicate:
     post:
       tags: [Diets]
@@ -3351,6 +3373,37 @@ components:
 
     # ── Food ─────────────────────────────────────────────────────────────────
 
+    DietUsageDto:
+      type: object
+      description: How often a diet has been assigned to days in the plan calendar (per user).
+      properties:
+        dietId:
+          type: integer
+          format: int64
+        timesAssigned:
+          type: integer
+          description: Number of days this diet is assigned to, all-time (each calendar day counts once).
+        last7Days:
+          type: integer
+          description: Days assigned within the last 7 days (inclusive of today).
+        last30Days:
+          type: integer
+          description: Days assigned within the last 30 days (inclusive of today).
+        last90Days:
+          type: integer
+          description: Days assigned within the last 90 days (inclusive of today).
+        firstUsedDate:
+          type: string
+          format: date
+          nullable: true
+          description: Earliest day this diet is assigned to; null if never used.
+        lastUsedDate:
+          type: string
+          format: date
+          nullable: true
+          description: Latest day this diet is assigned to; null if never used.
+      required: [dietId, timesAssigned, last7Days, last30Days, last90Days]
+
     FoodDto:
       type: object
       description: |
@@ -3396,6 +3449,26 @@ components:
         fatPer100:
           type: number
           format: double
+        fiberPer100:
+          type: number
+          format: double
+          nullable: true
+          description: Dietary fiber per 100 g. Null = unknown (not entered / not in Open Food Facts).
+        sugarsPer100:
+          type: number
+          format: double
+          nullable: true
+          description: Sugars per 100 g. Null = unknown.
+        saturatedFatPer100:
+          type: number
+          format: double
+          nullable: true
+          description: Saturated fat per 100 g. Null = unknown.
+        sodiumPer100:
+          type: number
+          format: double
+          nullable: true
+          description: Sodium per 100 g, in grams (from Open Food Facts `sodium_100g`). Null = unknown.
         unit:
           allOf:
             - $ref: '#/components/schemas/FoodUnit'

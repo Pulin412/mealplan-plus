@@ -332,6 +332,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/diets/{id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Diet usage stats
+         * @description How frequently this diet has been assigned to days in the plan calendar.
+         */
+        get: operations["getDietUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/diets/{id}/duplicate": {
         parameters: {
             query?: never;
@@ -1907,6 +1927,29 @@ export interface components {
             color?: string | null;
             entityType: components["schemas"]["TagEntityType"];
         };
+        /** @description How often a diet has been assigned to days in the plan calendar (per user). */
+        DietUsageDto: {
+            /** Format: int64 */
+            dietId: number;
+            /** @description Number of days this diet is assigned to, all-time (each calendar day counts once). */
+            timesAssigned: number;
+            /** @description Days assigned within the last 7 days (inclusive of today). */
+            last7Days: number;
+            /** @description Days assigned within the last 30 days (inclusive of today). */
+            last30Days: number;
+            /** @description Days assigned within the last 90 days (inclusive of today). */
+            last90Days: number;
+            /**
+             * Format: date
+             * @description Earliest day this diet is assigned to; null if never used.
+             */
+            firstUsedDate?: string | null;
+            /**
+             * Format: date
+             * @description Latest day this diet is assigned to; null if never used.
+             */
+            lastUsedDate?: string | null;
+        };
         /**
          * @description A food item. All macros are **per 100 g**. `isSystemFood = true` items are
          *     shared across all users. `isFavorite` for system foods is stored per-user in
@@ -1938,6 +1981,26 @@ export interface components {
             carbsPer100: number;
             /** Format: double */
             fatPer100: number;
+            /**
+             * Format: double
+             * @description Dietary fiber per 100 g. Null = unknown (not entered / not in Open Food Facts).
+             */
+            fiberPer100?: number | null;
+            /**
+             * Format: double
+             * @description Sugars per 100 g. Null = unknown.
+             */
+            sugarsPer100?: number | null;
+            /**
+             * Format: double
+             * @description Saturated fat per 100 g. Null = unknown.
+             */
+            saturatedFatPer100?: number | null;
+            /**
+             * Format: double
+             * @description Sodium per 100 g, in grams (from Open Food Facts `sodium_100g`). Null = unknown.
+             */
+            sodiumPer100?: number | null;
             /**
              * @description The food's natural measurement unit. Macros stay per-100g; for
              *     PIECE/CUP/TBSP/TSP the matching gramsPer* factor converts a quantity
@@ -3296,6 +3359,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDietUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage stats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DietUsageDto"];
+                };
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

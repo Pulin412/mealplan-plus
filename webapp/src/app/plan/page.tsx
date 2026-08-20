@@ -114,6 +114,8 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
   const workouts = plan?.plannedWorkouts ?? [];
   const plannedMeals = p.plannedMealsFor(dateIso);
   const selectedDiet = plan?.dietId != null ? p.diets.find((di) => di.id === plan.dietId) : undefined;
+  // A completed day is a finished record — lock it so past days can't be edited (no remove/add/clear).
+  const readOnly = p.completedDays.has(dateIso);
   return (
     <BottomSheet open onClose={() => p.setSelected(null)} title="">
       <div style={{ marginTop: -8 }}>
@@ -121,14 +123,13 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
           <div style={{ flex: 1 }}>
             <div style={{ font: "700 16px system-ui", color: C.ink }}>{dt.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}</div>
           </div>
-          {plan && <button onClick={() => p.clearDay(dateIso)} style={{ font: "600 12px system-ui", color: C.danger, background: "none", border: "none", cursor: "pointer" }}>Clear day</button>}
+          {plan && !readOnly && <button onClick={() => p.clearDay(dateIso)} style={{ font: "600 12px system-ui", color: C.danger, background: "none", border: "none", cursor: "pointer" }}>Clear day</button>}
         </div>
 
         {/* Past-day recap: whether the day was marked complete and which meal slots were logged. */}
         {dateIso < p.todayIso && (
           <div style={{ marginTop: 12 }}>
             <div style={{ display: "flex", alignItems: "center" }}>
-              <span style={{ font: "600 11px system-ui", color: C.muted2 }}>This day</span>
               <span style={{ flex: 1 }} />
               <span style={{ font: "600 11.5px system-ui", color: p.completedDays.has(dateIso) ? C.green : C.muted2 }}>{p.completedDays.has(dateIso) ? "Completed" : "Not completed"}</span>
             </div>
@@ -148,13 +149,15 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
         <div style={{ display: "flex", alignItems: "center", margin: "16px 0 4px" }}>
           <span style={{ font: "600 11px system-ui", color: C.muted2 }}>Diet plan</span>
           <span style={{ flex: 1 }} />
-          {selectedDiet && <button onClick={p.openPicker} style={{ font: "600 12px system-ui", color: C.teal, background: "none", border: "none", cursor: "pointer" }}>Change diet</button>}
+          {selectedDiet && !readOnly && <button onClick={p.openPicker} style={{ font: "600 12px system-ui", color: C.teal, background: "none", border: "none", cursor: "pointer" }}>Change diet</button>}
         </div>
         {selectedDiet ? (
           <>
             <div style={{ font: "700 14px system-ui", color: C.ink, marginTop: 2 }}>{selectedDiet.name}</div>
-            <DietDetail diet={selectedDiet} onRemoveMeal={(slot, mealId) => p.removeMealFromDay(dateIso, slot, mealId)} />
+            <DietDetail diet={selectedDiet} onRemoveMeal={readOnly ? undefined : (slot, mealId) => p.removeMealFromDay(dateIso, slot, mealId)} />
           </>
+        ) : readOnly ? (
+          <div style={{ font: "400 11.5px system-ui", color: C.muted2, marginTop: 2 }}>No diet planned.</div>
         ) : (
           <button onClick={p.openPicker} style={{ width: "100%", borderRadius: 12, padding: "13px", marginTop: 2, background: C.teal, border: "none", font: "600 13px system-ui", color: "#fff", cursor: "pointer" }}>＋ Pick a diet</button>
         )}
@@ -166,11 +169,11 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
         ) : (
           <div style={{ marginBottom: 8 }}>
             {plannedMeals.map((pm) => (
-              <ExpandablePlannedMeal key={pm.id} pm={pm} onRemove={() => p.removeMeal(dateIso, pm.id)} />
+              <ExpandablePlannedMeal key={pm.id} pm={pm} onRemove={readOnly ? undefined : () => p.removeMeal(dateIso, pm.id)} />
             ))}
           </div>
         )}
-        <button onClick={p.openMealPicker} style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.teal, cursor: "pointer" }}>＋ Add a meal</button>
+        {!readOnly && <button onClick={p.openMealPicker} style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.teal, cursor: "pointer" }}>＋ Add a meal</button>}
 
         <div style={{ font: "600 11px system-ui", color: C.muted2, margin: "16px 0 4px" }}>Exercises</div>
         {workouts.length === 0 ? (
@@ -179,13 +182,13 @@ function DaySheet({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: stri
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
             {workouts.map((w, i) => (
               <span key={w.id ?? i} style={{ display: "inline-flex", alignItems: "center", font: "600 11px system-ui", color: C.ink, background: C.bgAlt, borderRadius: 20, padding: "6px 6px 6px 11px" }}>
-                <span onClick={() => p.openWorkoutDetail(w.workoutTemplateId)} style={{ cursor: "pointer" }}>{w.activityName}</span>
-                {w.id != null && <span onClick={() => p.removeWorkout(dateIso, w.id!)} style={{ cursor: "pointer", color: C.muted2, padding: "0 4px", fontSize: 13 }}>✕</span>}
+                <span onClick={() => p.openWorkoutDetail(w.workoutTemplateId)} style={{ cursor: "pointer", paddingRight: readOnly ? 11 : 0 }}>{w.activityName}</span>
+                {w.id != null && !readOnly && <span onClick={() => p.removeWorkout(dateIso, w.id!)} style={{ cursor: "pointer", color: C.muted2, padding: "0 4px", fontSize: 13 }}>✕</span>}
               </span>
             ))}
           </div>
         )}
-        <button onClick={p.openWorkoutPicker} style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.teal, cursor: "pointer" }}>＋ Add from library</button>
+        {!readOnly && <button onClick={p.openWorkoutPicker} style={{ width: "100%", borderRadius: 11, padding: "11px", border: `1.5px solid ${C.border}`, background: "none", font: "600 12px system-ui", color: C.teal, cursor: "pointer" }}>＋ Add from library</button>}
         <div style={{ font: "400 9.5px system-ui", color: C.muted2, marginTop: 8, paddingBottom: 8 }}>Log a session from the Exercises → Logs tab to see it in your history.</div>
       </div>
     </BottomSheet>
@@ -224,7 +227,7 @@ function DietDetail({ diet, onRemoveMeal }: { diet: ReturnType<typeof usePlan>["
 }
 
 // ── An individually-planned meal on a day — expands to show ingredients, like a diet meal. ──
-function ExpandablePlannedMeal({ pm, onRemove }: { pm: PlannedMealView; onRemove: () => void }) {
+function ExpandablePlannedMeal({ pm, onRemove }: { pm: PlannedMealView; onRemove?: () => void }) {
   const [open, setOpen] = useState(false);
   const expandable = pm.lines.length > 0;
   return (
@@ -234,7 +237,7 @@ function ExpandablePlannedMeal({ pm, onRemove }: { pm: PlannedMealView; onRemove
         <span style={{ flex: 1, minWidth: 0, font: "600 12.5px system-ui", color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pm.name}</span>
         {expandable && <span style={{ font: "400 9px system-ui", color: C.muted2 }}>{open ? "▾" : "▸"}</span>}
         <span style={{ font: `400 10.5px ${mono}`, color: C.muted2 }}>{pm.kcal} kcal</span>
-        <span onClick={(e) => { e.stopPropagation(); onRemove(); }} style={{ cursor: "pointer", color: C.muted2, fontSize: 14, paddingLeft: 4 }}>✕</span>
+        {onRemove && <span onClick={(e) => { e.stopPropagation(); onRemove(); }} style={{ cursor: "pointer", color: C.muted2, fontSize: 14, paddingLeft: 4 }}>✕</span>}
       </div>
       {open && pm.lines.map((li, i) => (
         <div key={i} style={{ display: "flex", alignItems: "baseline", padding: "2px 0 2px 8px" }}>
