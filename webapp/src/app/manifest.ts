@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "MealPlan+",
-    short_name: "MealPlan+",
+    name: "EatMyPlan",
+    short_name: "EatMyPlan",
     description: "Offline-first meal planning & food logging",
     start_url: "/",
     scope: "/",

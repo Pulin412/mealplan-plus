@@ -98,7 +98,7 @@ push:
   vapid:
     public-key:  ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}
-    subject:     ${VAPID_SUBJECT:mailto:reminders@mealplan.plus}
+    subject:     ${VAPID_SUBJECT:mailto:reminders@eatmyplan.com}
   # Shared secret the scheduler sends as X-Reminder-Token to POST /api/v1/internal/reminders/run.
   reminder-token: ${REMINDER_TOKEN:}
 

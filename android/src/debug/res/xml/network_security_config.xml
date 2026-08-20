@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug-only: permit cleartext HTTP to the local v2 backend (host loopback). -->
+<!-- Debug-only: permit cleartext HTTP to the local dev backend. Emulator uses 10.0.2.2; a physical
+     device reaches the host over the LAN (IP varies by network), so debug builds permit cleartext
+     generally. Release builds are unaffected (this overlay only applies to the debug variant). -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">localhost</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

@@ -27,7 +27,7 @@ class PushNotificationService(
     private val objectMapper: ObjectMapper,
     @Value("\${push.vapid.public-key:}") private val publicKey: String,
     @Value("\${push.vapid.private-key:}") private val privateKey: String,
-    @Value("\${push.vapid.subject:mailto:reminders@mealplan.plus}") private val subject: String,
+    @Value("\${push.vapid.subject:mailto:reminders@eatmyplan.com}") private val subject: String,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private var pushService: WebPushService? = null
@@ -75,7 +75,7 @@ class PushNotificationService(
         val today = LocalDate.now()
         val payload = objectMapper.writeValueAsString(
             mapOf(
-                "title" to "MealPlan+",
+                "title" to "EatMyPlan",
                 "body" to "You haven't logged any meals today — tap to add one.",
                 "url" to "/today",
             ),
