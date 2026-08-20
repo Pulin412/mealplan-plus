@@ -7,7 +7,7 @@ import com.mealplanplus.api.domain.food.FoodService
 import com.mealplanplus.api.generated.model.FoodDto
 import io.modelcontextprotocol.client.McpClient
 import io.modelcontextprotocol.client.McpSyncClient
-import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport
+import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport
 import io.modelcontextprotocol.spec.McpSchema
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -44,8 +44,8 @@ class McpServerIntegrationTest {
     private val uid = "uid-mcp-test"
 
     private fun connect(token: String): McpSyncClient {
-        val transport = HttpClientSseClientTransport.builder("http://localhost:$port")
-            .sseEndpoint("/mcp/sse")
+        val transport = HttpClientStreamableHttpTransport.builder("http://localhost:$port")
+            .endpoint("/mcp")
             .customizeRequest { it.header("Authorization", "Bearer $token") }
             .build()
         return McpClient.sync(transport).build()
@@ -95,7 +95,7 @@ class McpServerIntegrationTest {
         } finally {
             SecurityContextHolder.clearContext()
         }
-        assertThat(minted.sseEndpointPath).isEqualTo("/mcp/sse")
+        assertThat(minted.sseEndpointPath).isEqualTo("/mcp")
 
         // The minted token authenticates a real MCP client end-to-end.
         connect(minted.token).use { client ->
@@ -109,7 +109,7 @@ class McpServerIntegrationTest {
     fun `an unauthenticated mcp request gets a 401 pointing at the resource metadata`() {
         flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
         val resp = HttpClient.newHttpClient().send(
-            HttpRequest.newBuilder(URI.create("http://localhost:$port/mcp/sse")).GET().build(),
+            HttpRequest.newBuilder(URI.create("http://localhost:$port/mcp")).GET().build(),
             HttpResponse.BodyHandlers.ofString(),
         )
         assertThat(resp.statusCode()).isEqualTo(401)
