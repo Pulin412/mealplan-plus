@@ -284,7 +284,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onOpenAdmin: () -> Unit = {}, viewMo
 
                 Spacer(Modifier.height(28.dp))
                 Text(
-                    "© MealPlan+ · v${BuildConfig.VERSION_NAME}",
+                    "© EatMyPlan · v${BuildConfig.VERSION_NAME}",
                     fontSize = 11.sp, color = MutedFaint, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                 )

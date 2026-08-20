@@ -15,8 +15,8 @@ class OpenApiConfig {
     fun openApi(): OpenAPI = OpenAPI()
         .info(
             Info()
-                .title("MealPlan+ API")
-                .description("REST API for MealPlan+ — nutrition tracking & meal planning")
+                .title("EatMyPlan API")
+                .description("REST API for EatMyPlan — nutrition tracking & meal planning")
                 .version("v1")
         )
         .addSecurityItem(SecurityRequirement().addList("Firebase JWT"))

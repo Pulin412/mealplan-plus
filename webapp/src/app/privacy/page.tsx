@@ -4,8 +4,8 @@ import { PRIVACY_POLICY_VERSION, PRIVACY_CONTACT_EMAIL } from "@/lib/legal";
 // Public, unauthenticated route (NOT wrapped in AuthGuard) so it can be linked from the app stores
 // and from the onboarding consent step. This is a first-pass v1 — have it reviewed before launch.
 export const metadata: Metadata = {
-  title: "Privacy Policy — MealPlan+",
-  description: "How MealPlan+ collects, uses, and protects your data.",
+  title: "Privacy Policy — EatMyPlan",
+  description: "How EatMyPlan collects, uses, and protects your data.",
 };
 
 const C = { ink: "#14181b", muted: "#5b666e", teal: "oklch(0.62 0.09 210)", border: "#eaeef0", bg: "#f7f9fa" };
@@ -23,12 +23,12 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen px-5 py-10" style={{ background: C.bg }}>
       <div className="mx-auto max-w-[720px]">
-        <div className="text-[22px] font-bold" style={{ color: C.teal }}>MealPlan+</div>
+        <div className="text-[22px] font-bold" style={{ color: C.teal }}>EatMyPlan</div>
         <h1 className="text-[26px] font-bold mt-1" style={{ color: C.ink }}>Privacy Policy</h1>
         <p className="text-[12.5px] mt-1" style={{ color: C.muted }}>Last updated: {PRIVACY_POLICY_VERSION}</p>
 
         <p className="text-[13.5px] leading-relaxed mt-5" style={{ color: C.muted }}>
-          MealPlan+ (&quot;we&quot;, &quot;us&quot;) is a meal-planning and health-tracking app. This policy explains what
+          EatMyPlan (&quot;we&quot;, &quot;us&quot;) is a meal-planning and health-tracking app. This policy explains what
           personal data we collect, why we collect it, how we protect it, and the choices and rights you have. By
           creating an account and using the app you agree to this policy.
         </p>
@@ -88,7 +88,7 @@ export default function PrivacyPolicyPage() {
 
         <Section title="Children">
           <p>
-            MealPlan+ is not intended for children under 16, and we do not knowingly collect data from them. If you
+            EatMyPlan is not intended for children under 16, and we do not knowingly collect data from them. If you
             believe a child has provided us data, contact us and we will delete it.
           </p>
         </Section>
@@ -114,7 +114,7 @@ export default function PrivacyPolicyPage() {
         </Section>
 
         <p className="text-[12px] mt-10 pt-5" style={{ color: C.muted, borderTop: `1px solid ${C.border}` }}>
-          © {new Date().getFullYear()} MealPlan+
+          © {new Date().getFullYear()} EatMyPlan
         </p>
       </div>
     </main>

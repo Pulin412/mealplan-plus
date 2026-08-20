@@ -133,7 +133,7 @@ fun OnboardingScreen(vm: OnboardingViewModel = hiltViewModel()) {
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable { step = 3 },
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
-                else -> PrimaryButton("Start using MealPlan+") { vm.complete() }
+                else -> PrimaryButton("Start using EatMyPlan") { vm.complete() }
             }
         }
     }

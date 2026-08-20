@@ -10,7 +10,7 @@ import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 // const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-mono" });
 
 export const metadata: Metadata = {
-  title: "MealPlan+",
+  title: "EatMyPlan",
   description: "Offline-first meal planning & food logging",
   manifest: "/manifest.webmanifest",
   icons: {
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     // iOS ignores SVG here — must be a PNG.
     apple: "/apple-touch-icon.png",
   },
-  appleWebApp: { capable: true, title: "MealPlan+", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "EatMyPlan", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

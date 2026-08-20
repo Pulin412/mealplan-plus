@@ -34,7 +34,7 @@ data class HealthConnectSummary(
 class HealthConnectManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    /** The read permissions MealPlan+ requests — also passed to the permission-request launcher. */
+    /** The read permissions EatMyPlan requests — also passed to the permission-request launcher. */
     val requiredPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),

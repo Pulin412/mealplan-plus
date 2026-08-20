@@ -56,7 +56,7 @@ import com.mealplanplus.ui.theme.Teal
 private enum class AuthMode { LOGIN, REGISTER }
 
 /**
- * Login / Register — matches the webapp (`AuthForm.tsx`): a plain "MealPlan+" wordmark, a
+ * Login / Register — matches the webapp (`AuthForm.tsx`): a plain "EatMyPlan" wordmark, a
  * "Welcome back" / "Create account" subtitle, a card with email + password + primary CTA +
  * "Continue with Google", and a text link to switch modes. Single screen; the mode swaps the
  * subtitle, CTA and switch copy.
@@ -83,7 +83,7 @@ fun AuthScreen(vm: AuthViewModel, onForgotPassword: () -> Unit) {
         Column(Modifier.widthIn(max = 360.dp).fillMaxWidth()) {
             // Header
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("MealPlan+", color = Teal, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("EatMyPlan", color = Teal, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 Text(if (register) "Create account" else "Welcome back", color = MutedDark, fontSize = 13.sp)
             }

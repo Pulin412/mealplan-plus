@@ -117,7 +117,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
             <SkipLink label="Skip for now" onClick={next} />
           </>
         )}
-        {step === 3 && <PrimaryBtn label="Start using MealPlan+" onClick={onDone} />}
+        {step === 3 && <PrimaryBtn label="Start using EatMyPlan" onClick={onDone} />}
       </div>
     </div>
   );
@@ -132,7 +132,7 @@ function Welcome({ consented, setConsented }: { consented: boolean; setConsented
   return (
     <div>
       <div className="text-center mb-7">
-        <div className="text-[28px] font-bold" style={{ color: C.teal }}>MealPlan+</div>
+        <div className="text-[28px] font-bold" style={{ color: C.teal }}>EatMyPlan</div>
         <div className="text-[13px] mt-1" style={{ color: C.muted3 }}>Let&apos;s get you set up — takes a minute.</div>
       </div>
       <div className="flex flex-col gap-4">
