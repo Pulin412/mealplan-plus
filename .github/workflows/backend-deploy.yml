@@ -102,7 +102,7 @@ jobs:
             --min-instances=0 \
             --max-instances=3 \
             --service-account=mealplan-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},STYTCH_JWKS_URI=https://login-test.eatmyplan.com/.well-known/jwks.json,STYTCH_PROJECT_ID=project-test-8bb9e5a9-41d6-404b-9035-f50ef46ca6a8,STYTCH_ISSUER=https://login-test.eatmyplan.com,STYTCH_UID_CLAIM=firebase_uid,STYTCH_WRITE_SCOPE=openid,VAPID_SUBJECT=mailto:contact@eatmyplan.com" \
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},STYTCH_JWKS_URI=https://login.eatmyplan.com/.well-known/jwks.json,STYTCH_PROJECT_ID=project-live-00c12304-05e2-4967-aa24-c36531744b9e,STYTCH_ISSUER=https://login.eatmyplan.com,STYTCH_UID_CLAIM=firebase_uid,STYTCH_WRITE_SCOPE=openid,VAPID_SUBJECT=mailto:contact@eatmyplan.com" \
             --set-secrets="DB_URL=mealplan-db-url:latest,DB_USER=mealplan-db-user:latest,DB_PASSWORD=mealplan-db-password:latest,SWAGGER_USER=mealplan-swagger-user:latest,SWAGGER_PASSWORD=mealplan-swagger-password:latest,MCP_TOKEN_SECRET=mealplan-mcp-token-secret:latest,ADMIN_EMAILS=mealplan-admin-emails:latest"
 
       - name: Verify health check
