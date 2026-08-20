@@ -49,6 +49,11 @@ class OpenFoodFactsClient {
             proteinPer100 = nutriments.proteins100g ?: 0.0,
             carbsPer100 = nutriments.carbohydrates100g ?: 0.0,
             fatPer100 = nutriments.fat100g ?: 0.0,
+            // Extra nutrients — left null when OFF doesn't report them (kept distinct from a real 0).
+            fiberPer100 = nutriments.fiber100g,
+            sugarsPer100 = nutriments.sugars100g,
+            saturatedFatPer100 = nutriments.saturatedFat100g,
+            sodiumPer100 = nutriments.sodium100g,
             brand = brands?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() },
             barcode = code,
             unit = FoodUnit.GRAM,
@@ -73,4 +78,8 @@ data class OffNutriments(
     @JsonProperty("proteins_100g") val proteins100g: Double? = null,
     @JsonProperty("carbohydrates_100g") val carbohydrates100g: Double? = null,
     @JsonProperty("fat_100g") val fat100g: Double? = null,
+    @JsonProperty("fiber_100g") val fiber100g: Double? = null,
+    @JsonProperty("sugars_100g") val sugars100g: Double? = null,
+    @JsonProperty("saturated-fat_100g") val saturatedFat100g: Double? = null,
+    @JsonProperty("sodium_100g") val sodium100g: Double? = null,
 )
