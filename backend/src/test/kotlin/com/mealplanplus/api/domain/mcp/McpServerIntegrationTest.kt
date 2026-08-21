@@ -4,6 +4,8 @@ import com.mealplanplus.api.domain.admin.AdminController
 import com.mealplanplus.api.domain.diet.DietService
 import com.mealplanplus.api.domain.featureflag.FeatureFlagKey
 import com.mealplanplus.api.domain.featureflag.FeatureFlagService
+import com.mealplanplus.api.domain.food.Food
+import com.mealplanplus.api.domain.food.FoodRepository
 import com.mealplanplus.api.domain.food.FoodService
 import com.mealplanplus.api.domain.meal.MealService
 import com.mealplanplus.api.domain.plan.DayPlanService
@@ -49,6 +51,7 @@ class McpServerIntegrationTest {
     @Autowired lateinit var tokens: McpTokenService
     @Autowired lateinit var flags: FeatureFlagService
     @Autowired lateinit var foodService: FoodService
+    @Autowired lateinit var foodRepo: FoodRepository
     @Autowired lateinit var mealService: MealService
     @Autowired lateinit var dietService: DietService
     @Autowired lateinit var dayPlanService: DayPlanService
@@ -119,6 +122,196 @@ class McpServerIntegrationTest {
     }
 
     @Test
+    fun `food tools - searchFoods exposes units, createFood dedupes, deleteFood protects system foods`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val fUid = "uid-mcp-food"
+        // A shared system food with a count unit — protected from deletion, and its unit must surface in search.
+        val paneer = foodRepo.save(
+            Food(
+                name = "ZParq Paneer", caloriesPer100 = 265.0, proteinPer100 = 18.0, carbsPer100 = 1.0, fatPer100 = 20.0,
+                unit = "PIECE", gramsPerPiece = 50.0, isSystemFood = true,
+            ),
+        )
+        val token = tokens.mint(fUid, McpTokenService.Scope.READ_WRITE)
+
+        connect(token).use { client ->
+            client.initialize()
+            assertThat(client.listTools().tools().map { it.name() }).contains("createFood", "deleteFood")
+
+            // searchFoods surfaces the natural unit + grams-per-piece (the paneer fix).
+            val search = client.callTool(McpSchema.CallToolRequest("searchFoods", mapOf("query" to "ZParq Paneer"))).text()
+            assertThat(search).contains("ZParq Paneer").contains("unit=PIECE").contains("≈ 50g")
+
+            // createFood makes a user-owned food and returns its id.
+            val createArgs = mapOf("name" to "ZParq Skyr", "caloriesPer100" to 63.0, "proteinPer100" to 11.0, "carbsPer100" to 4.0, "fatPer100" to 0.2)
+            val created = client.callTool(McpSchema.CallToolRequest("createFood", createArgs)).text()
+            assertThat(created).contains("Created food 'ZParq Skyr'")
+            val newId = Regex("id=(\\d+)").find(created)!!.groupValues[1].toLong()
+
+            // A second identical createFood reuses instead of duplicating.
+            assertThat(client.callTool(McpSchema.CallToolRequest("createFood", createArgs)).text()).contains("already exists")
+
+            // deleteFood removes the user's own food…
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteFood", mapOf("foodId" to newId))).text())
+                .contains("Deleted food 'ZParq Skyr'")
+
+            // …but refuses a shared system food.
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteFood", mapOf("foodId" to paneer.id))).text())
+                .contains("shared system food")
+        }
+    }
+
+    @Test
+    fun `meal tools - searchMeals finds by name, createMeal dedupes, deleteMeal removes own meals`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val mUid = "uid-mcp-meal"
+        val food = foodService.create(
+            FoodDto(name = "ZQ Rice", caloriesPer100 = 130.0, proteinPer100 = 2.7, carbsPer100 = 28.0, fatPer100 = 0.3),
+            mUid,
+        )
+        val token = tokens.mint(mUid, McpTokenService.Scope.READ_WRITE)
+
+        connect(token).use { client ->
+            client.initialize()
+            assertThat(client.listTools().tools().map { it.name() }).contains("searchMeals", "deleteMeal")
+
+            val create = client.callTool(McpSchema.CallToolRequest("createMeal",
+                mapOf("name" to "ZQ Paneer Bowl", "foods" to listOf(mapOf("foodId" to food.id, "quantity" to 150.0, "unit" to "GRAM"))))).text()
+            assertThat(create).contains("Created meal 'ZQ Paneer Bowl'")
+            val mealId = Regex("id=(\\d+)").find(create)!!.groupValues[1].toLong()
+
+            // Same name → reused, not duplicated.
+            assertThat(client.callTool(McpSchema.CallToolRequest("createMeal",
+                mapOf("name" to "ZQ Paneer Bowl", "foods" to emptyList<Any>()))).text()).contains("already exists")
+
+            // searchMeals matches by substring.
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "paneer bowl"))).text())
+                .contains("ZQ Paneer Bowl").contains("food(s)")
+
+            // A slot-tagged meal is filtered by slot (case-insensitive), showing its slot tags.
+            mealService.create(
+                MealDto(
+                    name = "ZQ Morning Oats",
+                    items = listOf(MealFoodItemDto(foodId = food.id!!, quantity = 50.0, unit = FoodUnit.GRAM)),
+                    slots = listOf("Breakfast"),
+                ),
+                mUid,
+            )
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("slot" to "BREAKFAST"))).text())
+                .contains("ZQ Morning Oats").contains("slots: Breakfast")
+            // The un-tagged Paneer Bowl is not returned for a slot filter, and Dinner matches nothing.
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("slot" to "DINNER"))).text())
+                .contains("No meals found")
+            // Name + slot together still work.
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "oats", "slot" to "breakfast"))).text())
+                .contains("ZQ Morning Oats")
+
+            // deleteMeal removes it, and it's then gone.
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteMeal", mapOf("mealId" to mealId))).text())
+                .contains("Deleted meal 'ZQ Paneer Bowl'")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "ZQ Paneer Bowl"))).text())
+                .contains("No meals found")
+        }
+    }
+
+    @Test
+    fun `diet tools - createDiet builds by slot, searchDiets finds, deleteDiet removes`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val dUid = "uid-mcp-diet"
+        val food = foodService.create(
+            FoodDto(name = "ZD Egg", caloriesPer100 = 143.0, proteinPer100 = 13.0, carbsPer100 = 1.0, fatPer100 = 10.0), dUid)
+        val meal = mealService.create(
+            MealDto(name = "ZD Oats", items = listOf(MealFoodItemDto(foodId = food.id!!, quantity = 60.0, unit = FoodUnit.GRAM))), dUid)
+        val token = tokens.mint(dUid, McpTokenService.Scope.READ_WRITE)
+
+        connect(token).use { client ->
+            client.initialize()
+            assertThat(client.listTools().tools().map { it.name() }).contains("createDiet", "searchDiets", "deleteDiet")
+
+            // A meal in Breakfast + a loose food in Lunch; slots given in mixed case, resolved to canonical.
+            val entries = listOf(
+                mapOf("slot" to "breakfast", "mealId" to meal.id),
+                mapOf("slot" to "Lunch", "foodId" to food.id, "quantity" to 100.0, "unit" to "GRAM"),
+            )
+            val created = client.callTool(McpSchema.CallToolRequest("createDiet",
+                mapOf("name" to "ZD Cutting Day", "entries" to entries, "targetCalories" to 1800.0))).text()
+            assertThat(created).contains("Created diet 'ZD Cutting Day'").contains("1 meal(s)").contains("1 food(s)")
+            val dietId = Regex("id=(\\d+)").find(created)!!.groupValues[1].toLong()
+
+            // getDietDetails reflects the canonical slots + the meal.
+            val details = client.callTool(McpSchema.CallToolRequest("getDietDetails", mapOf("dietId" to dietId))).text()
+            assertThat(details).contains("ZD Cutting Day").contains("Breakfast").contains("ZD Oats")
+
+            // Same name → reused; an unknown slot is rejected with the valid list.
+            assertThat(client.callTool(McpSchema.CallToolRequest("createDiet",
+                mapOf("name" to "ZD Cutting Day", "entries" to emptyList<Any>()))).text()).contains("already exists")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createDiet",
+                mapOf("name" to "ZD Bad Slot", "entries" to listOf(mapOf("slot" to "Brunch", "mealId" to meal.id))))).text())
+                .contains("Invalid slot")
+
+            // searchDiets finds it, then deleteDiet removes it.
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchDiets", mapOf("query" to "cutting"))).text())
+                .contains("ZD Cutting Day")
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteDiet", mapOf("dietId" to dietId))).text())
+                .contains("Deleted diet 'ZD Cutting Day'")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchDiets", mapOf("query" to "cutting"))).text())
+                .contains("No diets found")
+        }
+    }
+
+    @Test
+    fun `exercise and workout tools - create, search by name and tag, delete`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val wUid = "uid-mcp-workout"
+        val token = tokens.mint(wUid, McpTokenService.Scope.READ_WRITE)
+
+        connect(token).use { client ->
+            client.initialize()
+            assertThat(client.listTools().tools().map { it.name() }).contains(
+                "listExercises", "searchExercises", "createExercise", "deleteExercise",
+                "searchWorkouts", "createWorkout", "deleteWorkout",
+            )
+
+            // createExercise with a type + a tag (tag created on the fly).
+            val createEx = client.callTool(McpSchema.CallToolRequest("createExercise",
+                mapOf("name" to "ZW Bench Press", "type" to "strength", "tags" to listOf("Chest")))).text()
+            assertThat(createEx).contains("Created exercise 'ZW Bench Press'").contains("STRENGTH")
+            val exId = Regex("id=(\\d+)").find(createEx)!!.groupValues[1].toLong()
+
+            // Same name → reused; an unknown type is rejected.
+            assertThat(client.callTool(McpSchema.CallToolRequest("createExercise",
+                mapOf("name" to "ZW Bench Press", "type" to "STRENGTH"))).text()).contains("already exists")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createExercise",
+                mapOf("name" to "ZW Bad", "type" to "YOGA"))).text()).contains("Invalid type")
+
+            // searchExercises by name and by tag.
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchExercises", mapOf("query" to "bench"))).text())
+                .contains("ZW Bench Press").contains("tags: Chest")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchExercises", mapOf("tag" to "chest"))).text())
+                .contains("ZW Bench Press")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchExercises", mapOf("tag" to "legs"))).text())
+                .contains("No exercises found")
+
+            // createWorkout from the exercise, with a tag.
+            val createW = client.callTool(McpSchema.CallToolRequest("createWorkout",
+                mapOf("name" to "ZW Push Day", "exerciseIds" to listOf(exId), "tags" to listOf("Upper")))).text()
+            assertThat(createW).contains("Created workout 'ZW Push Day'").contains("1 exercise(s)")
+            val wId = Regex("id=(\\d+)").find(createW)!!.groupValues[1].toLong()
+
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchWorkouts", mapOf("query" to "push"))).text())
+                .contains("ZW Push Day")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchWorkouts", mapOf("tag" to "upper"))).text())
+                .contains("ZW Push Day")
+
+            // Delete the workout first (it references the exercise), then the exercise.
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteWorkout", mapOf("workoutId" to wId))).text())
+                .contains("Deleted workout 'ZW Push Day'")
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteExercise", mapOf("exerciseId" to exId))).text())
+                .contains("Deleted exercise 'ZW Bench Press'")
+        }
+    }
+
+    @Test
     fun `an unauthenticated mcp request gets a 401 pointing at the resource metadata`() {
         flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
         val resp = HttpClient.newHttpClient().send(
@@ -156,6 +349,25 @@ class McpServerIntegrationTest {
             assertThat(client.callTool(McpSchema.CallToolRequest("logHealthMetric", mapOf("type" to "WEIGHT", "value" to 70.0))).text())
                 .contains("read-only")
             assertThat(client.callTool(McpSchema.CallToolRequest("createGroceryFromDiet", mapOf("dietId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createFood",
+                mapOf("name" to "X", "caloriesPer100" to 1.0, "proteinPer100" to 0.0, "carbsPer100" to 0.0, "fatPer100" to 0.0))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteFood", mapOf("foodId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteMeal", mapOf("mealId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createDiet",
+                mapOf("name" to "X", "entries" to emptyList<Any>()))).text()).contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteDiet", mapOf("dietId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createExercise", mapOf("name" to "X"))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteExercise", mapOf("exerciseId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createWorkout", mapOf("name" to "X"))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("deleteWorkout", mapOf("workoutId" to 1L))).text())
                 .contains("read-only")
         }
     }
