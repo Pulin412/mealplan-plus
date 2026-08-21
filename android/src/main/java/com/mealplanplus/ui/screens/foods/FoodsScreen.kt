@@ -25,6 +25,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -845,6 +846,43 @@ fun ManualEntrySheet(state: FoodsUiState, viewModel: FoodViewModel) {
         }
 
         Spacer(Modifier.height(10.dp))
+        // Extra nutrients (per 100g) — optional; blank stays "—". Mirrors the webapp food form.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SheetTextField(
+                label       = "Fiber",
+                placeholder = "g",
+                value       = state.manualFiber,
+                onValueChange = viewModel::setManualFiber,
+                keyboardType  = KeyboardType.Number,
+                modifier    = Modifier.weight(1f),
+            )
+            SheetTextField(
+                label       = "Sugars",
+                placeholder = "g",
+                value       = state.manualSugars,
+                onValueChange = viewModel::setManualSugars,
+                keyboardType  = KeyboardType.Number,
+                modifier    = Modifier.weight(1f),
+            )
+            SheetTextField(
+                label       = "Sat. fat",
+                placeholder = "g",
+                value       = state.manualSatFat,
+                onValueChange = viewModel::setManualSatFat,
+                keyboardType  = KeyboardType.Number,
+                modifier    = Modifier.weight(1f),
+            )
+            SheetTextField(
+                label       = "Sodium",
+                placeholder = "g",
+                value       = state.manualSodium,
+                onValueChange = viewModel::setManualSodium,
+                keyboardType  = KeyboardType.Number,
+                modifier    = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
         // Category: type your own or tap a suggestion (suggestions = defaults + already-used).
         SheetTextField(
             label       = "Category",
@@ -972,7 +1010,9 @@ fun OnlineSearchSheet(
                 contentPadding = PaddingValues(bottom = 24.dp),
                 modifier = Modifier.height(360.dp),
             ) {
-                items(state.onlineResults, key = { it.id ?: it.name }) { dto ->
+                // Key by index — Open Food Facts results have null ids and can repeat names
+                // (e.g. two "Jaggery"), so name/id keys aren't unique and crash the LazyColumn.
+                itemsIndexed(state.onlineResults, key = { index, dto -> "$index:${dto.id ?: dto.name}" }) { _, dto ->
                     OnlineResultRow(dto = dto, onAdd = { viewModel.addOnlineFood(dto) })
                 }
             }
