@@ -32,6 +32,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -67,10 +68,30 @@ def load_catalog_names() -> list[str]:
 
 def fdc_lookup(name: str) -> dict | None:
     """Best-match FDC food → {fiber, sugars, satFat, sodium} per 100g (sodium in grams). None if no match."""
-    qs = urllib.parse.urlencode({"query": name, "dataType": DATA_TYPES, "pageSize": 1, "api_key": FDC_KEY})
+    # quote_via=quote → spaces become %20, not '+'. FDC's nginx 400s on '+' in dataType.
+    qs = urllib.parse.urlencode(
+        {"query": name, "dataType": DATA_TYPES, "pageSize": 1, "api_key": FDC_KEY},
+        quote_via=urllib.parse.quote,
+    )
     req = urllib.request.Request(f"{FDC_SEARCH}?{qs}", headers={"User-Agent": "MealPlanPlus-backfill"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        data = json.loads(r.read().decode())
+    # FDC's edge intermittently 400s / rate-limits well-formed requests; retry with backoff
+    # so transient failures don't get mislabelled as genuine "no match".
+    data = None
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                data = json.loads(r.read().decode())
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 429, 500, 502, 503) and attempt < 4:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise
+        except urllib.error.URLError:
+            if attempt < 4:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise
     foods = data.get("foods") or []
     if not foods:
         return None

@@ -67,6 +67,7 @@ import com.mealplanplus.ui.screens.social.NotificationsScreen
 import com.mealplanplus.ui.screens.social.ProfileEditScreen
 import com.mealplanplus.ui.screens.social.PublicProfileScreen
 import com.mealplanplus.ui.screens.social.SharedDetailScreen
+import com.mealplanplus.ui.screens.help.HelpScreen
 import com.mealplanplus.ui.screens.settings.SettingsScreen
 import com.mealplanplus.ui.screens.admin.AdminScreen
 import java.net.URLEncoder
@@ -83,6 +84,7 @@ sealed class Screen(val route: String, val label: String) {
     object Misc      : Screen("misc",      "More")
     object Profile   : Screen("profile",   "Profile")
     object Settings  : Screen("settings",  "Settings")
+    object Help      : Screen("help",      "Help")
     object Admin     : Screen("admin",     "Admin")
 }
 
@@ -258,6 +260,7 @@ fun MealPlanNavHost() {
                     onOpenAdmin = { navController.navigate(Screen.Admin.route) { launchSingleTop = true } },
                 )
             }
+            composable(Screen.Help.route)      { HelpScreen(onBack = { navController.popBackStack() }) }
             composable(Screen.Admin.route)     { AdminScreen(onBack = { navController.popBackStack() }) }
             composable(Screen.Plan.route)      { PlanScreen() }
             composable(Screen.Exercises.route) { ExercisesScreen() }
@@ -268,6 +271,7 @@ fun MealPlanNavHost() {
                     onMeals = { navController.navigate(Screen.Meals.route) },
                     onDiets = { navController.navigate(Screen.Diets.route) },
                     onGroceries = { navController.navigate(Screen.Groceries.route) },
+                    onHelp = { navController.navigate(Screen.Help.route) { launchSingleTop = true } },
                 )
             }
             composable(Screen.Meals.route)     {
