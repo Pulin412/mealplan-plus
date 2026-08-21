@@ -39,6 +39,10 @@ data class FoodsUiState(
     val manualProtein: String = "",
     val manualCarbs: String = "",
     val manualFat: String = "",
+    val manualFiber: String = "",
+    val manualSugars: String = "",
+    val manualSatFat: String = "",
+    val manualSodium: String = "",
     val manualUnit: String = "GRAM",
     val manualGramsPerUnit: String = "",
     val manualCategory: String = "",
@@ -181,6 +185,10 @@ class FoodViewModel @Inject constructor(
             manualProtein = "",
             manualCarbs = "",
             manualFat = "",
+            manualFiber = "",
+            manualSugars = "",
+            manualSatFat = "",
+            manualSodium = "",
             manualUnit = "GRAM",
             manualGramsPerUnit = "",
             manualCategory = "",
@@ -239,6 +247,10 @@ class FoodViewModel @Inject constructor(
             manualProtein = food.proteinPer100.numStr(),
             manualCarbs = food.carbsPer100.numStr(),
             manualFat = food.fatPer100.numStr(),
+            manualFiber = food.fiberPer100?.numStr() ?: "",
+            manualSugars = food.sugarsPer100?.numStr() ?: "",
+            manualSatFat = food.saturatedFatPer100?.numStr() ?: "",
+            manualSodium = food.sodiumPer100?.numStr() ?: "",
             manualUnit = food.unit,
             manualGramsPerUnit = gpu?.numStr() ?: "",
             manualCategory = food.category ?: "",
@@ -251,6 +263,10 @@ class FoodViewModel @Inject constructor(
     fun setManualProtein(v: String) { _state.value = _state.value.copy(manualProtein = v) }
     fun setManualCarbs(v: String)   { _state.value = _state.value.copy(manualCarbs = v) }
     fun setManualFat(v: String)     { _state.value = _state.value.copy(manualFat = v) }
+    fun setManualFiber(v: String)   { _state.value = _state.value.copy(manualFiber = v) }
+    fun setManualSugars(v: String)  { _state.value = _state.value.copy(manualSugars = v) }
+    fun setManualSatFat(v: String)  { _state.value = _state.value.copy(manualSatFat = v) }
+    fun setManualSodium(v: String)  { _state.value = _state.value.copy(manualSodium = v) }
     fun setManualUnit(v: String)    { _state.value = _state.value.copy(manualUnit = v) }
     fun setManualGramsPerUnit(v: String) { _state.value = _state.value.copy(manualGramsPerUnit = v) }
     fun setManualCategory(v: String) { _state.value = _state.value.copy(manualCategory = v) }
@@ -264,6 +280,11 @@ class FoodViewModel @Inject constructor(
         val protein = s.manualProtein.toDoubleOrNull() ?: 0.0
         val carbs = s.manualCarbs.toDoubleOrNull() ?: 0.0
         val fat = s.manualFat.toDoubleOrNull() ?: 0.0
+        // Extra nutrients are optional & nullable — blank stays null (shown as "—"), never 0.
+        val fiber = s.manualFiber.toDoubleOrNull()
+        val sugars = s.manualSugars.toDoubleOrNull()
+        val satFat = s.manualSatFat.toDoubleOrNull()
+        val sodium = s.manualSodium.toDoubleOrNull()
         val editing = s.editingFoodId?.let { id -> s.foods.find { it.id == id } }
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
@@ -275,6 +296,7 @@ class FoodViewModel @Inject constructor(
                         servingLabel   = s.manualServing.ifBlank { null },
                         category       = category,
                         caloriesPer100 = kcal, proteinPer100 = protein, carbsPer100 = carbs, fatPer100 = fat,
+                        fiberPer100 = fiber, sugarsPer100 = sugars, saturatedFatPer100 = satFat, sodiumPer100 = sodium,
                         unit           = s.manualUnit,
                         gramsPerPiece  = if (s.manualUnit == "PIECE") gpu else null,
                         gramsPerCup    = if (s.manualUnit == "CUP")   gpu else null,
@@ -286,6 +308,7 @@ class FoodViewModel @Inject constructor(
                         name = s.manualName.trim(), caloriesPer100 = kcal, proteinPer100 = protein,
                         carbsPer100 = carbs, fatPer100 = fat, servingLabel = s.manualServing.ifBlank { null },
                         unit = s.manualUnit, gramsPerUnit = gpu, category = category,
+                        fiberPer100 = fiber, sugarsPer100 = sugars, saturatedFatPer100 = satFat, sodiumPer100 = sodium,
                     )
                 }
             }.onFailure { e -> _state.value = _state.value.copy(error = e.message) }
@@ -318,6 +341,7 @@ class FoodViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repository.addOnline(dto) }
                 .onFailure { e -> _state.value = _state.value.copy(error = e.message) }
+            closeSheet()   // dismiss the search sheet so the added food is visible in the library (mirrors addScannedFood)
             sync()
         }
     }
