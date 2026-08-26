@@ -12,6 +12,7 @@ import com.mealplanplus.api.domain.plan.DayPlanService
 import com.mealplanplus.api.domain.user.UserService
 import com.mealplanplus.api.domain.workout.WorkoutService
 import com.mealplanplus.api.generated.model.AddLoggedFoodRequest
+import com.mealplanplus.api.generated.model.DayPlanDto
 import com.mealplanplus.api.generated.model.DietDto
 import com.mealplanplus.api.generated.model.DietFoodItemDto
 import com.mealplanplus.api.generated.model.DietMealDto
@@ -21,8 +22,10 @@ import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.HealthMetricDto
 import com.mealplanplus.api.generated.model.MealDto
 import com.mealplanplus.api.generated.model.MealFoodItemDto
+import com.mealplanplus.api.generated.model.PlannedWorkoutDto
 import com.mealplanplus.api.generated.model.TagDto
 import com.mealplanplus.api.generated.model.TemplateExerciseDto
+import com.mealplanplus.api.generated.model.TemplateSetDto
 import com.mealplanplus.api.generated.model.WorkoutTemplateDto
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.data.domain.PageRequest
@@ -481,6 +484,87 @@ class McpToolService(
         }
     }
 
+    @Tool(description = """
+        Get a compact multi-day nutrition summary in ONE call — use this instead of calling todayDashboard
+        once per day when the user asks about a week/month. from and to are dates as YYYY-MM-DD (inclusive,
+        at most 31 days); omit to for just the single `from` day, omit both for today. Returns one line per
+        day: calories consumed vs target, macros (P/C/F grams consumed), and how many meal slots were logged.
+    """)
+    fun dashboardRange(from: String?, to: String?): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val (start, end) = parseDateRange(from, to) ?: return RANGE_ERROR
+        return generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.map { day ->
+            val d = dashboardService.get(uid, day)
+            val ring = d.calorieRing
+            val m = d.macros
+            val loggedSlots = d.slots.count { it.isLogged }
+            "${d.date} | ${ring.consumed.toInt()}/${ring.target} kcal${if (ring.isOver) " OVER" else ""} | " +
+                "${m.consumedProtein.toInt()}P/${m.consumedCarbs.toInt()}C/${m.consumedFat.toInt()}F g | " +
+                "$loggedSlots/${d.slots.size} slots logged"
+        }.joinToString("\n")
+    }
+
+    @Tool(description = """
+        Look up which diet is scheduled (assigned) to each date — the diet that governs a day's targets and
+        planned meals, which the other tools don't surface directly. from and to are dates as YYYY-MM-DD
+        (inclusive, at most 31 days); omit to for the single `from` day, omit both for today. Returns one
+        line per date that has a diet assigned (name + id); dates with no assigned diet are omitted.
+    """)
+    fun getAssignedDiets(from: String?, to: String?): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val (start, end) = parseDateRange(from, to) ?: return RANGE_ERROR
+        val dietNames = dietService.list(uid).associate { it.id to it.name }
+        val plans = dayPlanService.list(uid, start, end).filter { it.dietId != null }.sortedBy { it.date }
+        if (plans.isEmpty()) return "No diet assigned on ${rangeLabel(start, end)}."
+        return plans.joinToString("\n") { p ->
+            "${p.date} | ${dietNames[p.dietId] ?: "diet #${p.dietId}"} (id=${p.dietId})"
+        }
+    }
+
+    @Tool(description = """
+        List the workouts SCHEDULED (planned) on each date — distinct from listWorkoutSessions, which only
+        returns workouts already performed/logged. from and to are dates as YYYY-MM-DD (inclusive, at most
+        31 days); omit to for the single `from` day, omit both for today. Returns one line per planned
+        workout: date, activity name, and the workout-template id when it came from a template.
+    """)
+    fun getPlannedWorkouts(from: String?, to: String?): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val (start, end) = parseDateRange(from, to) ?: return RANGE_ERROR
+        val lines = dayPlanService.list(uid, start, end).sortedBy { it.date }.flatMap { p ->
+            p.plannedWorkouts.orEmpty().map { w ->
+                "${p.date} | ${w.activityName}${w.workoutTemplateId?.let { " (template id=$it)" } ?: ""}"
+            }
+        }
+        if (lines.isEmpty()) return "No workouts planned on ${rangeLabel(start, end)}."
+        return lines.joinToString("\n")
+    }
+
+    @Tool(description = """
+        Get the full contents of one workout template by id (get it from searchWorkouts or
+        listWorkoutTemplates): its ordered exercise list with the planned sets/reps/weight for each — not
+        just the exercise count that the list tools give. Use this to see or follow the actual routine.
+    """)
+    fun getWorkoutDetails(workoutId: Long): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val t = runCatching { workoutService.getTemplate(workoutId) }.getOrNull()
+            ?: return "No workout found with id=$workoutId. Use listWorkoutTemplates to find the right id."
+        if (t.firebaseUid != null && t.firebaseUid != uid && t.isShared != true)
+            return "Workout id=$workoutId isn't yours."
+        val exercises = t.exercises.orEmpty().sortedBy { it.orderIndex ?: 0 }
+        return buildString {
+            appendLine("${t.name} — ${exercises.size} exercise(s)")
+            t.notes?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
+            if (exercises.isEmpty()) append("No exercises in this template.") else {
+                append(exercises.mapIndexed { i, te ->
+                    val name = te.exerciseName?.takeIf { it.isNotBlank() } ?: "exercise #${te.exerciseId}"
+                    val sets = te.sets.orEmpty()
+                    val setStr = if (sets.isEmpty()) "no sets defined" else sets.joinToString("; ") { formatSet(it) }
+                    "  ${i + 1}. $name — $setStr" + (te.notes?.takeIf { it.isNotBlank() }?.let { " [$it]" } ?: "")
+                }.joinToString("\n"))
+            }
+        }
+    }
+
     // ── Writes (require a read-write scoped token) ──────────────────────────────
 
     @Tool(description = """
@@ -767,6 +851,52 @@ class McpToolService(
         return "Created '${list.name}' (id=${list.id}) with ${items.size} item(s):\n$body"
     }
 
+    @Tool(description = """
+        Assign (schedule) a diet to a date, so that day follows the diet's targets and meals — exactly like
+        picking a diet for a day in the app. dietId from listDiets/searchDiets; date is YYYY-MM-DD (omit for
+        today). Replaces any diet already assigned to that date, but keeps that day's planned meals and
+        workouts. Requires a read-write connector.
+    """)
+    @Transactional
+    fun assignDietToDate(dietId: Long, date: String?): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val day = parseDate(date)
+        val diet = runCatching { dietService.get(dietId, uid) }.getOrNull()
+            ?: return "Diet id=$dietId not found. Use listDiets to find the right id."
+        val existing = dayPlanService.get(uid, day)
+        if (existing?.dietId == dietId) return "Diet '${diet.name}' is already assigned to $day."
+        dayPlanService.upsert(
+            uid, day,
+            DayPlanDto(
+                date = day, dietId = dietId, serverId = existing?.serverId,
+                plannedMeals = existing?.plannedMeals.orEmpty(),
+                plannedWorkouts = existing?.plannedWorkouts.orEmpty(),
+            ),
+        )
+        return "Assigned diet '${diet.name}' (id=$dietId) to $day."
+    }
+
+    @Tool(description = """
+        Schedule (plan) a workout template on a date, so it shows up as a planned workout for that day.
+        workoutId from listWorkoutTemplates/searchWorkouts; date is YYYY-MM-DD (omit for today). Adds to any
+        workouts already planned that day, and skips if this template is already planned on it. Requires a
+        read-write connector.
+    """)
+    @Transactional
+    fun assignWorkoutToDate(workoutId: Long, date: String?): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val day = parseDate(date)
+        val template = runCatching { workoutService.getTemplate(workoutId) }.getOrNull()
+            ?: return "No workout found with id=$workoutId. Use listWorkoutTemplates to find the right id."
+        if (template.firebaseUid != null && template.firebaseUid != uid && template.isShared != true)
+            return "Workout id=$workoutId isn't yours."
+        val alreadyPlanned = dayPlanService.get(uid, day)?.plannedWorkouts.orEmpty()
+            .any { it.workoutTemplateId == workoutId }
+        if (alreadyPlanned) return "Workout '${template.name}' is already planned on $day."
+        dayPlanService.addWorkout(uid, day, PlannedWorkoutDto(activityName = template.name, workoutTemplateId = workoutId))
+        return "Planned workout '${template.name}' (id=$workoutId) on $day."
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────────
 
     /** Null when the write may proceed; otherwise a user-facing reason (not authenticated / read-only). */
@@ -827,8 +957,35 @@ class McpToolService(
         }
     }
 
-    private fun parseDate(date: String?): LocalDate =
-        date?.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+    private fun parseDateOrNull(date: String?): LocalDate? =
+        date?.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+
+    private fun parseDate(date: String?): LocalDate = parseDateOrNull(date) ?: LocalDate.now()
+
+    /**
+     * Resolve an optional from/to window: `from` defaults to today, `to` defaults to `from`. Returns null
+     * (caller emits [RANGE_ERROR]) on an unparseable date, a reversed range, or a span over [MAX_RANGE_DAYS].
+     */
+    private fun parseDateRange(from: String?, to: String?): Pair<LocalDate, LocalDate>? {
+        val start = if (from.isNullOrBlank()) LocalDate.now() else parseDateOrNull(from) ?: return null
+        val end = if (to.isNullOrBlank()) start else parseDateOrNull(to) ?: return null
+        if (end.isBefore(start)) return null
+        if (java.time.temporal.ChronoUnit.DAYS.between(start, end) >= MAX_RANGE_DAYS) return null
+        return start to end
+    }
+
+    private fun rangeLabel(start: LocalDate, end: LocalDate): String = if (start == end) "$start" else "$start..$end"
+
+    /** One-line description of a template set from whatever fields are populated (reps/weight/time/distance). */
+    private fun formatSet(s: TemplateSetDto): String {
+        val parts = buildList {
+            s.reps?.let { add("$it reps") }
+            s.weightKg?.takeIf { it > 0 }?.let { add("${num(it)}kg") }
+            s.durationSeconds?.let { add("${it}s") }
+            s.distanceMeters?.takeIf { it > 0 }?.let { add("${num(it)}m") }
+        }
+        return if (parts.isEmpty()) "set ${s.setNumber}" else "set ${s.setNumber}: ${parts.joinToString(" × ")}"
+    }
 
     private companion object {
         const val NOT_AUTHED = "Not authenticated."
@@ -837,6 +994,9 @@ class McpToolService(
         const val MAX_NAME_LEN = 100
         const val MAX_MEAL_FOODS = 50
         const val MAX_DIET_ENTRIES = 60
+        const val MAX_RANGE_DAYS = 31
+        const val RANGE_ERROR =
+            "Invalid date range. Use YYYY-MM-DD with `to` on or after `from`, spanning at most $MAX_RANGE_DAYS days."
         val EXERCISE_TYPES = setOf("STRENGTH", "CARDIO", "TIMED")
         val VALID_SLOTS = setOf("BREAKFAST", "LUNCH", "DINNER", "MORNING_SNACK", "EVENING_SNACK")
         // Canonical meal slots used by diets/plans (mirrors DashboardService.CANONICAL_SLOTS + client MEAL_SLOTS).

@@ -9,14 +9,19 @@ import com.mealplanplus.api.domain.food.FoodRepository
 import com.mealplanplus.api.domain.food.FoodService
 import com.mealplanplus.api.domain.meal.MealService
 import com.mealplanplus.api.domain.plan.DayPlanService
+import com.mealplanplus.api.domain.workout.WorkoutService
 import com.mealplanplus.api.generated.model.DayPlanDto
 import com.mealplanplus.api.generated.model.DietDto
 import com.mealplanplus.api.generated.model.DietMealDto
+import com.mealplanplus.api.generated.model.ExerciseDto
 import com.mealplanplus.api.generated.model.FoodDto
 import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.MealDto
 import com.mealplanplus.api.generated.model.MealFoodItemDto
 import com.mealplanplus.api.generated.model.PlannedMealDto
+import com.mealplanplus.api.generated.model.TemplateExerciseDto
+import com.mealplanplus.api.generated.model.TemplateSetDto
+import com.mealplanplus.api.generated.model.WorkoutTemplateDto
 import io.modelcontextprotocol.client.McpClient
 import io.modelcontextprotocol.client.McpSyncClient
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport
@@ -55,6 +60,7 @@ class McpServerIntegrationTest {
     @Autowired lateinit var mealService: MealService
     @Autowired lateinit var dietService: DietService
     @Autowired lateinit var dayPlanService: DayPlanService
+    @Autowired lateinit var workoutService: WorkoutService
     @Autowired lateinit var adminController: AdminController
 
     private val uid = "uid-mcp-test"
@@ -381,6 +387,10 @@ class McpServerIntegrationTest {
                 .contains("read-only")
             assertThat(client.callTool(McpSchema.CallToolRequest("deleteWorkout", mapOf("workoutId" to 1L))).text())
                 .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignDietToDate", mapOf("dietId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignWorkoutToDate", mapOf("workoutId" to 1L))).text())
+                .contains("read-only")
         }
     }
 
@@ -462,6 +472,85 @@ class McpServerIntegrationTest {
                 .contains("no workout templates")
             assertThat(client.callTool(McpSchema.CallToolRequest("listWorkoutSessions", emptyMap<String, Any>())).text())
                 .contains("No workout sessions")
+        }
+    }
+
+    @Test
+    fun `schedule tools - range dashboard, diet-by-date, planned workouts, template detail, and assignment writes`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val schUid = "uid-mcp-sched"
+        val d1 = "2026-09-01"
+        val d2 = "2026-09-02"
+        val d3 = "2026-09-03"
+
+        val diet = dietService.create(
+            DietDto(name = "Sch Bulk", targetCalories = 2600.0, targetProtein = 180.0, targetCarbs = 300.0, targetFat = 70.0),
+            schUid,
+        )
+        // A workout template with two sets so getWorkoutDetails can show reps/weight, not just a count.
+        val bench = workoutService.createExercise(ExerciseDto(name = "Sch Bench", type = "STRENGTH"), schUid)
+        val template = workoutService.createTemplate(
+            WorkoutTemplateDto(
+                name = "Sch Push Day",
+                exercises = listOf(
+                    TemplateExerciseDto(
+                        exerciseId = bench.id!!, orderIndex = 0,
+                        sets = listOf(
+                            TemplateSetDto(setNumber = 1, reps = 10, weightKg = 60.0),
+                            TemplateSetDto(setNumber = 2, reps = 8, weightKg = 65.0),
+                        ),
+                    ),
+                ),
+            ),
+            schUid,
+        )
+        val token = tokens.mint(schUid, McpTokenService.Scope.READ_WRITE)
+
+        connect(token).use { client ->
+            client.initialize()
+            assertThat(client.listTools().tools().map { it.name() }).contains(
+                "dashboardRange", "getAssignedDiets", "getPlannedWorkouts", "getWorkoutDetails",
+                "assignDietToDate", "assignWorkoutToDate",
+            )
+
+            // dashboardRange returns one line per day across the inclusive window.
+            val range = client.callTool(McpSchema.CallToolRequest("dashboardRange", mapOf("from" to d1, "to" to d3))).text()
+            // One summary line per day in the 3-day window (tool returns are JSON-encoded, so count markers).
+            assertThat(Regex("slots logged").findAll(range).count()).isEqualTo(3)
+            assertThat(range).contains(d1).contains(d2).contains(d3)
+            // An oversized window is rejected with the range error.
+            assertThat(client.callTool(McpSchema.CallToolRequest("dashboardRange", mapOf("from" to "2026-01-01", "to" to "2026-12-31"))).text())
+                .contains("at most 31 days")
+
+            // getWorkoutDetails shows the ordered exercise with its sets (reps × weight).
+            val detail = client.callTool(McpSchema.CallToolRequest("getWorkoutDetails", mapOf("workoutId" to template.id))).text()
+            assertThat(detail).contains("Sch Push Day").contains("Sch Bench").contains("10 reps").contains("60kg")
+
+            // Before assignment: nothing scheduled.
+            assertThat(client.callTool(McpSchema.CallToolRequest("getAssignedDiets", mapOf("from" to d1, "to" to d3))).text())
+                .contains("No diet assigned")
+            assertThat(client.callTool(McpSchema.CallToolRequest("getPlannedWorkouts", mapOf("from" to d1, "to" to d3))).text())
+                .contains("No workouts planned")
+
+            // assignDietToDate schedules the diet; getAssignedDiets then reflects it, re-assigning is idempotent.
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignDietToDate", mapOf("dietId" to diet.id, "date" to d2))).text())
+                .contains("Assigned diet 'Sch Bulk'").contains(d2)
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignDietToDate", mapOf("dietId" to diet.id, "date" to d2))).text())
+                .contains("already assigned")
+            assertThat(client.callTool(McpSchema.CallToolRequest("getAssignedDiets", mapOf("from" to d1, "to" to d3))).text())
+                .contains(d2).contains("Sch Bulk").contains("id=${diet.id}")
+
+            // assignWorkoutToDate schedules the template; getPlannedWorkouts reflects it, re-planning is skipped.
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignWorkoutToDate", mapOf("workoutId" to template.id, "date" to d2))).text())
+                .contains("Planned workout 'Sch Push Day'").contains(d2)
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignWorkoutToDate", mapOf("workoutId" to template.id, "date" to d2))).text())
+                .contains("already planned")
+            assertThat(client.callTool(McpSchema.CallToolRequest("getPlannedWorkouts", mapOf("from" to d1, "to" to d3))).text())
+                .contains(d2).contains("Sch Push Day").contains("template id=${template.id}")
+
+            // Assigning a diet keeps the day's already-planned workout (upsert preserves plannedWorkouts).
+            assertThat(client.callTool(McpSchema.CallToolRequest("getPlannedWorkouts", mapOf("from" to d2))).text())
+                .contains("Sch Push Day")
         }
     }
 }
