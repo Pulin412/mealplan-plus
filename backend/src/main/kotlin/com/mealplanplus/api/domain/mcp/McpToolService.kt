@@ -852,6 +852,241 @@ class McpToolService(
     }
 
     @Tool(description = """
+        Edit one of the user's own foods (rename or fix its nutrition) — get foodId from searchFoods. Only
+        the fields you pass change: name renames it; caloriesPer100/proteinPer100/carbsPer100/fatPer100 and
+        the optional fiberPer100/sugarsPer100/saturatedFatPer100/sodiumPer100 (grams per 100g) adjust
+        nutrition; unit is one of GRAM, ML, PIECE, CUP, TBSP, TSP. Shared system foods can't be edited (make
+        your own copy instead). Requires a read-write connector.
+    """)
+    @Transactional
+    fun editFood(
+        foodId: Long,
+        name: String?,
+        caloriesPer100: Double?,
+        proteinPer100: Double?,
+        carbsPer100: Double?,
+        fatPer100: Double?,
+        fiberPer100: Double?,
+        sugarsPer100: Double?,
+        saturatedFatPer100: Double?,
+        sodiumPer100: Double?,
+        unit: String?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val food = runCatching { foodService.get(foodId, uid) }.getOrNull()
+            ?: return "No food found with id=$foodId. Use searchFoods to find the right id."
+        if (food.isSystemFood == true)
+            return "'${food.name}' is a shared system food and can't be edited — create your own copy with createFood instead."
+        val newName = name?.trim()?.ifBlank { null } ?: food.name
+        if (newName.length > MAX_NAME_LEN) return "Food name too long (max $MAX_NAME_LEN characters)."
+        val u = if (unit == null) food.unit else parseUnit(unit) ?: return "Invalid unit '$unit'. Use one of: ${FoodUnit.entries.joinToString(", ") { it.value }}."
+        for ((label, v) in listOf("calories" to caloriesPer100, "protein" to proteinPer100, "carbs" to carbsPer100, "fat" to fatPer100,
+                "fiber" to fiberPer100, "sugars" to sugarsPer100, "saturated fat" to saturatedFatPer100, "sodium" to sodiumPer100)) {
+            if (v != null && (v < 0 || v > MAX_QUANTITY)) return "$label per 100g must be between 0 and $MAX_QUANTITY."
+        }
+        return try {
+            val updated = foodService.update(
+                foodId,
+                food.copy(
+                    name = newName, unit = u,
+                    caloriesPer100 = caloriesPer100 ?: food.caloriesPer100,
+                    proteinPer100 = proteinPer100 ?: food.proteinPer100,
+                    carbsPer100 = carbsPer100 ?: food.carbsPer100,
+                    fatPer100 = fatPer100 ?: food.fatPer100,
+                    fiberPer100 = fiberPer100 ?: food.fiberPer100,
+                    sugarsPer100 = sugarsPer100 ?: food.sugarsPer100,
+                    saturatedFatPer100 = saturatedFatPer100 ?: food.saturatedFatPer100,
+                    sodiumPer100 = sodiumPer100 ?: food.sodiumPer100,
+                ),
+                uid,
+            )
+            "Updated food '${updated.name}' (id=$foodId) — ${updated.caloriesPer100.toInt()} kcal per 100g."
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${food.name}' — it isn't one of your foods."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own exercises. exerciseId from searchExercises/listExercises. Only the fields
+        you pass change: name renames it; type is STRENGTH/CARDIO/TIMED; tags REPLACES its tag list (pass an
+        empty list to clear tags, omit to leave them). Shared system exercises can't be edited. Requires a
+        read-write connector.
+    """)
+    @Transactional
+    fun editExercise(exerciseId: Long, name: String?, type: String?, tags: List<String>?): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val ex = runCatching { workoutService.getExercise(exerciseId) }.getOrNull()
+            ?: return "No exercise found with id=$exerciseId. Use searchExercises to find the right id."
+        if (ex.isSystem == true) return "'${ex.name}' is a shared system exercise and can't be edited."
+        val newName = name?.trim()?.ifBlank { null } ?: ex.name
+        if (newName.length > MAX_NAME_LEN) return "Exercise name is too long (max $MAX_NAME_LEN characters)."
+        val newType = type?.trim()?.ifBlank { null }?.uppercase()
+        if (newType != null && newType !in EXERCISE_TYPES)
+            return "Invalid type '$type'. Use one of: ${EXERCISE_TYPES.joinToString(", ")}."
+        val tagIds = if (tags == null) ex.tagIds.orEmpty() else resolveTagIds(tags, TagEntityType.EXERCISE)
+        return try {
+            val updated = workoutService.updateExercise(
+                exerciseId,
+                ex.copy(name = newName, type = newType ?: ex.type, tagIds = tagIds),
+                uid,
+            )
+            "Updated exercise '${updated.name}' (id=$exerciseId) — ${updated.type ?: "STRENGTH"}."
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${ex.name}' — it isn't one of your exercises."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own meals. mealId from searchMeals/listMeals. Only what you pass changes:
+        name renames it; slots REPLACES its slot tags (canonical slots, empty list clears them, omit to
+        leave them); addFoods is a list of { foodId, quantity, unit } to add (get foodId from searchFoods);
+        removeFoodIds is a list of food ids to remove from the meal. Requires a read-write connector.
+    """)
+    @Transactional
+    fun editMeal(
+        mealId: Long,
+        name: String?,
+        slots: List<String>?,
+        addFoods: List<McpMealFoodInput>?,
+        removeFoodIds: List<Long>?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val meal = runCatching { mealService.get(mealId, uid) }.getOrNull()
+            ?: return "No meal found with id=$mealId. Use searchMeals to find the right id."
+        val newName = name?.trim()?.ifBlank { null } ?: meal.name
+        if (newName.length > MAX_NAME_LEN) return "Meal name is too long (max $MAX_NAME_LEN characters)."
+        val newSlots = if (slots == null) meal.slots.orEmpty() else slots.mapNotNull { it.trim().ifBlank { null } }.map { raw ->
+            resolveSlot(raw) ?: return "Invalid slot '$raw'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+        }.distinct()
+        val removeIds = removeFoodIds.orEmpty().toSet()
+        val kept = meal.items.orEmpty().filter { it.foodId !in removeIds }
+        val added = addFoods.orEmpty().map { f ->
+            if (f.quantity <= 0 || f.quantity > MAX_QUANTITY) return "Each food quantity must be between 0 and $MAX_QUANTITY."
+            val u = parseUnit(f.unit) ?: return "Invalid unit '${f.unit}' for food id=${f.foodId}."
+            runCatching { foodService.get(f.foodId, uid) }.getOrNull()
+                ?: return "Food id=${f.foodId} not found. Use searchFoods to find the right id."
+            MealFoodItemDto(foodId = f.foodId, quantity = f.quantity, unit = u)
+        }
+        val items = kept + added
+        if (items.size > MAX_MEAL_FOODS) return "Too many foods (max $MAX_MEAL_FOODS per meal)."
+        return try {
+            val updated = mealService.update(mealId, meal.copy(name = newName, items = items, slots = newSlots), uid)
+            "Updated meal '${updated.name}' (id=$mealId) — ${items.size} food(s)" +
+                (if (newSlots.isNotEmpty()) " tagged for ${newSlots.joinToString(", ")}." else ".")
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${meal.name}' — it isn't one of your meals."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own workout templates. workoutId from searchWorkouts/listWorkoutTemplates.
+        Only what you pass changes: name renames it; tags REPLACES its tag list (empty list clears, omit to
+        leave); addExerciseIds is a list of exercise ids to append (get them from searchExercises; added with
+        no sets yet); removeExerciseIds is a list of exercise ids to remove. Requires a read-write connector.
+    """)
+    @Transactional
+    fun editWorkout(
+        workoutId: Long,
+        name: String?,
+        tags: List<String>?,
+        addExerciseIds: List<Long>?,
+        removeExerciseIds: List<Long>?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val t = runCatching { workoutService.getTemplate(workoutId) }.getOrNull()
+            ?: return "No workout found with id=$workoutId. Use listWorkoutTemplates to find the right id."
+        if (t.firebaseUid != null && t.firebaseUid != uid) return "Workout id=$workoutId isn't yours."
+        val newName = name?.trim()?.ifBlank { null } ?: t.name
+        if (newName.length > MAX_NAME_LEN) return "Workout name is too long (max $MAX_NAME_LEN characters)."
+        val removeIds = removeExerciseIds.orEmpty().toSet()
+        val kept = t.exercises.orEmpty().filterNot { it.exerciseId in removeIds }
+        val added = addExerciseIds.orEmpty().map { exId ->
+            runCatching { workoutService.getExercise(exId) }.getOrNull()
+                ?: return "Exercise id=$exId not found. Use searchExercises to find the right id."
+            TemplateExerciseDto(exerciseId = exId)
+        }
+        val exercises = kept + added
+        if (exercises.size > MAX_MEAL_FOODS) return "Too many exercises (max $MAX_MEAL_FOODS)."
+        val tagIds = if (tags == null) t.tagIds.orEmpty() else resolveTagIds(tags, TagEntityType.WORKOUT)
+        return try {
+            val updated = workoutService.updateTemplate(workoutId, t.copy(name = newName, exercises = exercises, tagIds = tagIds), uid)
+            "Updated workout '${updated.name}' (id=$workoutId) — ${exercises.size} exercise(s)."
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${t.name}' — it isn't one of your workouts."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own diets. dietId from searchDiets/listDiets. Only what you pass changes:
+        name renames it; targetCalories/targetProtein/targetCarbs/targetFat retarget it; addEntries adds
+        meals/foods to slots (each { slot, mealId } or { slot, foodId, quantity, unit }, same as createDiet);
+        removeEntries removes them (each { slot, mealId } or { slot, foodId } — quantity/unit ignored). Valid
+        slots (case-insensitive): Early Morning, Breakfast, Noon, Lunch, Evening, Pre-Workout, Post-Workout,
+        Dinner, Post-Dinner. Requires a read-write connector.
+    """)
+    @Transactional
+    fun editDiet(
+        dietId: Long,
+        name: String?,
+        targetCalories: Double?,
+        targetProtein: Double?,
+        targetCarbs: Double?,
+        targetFat: Double?,
+        addEntries: List<McpDietEntryInput>?,
+        removeEntries: List<McpDietEntryInput>?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val diet = runCatching { dietService.get(dietId, uid) }.getOrNull()
+            ?: return "No diet found with id=$dietId. Use listDiets to find the right id."
+        val newName = name?.trim()?.ifBlank { null } ?: diet.name
+        if (newName.length > MAX_NAME_LEN) return "Diet name is too long (max $MAX_NAME_LEN characters)."
+
+        val meals = diet.meals.orEmpty().toMutableList()
+        val foodItems = diet.foodItems.orEmpty().toMutableList()
+
+        for (r in removeEntries.orEmpty()) {
+            val slot = resolveSlot(r.slot) ?: return "Invalid slot '${r.slot}'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+            when {
+                r.mealId != null -> meals.removeAll { it.mealId == r.mealId && it.slot == slot }
+                r.foodId != null -> foodItems.removeAll { it.foodId == r.foodId && it.slot == slot }
+                else -> return "Each remove entry needs a slot plus either a mealId or a foodId."
+            }
+        }
+        for (e in addEntries.orEmpty()) {
+            val slot = resolveSlot(e.slot) ?: return "Invalid slot '${e.slot}'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+            when {
+                e.mealId != null -> {
+                    runCatching { mealService.get(e.mealId, uid) }.getOrNull()
+                        ?: return "Meal id=${e.mealId} not found. Use searchMeals to find the right id."
+                    meals += DietMealDto(mealId = e.mealId, dayOfWeek = 0, slot = slot)
+                }
+                e.foodId != null -> {
+                    val u = parseUnit(e.unit) ?: return "Invalid unit '${e.unit}' for food id=${e.foodId}."
+                    val qty = e.quantity ?: 1.0
+                    if (qty <= 0 || qty > MAX_QUANTITY) return "Each food quantity must be between 0 and $MAX_QUANTITY."
+                    runCatching { foodService.get(e.foodId, uid) }.getOrNull()
+                        ?: return "Food id=${e.foodId} not found. Use searchFoods to find the right id."
+                    foodItems += DietFoodItemDto(foodId = e.foodId, slot = slot, quantity = qty, unit = u)
+                }
+                else -> return "Each add entry needs a slot plus either a mealId or a foodId."
+            }
+        }
+        if (meals.size + foodItems.size > MAX_DIET_ENTRIES) return "Too many entries (max $MAX_DIET_ENTRIES per diet)."
+        val updated = dietService.update(
+            dietId,
+            diet.copy(
+                name = newName, meals = meals, foodItems = foodItems,
+                targetCalories = targetCalories ?: diet.targetCalories,
+                targetProtein = targetProtein ?: diet.targetProtein,
+                targetCarbs = targetCarbs ?: diet.targetCarbs,
+                targetFat = targetFat ?: diet.targetFat,
+            ),
+            uid,
+        )
+        return "Updated diet '${updated.name}' (id=$dietId) — ${meals.size} meal(s) and ${foodItems.size} food(s)."
+    }
+
+    @Tool(description = """
         Assign (schedule) a diet to a date, so that day follows the diet's targets and meals — exactly like
         picking a diet for a day in the app. dietId from listDiets/searchDiets; date is YYYY-MM-DD (omit for
         today). Replaces any diet already assigned to that date, but keeps that day's planned meals and
