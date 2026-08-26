@@ -9,14 +9,19 @@ import com.mealplanplus.api.domain.food.FoodRepository
 import com.mealplanplus.api.domain.food.FoodService
 import com.mealplanplus.api.domain.meal.MealService
 import com.mealplanplus.api.domain.plan.DayPlanService
+import com.mealplanplus.api.domain.workout.WorkoutService
 import com.mealplanplus.api.generated.model.DayPlanDto
 import com.mealplanplus.api.generated.model.DietDto
 import com.mealplanplus.api.generated.model.DietMealDto
+import com.mealplanplus.api.generated.model.ExerciseDto
 import com.mealplanplus.api.generated.model.FoodDto
 import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.MealDto
 import com.mealplanplus.api.generated.model.MealFoodItemDto
 import com.mealplanplus.api.generated.model.PlannedMealDto
+import com.mealplanplus.api.generated.model.TemplateExerciseDto
+import com.mealplanplus.api.generated.model.TemplateSetDto
+import com.mealplanplus.api.generated.model.WorkoutTemplateDto
 import io.modelcontextprotocol.client.McpClient
 import io.modelcontextprotocol.client.McpSyncClient
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport
@@ -55,6 +60,7 @@ class McpServerIntegrationTest {
     @Autowired lateinit var mealService: MealService
     @Autowired lateinit var dietService: DietService
     @Autowired lateinit var dayPlanService: DayPlanService
+    @Autowired lateinit var workoutService: WorkoutService
     @Autowired lateinit var adminController: AdminController
 
     private val uid = "uid-mcp-test"
@@ -187,6 +193,18 @@ class McpServerIntegrationTest {
             // searchMeals matches by substring.
             assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "paneer bowl"))).text())
                 .contains("ZQ Paneer Bowl").contains("food(s)")
+
+            // createMeal can tag slots (resolved to canonical), and an invalid slot is rejected.
+            val slotted = client.callTool(McpSchema.CallToolRequest("createMeal", mapOf(
+                "name" to "ZQ Slotted Breakfast",
+                "foods" to listOf(mapOf("foodId" to food.id, "quantity" to 40.0, "unit" to "GRAM")),
+                "slots" to listOf("breakfast", "Pre-Workout")))).text()
+            assertThat(slotted).contains("Created meal 'ZQ Slotted Breakfast'").contains("Breakfast").contains("Pre-Workout")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createMeal",
+                mapOf("name" to "ZQ Bad Slot Meal", "slots" to listOf("Brunch")))).text()).contains("Invalid slot")
+            // The slot tag is now filterable via searchMeals.
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "slotted", "slot" to "breakfast"))).text())
+                .contains("ZQ Slotted Breakfast").contains("slots: Breakfast")
 
             // A slot-tagged meal is filtered by slot (case-insensitive), showing its slot tags.
             mealService.create(
@@ -369,6 +387,20 @@ class McpServerIntegrationTest {
                 .contains("read-only")
             assertThat(client.callTool(McpSchema.CallToolRequest("deleteWorkout", mapOf("workoutId" to 1L))).text())
                 .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignDietToDate", mapOf("dietId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignWorkoutToDate", mapOf("workoutId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("editFood", mapOf("foodId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("editExercise", mapOf("exerciseId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("editMeal", mapOf("mealId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("editWorkout", mapOf("workoutId" to 1L))).text())
+                .contains("read-only")
+            assertThat(client.callTool(McpSchema.CallToolRequest("editDiet", mapOf("dietId" to 1L))).text())
+                .contains("read-only")
         }
     }
 
@@ -450,6 +482,159 @@ class McpServerIntegrationTest {
                 .contains("no workout templates")
             assertThat(client.callTool(McpSchema.CallToolRequest("listWorkoutSessions", emptyMap<String, Any>())).text())
                 .contains("No workout sessions")
+        }
+    }
+
+    @Test
+    fun `schedule tools - range dashboard, diet-by-date, planned workouts, template detail, and assignment writes`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val schUid = "uid-mcp-sched"
+        val d1 = "2026-09-01"
+        val d2 = "2026-09-02"
+        val d3 = "2026-09-03"
+
+        val diet = dietService.create(
+            DietDto(name = "Sch Bulk", targetCalories = 2600.0, targetProtein = 180.0, targetCarbs = 300.0, targetFat = 70.0),
+            schUid,
+        )
+        // A workout template with two sets so getWorkoutDetails can show reps/weight, not just a count.
+        val bench = workoutService.createExercise(ExerciseDto(name = "Sch Bench", type = "STRENGTH"), schUid)
+        val template = workoutService.createTemplate(
+            WorkoutTemplateDto(
+                name = "Sch Push Day",
+                exercises = listOf(
+                    TemplateExerciseDto(
+                        exerciseId = bench.id!!, orderIndex = 0,
+                        sets = listOf(
+                            TemplateSetDto(setNumber = 1, reps = 10, weightKg = 60.0),
+                            TemplateSetDto(setNumber = 2, reps = 8, weightKg = 65.0),
+                        ),
+                    ),
+                ),
+            ),
+            schUid,
+        )
+        val token = tokens.mint(schUid, McpTokenService.Scope.READ_WRITE)
+
+        connect(token).use { client ->
+            client.initialize()
+            assertThat(client.listTools().tools().map { it.name() }).contains(
+                "dashboardRange", "getAssignedDiets", "getPlannedWorkouts", "getWorkoutDetails",
+                "assignDietToDate", "assignWorkoutToDate",
+            )
+
+            // dashboardRange returns one line per day across the inclusive window.
+            val range = client.callTool(McpSchema.CallToolRequest("dashboardRange", mapOf("from" to d1, "to" to d3))).text()
+            // One summary line per day in the 3-day window (tool returns are JSON-encoded, so count markers).
+            assertThat(Regex("slots logged").findAll(range).count()).isEqualTo(3)
+            assertThat(range).contains(d1).contains(d2).contains(d3)
+            // An oversized window is rejected with the range error.
+            assertThat(client.callTool(McpSchema.CallToolRequest("dashboardRange", mapOf("from" to "2026-01-01", "to" to "2026-12-31"))).text())
+                .contains("at most 31 days")
+
+            // getWorkoutDetails shows the ordered exercise with its sets (reps × weight).
+            val detail = client.callTool(McpSchema.CallToolRequest("getWorkoutDetails", mapOf("workoutId" to template.id))).text()
+            assertThat(detail).contains("Sch Push Day").contains("Sch Bench").contains("10 reps").contains("60kg")
+
+            // Before assignment: nothing scheduled.
+            assertThat(client.callTool(McpSchema.CallToolRequest("getAssignedDiets", mapOf("from" to d1, "to" to d3))).text())
+                .contains("No diet assigned")
+            assertThat(client.callTool(McpSchema.CallToolRequest("getPlannedWorkouts", mapOf("from" to d1, "to" to d3))).text())
+                .contains("No workouts planned")
+
+            // assignDietToDate schedules the diet; getAssignedDiets then reflects it, re-assigning is idempotent.
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignDietToDate", mapOf("dietId" to diet.id, "date" to d2))).text())
+                .contains("Assigned diet 'Sch Bulk'").contains(d2)
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignDietToDate", mapOf("dietId" to diet.id, "date" to d2))).text())
+                .contains("already assigned")
+            assertThat(client.callTool(McpSchema.CallToolRequest("getAssignedDiets", mapOf("from" to d1, "to" to d3))).text())
+                .contains(d2).contains("Sch Bulk").contains("id=${diet.id}")
+
+            // assignWorkoutToDate schedules the template; getPlannedWorkouts reflects it, re-planning is skipped.
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignWorkoutToDate", mapOf("workoutId" to template.id, "date" to d2))).text())
+                .contains("Planned workout 'Sch Push Day'").contains(d2)
+            assertThat(client.callTool(McpSchema.CallToolRequest("assignWorkoutToDate", mapOf("workoutId" to template.id, "date" to d2))).text())
+                .contains("already planned")
+            assertThat(client.callTool(McpSchema.CallToolRequest("getPlannedWorkouts", mapOf("from" to d1, "to" to d3))).text())
+                .contains(d2).contains("Sch Push Day").contains("template id=${template.id}")
+
+            // Assigning a diet keeps the day's already-planned workout (upsert preserves plannedWorkouts).
+            assertThat(client.callTool(McpSchema.CallToolRequest("getPlannedWorkouts", mapOf("from" to d2))).text())
+                .contains("Sch Push Day")
+        }
+    }
+
+    @Test
+    fun `edit tools - rename and retarget foods and exercises, edit meal diet workout membership`() {
+        flags.setEnabled(FeatureFlagKey.MCP_SERVER.key, enabled = true, updatedBy = "test")
+        val eUid = "uid-mcp-edit"
+        val rice = foodService.create(
+            FoodDto(name = "Ed Rice", caloriesPer100 = 130.0, proteinPer100 = 2.7, carbsPer100 = 28.0, fatPer100 = 0.3), eUid)
+        val chicken = foodService.create(
+            FoodDto(name = "Ed Chicken", caloriesPer100 = 165.0, proteinPer100 = 31.0, carbsPer100 = 0.0, fatPer100 = 3.6), eUid)
+        val sysFood = foodRepo.save(
+            Food(name = "Ed System Sugar", caloriesPer100 = 387.0, proteinPer100 = 0.0, carbsPer100 = 100.0, fatPer100 = 0.0, isSystemFood = true))
+        val squat = workoutService.createExercise(ExerciseDto(name = "Ed Squat", type = "STRENGTH"), eUid)
+        val lunge = workoutService.createExercise(ExerciseDto(name = "Ed Lunge", type = "STRENGTH"), eUid)
+        val meal = mealService.create(
+            MealDto(name = "Ed Bowl", items = listOf(MealFoodItemDto(foodId = rice.id!!, quantity = 100.0, unit = FoodUnit.GRAM))), eUid)
+        val template = workoutService.createTemplate(
+            WorkoutTemplateDto(name = "Ed Legs", exercises = listOf(TemplateExerciseDto(exerciseId = squat.id!!, orderIndex = 0))), eUid)
+        val diet = dietService.create(
+            DietDto(name = "Ed Plan", targetCalories = 2000.0,
+                meals = listOf(DietMealDto(mealId = meal.id!!, dayOfWeek = 0, slot = "Breakfast"))), eUid)
+        val token = tokens.mint(eUid, McpTokenService.Scope.READ_WRITE)
+
+        connect(token).use { client ->
+            client.initialize()
+            assertThat(client.listTools().tools().map { it.name() }).contains(
+                "editFood", "editExercise", "editMeal", "editWorkout", "editDiet",
+            )
+
+            // editFood renames + fixes nutrition; searchFoods reflects it. A system food is protected.
+            assertThat(client.callTool(McpSchema.CallToolRequest("editFood",
+                mapOf("foodId" to rice.id, "name" to "Ed Basmati Rice", "caloriesPer100" to 140.0))).text())
+                .contains("Updated food 'Ed Basmati Rice'").contains("140 kcal")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchFoods", mapOf("query" to "Ed Basmati"))).text())
+                .contains("Ed Basmati Rice").contains("140 kcal")
+            assertThat(client.callTool(McpSchema.CallToolRequest("editFood", mapOf("foodId" to sysFood.id, "name" to "X"))).text())
+                .contains("shared system food")
+
+            // editExercise renames, changes type, sets a tag.
+            assertThat(client.callTool(McpSchema.CallToolRequest("editExercise",
+                mapOf("exerciseId" to squat.id, "name" to "Ed Back Squat", "tags" to listOf("Legs")))).text())
+                .contains("Updated exercise 'Ed Back Squat'")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchExercises", mapOf("query" to "back squat"))).text())
+                .contains("Ed Back Squat").contains("tags: Legs")
+
+            // editMeal renames, adds a food, tags a slot; then removes the original food.
+            assertThat(client.callTool(McpSchema.CallToolRequest("editMeal", mapOf(
+                "mealId" to meal.id, "name" to "Ed Chicken Bowl",
+                "addFoods" to listOf(mapOf("foodId" to chicken.id, "quantity" to 150.0, "unit" to "GRAM")),
+                "slots" to listOf("Lunch")))).text())
+                .contains("Updated meal 'Ed Chicken Bowl'").contains("2 food(s)").contains("Lunch")
+            assertThat(client.callTool(McpSchema.CallToolRequest("editMeal",
+                mapOf("mealId" to meal.id, "removeFoodIds" to listOf(rice.id)))).text())
+                .contains("1 food(s)")
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "chicken bowl", "slot" to "lunch"))).text())
+                .contains("Ed Chicken Bowl")
+
+            // editWorkout renames, appends an exercise, removes the original; getWorkoutDetails reflects it.
+            assertThat(client.callTool(McpSchema.CallToolRequest("editWorkout", mapOf(
+                "workoutId" to template.id, "name" to "Ed Leg Day",
+                "addExerciseIds" to listOf(lunge.id), "removeExerciseIds" to listOf(squat.id)))).text())
+                .contains("Updated workout 'Ed Leg Day'").contains("1 exercise(s)")
+            val detail = client.callTool(McpSchema.CallToolRequest("getWorkoutDetails", mapOf("workoutId" to template.id))).text()
+            assertThat(detail).contains("Ed Leg Day").contains("Ed Lunge").doesNotContain("Ed Back Squat")
+
+            // editDiet renames, retargets, adds a food to Lunch and removes the Breakfast meal.
+            assertThat(client.callTool(McpSchema.CallToolRequest("editDiet", mapOf(
+                "dietId" to diet.id, "name" to "Ed Cut Plan", "targetCalories" to 1700.0,
+                "addEntries" to listOf(mapOf("slot" to "Lunch", "foodId" to chicken.id, "quantity" to 150.0, "unit" to "GRAM")),
+                "removeEntries" to listOf(mapOf("slot" to "Breakfast", "mealId" to meal.id))))).text())
+                .contains("Updated diet 'Ed Cut Plan'").contains("0 meal(s)").contains("1 food(s)")
+            val dietDetails = client.callTool(McpSchema.CallToolRequest("getDietDetails", mapOf("dietId" to diet.id))).text()
+            assertThat(dietDetails).contains("Ed Cut Plan").contains("1700 kcal")
         }
     }
 }
