@@ -1,10 +1,16 @@
 package com.mealplanplus.api.error
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.mealplanplus.api.filter.RequestIdFilter
+import net.logstash.logback.argument.StructuredArgument
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.MockHttpServletRequest
@@ -15,16 +21,21 @@ import org.springframework.web.server.ResponseStatusException
 class GlobalExceptionHandlerTest {
 
     private val handler = GlobalExceptionHandler()
+    private val logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java) as Logger
+    private val appender = ListAppender<ILoggingEvent>()
 
     @BeforeEach
     fun setUp() {
         MDC.put(RequestIdFilter.MDC_KEY, "req-123")
         val request = MockHttpServletRequest("GET", "/api/v1/diets")
         RequestContextHolder.setRequestAttributes(ServletRequestAttributes(request))
+        appender.start()
+        logger.addAppender(appender)
     }
 
     @AfterEach
     fun tearDown() {
+        logger.detachAppender(appender)
         MDC.clear()
         RequestContextHolder.resetRequestAttributes()
     }
@@ -43,6 +54,23 @@ class GlobalExceptionHandlerTest {
         // The internal message must NOT reach the client.
         assertThat(body.message).doesNotContain("hunter2").doesNotContain("Sensitive")
         assertThat(body.message).isNotBlank()
+    }
+
+    @Test
+    fun `a 5xx logs the exception class, stacktrace, and structured exception fields for alerting`() {
+        // A null-message exception (like an NPE) is exactly the case where the class must carry the signal.
+        handler.handleUnexpected(NullPointerException())
+
+        val event = appender.list.single { it.level == Level.ERROR }
+        // The exception CLASS is in the message even though the message is null.
+        assertThat(event.formattedMessage).contains("java.lang.NullPointerException")
+        // The full stacktrace rides along as the throwable.
+        assertThat(event.throwableProxy).isNotNull
+        assertThat(event.throwableProxy.className).isEqualTo("java.lang.NullPointerException")
+        // Structured fields exception_class / exception_message are attached for the log-based alert to surface.
+        val structured = event.argumentArray.orEmpty().filterIsInstance<StructuredArgument>().map { it.toString() }
+        assertThat(structured).anySatisfy { assertThat(it).contains("exception_class").contains("NullPointerException") }
+        assertThat(structured).anySatisfy { assertThat(it).contains("exception_message") }
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.mealplanplus.api.domain.plan.DayPlanService
 import com.mealplanplus.api.domain.user.UserService
 import com.mealplanplus.api.domain.workout.WorkoutService
 import com.mealplanplus.api.generated.model.AddLoggedFoodRequest
+import com.mealplanplus.api.generated.model.DayPlanDto
 import com.mealplanplus.api.generated.model.DietDto
 import com.mealplanplus.api.generated.model.DietFoodItemDto
 import com.mealplanplus.api.generated.model.DietMealDto
@@ -21,8 +22,10 @@ import com.mealplanplus.api.generated.model.FoodUnit
 import com.mealplanplus.api.generated.model.HealthMetricDto
 import com.mealplanplus.api.generated.model.MealDto
 import com.mealplanplus.api.generated.model.MealFoodItemDto
+import com.mealplanplus.api.generated.model.PlannedWorkoutDto
 import com.mealplanplus.api.generated.model.TagDto
 import com.mealplanplus.api.generated.model.TemplateExerciseDto
+import com.mealplanplus.api.generated.model.TemplateSetDto
 import com.mealplanplus.api.generated.model.WorkoutTemplateDto
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.data.domain.PageRequest
@@ -481,6 +484,87 @@ class McpToolService(
         }
     }
 
+    @Tool(description = """
+        Get a compact multi-day nutrition summary in ONE call — use this instead of calling todayDashboard
+        once per day when the user asks about a week/month. from and to are dates as YYYY-MM-DD (inclusive,
+        at most 31 days); omit to for just the single `from` day, omit both for today. Returns one line per
+        day: calories consumed vs target, macros (P/C/F grams consumed), and how many meal slots were logged.
+    """)
+    fun dashboardRange(from: String?, to: String?): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val (start, end) = parseDateRange(from, to) ?: return RANGE_ERROR
+        return generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.map { day ->
+            val d = dashboardService.get(uid, day)
+            val ring = d.calorieRing
+            val m = d.macros
+            val loggedSlots = d.slots.count { it.isLogged }
+            "${d.date} | ${ring.consumed.toInt()}/${ring.target} kcal${if (ring.isOver) " OVER" else ""} | " +
+                "${m.consumedProtein.toInt()}P/${m.consumedCarbs.toInt()}C/${m.consumedFat.toInt()}F g | " +
+                "$loggedSlots/${d.slots.size} slots logged"
+        }.joinToString("\n")
+    }
+
+    @Tool(description = """
+        Look up which diet is scheduled (assigned) to each date — the diet that governs a day's targets and
+        planned meals, which the other tools don't surface directly. from and to are dates as YYYY-MM-DD
+        (inclusive, at most 31 days); omit to for the single `from` day, omit both for today. Returns one
+        line per date that has a diet assigned (name + id); dates with no assigned diet are omitted.
+    """)
+    fun getAssignedDiets(from: String?, to: String?): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val (start, end) = parseDateRange(from, to) ?: return RANGE_ERROR
+        val dietNames = dietService.list(uid).associate { it.id to it.name }
+        val plans = dayPlanService.list(uid, start, end).filter { it.dietId != null }.sortedBy { it.date }
+        if (plans.isEmpty()) return "No diet assigned on ${rangeLabel(start, end)}."
+        return plans.joinToString("\n") { p ->
+            "${p.date} | ${dietNames[p.dietId] ?: "diet #${p.dietId}"} (id=${p.dietId})"
+        }
+    }
+
+    @Tool(description = """
+        List the workouts SCHEDULED (planned) on each date — distinct from listWorkoutSessions, which only
+        returns workouts already performed/logged. from and to are dates as YYYY-MM-DD (inclusive, at most
+        31 days); omit to for the single `from` day, omit both for today. Returns one line per planned
+        workout: date, activity name, and the workout-template id when it came from a template.
+    """)
+    fun getPlannedWorkouts(from: String?, to: String?): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val (start, end) = parseDateRange(from, to) ?: return RANGE_ERROR
+        val lines = dayPlanService.list(uid, start, end).sortedBy { it.date }.flatMap { p ->
+            p.plannedWorkouts.orEmpty().map { w ->
+                "${p.date} | ${w.activityName}${w.workoutTemplateId?.let { " (template id=$it)" } ?: ""}"
+            }
+        }
+        if (lines.isEmpty()) return "No workouts planned on ${rangeLabel(start, end)}."
+        return lines.joinToString("\n")
+    }
+
+    @Tool(description = """
+        Get the full contents of one workout template by id (get it from searchWorkouts or
+        listWorkoutTemplates): its ordered exercise list with the planned sets/reps/weight for each — not
+        just the exercise count that the list tools give. Use this to see or follow the actual routine.
+    """)
+    fun getWorkoutDetails(workoutId: Long): String {
+        if (uid.isBlank()) return NOT_AUTHED
+        val t = runCatching { workoutService.getTemplate(workoutId) }.getOrNull()
+            ?: return "No workout found with id=$workoutId. Use listWorkoutTemplates to find the right id."
+        if (t.firebaseUid != null && t.firebaseUid != uid && t.isShared != true)
+            return "Workout id=$workoutId isn't yours."
+        val exercises = t.exercises.orEmpty().sortedBy { it.orderIndex ?: 0 }
+        return buildString {
+            appendLine("${t.name} — ${exercises.size} exercise(s)")
+            t.notes?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
+            if (exercises.isEmpty()) append("No exercises in this template.") else {
+                append(exercises.mapIndexed { i, te ->
+                    val name = te.exerciseName?.takeIf { it.isNotBlank() } ?: "exercise #${te.exerciseId}"
+                    val sets = te.sets.orEmpty()
+                    val setStr = if (sets.isEmpty()) "no sets defined" else sets.joinToString("; ") { formatSet(it) }
+                    "  ${i + 1}. $name — $setStr" + (te.notes?.takeIf { it.isNotBlank() }?.let { " [$it]" } ?: "")
+                }.joinToString("\n"))
+            }
+        }
+    }
+
     // ── Writes (require a read-write scoped token) ──────────────────────────────
 
     @Tool(description = """
@@ -583,13 +667,16 @@ class McpToolService(
 
     @Tool(description = """
         Create a reusable meal (a named group of foods) the user can add to their plan. name is required;
-        foods is an optional list of { foodId, quantity, unit } (get foodId from searchFoods). Requires a
-        read-write connector. If a meal with the same name already exists it is returned instead of duplicated.
-        Give the meal a clear, descriptive name (e.g. "Grilled Paneer Salad", not "meal 1" or "test") — if
-        the user hasn't said what to call it and you're unsure, ask them before creating.
+        foods is an optional list of { foodId, quantity, unit } (get foodId from searchFoods). slots is an
+        optional list of meal slots to tag the meal for, so it shows up when filtering by slot (e.g. a
+        breakfast meal); valid slots (case-insensitive): Early Morning, Breakfast, Noon, Lunch, Evening,
+        Pre-Workout, Post-Workout, Dinner, Post-Dinner. Requires a read-write connector. If a meal with the
+        same name already exists it is returned instead of duplicated. Give the meal a clear, descriptive
+        name (e.g. "Grilled Paneer Salad", not "meal 1" or "test") — if the user hasn't said what to call it
+        and you're unsure, ask them before creating.
     """)
     @Transactional
-    fun createMeal(name: String, foods: List<McpMealFoodInput>?): String {
+    fun createMeal(name: String, foods: List<McpMealFoodInput>?, slots: List<String>?): String {
         val guard = guardWrite(); if (guard != null) return guard
 
         val trimmed = name.trim()
@@ -597,6 +684,9 @@ class McpToolService(
         if (trimmed.length > MAX_NAME_LEN) return "Meal name is too long (max $MAX_NAME_LEN characters)."
         val items = foods.orEmpty()
         if (items.size > MAX_MEAL_FOODS) return "Too many foods (max $MAX_MEAL_FOODS per meal)."
+        val resolvedSlots = slots.orEmpty().mapNotNull { it.trim().ifBlank { null } }.map { raw ->
+            resolveSlot(raw) ?: return "Invalid slot '$raw'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+        }.distinct()
 
         // Idempotency: reuse an existing meal with the same name rather than creating a duplicate.
         mealService.list(uid).firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let {
@@ -611,8 +701,9 @@ class McpToolService(
             MealFoodItemDto(foodId = f.foodId, quantity = f.quantity, unit = u)
         }
 
-        val created = mealService.create(MealDto(name = trimmed, items = mealItems), uid)
-        return "Created meal '${created.name}' (id=${created.id}) with ${mealItems.size} food(s)."
+        val created = mealService.create(MealDto(name = trimmed, items = mealItems, slots = resolvedSlots), uid)
+        return "Created meal '${created.name}' (id=${created.id}) with ${mealItems.size} food(s)" +
+            (if (resolvedSlots.isNotEmpty()) " tagged for ${resolvedSlots.joinToString(", ")}." else ".")
     }
 
     @Tool(description = """
@@ -760,6 +851,287 @@ class McpToolService(
         return "Created '${list.name}' (id=${list.id}) with ${items.size} item(s):\n$body"
     }
 
+    @Tool(description = """
+        Edit one of the user's own foods (rename or fix its nutrition) — get foodId from searchFoods. Only
+        the fields you pass change: name renames it; caloriesPer100/proteinPer100/carbsPer100/fatPer100 and
+        the optional fiberPer100/sugarsPer100/saturatedFatPer100/sodiumPer100 (grams per 100g) adjust
+        nutrition; unit is one of GRAM, ML, PIECE, CUP, TBSP, TSP. Shared system foods can't be edited (make
+        your own copy instead). Requires a read-write connector.
+    """)
+    @Transactional
+    fun editFood(
+        foodId: Long,
+        name: String?,
+        caloriesPer100: Double?,
+        proteinPer100: Double?,
+        carbsPer100: Double?,
+        fatPer100: Double?,
+        fiberPer100: Double?,
+        sugarsPer100: Double?,
+        saturatedFatPer100: Double?,
+        sodiumPer100: Double?,
+        unit: String?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val food = runCatching { foodService.get(foodId, uid) }.getOrNull()
+            ?: return "No food found with id=$foodId. Use searchFoods to find the right id."
+        if (food.isSystemFood == true)
+            return "'${food.name}' is a shared system food and can't be edited — create your own copy with createFood instead."
+        val newName = name?.trim()?.ifBlank { null } ?: food.name
+        if (newName.length > MAX_NAME_LEN) return "Food name too long (max $MAX_NAME_LEN characters)."
+        val u = if (unit == null) food.unit else parseUnit(unit) ?: return "Invalid unit '$unit'. Use one of: ${FoodUnit.entries.joinToString(", ") { it.value }}."
+        for ((label, v) in listOf("calories" to caloriesPer100, "protein" to proteinPer100, "carbs" to carbsPer100, "fat" to fatPer100,
+                "fiber" to fiberPer100, "sugars" to sugarsPer100, "saturated fat" to saturatedFatPer100, "sodium" to sodiumPer100)) {
+            if (v != null && (v < 0 || v > MAX_QUANTITY)) return "$label per 100g must be between 0 and $MAX_QUANTITY."
+        }
+        return try {
+            val updated = foodService.update(
+                foodId,
+                food.copy(
+                    name = newName, unit = u,
+                    caloriesPer100 = caloriesPer100 ?: food.caloriesPer100,
+                    proteinPer100 = proteinPer100 ?: food.proteinPer100,
+                    carbsPer100 = carbsPer100 ?: food.carbsPer100,
+                    fatPer100 = fatPer100 ?: food.fatPer100,
+                    fiberPer100 = fiberPer100 ?: food.fiberPer100,
+                    sugarsPer100 = sugarsPer100 ?: food.sugarsPer100,
+                    saturatedFatPer100 = saturatedFatPer100 ?: food.saturatedFatPer100,
+                    sodiumPer100 = sodiumPer100 ?: food.sodiumPer100,
+                ),
+                uid,
+            )
+            "Updated food '${updated.name}' (id=$foodId) — ${updated.caloriesPer100.toInt()} kcal per 100g."
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${food.name}' — it isn't one of your foods."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own exercises. exerciseId from searchExercises/listExercises. Only the fields
+        you pass change: name renames it; type is STRENGTH/CARDIO/TIMED; tags REPLACES its tag list (pass an
+        empty list to clear tags, omit to leave them). Shared system exercises can't be edited. Requires a
+        read-write connector.
+    """)
+    @Transactional
+    fun editExercise(exerciseId: Long, name: String?, type: String?, tags: List<String>?): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val ex = runCatching { workoutService.getExercise(exerciseId) }.getOrNull()
+            ?: return "No exercise found with id=$exerciseId. Use searchExercises to find the right id."
+        if (ex.isSystem == true) return "'${ex.name}' is a shared system exercise and can't be edited."
+        val newName = name?.trim()?.ifBlank { null } ?: ex.name
+        if (newName.length > MAX_NAME_LEN) return "Exercise name is too long (max $MAX_NAME_LEN characters)."
+        val newType = type?.trim()?.ifBlank { null }?.uppercase()
+        if (newType != null && newType !in EXERCISE_TYPES)
+            return "Invalid type '$type'. Use one of: ${EXERCISE_TYPES.joinToString(", ")}."
+        val tagIds = if (tags == null) ex.tagIds.orEmpty() else resolveTagIds(tags, TagEntityType.EXERCISE)
+        return try {
+            val updated = workoutService.updateExercise(
+                exerciseId,
+                ex.copy(name = newName, type = newType ?: ex.type, tagIds = tagIds),
+                uid,
+            )
+            "Updated exercise '${updated.name}' (id=$exerciseId) — ${updated.type ?: "STRENGTH"}."
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${ex.name}' — it isn't one of your exercises."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own meals. mealId from searchMeals/listMeals. Only what you pass changes:
+        name renames it; slots REPLACES its slot tags (canonical slots, empty list clears them, omit to
+        leave them); addFoods is a list of { foodId, quantity, unit } to add (get foodId from searchFoods);
+        removeFoodIds is a list of food ids to remove from the meal. Requires a read-write connector.
+    """)
+    @Transactional
+    fun editMeal(
+        mealId: Long,
+        name: String?,
+        slots: List<String>?,
+        addFoods: List<McpMealFoodInput>?,
+        removeFoodIds: List<Long>?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val meal = runCatching { mealService.get(mealId, uid) }.getOrNull()
+            ?: return "No meal found with id=$mealId. Use searchMeals to find the right id."
+        val newName = name?.trim()?.ifBlank { null } ?: meal.name
+        if (newName.length > MAX_NAME_LEN) return "Meal name is too long (max $MAX_NAME_LEN characters)."
+        val newSlots = if (slots == null) meal.slots.orEmpty() else slots.mapNotNull { it.trim().ifBlank { null } }.map { raw ->
+            resolveSlot(raw) ?: return "Invalid slot '$raw'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+        }.distinct()
+        val removeIds = removeFoodIds.orEmpty().toSet()
+        val kept = meal.items.orEmpty().filter { it.foodId !in removeIds }
+        val added = addFoods.orEmpty().map { f ->
+            if (f.quantity <= 0 || f.quantity > MAX_QUANTITY) return "Each food quantity must be between 0 and $MAX_QUANTITY."
+            val u = parseUnit(f.unit) ?: return "Invalid unit '${f.unit}' for food id=${f.foodId}."
+            runCatching { foodService.get(f.foodId, uid) }.getOrNull()
+                ?: return "Food id=${f.foodId} not found. Use searchFoods to find the right id."
+            MealFoodItemDto(foodId = f.foodId, quantity = f.quantity, unit = u)
+        }
+        val items = kept + added
+        if (items.size > MAX_MEAL_FOODS) return "Too many foods (max $MAX_MEAL_FOODS per meal)."
+        return try {
+            val updated = mealService.update(mealId, meal.copy(name = newName, items = items, slots = newSlots), uid)
+            "Updated meal '${updated.name}' (id=$mealId) — ${items.size} food(s)" +
+                (if (newSlots.isNotEmpty()) " tagged for ${newSlots.joinToString(", ")}." else ".")
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${meal.name}' — it isn't one of your meals."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own workout templates. workoutId from searchWorkouts/listWorkoutTemplates.
+        Only what you pass changes: name renames it; tags REPLACES its tag list (empty list clears, omit to
+        leave); addExerciseIds is a list of exercise ids to append (get them from searchExercises; added with
+        no sets yet); removeExerciseIds is a list of exercise ids to remove. Requires a read-write connector.
+    """)
+    @Transactional
+    fun editWorkout(
+        workoutId: Long,
+        name: String?,
+        tags: List<String>?,
+        addExerciseIds: List<Long>?,
+        removeExerciseIds: List<Long>?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val t = runCatching { workoutService.getTemplate(workoutId) }.getOrNull()
+            ?: return "No workout found with id=$workoutId. Use listWorkoutTemplates to find the right id."
+        if (t.firebaseUid != null && t.firebaseUid != uid) return "Workout id=$workoutId isn't yours."
+        val newName = name?.trim()?.ifBlank { null } ?: t.name
+        if (newName.length > MAX_NAME_LEN) return "Workout name is too long (max $MAX_NAME_LEN characters)."
+        val removeIds = removeExerciseIds.orEmpty().toSet()
+        val kept = t.exercises.orEmpty().filterNot { it.exerciseId in removeIds }
+        val added = addExerciseIds.orEmpty().map { exId ->
+            runCatching { workoutService.getExercise(exId) }.getOrNull()
+                ?: return "Exercise id=$exId not found. Use searchExercises to find the right id."
+            TemplateExerciseDto(exerciseId = exId)
+        }
+        val exercises = kept + added
+        if (exercises.size > MAX_MEAL_FOODS) return "Too many exercises (max $MAX_MEAL_FOODS)."
+        val tagIds = if (tags == null) t.tagIds.orEmpty() else resolveTagIds(tags, TagEntityType.WORKOUT)
+        return try {
+            val updated = workoutService.updateTemplate(workoutId, t.copy(name = newName, exercises = exercises, tagIds = tagIds), uid)
+            "Updated workout '${updated.name}' (id=$workoutId) — ${exercises.size} exercise(s)."
+        } catch (e: ResponseStatusException) {
+            "Can't edit '${t.name}' — it isn't one of your workouts."
+        }
+    }
+
+    @Tool(description = """
+        Edit one of the user's own diets. dietId from searchDiets/listDiets. Only what you pass changes:
+        name renames it; targetCalories/targetProtein/targetCarbs/targetFat retarget it; addEntries adds
+        meals/foods to slots (each { slot, mealId } or { slot, foodId, quantity, unit }, same as createDiet);
+        removeEntries removes them (each { slot, mealId } or { slot, foodId } — quantity/unit ignored). Valid
+        slots (case-insensitive): Early Morning, Breakfast, Noon, Lunch, Evening, Pre-Workout, Post-Workout,
+        Dinner, Post-Dinner. Requires a read-write connector.
+    """)
+    @Transactional
+    fun editDiet(
+        dietId: Long,
+        name: String?,
+        targetCalories: Double?,
+        targetProtein: Double?,
+        targetCarbs: Double?,
+        targetFat: Double?,
+        addEntries: List<McpDietEntryInput>?,
+        removeEntries: List<McpDietEntryInput>?,
+    ): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val diet = runCatching { dietService.get(dietId, uid) }.getOrNull()
+            ?: return "No diet found with id=$dietId. Use listDiets to find the right id."
+        val newName = name?.trim()?.ifBlank { null } ?: diet.name
+        if (newName.length > MAX_NAME_LEN) return "Diet name is too long (max $MAX_NAME_LEN characters)."
+
+        val meals = diet.meals.orEmpty().toMutableList()
+        val foodItems = diet.foodItems.orEmpty().toMutableList()
+
+        for (r in removeEntries.orEmpty()) {
+            val slot = resolveSlot(r.slot) ?: return "Invalid slot '${r.slot}'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+            when {
+                r.mealId != null -> meals.removeAll { it.mealId == r.mealId && it.slot == slot }
+                r.foodId != null -> foodItems.removeAll { it.foodId == r.foodId && it.slot == slot }
+                else -> return "Each remove entry needs a slot plus either a mealId or a foodId."
+            }
+        }
+        for (e in addEntries.orEmpty()) {
+            val slot = resolveSlot(e.slot) ?: return "Invalid slot '${e.slot}'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+            when {
+                e.mealId != null -> {
+                    runCatching { mealService.get(e.mealId, uid) }.getOrNull()
+                        ?: return "Meal id=${e.mealId} not found. Use searchMeals to find the right id."
+                    meals += DietMealDto(mealId = e.mealId, dayOfWeek = 0, slot = slot)
+                }
+                e.foodId != null -> {
+                    val u = parseUnit(e.unit) ?: return "Invalid unit '${e.unit}' for food id=${e.foodId}."
+                    val qty = e.quantity ?: 1.0
+                    if (qty <= 0 || qty > MAX_QUANTITY) return "Each food quantity must be between 0 and $MAX_QUANTITY."
+                    runCatching { foodService.get(e.foodId, uid) }.getOrNull()
+                        ?: return "Food id=${e.foodId} not found. Use searchFoods to find the right id."
+                    foodItems += DietFoodItemDto(foodId = e.foodId, slot = slot, quantity = qty, unit = u)
+                }
+                else -> return "Each add entry needs a slot plus either a mealId or a foodId."
+            }
+        }
+        if (meals.size + foodItems.size > MAX_DIET_ENTRIES) return "Too many entries (max $MAX_DIET_ENTRIES per diet)."
+        val updated = dietService.update(
+            dietId,
+            diet.copy(
+                name = newName, meals = meals, foodItems = foodItems,
+                targetCalories = targetCalories ?: diet.targetCalories,
+                targetProtein = targetProtein ?: diet.targetProtein,
+                targetCarbs = targetCarbs ?: diet.targetCarbs,
+                targetFat = targetFat ?: diet.targetFat,
+            ),
+            uid,
+        )
+        return "Updated diet '${updated.name}' (id=$dietId) — ${meals.size} meal(s) and ${foodItems.size} food(s)."
+    }
+
+    @Tool(description = """
+        Assign (schedule) a diet to a date, so that day follows the diet's targets and meals — exactly like
+        picking a diet for a day in the app. dietId from listDiets/searchDiets; date is YYYY-MM-DD (omit for
+        today). Replaces any diet already assigned to that date, but keeps that day's planned meals and
+        workouts. Requires a read-write connector.
+    """)
+    @Transactional
+    fun assignDietToDate(dietId: Long, date: String?): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val day = parseDate(date)
+        val diet = runCatching { dietService.get(dietId, uid) }.getOrNull()
+            ?: return "Diet id=$dietId not found. Use listDiets to find the right id."
+        val existing = dayPlanService.get(uid, day)
+        if (existing?.dietId == dietId) return "Diet '${diet.name}' is already assigned to $day."
+        dayPlanService.upsert(
+            uid, day,
+            DayPlanDto(
+                date = day, dietId = dietId, serverId = existing?.serverId,
+                plannedMeals = existing?.plannedMeals.orEmpty(),
+                plannedWorkouts = existing?.plannedWorkouts.orEmpty(),
+            ),
+        )
+        return "Assigned diet '${diet.name}' (id=$dietId) to $day."
+    }
+
+    @Tool(description = """
+        Schedule (plan) a workout template on a date, so it shows up as a planned workout for that day.
+        workoutId from listWorkoutTemplates/searchWorkouts; date is YYYY-MM-DD (omit for today). Adds to any
+        workouts already planned that day, and skips if this template is already planned on it. Requires a
+        read-write connector.
+    """)
+    @Transactional
+    fun assignWorkoutToDate(workoutId: Long, date: String?): String {
+        val guard = guardWrite(); if (guard != null) return guard
+        val day = parseDate(date)
+        val template = runCatching { workoutService.getTemplate(workoutId) }.getOrNull()
+            ?: return "No workout found with id=$workoutId. Use listWorkoutTemplates to find the right id."
+        if (template.firebaseUid != null && template.firebaseUid != uid && template.isShared != true)
+            return "Workout id=$workoutId isn't yours."
+        val alreadyPlanned = dayPlanService.get(uid, day)?.plannedWorkouts.orEmpty()
+            .any { it.workoutTemplateId == workoutId }
+        if (alreadyPlanned) return "Workout '${template.name}' is already planned on $day."
+        dayPlanService.addWorkout(uid, day, PlannedWorkoutDto(activityName = template.name, workoutTemplateId = workoutId))
+        return "Planned workout '${template.name}' (id=$workoutId) on $day."
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────────
 
     /** Null when the write may proceed; otherwise a user-facing reason (not authenticated / read-only). */
@@ -820,8 +1192,35 @@ class McpToolService(
         }
     }
 
-    private fun parseDate(date: String?): LocalDate =
-        date?.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+    private fun parseDateOrNull(date: String?): LocalDate? =
+        date?.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+
+    private fun parseDate(date: String?): LocalDate = parseDateOrNull(date) ?: LocalDate.now()
+
+    /**
+     * Resolve an optional from/to window: `from` defaults to today, `to` defaults to `from`. Returns null
+     * (caller emits [RANGE_ERROR]) on an unparseable date, a reversed range, or a span over [MAX_RANGE_DAYS].
+     */
+    private fun parseDateRange(from: String?, to: String?): Pair<LocalDate, LocalDate>? {
+        val start = if (from.isNullOrBlank()) LocalDate.now() else parseDateOrNull(from) ?: return null
+        val end = if (to.isNullOrBlank()) start else parseDateOrNull(to) ?: return null
+        if (end.isBefore(start)) return null
+        if (java.time.temporal.ChronoUnit.DAYS.between(start, end) >= MAX_RANGE_DAYS) return null
+        return start to end
+    }
+
+    private fun rangeLabel(start: LocalDate, end: LocalDate): String = if (start == end) "$start" else "$start..$end"
+
+    /** One-line description of a template set from whatever fields are populated (reps/weight/time/distance). */
+    private fun formatSet(s: TemplateSetDto): String {
+        val parts = buildList {
+            s.reps?.let { add("$it reps") }
+            s.weightKg?.takeIf { it > 0 }?.let { add("${num(it)}kg") }
+            s.durationSeconds?.let { add("${it}s") }
+            s.distanceMeters?.takeIf { it > 0 }?.let { add("${num(it)}m") }
+        }
+        return if (parts.isEmpty()) "set ${s.setNumber}" else "set ${s.setNumber}: ${parts.joinToString(" × ")}"
+    }
 
     private companion object {
         const val NOT_AUTHED = "Not authenticated."
@@ -830,6 +1229,9 @@ class McpToolService(
         const val MAX_NAME_LEN = 100
         const val MAX_MEAL_FOODS = 50
         const val MAX_DIET_ENTRIES = 60
+        const val MAX_RANGE_DAYS = 31
+        const val RANGE_ERROR =
+            "Invalid date range. Use YYYY-MM-DD with `to` on or after `from`, spanning at most $MAX_RANGE_DAYS days."
         val EXERCISE_TYPES = setOf("STRENGTH", "CARDIO", "TIMED")
         val VALID_SLOTS = setOf("BREAKFAST", "LUNCH", "DINNER", "MORNING_SNACK", "EVENING_SNACK")
         // Canonical meal slots used by diets/plans (mirrors DashboardService.CANONICAL_SLOTS + client MEAL_SLOTS).
