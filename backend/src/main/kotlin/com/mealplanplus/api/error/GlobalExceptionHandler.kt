@@ -3,6 +3,7 @@ package com.mealplanplus.api.error
 import com.mealplanplus.api.filter.RequestIdFilter
 import com.mealplanplus.api.generated.model.ApiError
 import io.sentry.Sentry
+import net.logstash.logback.argument.StructuredArguments.keyValue
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.http.HttpStatus
@@ -25,8 +26,9 @@ import java.time.Instant
  *    code-keyed message. 4xx keep the service-provided `reason` (those are deliberately safe).
  *  - **Traceable.** Every body carries the `requestId` from the MDC (same value the
  *    [RequestIdFilter] returns as `X-Request-Id`), so a user-quoted code maps 1:1 to the logs.
- *  - **Observed.** 5xx are logged at ERROR with the full stacktrace and captured to Sentry
- *    (a no-op when `SENTRY_DSN` is unset — locally and in tests).
+ *  - **Observed.** 5xx are logged at ERROR with the full stacktrace, the exception class in the
+ *    message, and `exception_class` / `exception_message` as structured JSON fields (so a log-based
+ *    alert can show the actual exception), and captured to Sentry (a no-op when `SENTRY_DSN` is unset).
  */
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -76,7 +78,16 @@ class GlobalExceptionHandler {
     ): ResponseEntity<ApiError> {
         val requestId = MDC.get(RequestIdFilter.MDC_KEY)?.takeIf { it.isNotBlank() } ?: "unknown"
         val path = currentPath()
-        if (unexpected) log.error("[{}] {} {} → {}", requestId, status.value(), path, ex.message, ex)
+        // Put the exception CLASS in the message (ex.message is often null, e.g. NPE) and also emit it as
+        // structured JSON fields (exception_class / exception_message) so a Cloud Logging alert can surface
+        // the actual exception inline — the full stacktrace still rides along via the trailing throwable.
+        if (unexpected) log.error(
+            "[{}] {} {} → {}: {}",
+            requestId, status.value(), path, ex.javaClass.name, ex.message,
+            keyValue("exception_class", ex.javaClass.name),
+            keyValue("exception_message", ex.message),
+            ex,
+        )
         else log.warn("[{}] {} {} → {}", requestId, status.value(), path, ex.message)
 
         // 5xx: never echo the exception message. 4xx: a service-supplied reason is safe to show.
