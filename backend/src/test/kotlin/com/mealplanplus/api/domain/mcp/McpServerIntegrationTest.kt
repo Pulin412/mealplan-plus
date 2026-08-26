@@ -188,6 +188,18 @@ class McpServerIntegrationTest {
             assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "paneer bowl"))).text())
                 .contains("ZQ Paneer Bowl").contains("food(s)")
 
+            // createMeal can tag slots (resolved to canonical), and an invalid slot is rejected.
+            val slotted = client.callTool(McpSchema.CallToolRequest("createMeal", mapOf(
+                "name" to "ZQ Slotted Breakfast",
+                "foods" to listOf(mapOf("foodId" to food.id, "quantity" to 40.0, "unit" to "GRAM")),
+                "slots" to listOf("breakfast", "Pre-Workout")))).text()
+            assertThat(slotted).contains("Created meal 'ZQ Slotted Breakfast'").contains("Breakfast").contains("Pre-Workout")
+            assertThat(client.callTool(McpSchema.CallToolRequest("createMeal",
+                mapOf("name" to "ZQ Bad Slot Meal", "slots" to listOf("Brunch")))).text()).contains("Invalid slot")
+            // The slot tag is now filterable via searchMeals.
+            assertThat(client.callTool(McpSchema.CallToolRequest("searchMeals", mapOf("query" to "slotted", "slot" to "breakfast"))).text())
+                .contains("ZQ Slotted Breakfast").contains("slots: Breakfast")
+
             // A slot-tagged meal is filtered by slot (case-insensitive), showing its slot tags.
             mealService.create(
                 MealDto(

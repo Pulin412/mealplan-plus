@@ -583,13 +583,16 @@ class McpToolService(
 
     @Tool(description = """
         Create a reusable meal (a named group of foods) the user can add to their plan. name is required;
-        foods is an optional list of { foodId, quantity, unit } (get foodId from searchFoods). Requires a
-        read-write connector. If a meal with the same name already exists it is returned instead of duplicated.
-        Give the meal a clear, descriptive name (e.g. "Grilled Paneer Salad", not "meal 1" or "test") — if
-        the user hasn't said what to call it and you're unsure, ask them before creating.
+        foods is an optional list of { foodId, quantity, unit } (get foodId from searchFoods). slots is an
+        optional list of meal slots to tag the meal for, so it shows up when filtering by slot (e.g. a
+        breakfast meal); valid slots (case-insensitive): Early Morning, Breakfast, Noon, Lunch, Evening,
+        Pre-Workout, Post-Workout, Dinner, Post-Dinner. Requires a read-write connector. If a meal with the
+        same name already exists it is returned instead of duplicated. Give the meal a clear, descriptive
+        name (e.g. "Grilled Paneer Salad", not "meal 1" or "test") — if the user hasn't said what to call it
+        and you're unsure, ask them before creating.
     """)
     @Transactional
-    fun createMeal(name: String, foods: List<McpMealFoodInput>?): String {
+    fun createMeal(name: String, foods: List<McpMealFoodInput>?, slots: List<String>?): String {
         val guard = guardWrite(); if (guard != null) return guard
 
         val trimmed = name.trim()
@@ -597,6 +600,9 @@ class McpToolService(
         if (trimmed.length > MAX_NAME_LEN) return "Meal name is too long (max $MAX_NAME_LEN characters)."
         val items = foods.orEmpty()
         if (items.size > MAX_MEAL_FOODS) return "Too many foods (max $MAX_MEAL_FOODS per meal)."
+        val resolvedSlots = slots.orEmpty().mapNotNull { it.trim().ifBlank { null } }.map { raw ->
+            resolveSlot(raw) ?: return "Invalid slot '$raw'. Use one of: ${CANONICAL_SLOTS.joinToString(", ")}."
+        }.distinct()
 
         // Idempotency: reuse an existing meal with the same name rather than creating a duplicate.
         mealService.list(uid).firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let {
@@ -611,8 +617,9 @@ class McpToolService(
             MealFoodItemDto(foodId = f.foodId, quantity = f.quantity, unit = u)
         }
 
-        val created = mealService.create(MealDto(name = trimmed, items = mealItems), uid)
-        return "Created meal '${created.name}' (id=${created.id}) with ${mealItems.size} food(s)."
+        val created = mealService.create(MealDto(name = trimmed, items = mealItems, slots = resolvedSlots), uid)
+        return "Created meal '${created.name}' (id=${created.id}) with ${mealItems.size} food(s)" +
+            (if (resolvedSlots.isNotEmpty()) " tagged for ${resolvedSlots.joinToString(", ")}." else ".")
     }
 
     @Tool(description = """
