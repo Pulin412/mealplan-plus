@@ -9,10 +9,12 @@ import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { listWorkouts, type WorkoutTemplateDto } from "@/lib/api/workouts";
 import { listSessionsForDate, deleteSession } from "@/lib/api/sessions";
 import { foodMacros, unitLabel, MEAL_SLOTS, num } from "@/lib/nutrition";
+import { naturalCompare } from "@/lib/utils/naturalCompare";
+import type { DietSort } from "@/types/diet";
 
 export interface DietLine { name: string; meta: string; header: boolean; mealId?: number }
 export interface DietSlotView { slot: string; kcal: number; lines: DietLine[] }
-export interface DietSummary { id: number; name: string; kcal: number; slots: DietSlotView[]; tags: string[]; description?: string | null; searchText: string }
+export interface DietSummary { id: number; name: string; kcal: number; protein: number; slots: DietSlotView[]; tags: string[]; description?: string | null; searchText: string }
 /** A meal offered by the "add meal to a day" picker, with its total kcal and ingredient lines. */
 export interface MealSummary { id: number; name: string; kcal: number; lines: DietLine[]; searchText: string; slots: string[] }
 /** A planned meal already assigned to a day, resolved for display (with its ingredient lines). */
@@ -25,6 +27,7 @@ function resolveDiet(d: DietDto, mealsById: Map<number, MealDto>, foodsById: Map
   const bySlot = new Map<string, DietLine[]>();
   const slotKcal = new Map<string, number>();
   let total = 0;
+  let protein = 0;
   const ensure = (slot: string) => { if (!bySlot.has(slot)) bySlot.set(slot, []); return bySlot.get(slot)!; };
   const bump = (slot: string, k: number) => { slotKcal.set(slot, (slotKcal.get(slot) ?? 0) + k); total += k; };
 
@@ -34,7 +37,8 @@ function resolveDiet(d: DietDto, mealsById: Map<number, MealDto>, foodsById: Map
     const items: DietLine[] = [];
     (meal?.items ?? []).forEach((it) => {
       const f = it.foodId != null ? foodsById.get(it.foodId) : undefined;
-      mkcal += foodMacros(f, it.quantity, it.unit).kcal;
+      const m = foodMacros(f, it.quantity, it.unit);
+      mkcal += m.kcal; protein += m.protein;
       items.push({ name: f?.name ?? "Food", meta: `${num(it.quantity)} ${unitLabel(it.unit)}`, header: false });
     });
     const lines = ensure(dm.slot);
@@ -44,9 +48,10 @@ function resolveDiet(d: DietDto, mealsById: Map<number, MealDto>, foodsById: Map
   });
   (d.foodItems ?? []).forEach((fi) => {
     const f = fi.foodId != null ? foodsById.get(fi.foodId) : undefined;
-    const k = foodMacros(f, fi.quantity ?? 1, fi.unit).kcal;
+    const m = foodMacros(f, fi.quantity ?? 1, fi.unit);
+    protein += m.protein;
     ensure(fi.slot).push({ name: f?.name ?? "Food", meta: `${num(fi.quantity ?? 1)} ${unitLabel(fi.unit)}`, header: false });
-    bump(fi.slot, k);
+    bump(fi.slot, m.kcal);
   });
 
   const allSlots = Array.from(bySlot.keys());
@@ -55,7 +60,7 @@ function resolveDiet(d: DietDto, mealsById: Map<number, MealDto>, foodsById: Map
   const tags = (d.tags ?? []).map((t) => t.name);
   // Haystack for picker search: diet name + tags + every meal/ingredient name across its slots.
   const searchText = [d.name, ...tags, ...slots.flatMap((s) => s.lines.map((li) => li.name))].join(" ").toLowerCase();
-  return { id: d.id!, name: d.name, kcal: Math.round(total), slots, tags, description: d.description ?? null, searchText };
+  return { id: d.id!, name: d.name, kcal: Math.round(total), protein, slots, tags, description: d.description ?? null, searchText };
 }
 
 export function usePlan() {
@@ -73,6 +78,8 @@ export function usePlan() {
   // Multi-select diet-picker filters (match ANY, mirrors the Diets screen); empty = no filter.
   const [pickerTags, setPickerTags] = useState<string[]>([]);
   const [pickerSlots, setPickerSlots] = useState<string[]>([]);
+  // Diet picker sorts by name by default (mirrors the Diets screen dropdown).
+  const [pickerSort, setPickerSort] = useState<DietSort>("name");
   const [workouts, setWorkouts] = useState<WorkoutTemplateDto[]>([]);
   const [workoutPickerOpen, setWorkoutPickerOpen] = useState(false);
   const [openWorkout, setOpenWorkout] = useState<WorkoutTemplateDto | null>(null);
@@ -97,7 +104,7 @@ export function usePlan() {
   const filteredDiets = useMemo(() => {
     const q = pickerSearch.trim().toLowerCase();
     const hasSlot = pickerSlots.length > 0;
-    return diets.filter((d) => {
+    const list = diets.filter((d) => {
       // Slot filter: the diet must contain at least one selected slot.
       const scopeSlots = hasSlot ? d.slots.filter((s) => pickerSlots.includes(s.slot)) : d.slots;
       if (hasSlot && scopeSlots.length === 0) return false;
@@ -111,7 +118,13 @@ export function usePlan() {
       if (pickerTags.length && !pickerTags.some((t) => d.tags.includes(t))) return false;
       return true;
     });
-  }, [diets, pickerSearch, pickerTags, pickerSlots]);
+    switch (pickerSort) {
+      case "name": return [...list].sort((a, b) => naturalCompare(a.name, b.name));
+      case "calories": return [...list].sort((a, b) => b.kcal - a.kcal);
+      case "protein": return [...list].sort((a, b) => b.protein - a.protein);
+      default: return list; // "recent" = listDiets order
+    }
+  }, [diets, pickerSearch, pickerTags, pickerSlots, pickerSort]);
 
   const todayIso = iso(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
@@ -256,6 +269,7 @@ export function usePlan() {
     ym, setYm, plans, completedDays, selectedSlots, diets, loading, error, todayIso, today, selected, setSelected,
     prevMonth, nextMonth, setDiet, clearDay,
     pickerOpen, pickerSearch, setPickerSearch, allTags, allSlots, filteredDiets,
+    pickerSort, setPickerSort,
     pickerTags, togglePickerTag, clearPickerTags, pickerSlots, togglePickerSlot, clearPickerSlots,
     openPicker, closePicker, chooseDiet,
     workouts, workoutPickerOpen, openWorkoutPicker, closeWorkoutPicker,

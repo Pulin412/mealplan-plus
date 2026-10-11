@@ -42,6 +42,7 @@ fun MiscScreen(
     onMeals: () -> Unit = {},
     onDiets: () -> Unit = {},
     onGroceries: () -> Unit = {},
+    onJournal: () -> Unit = {},
     onHelp: () -> Unit = {},
 ) {
     Box(Modifier.fillMaxSize().background(AppBg)) {
@@ -60,6 +61,8 @@ fun MiscScreen(
                 MiscRow("🥗", "Diets", "Day-plan templates", onDiets, tourKey = "misc_diets")
                 Divider()
                 MiscRow("🛒", "Groceries", "Shopping lists from your plan", onGroceries, tourKey = "misc_groceries")
+                Divider()
+                MiscRow("📓", "Journal", "Daily diary — diets, workouts & notes", onJournal)
                 Divider()
                 MiscRow("❓", "Help", "Step-by-step guides for every feature", onHelp)
             }

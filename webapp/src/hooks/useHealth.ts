@@ -26,12 +26,14 @@ export const RANGES: { id: RangeId; label: string; days: number }[] = [
   { id: "90D", label: "90D", days: 90 },
 ];
 
-/** Open log form: two fields (BP) or one (glucose/weight). */
+/** One combined log form — enter any of the metrics; each filled value saves to its own type. */
 export interface HealthLogForm {
-  tab: HealthTabMeta;
-  value: string;
-  secondary: string; // diastolic for BP
+  glucose: string;
+  weight: string;
+  systolic: string;
+  diastolic: string;
 }
+const EMPTY_FORM: HealthLogForm = { glucose: "", weight: "", systolic: "", diastolic: "" };
 
 export function useHealth() {
   const [tab, setTabId] = useState<HealthTabId>("GLUCOSE");
@@ -41,7 +43,9 @@ export function useHealth() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [log, setLog] = useState<HealthLogForm | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
+  const [form, setForm] = useState<HealthLogForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,37 +70,55 @@ export function useHealth() {
   const meta = useMemo(() => HEALTH_TABS.find((t) => t.id === tab)!, [tab]);
   const current = readings[tab];
 
-  // ── Log form ──────────────────────────────────────────────────────────────
-  const openLog = useCallback(() => setLog({ tab: HEALTH_TABS.find((t) => t.id === tab)!, value: "", secondary: "" }), [tab]);
-  const closeLog = useCallback(() => setLog(null), []);
-  const setLogValue = useCallback((v: string) => setLog((l) => l && { ...l, value: cleanNum(v, l.tab.id !== "BLOOD_PRESSURE") }), []);
-  const setLogSecondary = useCallback((v: string) => setLog((l) => l && { ...l, secondary: cleanNum(v, false) }), []);
+  // ── Combined log form ───────────────────────────────────────────────────────
+  const openLog = useCallback(() => { setForm(EMPTY_FORM); setError(null); setLogOpen(true); }, []);
+  const closeLog = useCallback(() => setLogOpen(false), []);
+  // Glucose (mg/dL) + BP (mmHg) are whole numbers; weight (kg) allows a decimal.
+  const setField = useCallback((k: keyof HealthLogForm, v: string) =>
+    setForm((f) => ({ ...f, [k]: cleanNum(v, k === "weight") })), []);
 
+  const parsed = useMemo(() => {
+    const num = (s: string) => (s.trim() === "" ? null : parseFloat(s));
+    const g = num(form.glucose), w = num(form.weight), s = num(form.systolic), d = num(form.diastolic);
+    const bpTouched = form.systolic.trim() !== "" || form.diastolic.trim() !== "";
+    const bpValid = s != null && !Number.isNaN(s) && d != null && !Number.isNaN(d);
+    return {
+      glucose: g != null && !Number.isNaN(g) ? g : null,
+      weight: w != null && !Number.isNaN(w) ? w : null,
+      bp: bpValid ? { s: s!, d: d! } : null,
+      bpTouched, bpValid,
+    };
+  }, [form]);
+
+  // Savable when at least one metric is valid, and BP isn't half-filled.
   const canSaveLog = useMemo(() => {
-    if (!log) return false;
-    const v = parseFloat(log.value);
-    if (Number.isNaN(v)) return false;
-    if (log.tab.id === "BLOOD_PRESSURE") return !Number.isNaN(parseFloat(log.secondary));
-    return true;
-  }, [log]);
+    if (parsed.bpTouched && !parsed.bpValid) return false;
+    return parsed.glucose != null || parsed.weight != null || parsed.bp != null;
+  }, [parsed]);
 
   const saveLog = useCallback(async () => {
-    if (!log || !canSaveLog) return;
-    const value = parseFloat(log.value);
-    const secondary = log.tab.id === "BLOOD_PRESSURE" ? parseFloat(log.secondary) : null;
+    if (!canSaveLog || saving) return;
+    setSaving(true);
     try {
-      await createHealthMetric(log.tab.id, value, log.tab.unit, secondary);
-      setLog(null);
+      const tasks: Promise<unknown>[] = [];
+      if (parsed.glucose != null) tasks.push(createHealthMetric("GLUCOSE", parsed.glucose, "mg/dL"));
+      if (parsed.weight != null) tasks.push(createHealthMetric("WEIGHT", parsed.weight, "kg"));
+      if (parsed.bp != null) tasks.push(createHealthMetric("BLOOD_PRESSURE", parsed.bp.s, "mmHg", parsed.bp.d));
+      await Promise.all(tasks);
+      setLogOpen(false);
       await load();
     } catch (e) {
       setError(friendlyMessage(e));
+    } finally {
+      setSaving(false);
     }
-  }, [log, canSaveLog, load]);
+  }, [canSaveLog, saving, parsed, load]);
 
   return {
     tab, meta, setTabId, range, setRange,
     readings, current, loading, error,
-    log, openLog, closeLog, setLogValue, setLogSecondary, canSaveLog, saveLog,
+    logOpen, form, openLog, closeLog, setField, canSaveLog, saveLog, saving,
+    bpIncomplete: parsed.bpTouched && !parsed.bpValid,
   };
 }
 

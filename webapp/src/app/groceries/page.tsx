@@ -3,8 +3,9 @@
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { NutritionNav } from "@/components/layout/NutritionNav";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { useState } from "react";
 import { useGroceries, CAT_ORDER, rangeLabel, type GroceryRow, type SavedGroceryList } from "@/hooks/useGroceries";
-import { unitLabel } from "@/lib/nutrition";
+import { unitLabel, FOOD_UNITS } from "@/lib/nutrition";
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e", faint: "#a2abb1",
@@ -21,6 +22,7 @@ type G = ReturnType<typeof useGroceries>;
 
 function GroceriesInner() {
   const g = useGroceries();
+  const [addOpen, setAddOpen] = useState(false);
   const nDays = g.dateKeys.length;
   const title = g.isSaved ? g.activeName ?? "Saved list" : `${nDays === 0 ? "No" : nDays} day${nDays === 1 ? "" : "s"} of shopping`;
   const range = rangeLabel(g.dateKeys);
@@ -60,12 +62,15 @@ function GroceriesInner() {
         {/* List header */}
         <div style={{ display: "flex", alignItems: "center", margin: "18px 0 12px" }}>
           <span style={{ font: "700 16px system-ui", color: C.ink }}>{g.isSaved ? "Saved list" : "Shopping list"}</span>
+          {!g.isSaved && (
+            <button onClick={() => setAddOpen(true)} style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", font: "600 12.5px system-ui", color: C.teal, padding: 4 }}>＋ Add item</button>
+          )}
           {!g.isSaved && g.total > 0 && (
-            <button onClick={g.clearList} style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", font: "600 12.5px system-ui", color: C.danger, padding: 4 }}>Clear list</button>
+            <button onClick={g.clearList} style={{ marginLeft: 8, border: "none", background: "none", cursor: "pointer", font: "600 12.5px system-ui", color: C.danger, padding: 4 }}>Clear list</button>
           )}
           {!g.isSaved && (
             <button onClick={g.refresh} disabled={g.refreshing} title="Recalculate from plan"
-              style={{ marginLeft: g.total > 0 ? 8 : "auto", border: "none", background: "none", cursor: g.refreshing ? "default" : "pointer", fontSize: 16, color: C.muted3, padding: 4, opacity: g.refreshing ? 0.4 : 1 }}>↻</button>
+              style={{ marginLeft: 8, border: "none", background: "none", cursor: g.refreshing ? "default" : "pointer", fontSize: 16, color: C.muted3, padding: 4, opacity: g.refreshing ? 0.4 : 1 }}>↻</button>
           )}
           <button onClick={() => (g.isSaved ? g.newList() : g.saveList())}
             disabled={!g.isSaved && (g.total === 0 || g.selected.size === 0)}
@@ -89,6 +94,7 @@ function GroceriesInner() {
         <ShoppingList g={g} />
       </div>
 
+      <AddItemSheet g={g} open={addOpen} onClose={() => setAddOpen(false)} />
       <SavedSheet g={g} />
       <NutritionNav />
     </div>
@@ -191,7 +197,7 @@ function ShoppingList({ g }: { g: G }) {
             <span style={{ marginLeft: 7, font: "700 10.5px system-ui", letterSpacing: 0.5, color: C.muted3, textTransform: "uppercase" }}>{cat.label}</span>
             <span style={{ marginLeft: 6, font: "600 10.5px system-ui", color: C.faint }}>{rows.length}</span>
           </div>
-          {rows.map((r) => <Row key={r.id} r={r} onToggle={() => g.toggleRow(r.id)} />)}
+          {rows.map((r) => <Row key={r.id} r={r} onToggle={() => g.toggleRow(r.id)} onRemove={!g.isSaved && r.custom ? () => g.removeCustomItem(r.id) : undefined} />)}
         </div>
       ))}
 
@@ -202,7 +208,7 @@ function ShoppingList({ g }: { g: G }) {
             <button onClick={g.uncheckAll} style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: C.teal, padding: 4 }}>Uncheck all</button>
           </div>
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12 }}>
-            {g.bought.map((r) => <Row key={r.id} r={r} onToggle={() => g.toggleRow(r.id)} />)}
+            {g.bought.map((r) => <Row key={r.id} r={r} onToggle={() => g.toggleRow(r.id)} onRemove={!g.isSaved && r.custom ? () => g.removeCustomItem(r.id) : undefined} />)}
           </div>
         </>
       )}
@@ -210,8 +216,8 @@ function ShoppingList({ g }: { g: G }) {
   );
 }
 
-/** One independently-checkable list row. */
-function Row({ r, onToggle }: { r: GroceryRow; onToggle: () => void }) {
+/** One independently-checkable list row. Custom (user-added) rows get a remove button. */
+function Row({ r, onToggle, onRemove }: { r: GroceryRow; onToggle: () => void; onRemove?: () => void }) {
   const bought = r.checked;
   return (
     <div onClick={onToggle} style={{ display: "flex", alignItems: "center", padding: "9px 14px", cursor: "pointer" }}>
@@ -221,8 +227,50 @@ function Row({ r, onToggle }: { r: GroceryRow; onToggle: () => void }) {
         display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12,
       }}>{bought ? "✓" : ""}</span>
       <span style={{ marginLeft: 11, font: "600 13.5px system-ui", color: bought ? C.faint : C.ink, textDecoration: bought ? "line-through" : "none" }}>{r.name}</span>
+      {r.custom && <span title="Custom item" style={{ marginLeft: 6, font: "600 8px system-ui", letterSpacing: 0.4, color: C.teal, background: C.tealSoft, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase" }}>Added</span>}
       <span style={{ marginLeft: "auto", font: `400 12px ${mono}`, color: bought ? C.faint : C.muted3 }}>{fmt(r.qty)} {unitLabel(r.unit)}</span>
+      {onRemove && <button onClick={(e) => { e.stopPropagation(); onRemove(); }} style={{ marginLeft: 10, border: "none", background: "none", cursor: "pointer", color: C.faint, fontSize: 14, padding: 0 }}>✕</button>}
     </div>
+  );
+}
+
+// ── Add custom item sheet ────────────────────────────────────────────────────────
+function AddItemSheet({ g, open, onClose }: { g: G; open: boolean; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [qty, setQty] = useState("1");
+  const [unit, setUnit] = useState<string>("PIECE");
+  const q = Number(qty);
+  const canAdd = name.trim() !== "" && q > 0;
+  const submit = () => {
+    if (!canAdd) return;
+    g.addCustomItem(name, q, unit);
+    setName(""); setQty("1"); setUnit("PIECE");
+    onClose();
+  };
+  return (
+    <BottomSheet open={open} onClose={onClose} title="Add item">
+      <label style={{ display: "block", font: "600 11px system-ui", color: C.muted3, marginBottom: 5 }}>Item</label>
+      <input value={name} autoFocus onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="e.g. Dish soap, Olive oil"
+        style={{ width: "100%", border: "1.5px solid #dfe6e8", borderRadius: 11, padding: "11px 12px", font: "400 14px system-ui", color: C.ink, outline: "none", marginBottom: 14 }} />
+      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+        <div style={{ width: 96 }}>
+          <label style={{ display: "block", font: "600 11px system-ui", color: C.muted3, marginBottom: 5 }}>Qty</label>
+          <input value={qty} inputMode="decimal" onChange={(e) => setQty(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+            style={{ width: "100%", border: "1.5px solid #dfe6e8", borderRadius: 11, padding: "11px 12px", font: `400 14px ${mono}`, color: C.ink, outline: "none" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ display: "block", font: "600 11px system-ui", color: C.muted3, marginBottom: 5 }}>Unit</label>
+          <select value={unit} onChange={(e) => setUnit(e.target.value)}
+            style={{ width: "100%", border: "1.5px solid #dfe6e8", borderRadius: 11, padding: "11px 12px", font: "400 14px system-ui", color: C.ink, outline: "none", background: C.surface }}>
+            {FOOD_UNITS.map((u) => <option key={u} value={u}>{unitLabel(u)}</option>)}
+          </select>
+        </div>
+      </div>
+      <button onClick={submit} disabled={!canAdd}
+        style={{ width: "100%", border: "none", borderRadius: 12, padding: "14px", cursor: canAdd ? "pointer" : "default", font: "600 13px system-ui", background: canAdd ? C.teal : C.bgAlt, color: canAdd ? "#fff" : C.muted2 }}>
+        Add to list
+      </button>
+    </BottomSheet>
   );
 }
 

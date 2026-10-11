@@ -14,6 +14,15 @@ Keep entries short and user-facing, grouped under `#### Added` / `#### Fixed` / 
 
 ## Android
 
+### [2.2.24] - 2026-10-11
+
+#### Added
+- Journal: a daily diary — jump to any date, see each day's diet and workouts with their status, tap a completed workout for a read-only log, and keep private notes. Lock notes behind your fingerprint/face or device PIN.
+- Health: log glucose, weight and blood pressure together in one quick form.
+- Diets: delete tags you no longer use, right from the Diets screen or the diet builder.
+- Plan: sort the "Choose a diet" picker (Recent / Name / Calories / Protein); diets now sort by name by default.
+- Groceries: add your own custom items to a shopping list.
+
 ### [2.3.0] - 2026-08-13
 
 #### Added
@@ -35,6 +44,15 @@ Keep entries short and user-facing, grouped under `#### Added` / `#### Fixed` / 
 - Workout session: add/remove exercises on the fly (remove only the ones you added); a standalone single-exercise log no longer offers "add exercise".
 
 ## Webapp
+
+### [0.4.0] - 2026-10-11
+
+#### Added
+- Journal: a daily diary — jump to any date, see each day's diet and workouts with their status, tap a completed workout for a read-only log, and keep private notes. Lock notes behind a PIN.
+- Health: log glucose, weight and blood pressure together in one quick form.
+- Diets: delete tags you no longer use, from the Diets screen or the diet builder.
+- Plan: sort the "Choose a diet" picker (Recent / Name / Calories / Protein); diets now sort by name by default.
+- Groceries: add your own custom items to a shopping list.
 
 ### [0.3.0] - 2026-08-13
 

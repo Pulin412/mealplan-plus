@@ -55,6 +55,8 @@ data class GroceryRow(
     val qty: Double,
     val checked: Boolean,
     val category: GroceryCat,
+    /** User-added extra (not from the plan) — kept through refresh/reconcile; removable. */
+    val custom: Boolean = false,
 )
 
 enum class GroceryView { ALL, TO_BUY, BOUGHT }
@@ -111,7 +113,7 @@ class GroceryViewModel @Inject constructor(
     init {
         val work = store.loadWork()
         if (work != null) {
-            liveRows = work.rows.map { GroceryRow(it.id, it.key, it.name, it.unit, it.qty, it.checked, GroceryCat.of(it.name)) }
+            liveRows = work.rows.map { GroceryRow(it.id, it.key, it.name, it.unit, it.qty, it.checked, GroceryCat.of(it.name), it.custom) }
             _state.update {
                 it.copy(
                     savedLists = store.load(),
@@ -137,7 +139,7 @@ class GroceryViewModel @Inject constructor(
             GroceryWork(
                 selected = s.selectedDates.map { it.toString() },
                 activeId = s.activeId,
-                rows = liveRows.map { WorkRow(it.id, it.key, it.name, it.unit, it.qty, it.checked) },
+                rows = liveRows.map { WorkRow(it.id, it.key, it.name, it.unit, it.qty, it.checked, it.custom) },
             ),
         )
     }
@@ -217,8 +219,10 @@ class GroceryViewModel @Inject constructor(
      * to-buy row; ingredients dropped from the plan keep only their bought rows.
      */
     private fun reconcile(fresh: Map<String, FoodTotal>) {
-        val byKey = liveRows.groupBy { it.key }
-        val out = mutableListOf<GroceryRow>()
+        // Custom (user-added) rows aren't part of the plan — carry them through untouched.
+        val custom = liveRows.filter { it.custom }
+        val byKey = liveRows.filterNot { it.custom }.groupBy { it.key }
+        val out = custom.toMutableList()
         fresh.forEach { (key, ft) ->
             val existing = byKey[key].orEmpty()
             // Bought can't exceed what the plan now needs (capped when a day is removed).
@@ -311,8 +315,8 @@ class GroceryViewModel @Inject constructor(
             var toBuyQty = food.filter { !it.checked }.sumOf { it.qty }
             if (row.checked) { boughtQty -= row.qty; toBuyQty += row.qty } else { boughtQty += row.qty; toBuyQty -= row.qty }
             val rebuilt = buildList {
-                if (boughtQty > 0.0) add(GroceryRow("$key#b", key, row.name, row.unit, boughtQty, true, row.category))
-                if (toBuyQty > 0.0) add(GroceryRow("$key#t", key, row.name, row.unit, toBuyQty, false, row.category))
+                if (boughtQty > 0.0) add(GroceryRow("$key#b", key, row.name, row.unit, boughtQty, true, row.category, row.custom))
+                if (toBuyQty > 0.0) add(GroceryRow("$key#t", key, row.name, row.unit, toBuyQty, false, row.category, row.custom))
             }
             liveRows = (liveRows.filter { it.key != key } + rebuilt).sortedBy { it.name.lowercase() }
             showRows()
@@ -330,7 +334,7 @@ class GroceryViewModel @Inject constructor(
         } else {
             liveRows = liveRows.groupBy { it.key }.map { (key, rs) ->
                 val f = rs.first()
-                GroceryRow("$key#t", key, f.name, f.unit, rs.sumOf { it.qty }, false, f.category)
+                GroceryRow("$key#t", key, f.name, f.unit, rs.sumOf { it.qty }, false, f.category, f.custom)
             }.sortedBy { it.name.lowercase() }
             showRows()
         }
@@ -351,6 +355,30 @@ class GroceryViewModel @Inject constructor(
             _state.update { it.copy(selectedDates = emptySet()) }
             showRows()
         }
+    }
+
+    // ── Custom items (user-added extras on the live list) ───────────────────────────
+    /** Add a one-off item not derived from the plan. Merges into an existing unchecked custom row of
+     *  the same name+unit; otherwise adds a new to-buy row. Live list only. */
+    fun addCustomItem(name: String, qty: Double, unit: String) {
+        val nm = name.trim()
+        if (nm.isEmpty() || qty <= 0.0 || _state.value.isSaved) return
+        val key = "custom:" + nm.lowercase() + "|" + unit
+        val open = liveRows.firstOrNull { it.key == key && !it.checked }
+        liveRows = (if (open != null) {
+            liveRows.map { if (it.id == open.id) it.copy(qty = it.qty + qty) else it }
+        } else {
+            liveRows + GroceryRow("$key#t", key, nm, unit, qty, false, GroceryCat.of(nm), custom = true)
+        }).sortedBy { it.name.lowercase() }
+        showRows()
+    }
+
+    /** Remove a custom item entirely (both to-buy and bought rows). Live list only. */
+    fun removeCustomItem(id: String) {
+        val row = liveRows.firstOrNull { it.id == id } ?: return
+        if (!row.custom) return
+        liveRows = liveRows.filterNot { it.key == row.key }
+        showRows()
     }
 
     // ── Saved lists ────────────────────────────────────────────────────────────────

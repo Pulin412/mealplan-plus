@@ -14,6 +14,11 @@ export function createDietTag(name: string): Promise<TagDto> {
   });
 }
 
+/** Delete a tag by id. Global — removes it from every diet it's assigned to. */
+export function deleteTag(id: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/tags/${id}`, { method: "DELETE" });
+}
+
 /** EXERCISE-type tags (muscle groups / movement patterns) the user can assign to exercises. */
 export function listExerciseTags(): Promise<TagDto[]> {
   return apiFetch<TagDto[]>("/api/v1/tags?entityType=EXERCISE");

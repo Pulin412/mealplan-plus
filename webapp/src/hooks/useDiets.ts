@@ -5,10 +5,10 @@ import { listDiets, createDiet, updateDiet, deleteDiet, toggleDietFavorite, type
 import { listMeals, type MealDto } from "@/lib/api/meals";
 import { listFoods, type FoodDto } from "@/lib/api/foods";
 import { naturalCompare } from "@/lib/utils/naturalCompare";
-import { listDietTags, createDietTag, type TagDto } from "@/lib/api/tags";
+import { listDietTags, createDietTag, deleteTag as deleteTagApi, type TagDto } from "@/lib/api/tags";
 import { toggleDietShare } from "@/lib/api/social";
 import { foodMacros, MEAL_SLOTS, unitLabel, type Macros } from "@/lib/nutrition";
-import { friendlyMessage, toastApiError } from "@/lib/api/errors";
+import { ApiError, friendlyMessage, toastApiError } from "@/lib/api/errors";
 import type { DietSort, DietViewMode } from "@/types/diet";
 
 export interface MealSummary { id: number; name: string; totals: Macros }
@@ -40,7 +40,7 @@ export function useDiets() {
   const [error, setError] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<DietSort>("recent");
+  const [sort, setSort] = useState<DietSort>("name");
   const [viewMode, setViewMode] = useState<DietViewMode>("list");
   const [favOnly, setFavOnly] = useState(false);
   const [importedOnly, setImportedOnly] = useState(false);
@@ -126,6 +126,13 @@ export function useDiets() {
     [availableTags, diets]
   );
 
+  // All known DIET tags (catalog + any attached to a diet), deduped by id, for the manage/delete UI.
+  const allTags = useMemo(() => {
+    const byId = new Map<number, TagDto>();
+    [...availableTags, ...diets.flatMap((d) => d.tags ?? [])].forEach((t) => { if (t.id != null) byId.set(t.id, t); });
+    return Array.from(byId.values()).sort((a, b) => naturalCompare(a.name, b.name));
+  }, [availableTags, diets]);
+
   // Slots actually present across the user's diets, in canonical meal-slot order (unknowns appended).
   const allSlotNames = useMemo(() => {
     const present = new Set<string>();
@@ -203,6 +210,26 @@ export function useDiets() {
     } catch { return null; }
   }, []);
 
+  // Delete a tag globally (drops it from the catalog + any diet that referenced it).
+  const deleteTag = useCallback(async (id: number): Promise<boolean> => {
+    const removeLocally = () => {
+      const name = availableTags.find((t) => t.id === id)?.name;
+      setAvailableTags((prev) => prev.filter((t) => t.id !== id));
+      setDiets((prev) => prev.map((d) => ({ ...d, tags: (d.tags ?? []).filter((t) => t.id !== id) })));
+      if (name) setTagFilters((prev) => prev.filter((n) => n !== name));
+    };
+    try {
+      await deleteTagApi(id);
+      removeLocally();
+      return true;
+    } catch (e) {
+      // A 404 means it's already gone — the intent is satisfied, so clear it from the UI too.
+      if (e instanceof ApiError && (e.status === 404 || e.code === "NOT_FOUND")) { removeLocally(); return true; }
+      toastApiError(e);
+      return false;
+    }
+  }, [availableTags]);
+
   const openNew = useCallback(() => { setEditing(null); setBuilderOpen(true); }, []);
   const openEdit = useCallback((diet: DietDto) => { setEditing(diet); setBuilderOpen(true); }, []);
   const closeBuilder = useCallback(() => { setBuilderOpen(false); setEditing(null); }, []);
@@ -225,13 +252,13 @@ export function useDiets() {
 
   return {
     diets: filtered, allDiets: resolved, totalCount: diets.length, favCount, meals, foods, foodsById, mealSummaries,
-    availableTags, allTagNames, allSlotNames, loading, error,
+    availableTags, allTags, allTagNames, allSlotNames, loading, error,
     query, setQuery, sort, setSort, viewMode, setViewMode, favOnly, setFavOnly,
     importedOnly, setImportedOnly,
     tagFilters, toggleTagFilter, clearTagFilters,
     slotFilters, toggleSlotFilter, clearSlotFilters,
     expandedIds, toggleExpand,
-    handleToggleFav, handleToggleShare, handleDelete, createTag,
+    handleToggleFav, handleToggleShare, handleDelete, createTag, deleteTag,
     builderOpen, editing, openNew, openEdit, closeBuilder, saveDiet, saving,
   };
 }

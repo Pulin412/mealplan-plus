@@ -39,6 +39,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,6 +48,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -123,10 +126,18 @@ fun DietsScreen(
     viewModel: DietViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    var manageTags by remember { mutableStateOf(false) }
+    var pendingDeleteTag by remember { mutableStateOf<DietTag?>(null) }
 
     if (state.newDietOpen) {
         NewDietSheet(viewModel)
         return
+    }
+
+    pendingDeleteTag?.let { tag ->
+        DeleteTagDialog(tag,
+            onConfirm = { viewModel.deleteTag(tag); pendingDeleteTag = null },
+            onDismiss = { pendingDeleteTag = null })
     }
 
     Box(Modifier.fillMaxSize().background(AppBg)) {
@@ -155,7 +166,12 @@ fun DietsScreen(
                 viewMode = state.viewMode, onViewToggle = viewModel::setViewMode,
             )
 
-            FilterChipRow("Tags", state.allTagNames, state.tagFilters, viewModel::toggleTagFilter, viewModel::clearTagFilters)
+            TagsFilterRow(
+                tags = state.allTags, selected = state.tagFilters,
+                manage = manageTags, onManageToggle = { manageTags = !manageTags },
+                onToggle = viewModel::toggleTagFilter, onClear = viewModel::clearTagFilters,
+                onDelete = { pendingDeleteTag = it },
+            )
             FilterChipRow("Slots", state.allSlotNames, state.slotFilters, viewModel::toggleSlotFilter, viewModel::clearSlotFilters)
 
             val diets = state.filteredDiets
@@ -305,6 +321,56 @@ private fun TagChip(text: String, on: Boolean, onClick: () -> Unit) {
         modifier = Modifier.clip(RoundedCornerShape(20.dp))
             .background(if (on) Ink else SurfaceMuted)
             .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp))
+}
+
+/** The Tags filter row with a ⚙ toggle: normal mode filters diets; manage mode shows a ✕ per tag
+ *  to delete it globally. */
+@Composable
+private fun TagsFilterRow(
+    tags: List<DietTag>, selected: Set<String>,
+    manage: Boolean, onManageToggle: () -> Unit,
+    onToggle: (String) -> Unit, onClear: () -> Unit, onDelete: (DietTag) -> Unit,
+) {
+    if (tags.isEmpty()) return
+    androidx.compose.foundation.lazy.LazyRow(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        item { Text("TAGS", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = MutedDark) }
+        item {
+            Icon(Icons.Outlined.Settings, if (manage) "Done managing tags" else "Manage tags",
+                tint = if (manage) Teal else MutedDark,
+                modifier = Modifier.size(16.dp).clickable(onClick = onManageToggle))
+        }
+        if (!manage) item { TagChip("All", selected.isEmpty(), onClear) }
+        items(tags, key = { it.id }) { t ->
+            if (manage) DeletableTagChip(t.name) { onDelete(t) }
+            else TagChip(t.name, t.name in selected) { onToggle(t.name) }
+        }
+    }
+}
+
+@Composable
+private fun DeletableTagChip(text: String, onDelete: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(SurfaceMuted)
+            .padding(start = 12.dp, end = 7.dp, top = 6.dp, bottom = 6.dp)) {
+        Text(text, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MutedDark)
+        Spacer(Modifier.width(5.dp))
+        Text("✕", fontSize = 12.sp, color = DeleteColor, modifier = Modifier.clickable(onClick = onDelete))
+    }
+}
+
+@Composable
+private fun DeleteTagDialog(tag: DietTag, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete tag") },
+        text = { Text("Delete tag \"${tag.name}\"? It will be removed from all diets.") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Delete", color = Danger) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 // ── List card ────────────────────────────────────────────────────────────────
@@ -627,6 +693,7 @@ private fun NewDietSheet(viewModel: DietViewModel) {
                     selected = selectedTags,
                     onToggle = { t -> dirty = true; if (selectedTags.any { it.id == t.id }) selectedTags.removeAll { it.id == t.id } else selectedTags.add(t) },
                     onCreate = { nm -> dirty = true; scope.launch { viewModel.createTag(nm)?.let { if (selectedTags.none { s -> s.id == it.id }) selectedTags.add(it) } } },
+                    onDelete = { t -> selectedTags.removeAll { it.id == t.id }; viewModel.deleteTag(t) },
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
@@ -844,24 +911,42 @@ private fun TagPicker(
     selected: List<DietTag>,
     onToggle: (DietTag) -> Unit,
     onCreate: (String) -> Unit,
+    onDelete: (DietTag) -> Unit,
 ) {
     var newTag by remember { mutableStateOf("") }
-    Row(verticalAlignment = Alignment.Bottom) {
+    var manage by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<DietTag?>(null) }
+    val shown = (available + selected).distinctBy { it.id }
+
+    pendingDelete?.let { tag ->
+        DeleteTagDialog(tag, onConfirm = { onDelete(tag); pendingDelete = null }, onDismiss = { pendingDelete = null })
+    }
+
+    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
         Label("Tags")
         Text("  · optional", fontSize = 11.sp, color = MutedFaint, modifier = Modifier.padding(bottom = 7.dp))
+        Spacer(Modifier.weight(1f))
+        if (shown.isNotEmpty()) {
+            Icon(Icons.Outlined.Settings, if (manage) "Done managing tags" else "Manage tags",
+                tint = if (manage) Teal else MutedDark,
+                modifier = Modifier.padding(bottom = 5.dp).size(18.dp).clickable { manage = !manage })
+        }
     }
-    val shown = (available + selected).distinctBy { it.id }
     if (shown.isNotEmpty()) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
             shown.forEach { tag ->
-                val on = selected.any { it.id == tag.id }
-                Text(tag.name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (on) OnAccent else MutedDark,
-                    modifier = Modifier.clip(RoundedCornerShape(20.dp))
-                        .background(if (on) Teal else Color.Transparent)
-                        .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
-                        .clickable { onToggle(tag) }.padding(horizontal = 11.dp, vertical = 6.dp))
+                if (manage) {
+                    DeletableTagChip(tag.name) { pendingDelete = tag }
+                } else {
+                    val on = selected.any { it.id == tag.id }
+                    Text(tag.name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (on) OnAccent else MutedDark,
+                        modifier = Modifier.clip(RoundedCornerShape(20.dp))
+                            .background(if (on) Teal else Color.Transparent)
+                            .border(1.5.dp, if (on) Teal else BorderCool, RoundedCornerShape(20.dp))
+                            .clickable { onToggle(tag) }.padding(horizontal = 11.dp, vertical = 6.dp))
+                }
             }
         }
     }
