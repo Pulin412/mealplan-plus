@@ -42,6 +42,8 @@ scripts/dev-seed-h2.py
 # local-up.sh config (holds the Firebase key) + its backend log — never commit
 scripts/local-seed.env
 scripts/.local-backend.log
+scripts/.local-up.out
+scripts/.webapp-dev.out
 
 # Python bytecode cache (from running local scripts)
 __pycache__/
