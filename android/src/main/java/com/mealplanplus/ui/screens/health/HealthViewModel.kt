@@ -25,16 +25,19 @@ enum class HealthTab(val type: String, val label: String, val unit: String, val 
 /** Trend-graph window. */
 enum class RangeWindow(val label: String, val days: Long) { D7("7D", 7), D30("30D", 30), D90("90D", 90) }
 
-/** Open log sheet: two fields (BP) or one (glucose/weight). */
+/** One combined log sheet — enter any of the metrics; each filled value saves to its own type. */
 data class HealthLog(
-    val tab: HealthTab,
-    val value: String = "",
-    val secondary: String = "", // diastolic for BP
+    val glucose: String = "",
+    val weight: String = "",
+    val systolic: String = "",
+    val diastolic: String = "",
 ) {
-    val isDual: Boolean get() = tab == HealthTab.BP
-    val canSave: Boolean
-        get() = if (isDual) value.toDoubleOrNull() != null && secondary.toDoubleOrNull() != null
-        else value.toDoubleOrNull() != null
+    val glucoseVal: Double? get() = glucose.toDoubleOrNull()
+    val weightVal: Double? get() = weight.toDoubleOrNull()
+    val bpTouched: Boolean get() = systolic.isNotBlank() || diastolic.isNotBlank()
+    val bpValid: Boolean get() = systolic.toDoubleOrNull() != null && diastolic.toDoubleOrNull() != null
+    val bpIncomplete: Boolean get() = bpTouched && !bpValid
+    val canSave: Boolean get() = !bpIncomplete && (glucoseVal != null || weightVal != null || bpValid)
 }
 
 data class HealthUiState(
@@ -87,22 +90,32 @@ class HealthViewModel @Inject constructor(
     fun setTab(tab: HealthTab) = _state.update { it.copy(tab = tab) }
     fun setRange(range: RangeWindow) = _state.update { it.copy(range = range) }
 
-    // ── Log sheet ──────────────────────────────────────────────────────────────
-    fun openLog() = _state.update { it.copy(log = HealthLog(it.tab)) }
+    // ── Combined log sheet ───────────────────────────────────────────────────────
+    fun openLog() = _state.update { it.copy(log = HealthLog(), error = null) }
     fun closeLog() = _state.update { it.copy(log = null) }
-    fun setLogValue(v: String) = _state.update { it.copy(log = it.log?.copy(value = v.filterNumeric(it.log.isDual.not()))) }
-    fun setLogSecondary(v: String) = _state.update { it.copy(log = it.log?.copy(secondary = v.filter { c -> c.isDigit() })) }
+    /** Glucose + BP are whole numbers; weight allows one decimal. */
+    fun setLogField(field: String, v: String) = _state.update { st ->
+        val log = st.log ?: return@update st
+        val c = v.filterNumeric(field == "weight")
+        st.copy(log = when (field) {
+            "glucose" -> log.copy(glucose = c)
+            "weight" -> log.copy(weight = c)
+            "systolic" -> log.copy(systolic = c)
+            else -> log.copy(diastolic = c)
+        })
+    }
 
     fun saveLog() {
         val log = _state.value.log ?: return
         if (!log.canSave) return
-        val tab = log.tab
-        val value = log.value.toDouble()
-        val secondary = if (log.isDual) log.secondary.toDouble() else null
         viewModelScope.launch {
-            repo.create(tab.type, value, tab.unit, secondaryValue = secondary)
-                .onSuccess { closeLog(); load() }
-                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            val results = buildList {
+                log.glucoseVal?.let { add(repo.create("GLUCOSE", it, "mg/dL")) }
+                log.weightVal?.let { add(repo.create("WEIGHT", it, "kg")) }
+                if (log.bpValid) add(repo.create("BLOOD_PRESSURE", log.systolic.toDouble(), "mmHg", secondaryValue = log.diastolic.toDouble()))
+            }
+            val err = results.firstNotNullOfOrNull { it.exceptionOrNull() }
+            if (err == null) { closeLog(); load() } else _state.update { it.copy(error = err.message) }
         }
     }
 

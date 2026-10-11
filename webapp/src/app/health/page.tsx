@@ -308,27 +308,28 @@ function HealthPageInner() {
         +
       </button>
 
-      <BottomSheet open={!!h.log} onClose={h.closeLog} title={`Log ${h.log?.tab.metricLabel.toLowerCase() ?? ""}`}>
-        {h.log && (
-          <>
-            {h.log.tab.id === "BLOOD_PRESSURE" ? (
-              <div className="flex gap-2.5 mb-4">
-                <LogField label="Systolic" value={h.log.value} onChange={h.setLogValue} placeholder="120" />
-                <LogField label="Diastolic" value={h.log.secondary} onChange={h.setLogSecondary} placeholder="80" />
-              </div>
-            ) : (
-              <div className="mb-4">
-                <LogField label={`Reading · ${h.log.tab.unit}`} value={h.log.value} onChange={h.setLogValue} placeholder="Enter value" decimal />
-              </div>
-            )}
-            {h.error && <div className="text-[12px] mb-2" style={{ color: C.danger }}>{h.error}</div>}
-            <button onClick={h.saveLog} disabled={!h.canSaveLog}
-              className="w-full rounded-[12px] py-3.5 text-[13px] font-semibold"
-              style={{ background: h.canSaveLog ? C.teal : C.bgAlt, color: h.canSaveLog ? "#fff" : C.muted2 }}>
-              Save reading
-            </button>
-          </>
-        )}
+      <BottomSheet open={h.logOpen} onClose={h.closeLog} title="Log readings">
+        <div className="mb-3">
+          <LogField label="Glucose · mg/dL" value={h.form.glucose} onChange={(v) => h.setField("glucose", v)} placeholder="e.g. 95" />
+        </div>
+        <div className="mb-3">
+          <LogField label="Weight · kg" value={h.form.weight} onChange={(v) => h.setField("weight", v)} placeholder="e.g. 72.5" decimal />
+        </div>
+        <div className="mb-1">
+          <label className="block text-[11px] font-semibold mb-1.5" style={{ color: C.muted3 }}>Blood pressure · mmHg</label>
+          <div className="flex items-center gap-2.5">
+            <LogField value={h.form.systolic} onChange={(v) => h.setField("systolic", v)} placeholder="Systolic" />
+            <span className="text-[16px] pb-0.5" style={{ color: C.muted2 }}>/</span>
+            <LogField value={h.form.diastolic} onChange={(v) => h.setField("diastolic", v)} placeholder="Diastolic" />
+          </div>
+        </div>
+        {h.bpIncomplete && <div className="text-[11px] mt-1.5" style={{ color: C.danger }}>Enter both systolic and diastolic for blood pressure.</div>}
+        {h.error && <div className="text-[12px] mt-2" style={{ color: C.danger }}>{h.error}</div>}
+        <button onClick={h.saveLog} disabled={!h.canSaveLog || h.saving}
+          className="w-full rounded-[12px] py-3.5 text-[13px] font-semibold mt-4"
+          style={{ background: h.canSaveLog ? C.teal : C.bgAlt, color: h.canSaveLog ? "#fff" : C.muted2 }}>
+          {h.saving ? "Saving…" : "Save readings"}
+        </button>
       </BottomSheet>
 
       <NutritionNav />
@@ -337,11 +338,11 @@ function HealthPageInner() {
 }
 
 function LogField({ label, value, onChange, placeholder, decimal = false }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder: string; decimal?: boolean;
+  label?: string; value: string; onChange: (v: string) => void; placeholder: string; decimal?: boolean;
 }) {
   return (
     <div className="flex-1">
-      <label className="block text-[11px] font-semibold mb-1.5" style={{ color: C.muted3 }}>{label}</label>
+      {label && <label className="block text-[11px] font-semibold mb-1.5" style={{ color: C.muted3 }}>{label}</label>}
       <input value={value} onChange={(e) => onChange(e.target.value)} inputMode={decimal ? "decimal" : "numeric"} placeholder={placeholder}
         className="w-full box-border rounded-[12px] px-3.5 py-3 text-[15px] outline-none"
         style={{ border: `1.5px solid ${C.borderCool}`, color: C.ink, fontFamily: mono }} />

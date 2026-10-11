@@ -354,42 +354,34 @@ private fun LogSheet(state: HealthUiState, vm: HealthViewModel) {
     val sheetState = rememberModalBottomSheetState()
     ModalBottomSheet(onDismissRequest = vm::closeLog, sheetState = sheetState, containerColor = Surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            Text("Log ${log.tab.metricLabel.lowercase()}", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+            Text("Log readings", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink,
                 modifier = Modifier.padding(bottom = 16.dp))
-            if (log.isDual) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.weight(1f)) { StepperField("Systolic", log.value, vm::setLogValue, 120) }
-                    Box(Modifier.weight(1f)) { StepperField("Diastolic", log.secondary, vm::setLogSecondary, 80) }
-                }
-            } else {
-                LabeledField("Reading · ${log.tab.unit}", log.value, vm::setLogValue, "Enter value", decimal = true)
+            LabeledField("Glucose · mg/dL", log.glucose, { vm.setLogField("glucose", it) }, "e.g. 95")
+            Spacer(Modifier.height(12.dp))
+            LabeledField("Weight · kg", log.weight, { vm.setLogField("weight", it) }, "e.g. 72.5", decimal = true)
+            Spacer(Modifier.height(12.dp))
+            Text("Blood pressure · mmHg", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f)) { LabeledField("", log.systolic, { vm.setLogField("systolic", it) }, "Systolic") }
+                Box(Modifier.weight(1f)) { LabeledField("", log.diastolic, { vm.setLogField("diastolic", it) }, "Diastolic") }
             }
+            if (log.bpIncomplete) Text("Enter both systolic and diastolic.", color = com.mealplanplus.ui.theme.Danger, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
             state.error?.let { Text(it, color = com.mealplanplus.ui.theme.Danger, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
             Spacer(Modifier.height(18.dp))
             Box(contentAlignment = Alignment.Center,
                 modifier = Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(12.dp))
                     .background(if (log.canSave) Teal else SurfaceMuted)
                     .then(if (log.canSave) Modifier.clickable(onClick = vm::saveLog) else Modifier)) {
-                Text("Save reading", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (log.canSave) OnAccent else MutedLight)
+                Text("Save readings", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (log.canSave) OnAccent else MutedLight)
             }
         }
     }
 }
 
 @Composable
-private fun StepperField(label: String, value: String, onChange: (String) -> Unit, default: Int) {
-    // Whole-number vitals (BP) — pre-fill a sensible default so a tap-to-save works.
-    LaunchedEffect(Unit) { if (value.isBlank()) onChange(default.toString()) }
-    Column {
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
-        Stepper(value.toIntOrNull() ?: default, { onChange(it.toString()) }, min = 0, max = 400, step = 1, modifier = Modifier.fillMaxWidth())
-    }
-}
-
-@Composable
 private fun LabeledField(label: String, value: String, onChange: (String) -> Unit, hint: String, decimal: Boolean = false) {
     Column {
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
+        if (label.isNotEmpty()) Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedDark, modifier = Modifier.padding(bottom = 5.dp))
         Row(verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.5.dp, BorderCool, RoundedCornerShape(12.dp))
                 .padding(horizontal = 13.dp, vertical = 12.dp)) {
