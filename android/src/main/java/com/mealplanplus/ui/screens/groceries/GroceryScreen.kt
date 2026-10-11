@@ -19,9 +19,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,18 +31,27 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +85,7 @@ private val CAT_ORDER = GroceryCat.entries
 fun GroceryScreen(onMenu: () -> Unit = {}) {
     val vm: GroceryViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
+    var addOpen by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(AppBg)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -87,7 +99,7 @@ fun GroceryScreen(onMenu: () -> Unit = {}) {
                 }
 
                 Spacer(Modifier.height(18.dp))
-                ListHeader(state, vm)
+                ListHeader(state, vm, onAddItem = { addOpen = true })
                 Spacer(Modifier.height(12.dp))
 
                 if (state.total > 0) {
@@ -101,6 +113,8 @@ fun GroceryScreen(onMenu: () -> Unit = {}) {
         }
 
         if (state.sheetSaved) SavedSheet(state, vm)
+        if (addOpen) AddItemDialog(onDismiss = { addOpen = false },
+            onAdd = { n, q, u -> vm.addCustomItem(n, q, u); addOpen = false })
     }
 }
 
@@ -240,10 +254,15 @@ private fun RoundBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, cd: 
 
 // ── List header (title + Save + progress) ─────────────────────────────────────
 @Composable
-private fun ListHeader(state: GroceryUiState, vm: GroceryViewModel) {
+private fun ListHeader(state: GroceryUiState, vm: GroceryViewModel, onAddItem: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(if (state.isSaved) "Saved list" else "Shopping list", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
         Spacer(Modifier.weight(1f))
+        if (!state.isSaved) {
+            Text("＋ Add item", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Teal,
+                modifier = Modifier.clickable(onClick = onAddItem).padding(4.dp))
+            Spacer(Modifier.width(6.dp))
+        }
         if (!state.isSaved && state.total > 0) {
             Text("Clear list", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Danger,
                 modifier = Modifier.clickable(onClick = vm::clearList).padding(4.dp))
@@ -328,8 +347,11 @@ private fun ShoppingList(state: GroceryUiState, vm: GroceryViewModel) {
         return
     }
 
+    // Custom rows can be removed (live list only); plan-derived rows cannot.
+    val onRemove: ((GroceryRow) -> Unit)? = if (!state.isSaved) ({ r: GroceryRow -> vm.removeCustomItem(r.id) }) else null
+
     groups.forEach { (cat, rows) ->
-        CategoryGroup(cat, rows, vm::toggleRow)
+        CategoryGroup(cat, rows, vm::toggleRow, onRemove)
         Spacer(Modifier.height(12.dp))
     }
 
@@ -344,13 +366,13 @@ private fun ShoppingList(state: GroceryUiState, vm: GroceryViewModel) {
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
         ) {
-            state.bought.forEach { ItemRow(it, vm::toggleRow) }
+            state.bought.forEach { ItemRow(it, vm::toggleRow, onRemove) }
         }
     }
 }
 
 @Composable
-private fun CategoryGroup(cat: GroceryCat, rows: List<GroceryRow>, onToggle: (String) -> Unit) {
+private fun CategoryGroup(cat: GroceryCat, rows: List<GroceryRow>, onToggle: (String) -> Unit, onRemove: ((GroceryRow) -> Unit)? = null) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface)
             .border(1.dp, CardBorder, RoundedCornerShape(12.dp)).padding(bottom = 2.dp),
@@ -362,13 +384,13 @@ private fun CategoryGroup(cat: GroceryCat, rows: List<GroceryRow>, onToggle: (St
             Spacer(Modifier.width(6.dp))
             Text("${rows.size}", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = MutedFaint)
         }
-        rows.forEach { ItemRow(it, onToggle) }
+        rows.forEach { ItemRow(it, onToggle, onRemove) }
     }
 }
 
-/** One independently-checkable list row. */
+/** One independently-checkable list row. Custom (user-added) rows show a badge + remove ✕. */
 @Composable
-private fun ItemRow(row: GroceryRow, onToggle: (String) -> Unit) {
+private fun ItemRow(row: GroceryRow, onToggle: (String) -> Unit, onRemove: ((GroceryRow) -> Unit)? = null) {
     val bought = row.checked
     Row(
         Modifier.fillMaxWidth().clickable { onToggle(row.id) }.padding(horizontal = 14.dp, vertical = 9.dp),
@@ -388,11 +410,20 @@ private fun ItemRow(row: GroceryRow, onToggle: (String) -> Unit) {
             color = if (bought) MutedFaint else Ink,
             textDecoration = if (bought) TextDecoration.LineThrough else null,
         )
+        if (row.custom) {
+            Spacer(Modifier.width(6.dp))
+            Text("ADDED", fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = Teal, letterSpacing = 0.4.sp,
+                modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Teal.copy(alpha = 0.12f)).padding(horizontal = 5.dp, vertical = 2.dp))
+        }
         Spacer(Modifier.weight(1f))
         Text(
             "${fmtQty(row.qty)} ${unitLabel(row.unit)}", fontFamily = DmMono, fontSize = 12.sp,
             color = if (bought) MutedFaint else MutedDark,
         )
+        if (onRemove != null && row.custom) {
+            Spacer(Modifier.width(10.dp))
+            Text("✕", fontSize = 13.sp, color = MutedFaint, modifier = Modifier.clickable { onRemove(row) })
+        }
     }
 }
 
@@ -445,6 +476,62 @@ private fun SavedRow(list: SavedGroceryList, active: Boolean, vm: GroceryViewMod
         }
         IconButton(onClick = { vm.deleteSaved(list.id) }) {
             Icon(Icons.Outlined.Delete, "Delete", tint = MutedFaint, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+// ── Add custom item dialog ─────────────────────────────────────────────────────
+private val CUSTOM_UNITS = listOf("PIECE", "GRAM", "ML", "CUP", "TBSP", "TSP")
+
+@Composable
+private fun AddItemDialog(onDismiss: () -> Unit, onAdd: (String, Double, String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var qty by remember { mutableStateOf("1") }
+    var unit by remember { mutableStateOf("PIECE") }
+    val q = qty.toDoubleOrNull() ?: 0.0
+    val canAdd = name.isNotBlank() && q > 0.0
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add item", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it }, singleLine = true,
+                    label = { Text("Item") }, placeholder = { Text("e.g. Dish soap") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = qty,
+                        onValueChange = { s -> qty = s.filter { it.isDigit() || it == '.' }.let { v -> if (v.count { c -> c == '.' } > 1) qty else v } },
+                        singleLine = true, label = { Text("Qty") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.width(100.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    UnitDropdown(unit) { unit = it }
+                }
+            }
+        },
+        confirmButton = { TextButton(enabled = canAdd, onClick = { onAdd(name.trim(), q, unit) }) { Text("Add") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun UnitDropdown(unit: String, onPick: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).border(1.dp, BorderMuted, RoundedCornerShape(8.dp))
+                .clickable { open = true }.padding(start = 12.dp, end = 8.dp, top = 14.dp, bottom = 14.dp)) {
+            Text(unitLabel(unit), fontSize = 14.sp, color = Ink)
+            Spacer(Modifier.width(2.dp))
+            Icon(Icons.Default.KeyboardArrowDown, null, tint = MutedDark, modifier = Modifier.size(16.dp))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            CUSTOM_UNITS.forEach { u -> DropdownMenuItem(text = { Text(unitLabel(u)) }, onClick = { onPick(u); open = false }) }
         }
     }
 }

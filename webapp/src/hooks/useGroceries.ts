@@ -23,8 +23,12 @@ export function categoryOf(name: string): GroceryCat {
   return GROCERY_CATS.find((c) => c.match.some((m) => n.includes(m))) ?? OTHER;
 }
 
-/** One independently-checkable list row. An ingredient can be two rows: one bought, one to-buy. */
-export interface GroceryRow { id: string; key: string; name: string; unit: string; qty: number; checked: boolean; cat: GroceryCat }
+/** One independently-checkable list row. An ingredient can be two rows: one bought, one to-buy.
+ *  `custom` rows are user-added extras (not from the plan) — they survive refresh/reconcile. */
+export interface GroceryRow { id: string; key: string; name: string; unit: string; qty: number; checked: boolean; cat: GroceryCat; custom?: boolean }
+
+/** Namespaced key for a user-added custom item, so it never collides with a plan ingredient. */
+export const customKey = (name: string, unit: string) => "custom:" + name.trim().toLowerCase() + "|" + unit;
 
 export type GroceryView = "all" | "remaining" | "bought";
 
@@ -40,7 +44,7 @@ const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "
 const isoOfDate = (d: Date) => iso(d.getFullYear(), d.getMonth() + 1, d.getDate());
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-interface WorkRow { id: string; key: string; name: string; unit: string; qty: number; checked: boolean }
+interface WorkRow { id: string; key: string; name: string; unit: string; qty: number; checked: boolean; custom?: boolean }
 interface WorkState { selected?: string[]; activeId?: string | null; rows?: WorkRow[] }
 function loadWork(): WorkState | null {
   if (typeof window === "undefined") return null;
@@ -104,9 +108,12 @@ function generateTotals(
  * ingredients get a to-buy row; ingredients dropped from the plan keep only their bought rows.
  */
 function reconcile(fresh: Map<string, FoodTotal>, existing: GroceryRow[]): GroceryRow[] {
+  // Custom (user-added) rows aren't part of the plan — carry them through untouched.
+  const custom = existing.filter((r) => r.custom);
+  const planRows = existing.filter((r) => !r.custom);
   const byKey = new Map<string, GroceryRow[]>();
-  existing.forEach((r) => { const a = byKey.get(r.key) ?? []; a.push(r); byKey.set(r.key, a); });
-  const out: GroceryRow[] = [];
+  planRows.forEach((r) => { const a = byKey.get(r.key) ?? []; a.push(r); byKey.set(r.key, a); });
+  const out: GroceryRow[] = [...custom];
   fresh.forEach((ft, key) => {
     const ex = byKey.get(key) ?? [];
     const bought = Math.min(ex.filter((r) => r.checked).reduce((s, r) => s + r.qty, 0), ft.total);
@@ -200,7 +207,7 @@ export function useGroceries() {
   // Persist working state (post-hydration).
   useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
-    const rows: WorkRow[] = liveRows.map((r) => ({ id: r.id, key: r.key, name: r.name, unit: r.unit, qty: r.qty, checked: r.checked }));
+    const rows: WorkRow[] = liveRows.map((r) => ({ id: r.id, key: r.key, name: r.name, unit: r.unit, qty: r.qty, checked: r.checked, custom: r.custom }));
     localStorage.setItem(WORK_KEY, JSON.stringify({ selected: Array.from(selected), activeId, rows } as WorkState));
   }, [hydrated, selected, activeId, liveRows]);
 
@@ -280,8 +287,8 @@ export function useGroceries() {
         let toBuyQty = food.filter((r) => !r.checked).reduce((s, r) => s + r.qty, 0);
         if (row.checked) { boughtQty -= row.qty; toBuyQty += row.qty; } else { boughtQty += row.qty; toBuyQty -= row.qty; }
         const rebuilt: GroceryRow[] = [];
-        if (boughtQty > 0) rebuilt.push({ id: `${key}#b`, key, name: row.name, unit: row.unit, qty: boughtQty, checked: true, cat: row.cat });
-        if (toBuyQty > 0) rebuilt.push({ id: `${key}#t`, key, name: row.name, unit: row.unit, qty: toBuyQty, checked: false, cat: row.cat });
+        if (boughtQty > 0) rebuilt.push({ id: `${key}#b`, key, name: row.name, unit: row.unit, qty: boughtQty, checked: true, cat: row.cat, custom: row.custom });
+        if (toBuyQty > 0) rebuilt.push({ id: `${key}#t`, key, name: row.name, unit: row.unit, qty: toBuyQty, checked: false, cat: row.cat, custom: row.custom });
         return [...prev.filter((r) => r.key !== key), ...rebuilt].sort((a, b) => a.name.localeCompare(b.name));
       });
     }
@@ -295,7 +302,7 @@ export function useGroceries() {
         const byKey = new Map<string, GroceryRow[]>();
         prev.forEach((r) => { const a = byKey.get(r.key) ?? []; a.push(r); byKey.set(r.key, a); });
         const out: GroceryRow[] = [];
-        byKey.forEach((rs, key) => { const f = rs[0]; out.push({ id: `${key}#t`, key, name: f.name, unit: f.unit, qty: rs.reduce((s, r) => s + r.qty, 0), checked: false, cat: f.cat }); });
+        byKey.forEach((rs, key) => { const f = rs[0]; out.push({ id: `${key}#t`, key, name: f.name, unit: f.unit, qty: rs.reduce((s, r) => s + r.qty, 0), checked: false, cat: f.cat, custom: f.custom }); });
         return out.sort((a, b) => a.name.localeCompare(b.name));
       });
     }
@@ -312,6 +319,31 @@ export function useGroceries() {
       setLiveRows([]);
     }
   }, [activeId]);
+
+  // ── Custom items (user-added extras on the live list) ───────────────────────────
+  /** Add a one-off item not derived from the plan. Merges into an existing unchecked custom row
+   *  of the same name+unit; otherwise creates a new to-buy row. Live list only. */
+  const addCustomItem = useCallback((name: string, qty: number, unit: string) => {
+    const nm = name.trim();
+    if (!nm || qty <= 0 || activeId) return;
+    const key = customKey(nm, unit);
+    setLiveRows((prev) => {
+      const open = prev.find((r) => r.key === key && !r.checked);
+      const next = open
+        ? prev.map((r) => (r.id === open.id ? { ...r, qty: r.qty + qty } : r))
+        : [...prev, { id: `${key}#t`, key, name: nm, unit, qty, checked: false, cat: categoryOf(nm), custom: true }];
+      return [...next].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }, [activeId]);
+
+  /** Remove a custom item entirely (both its to-buy and bought rows). Live list only. */
+  const removeCustomItem = useCallback((id: string) => {
+    setLiveRows((prev) => {
+      const row = prev.find((r) => r.id === id);
+      if (!row?.custom) return prev;
+      return prev.filter((r) => r.key !== row.key);
+    });
+  }, []);
 
   // ── Saved lists ────────────────────────────────────────────────────────────────
   const openSaved = useCallback(() => setSheetSaved(true), []);
@@ -348,6 +380,6 @@ export function useGroceries() {
     rows, toBuy, bought, dateKeys, boughtCount: bought.length, total: rows.length,
     isSaved, activeName: active?.name ?? null, savedLists, activeId, sheetSaved, error,
     toggleCal, prevMonth, nextMonth, toggleDay, preset, clearDates,
-    toggleRow, uncheckAll, clearList, openSaved, closeSheet, saveList, loadSavedList, deleteSaved, newList,
+    toggleRow, uncheckAll, clearList, addCustomItem, removeCustomItem, openSaved, closeSheet, saveList, loadSavedList, deleteSaved, newList,
   };
 }
