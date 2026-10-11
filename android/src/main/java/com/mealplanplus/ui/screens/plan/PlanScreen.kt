@@ -21,12 +21,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ModalBottomSheet
+import com.mealplanplus.ui.screens.diets.DietSort
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -607,6 +611,7 @@ private fun DietPicker(date: LocalDate, state: PlanUiState, viewModel: PlanViewM
             Text("${state.diets.size} saved", fontSize = 12.sp, color = MutedLight)
         }
         PickerSearchBar(state.pickerSearch, viewModel::setPickerSearch)
+        PickerSortRow(state.pickerSort, viewModel::setPickerSort)
         PickerFilterRow("Tags", state.allTags, state.pickerTags, viewModel::togglePickerTag, viewModel::clearPickerTags)
         PickerFilterRow("Slots", state.allSlots, state.pickerSlots, viewModel::togglePickerSlot, viewModel::clearPickerSlots)
         if (diets.isEmpty()) {
@@ -645,6 +650,32 @@ private fun PickerSearchBar(query: String, onChange: (String) -> Unit) {
                 cursorBrush = SolidColor(Teal), modifier = Modifier.fillMaxWidth())
         }
     }
+}
+
+/** Sort dropdown for the diet picker — mirrors the Diets screen's ↕ control. */
+@Composable
+private fun PickerSortRow(sort: DietSort, onPick: (DietSort) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Box {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(SurfaceMuted)
+                    .clickable { open = true }.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Text("↕ ${pickerSortLabel(sort)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                Icon(Icons.Default.KeyboardArrowDown, null, tint = MutedDark, modifier = Modifier.size(16.dp))
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                DietSort.entries.forEach { s ->
+                    DropdownMenuItem(text = { Text(pickerSortLabel(s), fontSize = 13.sp) }, onClick = { onPick(s); open = false })
+                }
+            }
+        }
+    }
+}
+
+private fun pickerSortLabel(s: DietSort) = when (s) {
+    DietSort.RECENT -> "Recent"; DietSort.NAME -> "Name"
+    DietSort.CALORIES -> "Calories"; DietSort.PROTEIN -> "Protein"
 }
 
 @Composable

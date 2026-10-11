@@ -28,4 +28,9 @@ class TagRepository @Inject constructor(
             api.createTag(CreateTagRequest(name = name.trim(), entityType = TagEntityType.DIET, color = color))
                 .body()?.let { DietTag(it.id, it.name, it.color) }
         }.getOrNull()
+
+    /** Delete a tag by id — global, removing it from every diet it's assigned to.
+     *  A 404 means it's already gone, which satisfies the same intent, so treat it as success. */
+    suspend fun deleteDietTag(id: Long): Boolean =
+        runCatching { api.deleteTag(id).let { it.isSuccessful || it.code() == 404 } }.getOrDefault(false)
 }

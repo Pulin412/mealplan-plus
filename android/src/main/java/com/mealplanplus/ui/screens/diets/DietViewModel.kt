@@ -19,6 +19,7 @@ import com.mealplanplus.util.NaturalOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,7 +32,7 @@ data class DietsUiState(
     val foods: List<Food> = emptyList(),     // for the New Diet picker
     val availableTags: List<DietTag> = emptyList(),  // from the server tag directory
     val searchQuery: String = "",
-    val sortMode: DietSort = DietSort.RECENT,
+    val sortMode: DietSort = DietSort.NAME,
     val viewMode: DietViewMode = DietViewMode.LIST,
     val favOnly: Boolean = false,
     val importedOnly: Boolean = false,
@@ -49,6 +50,11 @@ data class DietsUiState(
     val allTagNames: List<String>
         get() = (availableTags.map { it.name } + diets.flatMap { d -> d.diet.tags.map { it.name } })
             .distinct().sorted()
+
+    /** All known DIET tags (directory ∪ tags on diets), deduped by id — for the manage/delete UI. */
+    val allTags: List<DietTag>
+        get() = (availableTags + diets.flatMap { d -> d.diet.tags })
+            .distinctBy { it.id }.sortedWith(compareBy(NaturalOrder) { it.name })
 
     /** Slots present across diets, in canonical meal-slot order (unknowns appended). */
     val allSlotNames: List<String>
@@ -140,6 +146,22 @@ class DietViewModel @Inject constructor(
         val cur = _state.value.availableTags
         if (cur.none { it.id == tag.id }) _state.value = _state.value.copy(availableTags = cur + tag)
         return tag
+    }
+
+    /** Delete a tag globally (drops it from the directory + every diet). Strips it from the cached
+     *  diets so the cards/manage row update at once (the Room flow re-emits). */
+    fun deleteTag(tag: DietTag) {
+        viewModelScope.launch {
+            if (tagRepository.deleteDietTag(tag.id)) {
+                repository.removeTagFromAllDiets(tag.id)
+                _state.update { it.copy(
+                    availableTags = it.availableTags.filterNot { t -> t.id == tag.id },
+                    tagFilters = it.tagFilters - tag.name,
+                ) }
+            } else {
+                _state.update { it.copy(error = "Couldn't delete tag") }
+            }
+        }
     }
 
     fun setSearch(q: String)          { _state.value = _state.value.copy(searchQuery = q) }
