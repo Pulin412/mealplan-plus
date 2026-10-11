@@ -8,6 +8,7 @@ import com.mealplanplus.data.model.DietEntry
 import com.mealplanplus.data.model.DietTag
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -50,5 +51,13 @@ class DietRepository @Inject constructor(
     suspend fun delete(diet: Diet) {
         val now = System.currentTimeMillis()
         dietDao.upsert(diet.copy(deletedAt = now, updatedAt = now, dirty = true))
+    }
+
+    /** Strip a (server-)deleted tag from every cached diet so the cards/directory update immediately.
+     *  Not marked dirty — the server already dropped the assignment, so there's nothing to push. */
+    suspend fun removeTagFromAllDiets(tagId: Long) {
+        dietDao.getAllDiets().first()
+            .filter { d -> d.tags.any { it.id == tagId } }
+            .forEach { d -> dietDao.upsert(d.copy(tags = d.tags.filterNot { it.id == tagId })) }
     }
 }

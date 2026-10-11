@@ -181,10 +181,11 @@ function CopyDietPicker({ diets, onBack, onCopy }: { diets: DietView[]; onBack: 
   );
 }
 
-function DietBuilder({ editing, diets, meals, foods, foodsById, mealSummaries, availableTags, saving, onCreateTag, onSave, onDelete, onClose }: {
+function DietBuilder({ editing, diets, meals, foods, foodsById, mealSummaries, availableTags, saving, onCreateTag, onDeleteTag, onSave, onDelete, onClose }: {
   editing: DietDto | null; diets: DietView[]; meals: MealDto[]; foods: FoodDto[]; foodsById: Map<number, FoodDto>;
   mealSummaries: Map<number, MealSummary>; availableTags: TagDto[]; saving: boolean;
   onCreateTag: (name: string) => Promise<TagDto | null>;
+  onDeleteTag: (id: number) => Promise<boolean>;
   onSave: (name: string, entries: DietEntryInput[], tagIds: number[], notes: string) => void;
   onDelete: () => void; onClose: () => void;
 }) {
@@ -198,6 +199,12 @@ function DietBuilder({ editing, diets, meals, foods, foodsById, mealSummaries, a
   });
   const [selTags, setSelTags] = useState<TagDto[]>(editing?.tags ?? []);
   const [newTag, setNewTag] = useState("");
+  const [manageTags, setManageTags] = useState(false);
+  const deleteTag = async (t: TagDto) => {
+    if (t.id == null) return;
+    if (!window.confirm(`Delete tag "${t.name}"? It will be removed from all diets.`)) return;
+    if (await onDeleteTag(t.id)) setSelTags((p) => p.filter((x) => x.id !== t.id));
+  };
   const [dirty, setDirty] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   // Prefill from an existing diet: copy its meals + foods into the draft, skipping any already in the same slot.
@@ -272,11 +279,25 @@ function DietBuilder({ editing, diets, meals, foods, foodsById, mealSummaries, a
             <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setDirty(true); }} rows={2} placeholder="e.g. cut day, keep carbs low"
               className="w-full border rounded-[11px] px-3 py-[10px] text-[13px] mb-[14px] resize-none" style={{ border: "1.5px solid #dfe6e8", color: C.ink }} />
 
-            <div className="flex items-baseline mb-2"><span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Tags</span><span className="text-[11px] ml-1" style={{ color: C.muted2 }}>· optional</span></div>
+            <div className="flex items-baseline mb-2">
+              <span className="text-[11px] font-semibold" style={{ color: C.muted3 }}>Tags</span>
+              <span className="text-[11px] ml-1" style={{ color: C.muted2 }}>· optional</span>
+              <span className="flex-1" />
+              {shownTags.length > 0 && (
+                <button onClick={() => setManageTags((v) => !v)} aria-label="Manage tags" title="Manage tags" className="text-[14px] leading-none" style={{ color: manageTags ? C.teal : C.muted3 }}>⚙</button>
+              )}
+            </div>
             {shownTags.length > 0 && (
               <div className="flex flex-wrap gap-[6px] mb-2">
                 {shownTags.map((t) => {
                   const on = selTags.some((x) => x.id === t.id);
+                  if (manageTags) {
+                    return <span key={t.id} className="inline-flex items-center gap-[6px] text-[11px] font-semibold rounded-full pl-[11px] pr-[7px] py-[6px]"
+                      style={{ color: C.muted3, background: "transparent", border: "1.5px solid #dfe6e8" }}>
+                      {t.name}
+                      <button onClick={() => void deleteTag(t)} aria-label={`Delete ${t.name}`} className="text-[13px] leading-none" style={{ color: C.danger }}>✕</button>
+                    </span>;
+                  }
                   return <button key={t.id} onClick={() => toggleTag(t)} className="text-[11px] font-semibold rounded-full px-[11px] py-[6px]"
                     style={{ color: on ? "#fff" : C.muted3, background: on ? C.teal : "transparent", border: `1.5px solid ${on ? C.teal : "#dfe6e8"}` }}>{t.name}</button>;
                 })}
@@ -376,10 +397,16 @@ function slotOrderLocal(present: string[]): string[] {
 function DietsPageInner() {
   const d = useDiets();
   const [sortOpen, setSortOpen] = useState(false);
+  const [manageTags, setManageTags] = useState(false);
+  const deleteTag = async (t: TagDto) => {
+    if (t.id == null) return;
+    if (!window.confirm(`Delete tag "${t.name}"? It will be removed from all diets.`)) return;
+    await d.deleteTag(t.id);
+  };
 
   if (d.builderOpen) {
     return <DietBuilder editing={d.editing} diets={d.allDiets} meals={d.meals} foods={d.foods} foodsById={d.foodsById} mealSummaries={d.mealSummaries}
-      availableTags={d.availableTags} saving={d.saving} onCreateTag={d.createTag} onSave={d.saveDiet}
+      availableTags={d.availableTags} saving={d.saving} onCreateTag={d.createTag} onDeleteTag={d.deleteTag} onSave={d.saveDiet}
       onDelete={() => { if (d.editing) { void d.handleDelete(d.editing); d.closeBuilder(); } }} onClose={d.closeBuilder} />;
   }
 
@@ -406,11 +433,17 @@ function DietsPageInner() {
             {(["list", "compact"] as const).map((v) => <button key={v} onClick={() => d.setViewMode(v)} className="w-[34px] h-[32px] flex items-center justify-center text-[15px]" style={{ background: d.viewMode === v ? C.surface : "transparent", color: d.viewMode === v ? C.ink : C.muted2, borderRight: v === "list" ? "1px solid #e2e7ea" : "none" }}>{v === "list" ? "☰" : "≣"}</button>)}
           </div>
         </div>
-        {d.allTagNames.length > 0 && (
+        {d.allTags.length > 0 && (
           <div className="flex items-center gap-[6px] mt-[10px] overflow-x-auto">
             <span className="flex-none text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.muted2 }}>Tags</span>
-            <TagFilterChip label="All" on={d.tagFilters.length === 0} onClick={d.clearTagFilters} />
-            {d.allTagNames.map((t) => <TagFilterChip key={t} label={t} on={d.tagFilters.includes(t)} onClick={() => d.toggleTagFilter(t)} />)}
+            <button onClick={() => setManageTags((v) => !v)} aria-label="Manage tags" title="Manage tags" className="flex-none text-[13px] leading-none" style={{ color: manageTags ? C.teal : C.muted2 }}>⚙</button>
+            {!manageTags && <TagFilterChip label="All" on={d.tagFilters.length === 0} onClick={d.clearTagFilters} />}
+            {d.allTags.map((t) => manageTags
+              ? <span key={t.id} className="flex-none inline-flex items-center gap-[5px] text-[11px] font-semibold rounded-full pl-[12px] pr-[7px] py-[5px]" style={{ background: C.bgAlt, color: C.muted3 }}>
+                  {t.name}
+                  <button onClick={() => void deleteTag(t)} aria-label={`Delete ${t.name}`} className="text-[12px] leading-none" style={{ color: C.danger }}>✕</button>
+                </span>
+              : <TagFilterChip key={t.id} label={t.name} on={d.tagFilters.includes(t.name)} onClick={() => d.toggleTagFilter(t.name)} />)}
           </div>
         )}
         {d.allSlotNames.length > 0 && (

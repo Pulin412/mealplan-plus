@@ -331,8 +331,10 @@ function Runner() {
   const templateId = params.get("templateId");
   const exerciseId = params.get("exerciseId");
   const name = params.get("name") ?? "Workout";
+  // Where to go on exit — callers (e.g. the Journal) can pass ?return=/journal; defaults to Today.
+  const returnTo = params.get("return") || "/today";
   const s = useSession(templateId ? Number(templateId) : null, exerciseId ? Number(exerciseId) : null, name);
-  const goBack = () => router.push("/today");
+  const goBack = () => router.push(returnTo);
   const [confirmExit, setConfirmExit] = useState(false);
   // Confirm before leaving a workout that's in progress (progress is auto-saved either way).
   const attemptBack = () => { if (s.phase === "active") setConfirmExit(true); else goBack(); };

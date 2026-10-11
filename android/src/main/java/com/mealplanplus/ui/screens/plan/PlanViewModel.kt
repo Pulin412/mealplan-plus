@@ -20,6 +20,8 @@ import com.mealplanplus.data.generated.model.MealDto
 import com.mealplanplus.data.generated.model.PlannedWorkoutDto
 import com.mealplanplus.data.generated.model.WorkoutTemplateDto
 import com.mealplanplus.data.repository.unitLabel
+import com.mealplanplus.ui.screens.diets.DietSort
+import com.mealplanplus.util.NaturalOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +42,7 @@ data class DietSummary(
     val id: Long,
     val name: String,
     val kcal: Int,
+    val protein: Double = 0.0,
     val slots: List<DietSlotView> = emptyList(),
     val tags: List<String> = emptyList(),
     val description: String? = null,
@@ -60,6 +63,8 @@ data class PlanUiState(
     // Multi-select diet-picker filters (match ANY); empty = no filter.
     val pickerTags: Set<String> = emptySet(),
     val pickerSlots: Set<String> = emptySet(),
+    // Diet picker sort — defaults to Name (mirrors the Diets screen dropdown).
+    val pickerSort: DietSort = DietSort.NAME,
     val workouts: List<WorkoutTemplateDto> = emptyList(),
     val workoutPickerOpen: Boolean = false,
     val openWorkout: WorkoutTemplateDto? = null,
@@ -97,7 +102,7 @@ data class PlanUiState(
     val filteredDiets: List<DietSummary> get() {
         val q = pickerSearch.trim().lowercase()
         val hasSlot = pickerSlots.isNotEmpty()
-        return diets.filter { d ->
+        val list = diets.filter { d ->
             // Slot filter: the diet must contain at least one selected slot.
             val scopeSlots = if (hasSlot) d.slots.filter { it.slot in pickerSlots } else d.slots
             if (hasSlot && scopeSlots.isEmpty()) return@filter false
@@ -112,6 +117,12 @@ data class PlanUiState(
             }
             if (pickerTags.isNotEmpty() && d.tags.none { it in pickerTags }) return@filter false
             true
+        }
+        return when (pickerSort) {
+            DietSort.NAME     -> list.sortedWith(compareBy(NaturalOrder) { it.name })
+            DietSort.CALORIES -> list.sortedByDescending { it.kcal }
+            DietSort.PROTEIN  -> list.sortedByDescending { it.protein }
+            DietSort.RECENT   -> list   // listDiets order
         }
     }
 }
@@ -301,6 +312,7 @@ class PlanViewModel @Inject constructor(
         _state.value = _state.value.copy(pickerSlots = if (s in cur) cur - s else cur + s)
     }
     fun clearPickerSlots() { _state.value = _state.value.copy(pickerSlots = emptySet()) }
+    fun setPickerSort(s: DietSort) { _state.value = _state.value.copy(pickerSort = s) }
 
     // ── Planned meals ─────────────────────────────────────────────────────────────
     fun openMealPicker() { _state.value = _state.value.copy(mealPickerOpen = true, mealPickerSearch = "", mealPickerSlot = "Breakfast") }
@@ -363,6 +375,7 @@ class PlanViewModel @Inject constructor(
         val lines = LinkedHashMap<String, MutableList<DietLine>>()
         val slotKcal = LinkedHashMap<String, Double>()
         var total = 0.0
+        var protein = 0.0
         fun bump(slot: String, k: Double) { slotKcal[slot] = (slotKcal[slot] ?: 0.0) + k; total += k }
         fun add(slot: String, line: DietLine) { lines.getOrPut(slot) { mutableListOf() }.add(line) }
 
@@ -371,6 +384,7 @@ class PlanViewModel @Inject constructor(
             var mkcal = 0.0
             val items = (meal?.items ?: emptyList()).map { it ->
                 mkcal += foodKcal(foods[it.foodId], it.quantity, it.unit.value)
+                protein += foodProtein(foods[it.foodId], it.quantity, it.unit.value)
                 DietLine(foods[it.foodId]?.name ?: "Food", "${trimNum(it.quantity)} ${unitLabel(it.unit.value)}", header = false)
             }
             add(dm.slot, DietLine(meal?.name ?: "Meal", "${mkcal.roundToInt()} kcal", header = true, mealId = dm.mealId))
@@ -379,26 +393,33 @@ class PlanViewModel @Inject constructor(
         }
         (d.foodItems ?: emptyList()).forEach { fi ->
             val k = foodKcal(foods[fi.foodId], fi.quantity, fi.unit.value)
+            protein += foodProtein(foods[fi.foodId], fi.quantity, fi.unit.value)
             add(fi.slot, DietLine(foods[fi.foodId]?.name ?: "Food", "${trimNum(fi.quantity)} ${unitLabel(fi.unit.value)}", header = false))
             bump(fi.slot, k)
         }
 
         val order = SLOT_ORDER.filter { lines.containsKey(it) } + lines.keys.filter { it !in SLOT_ORDER }
         val slots = order.map { slot -> DietSlotView(slot, (slotKcal[slot] ?: 0.0).roundToInt(), lines[slot].orEmpty()) }
-        return DietSummary(id, d.name, total.roundToInt(), slots, (d.tags ?: emptyList()).map { it.name }, d.description)
+        return DietSummary(id, d.name, total.roundToInt(), protein, slots, (d.tags ?: emptyList()).map { it.name }, d.description)
+    }
+
+    private fun gramsOf(food: FoodDto, quantity: Double, unit: String): Double = when (unit) {
+        "PIECE" -> quantity * (food.gramsPerPiece ?: 1.0)
+        "CUP" -> quantity * (food.gramsPerCup ?: 1.0)
+        "TBSP" -> quantity * (food.gramsPerTbsp ?: 1.0)
+        "TSP" -> quantity * (food.gramsPerTsp ?: 1.0)
+        else -> quantity
+    }
+
+    private fun foodProtein(food: FoodDto?, quantity: Double, unit: String): Double {
+        if (food == null) return 0.0
+        return food.proteinPer100 * gramsOf(food, quantity, unit) / 100.0
     }
 
     private fun trimNum(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else "%.1f".format(v)
 
     private fun foodKcal(food: FoodDto?, quantity: Double, unit: String): Double {
         if (food == null) return 0.0
-        val grams = when (unit) {
-            "PIECE" -> quantity * (food.gramsPerPiece ?: 1.0)
-            "CUP" -> quantity * (food.gramsPerCup ?: 1.0)
-            "TBSP" -> quantity * (food.gramsPerTbsp ?: 1.0)
-            "TSP" -> quantity * (food.gramsPerTsp ?: 1.0)
-            else -> quantity
-        }
-        return food.caloriesPer100 * grams / 100.0
+        return food.caloriesPer100 * gramsOf(food, quantity, unit) / 100.0
     }
 }

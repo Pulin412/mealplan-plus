@@ -46,6 +46,8 @@ data class WorkRow(
     val unit: String = "GRAM",
     val qty: Double = 0.0,
     val checked: Boolean = false,
+    /** User-added extra (not derived from the plan) — survives refresh/reconcile. */
+    val custom: Boolean = false,
 )
 
 data class GroceryWork(

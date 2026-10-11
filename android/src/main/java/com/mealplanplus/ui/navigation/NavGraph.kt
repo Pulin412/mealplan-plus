@@ -57,6 +57,7 @@ import com.mealplanplus.ui.screens.health.HealthScreen
 import com.mealplanplus.ui.screens.meals.MealsScreen
 import com.mealplanplus.ui.screens.misc.MiscScreen
 import com.mealplanplus.ui.screens.home.HomeScreen
+import com.mealplanplus.ui.screens.journal.JournalScreen
 import com.mealplanplus.ui.screens.plan.PlanScreen
 import com.mealplanplus.ui.screens.profile.ProfileScreen
 import com.mealplanplus.ui.screens.runner.SessionRunnerScreen
@@ -84,6 +85,7 @@ sealed class Screen(val route: String, val label: String) {
     object Misc      : Screen("misc",      "More")
     object Profile   : Screen("profile",   "Profile")
     object Settings  : Screen("settings",  "Settings")
+    object Journal   : Screen("journal",   "Journal")
     object Help      : Screen("help",      "Help")
     object Admin     : Screen("admin",     "Admin")
 }
@@ -271,7 +273,16 @@ fun MealPlanNavHost() {
                     onMeals = { navController.navigate(Screen.Meals.route) },
                     onDiets = { navController.navigate(Screen.Diets.route) },
                     onGroceries = { navController.navigate(Screen.Groceries.route) },
+                    onJournal = { navController.navigate(Screen.Journal.route) { launchSingleTop = true } },
                     onHelp = { navController.navigate(Screen.Help.route) { launchSingleTop = true } },
+                )
+            }
+            composable(Screen.Journal.route) {
+                JournalScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenRunner = { templateId, name ->
+                        navController.navigate("runner?templateId=$templateId&name=${URLEncoder.encode(name, "UTF-8")}")
+                    },
                 )
             }
             composable(Screen.Meals.route)     {

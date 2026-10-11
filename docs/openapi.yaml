@@ -53,6 +53,8 @@ tags:
     description: Calendar day-plans linking a diet and planned workouts to a date
   - name: Logging
     description: Real-time meal-slot toggle logging and individual food additions
+  - name: Journal
+    description: Free-text daily diary notes, keyed by date
   - name: Health Metrics
     description: Weight, glucose, blood pressure, steps and custom metrics
   - name: Daily Logs
@@ -1443,6 +1445,72 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  # ── Journal ──────────────────────────────────────────────────────────────────
+  /api/v1/journal:
+    get:
+      tags: [Journal]
+      summary: List journal notes in a date range
+      operationId: listJournal
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Journal entries (one per date that has a note)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JournalEntryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/journal/{date}:
+    put:
+      tags: [Journal]
+      summary: Upsert the journal note for a date
+      description: Creates or replaces the free-text note for the given date.
+      operationId: upsertJournal
+      parameters:
+        - $ref: '#/components/parameters/DatePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JournalEntryDto'
+      responses:
+        '200':
+          description: Upserted journal entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Journal]
+      summary: Delete the journal note for a date
+      operationId: deleteJournal
+      parameters:
+        - $ref: '#/components/parameters/DatePath'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   # ── Logging ──────────────────────────────────────────────────────────────────
   /api/v1/logging/slots:
@@ -4056,6 +4124,27 @@ components:
           type: string
           description: Meal slot (BREAKFAST / LUNCH / DINNER / …).
       required: [mealId, slot]
+
+    JournalEntryDto:
+      type: object
+      description: A free-text daily diary note, identified by `(firebaseUid, date)`.
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        note:
+          type: string
+          description: The day's free-text note.
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [date, note]
 
     DayPlanDto:
       type: object

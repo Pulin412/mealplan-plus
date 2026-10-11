@@ -70,6 +70,11 @@ object AppModule {
     @Provides @Singleton
     fun providePlansApi(retrofit: Retrofit): PlansApi = retrofit.create(PlansApi::class.java)
 
+    /** Free-text daily diary notes (Journal screen). */
+    @Provides @Singleton
+    fun provideJournalApi(retrofit: Retrofit): com.mealplanplus.data.generated.api.JournalApi =
+        retrofit.create(com.mealplanplus.data.generated.api.JournalApi::class.java)
+
     /** Online diet/meal lists — used where numeric server ids are needed (e.g. Plan). */
     @Provides @Singleton
     fun provideDietsApi(retrofit: Retrofit): DietsApi = retrofit.create(DietsApi::class.java)

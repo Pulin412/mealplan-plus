@@ -9,6 +9,9 @@ import { usePlan, type PlannedMealView, type MealSummary } from "@/hooks/usePlan
 import { MEAL_SLOTS } from "@/lib/nutrition";
 import type { DayPlanDto } from "@/lib/api/plans";
 import type { WorkoutTemplateDto } from "@/lib/api/workouts";
+import type { DietSort } from "@/types/diet";
+
+const SORT_LABELS: Record<DietSort, string> = { recent: "Recent", name: "Name", calories: "Calories", protein: "Protein" };
 
 const C = {
   ink: "#14181b", muted: "#8a949b", muted2: "#9aa4aa", muted3: "#5b666e",
@@ -252,6 +255,7 @@ function ExpandablePlannedMeal({ pm, onRemove }: { pm: PlannedMealView; onRemove
 // ── Diet picker (the Diets screen as a chooser: search + tag filter + expand) ────
 function DietPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: string }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [sortOpen, setSortOpen] = useState(false);
   const plan = p.plans[dateIso];
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 50, background: C.bg, display: "flex", flexDirection: "column" }}>
@@ -266,6 +270,24 @@ function DietPicker({ p, dateIso }: { p: ReturnType<typeof usePlan>; dateIso: st
           <span style={{ fontSize: 13 }}>🔍</span>
           <input value={p.pickerSearch} onChange={(e) => p.setPickerSearch(e.target.value)} placeholder="Search your diets…"
             style={{ flex: 1, marginLeft: 10, border: "none", outline: "none", background: "transparent", font: "400 14px system-ui", color: C.ink }} />
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", padding: "8px 16px 0" }}>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setSortOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 6, border: "none", cursor: "pointer", background: C.bgAlt, borderRadius: 9, padding: "7px 11px", font: "600 11.5px system-ui", color: C.ink }}>↕ {SORT_LABELS[p.pickerSort]}<span style={{ color: C.muted2, fontSize: 9 }}>▾</span></button>
+          {sortOpen && (
+            <>
+              <div onClick={() => setSortOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
+              <div style={{ position: "absolute", left: 0, top: 38, zIndex: 20, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 6, minWidth: 158, boxShadow: "0 8px 24px rgba(0,0,0,.14)" }}>
+                {(["recent", "name", "calories", "protein"] as DietSort[]).map((s) => (
+                  <button key={s} onClick={() => { p.setPickerSort(s); setSortOpen(false); }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", border: "none", background: "none", cursor: "pointer", padding: "9px 10px", borderRadius: 8, font: "600 12px system-ui", color: s === p.pickerSort ? C.teal : C.ink }}>
+                    {SORT_LABELS[s]}{s === p.pickerSort && <span style={{ color: C.teal }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
       {p.allTags.length > 0 && (

@@ -773,6 +773,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/journal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List journal notes in a date range */
+        get: operations["listJournal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/journal/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upsert the journal note for a date
+         * @description Creates or replaces the free-text note for the given date.
+         */
+        put: operations["upsertJournal"];
+        post?: never;
+        /** Delete the journal note for a date */
+        delete: operations["deleteJournal"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logging/slots": {
         parameters: {
             query?: never;
@@ -2356,6 +2394,20 @@ export interface components {
             mealId: number;
             /** @description Meal slot (BREAKFAST / LUNCH / DINNER / …). */
             slot: string;
+        };
+        /** @description A free-text daily diary note, identified by `(firebaseUid, date)`. */
+        JournalEntryDto: {
+            /** Format: int64 */
+            readonly id?: number;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD
+             */
+            date: string;
+            /** @description The day's free-text note. */
+            note: string;
+            /** Format: date-time */
+            readonly updatedAt?: string;
         };
         /**
          * @description A calendar entry linking a diet and planned workouts to a specific date.
@@ -4217,6 +4269,80 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listJournal: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Journal entries (one per date that has a note) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryDto"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    upsertJournal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ISO-8601 date (YYYY-MM-DD) */
+                date: components["parameters"]["DatePath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JournalEntryDto"];
+            };
+        };
+        responses: {
+            /** @description Upserted journal entry */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryDto"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteJournal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ISO-8601 date (YYYY-MM-DD) */
+                date: components["parameters"]["DatePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     getLoggedSlots: {
